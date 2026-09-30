@@ -1,0 +1,78 @@
+import { useMemo, useState } from 'react';
+import { useData } from '../lib/data';
+import { fmt, STATE_TEXT, UNIT_TEXT } from '../lib/carbs';
+import { deleteHistory } from '../lib/api';
+import { dayName, fmtDate, fmtTime } from '../lib/constants';
+import { Badge, Btn, Card, Chip, Page, toast } from '../components/ui';
+
+export default function History() {
+  const { history, reload } = useData();
+  const [range, setRange] = useState<7 | 30 | 0>(7);
+  const [cat, setCat] = useState('');
+  const [open, setOpen] = useState<string | null>(null);
+
+  const keyOf = (h: { recipe_id: string | null; name: string }) => h.recipe_id ?? `n:${h.name}`;
+  const times = useMemo(() => { const m = new Map<string, number>(); for (const h of history) m.set(keyOf(h), (m.get(keyOf(h)) ?? 0) + 1); return m; }, [history]);
+
+  const since = range ? Date.now() - range * 86400000 : 0;
+  const rows = history.filter((h) => new Date(h.eaten_at).getTime() >= since && (!cat || (cat === 'سناك' ? h.kind === 'snack' : h.category === cat)));
+  const cats = [...new Set(history.map((h) => (h.kind === 'snack' ? 'سناك' : h.category)).filter(Boolean))] as string[];
+
+  const top = useMemo(() => {
+    const m = new Map<string, { name: string; n: number }>();
+    for (const h of rows.filter((x) => x.kind === 'meal')) { const c = m.get(keyOf(h)) ?? { name: h.name, n: 0 }; c.n++; m.set(keyOf(h), c); }
+    return [...m.values()].sort((a, b) => b.n - a.n).slice(0, 5);
+  }, [rows]);
+
+  return (
+    <Page title="سجل الوجبات">
+      <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4">
+        <Chip active={range === 7} onClick={() => setRange(7)}>آخر 7 أيام</Chip>
+        <Chip active={range === 30} onClick={() => setRange(30)}>آخر 30 يوم</Chip>
+        <Chip active={range === 0} onClick={() => setRange(0)}>الكل</Chip>
+      </div>
+      <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
+        <Chip active={!cat} onClick={() => setCat('')}>كل الأنواع</Chip>
+        {cats.map((c) => <Chip key={c} active={cat === c} onClick={() => setCat(c)}>{c}</Chip>)}
+      </div>
+
+      {top.length > 0 && (
+        <Card className="mb-4">
+          <h2 className="mb-2 font-bold">أكثر الوجبات استخدامًا</h2>
+          <ol className="space-y-1">{top.map((t, i) => <li key={t.name} className="flex justify-between"><span>{i + 1}. {t.name}</span><span className="num font-bold">×{t.n}</span></li>)}</ol>
+        </Card>
+      )}
+
+      <div className="space-y-3">
+        {rows.map((h) => {
+          const d = new Date(h.eaten_at);
+          return (
+            <Card key={h.id} className="!p-3">
+              <button className="flex w-full items-center gap-3 text-start" onClick={() => setOpen(open === h.id ? null : h.id)}>
+                <div className="w-16 shrink-0 text-center text-sm text-slate-500"><div className="font-bold text-slate-700">{dayName(d)}</div><div className="num">{fmtDate(d)}</div></div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-bold">{h.name}</div>
+                  <div className="mt-0.5 flex flex-wrap gap-1 text-xs text-slate-500"><span>{fmtTime(d)}</span>
+                    {h.kind === 'snack' && <Badge>سناك</Badge>}{h.modified && <Badge tone="near">معدّلة</Badge>}<span>اختيرت <span className="num">{times.get(keyOf(h))}</span> مرة</span></div>
+                </div>
+                <div className="num text-2xl font-bold text-brand">{fmt(h.total_carbs)}<span className="text-xs font-medium">g</span></div>
+              </button>
+              {open === h.id && (
+                <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 text-sm">
+                  {h.total_kcal !== null && <div className="num text-slate-600">دهون {fmt(h.total_fat)}غ • ألياف {fmt(h.total_fiber)}غ • بروتين {fmt(h.total_protein)}غ • {h.total_kcal} سعرة</div>}
+                  <ul className="space-y-1">
+                    {h.lines.map((l, i) => (
+                      <li key={i} className="flex justify-between gap-2"><span>{l.name}{l.product && l.product !== l.name ? ` (${l.product})` : ''} — <span className="num">{fmt(l.quantity)}</span> {UNIT_TEXT[l.unit]}{l.state !== 'as_is' ? ` ${STATE_TEXT[l.state]}` : ''}</span><span className="num font-medium">{fmt(l.carbs)}</span></li>
+                    ))}
+                  </ul>
+                  <Btn kind="danger" onClick={async () => { if (confirm('حذف هذا التسجيل من السجل؟')) { await deleteHistory(h.id); await reload(); toast('تم الحذف'); } }}>حذف التسجيل</Btn>
+                </div>
+              )}
+            </Card>
+          );
+        })}
+        {rows.length === 0 && <Card><p className="text-slate-500">لا توجد وجبات في هذه الفترة.</p></Card>}
+      </div>
+    </Page>
+  );
+}
