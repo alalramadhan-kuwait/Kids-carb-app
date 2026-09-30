@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { computeMeal, fmt, PROBLEM_TEXT, STATE_TEXT, UNIT_TEXT } from '../lib/carbs';
 import { blocker } from '../lib/suggest';
-import { acceptTotal, setFavorite } from '../lib/api';
+import { acceptTotal, setFavorite, setRecipeImage } from '../lib/api';
+import { uploadPhoto } from '../lib/supabase';
 import type { Ingredient } from '../lib/types';
 import { Alert, Badge, Btn, CarbBadge, Card, Chip, Nutrition, NumInput, Page, Photo, toast } from '../components/ui';
 import { lineName, useChoose } from '../components/meal';
@@ -69,7 +70,17 @@ export function RecipeView() {
     <Page title={recipe.name} back={() => nav(-1)}
       action={<button aria-label="مفضلة" className="grid h-10 w-10 place-items-center rounded-full bg-white text-xl shadow-sm"
         onClick={async () => { await setFavorite(recipe.id, !recipe.favorite); await reload(); }}>{recipe.favorite ? '❤️' : '🤍'}</button>}>
-      <Photo path={recipe.image_path} category={recipe.category} className="mb-4 h-52 w-full rounded-2xl" />
+      <div className="relative mb-4">
+        <Photo path={recipe.image_path} category={recipe.category} className="h-52 w-full rounded-2xl" />
+        <label className="absolute bottom-3 end-3 cursor-pointer rounded-xl bg-white/90 px-3 py-2 text-sm font-medium shadow">
+          📷 {recipe.image_path ? 'تغيير الصورة' : 'إضافة صورة'}
+          <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+            const f = e.target.files?.[0]; if (!f) return;
+            try { await setRecipeImage(recipe.id, await uploadPhoto(f, 'recipes')); await reload(); toast('تم حفظ الصورة ✓'); }
+            catch (er) { toast('تعذّر رفع الصورة: ' + (er as Error).message); }
+          }} />
+        </label>
+      </div>
 
       <Card className="mb-3 space-y-3">
         <div className="flex items-center justify-between">

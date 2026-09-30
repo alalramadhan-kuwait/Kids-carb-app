@@ -41,6 +41,8 @@ export async function saveRecipe(recipe: Partial<Recipe> & { name: string }, ing
 
 export const deleteRecipe = async (id: string) => ok(await supabase.from('recipes').delete().eq('id', id));
 export const setFavorite = async (id: string, favorite: boolean) => ok(await supabase.from('recipes').update({ favorite }).eq('id', id));
+export const setRecipeImage = async (id: string, image_path: string) =>
+  ok(await supabase.from('recipes').update({ image_path }).eq('id', id));
 export const acceptTotal = async (id: string, total: number) =>
   ok(await supabase.from('recipes').update({ saved_total_carbs: total }).eq('id', id));
 
