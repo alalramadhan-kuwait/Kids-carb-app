@@ -138,14 +138,14 @@ export default function Now() {
  */
 function LayanHeader({ alertCount }: { alertCount: number }) {
   const heart = 'M12 20.5s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.9c0 5.4-7.5 10-7.5 10z';
-  const hearts: [number, number, number, number][] = [[-86, 30, 15, -12], [-74, 70, 12, 10], [70, 18, 14, 14], [84, 58, 17, -8]]; // dx from centre, y, size, rotation
+  const hearts: [number, number, number, number][] = [[-100, 30, 15, -12], [-90, 72, 12, 10], [80, 14, 14, 14], [94, 56, 17, -8]]; // dx from centre, y, size, rotation
   return (
     <header className="relative z-10 -mb-1 flex h-[120px] items-start justify-between">
       <Link to="/alerts" aria-label={alertCount ? `التنبيهات: ${alertCount} مفتوح` : 'التنبيهات'} className="relative grid h-12 w-12 place-items-center rounded-full text-slate-600">
         <Icon name="bell" size={30} />
         {alertCount > 0 && <span className="absolute end-2.5 top-2 h-2.5 w-2.5 rounded-full bg-over-fill ring-2 ring-[rgb(var(--bg))]" />}
       </Link>
-      <div className="pointer-events-none absolute bottom-0 left-1/2 h-[120px] w-[142px] -translate-x-1/2" aria-hidden>
+      <div className="pointer-events-none absolute bottom-0 left-1/2 h-[120px] w-[156px] -translate-x-1/2" aria-hidden>
         {hearts.map(([dx, y, size, rot], i) => (
           <svg key={i} viewBox="0 0 24 24" width={size} height={size} className="absolute text-[#F49AB6] opacity-50"
             style={{ left: `calc(50% + ${dx}px)`, top: y, transform: `rotate(${rot}deg)` }}>
