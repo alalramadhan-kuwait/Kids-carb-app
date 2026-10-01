@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.2.0",
+    "date": "2026-10-01",
+    "notes": [
+      "قراءة النقطة في شريط ثابت تحت الرسم بدل البطاقة التي كانت تغطيه: الوقت والقيمة بلونها والتغير خلال 15 دقيقة وبالدقيقة، و ✕ للإغلاق"
+    ],
+    "notes_en": [
+      "Reading a point now shows in a fixed strip under the graph instead of a card covering it: time, the value in its colour, the change over 15 minutes and per minute, and ✕ to close"
+    ]
+  },
+  {
     "version": "1.1.1",
     "date": "2026-10-01",
     "notes": [

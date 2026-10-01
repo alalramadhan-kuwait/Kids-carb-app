@@ -94,7 +94,7 @@ function Live() {
   const [live, setLive] = useState(true);
   const anim = useRef(0);
   const viewRef = useRef(view); viewRef.current = view;
-  const height = useMemo(() => Math.round(Math.min(520, Math.max(260, window.innerHeight * 0.5))), []);
+  const height = useMemo(() => Math.round(Math.min(520, Math.max(260, window.innerHeight * 0.5)) + 48), []); // + the readout strip
 
   useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 15000); return () => window.clearInterval(id); }, []);
   useEffect(() => { if (g?.latest) setNow(Date.now()); }, [g?.latest?.taken_at]);

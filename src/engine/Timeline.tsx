@@ -6,6 +6,7 @@ import {
   PERIODS, delta15, freshness, gapsIn, limitEnd, nearest, rateAt, runsFor, tickLabel, timeTicks, yDomain, zoomAt,
   type Series, type View,
 } from './series';
+import { cx } from '../components/ui';
 import { groupLabel, groupMarks, type Group, type Layer, type Mark, type MarkKind } from './events';
 import { ICONS, type IconName } from '../icons/defs';
 import { dir, t } from '../i18n';
@@ -39,12 +40,14 @@ const css = (name: string, a = 1) => {
 const KW = 3 * 3600000;
 const clock = (t: number) => { const d = new Date(t + KW); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
 
-export function Timeline({ series, view, now, onView, range, unit, height, marks = [], layers, onSelect, dayParts, highlight, tracks }: {
+export function Timeline({ series, view, now, onView, range, unit, height: total, marks = [], layers, onSelect, dayParts, highlight, tracks }: {
   series: Series; view: View; now: number; onView: (v: View, opts?: { animate?: boolean }) => void;
   range: Range; unit: GlucoseUnit; height: number;
   marks?: Mark[]; layers?: Set<Layer>; onSelect?: (g: Group) => void;
   dayParts?: boolean; highlight?: number | null; tracks?: Tracks;
 }) {
+  // the readout strip sits under the plot (never over the data); the canvas gets the rest of the height
+  const BAR = 48, height = total - BAR;
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [width, setWidth] = useState(0);
@@ -393,34 +396,38 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
   const i = inspect?.i ?? null;
   const d15 = i !== null ? delta15(series, i) : null;
   const rate = i !== null ? rateAt(series, i) : null;
-  const sign = (n: number, digits: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n).toFixed(digits)}`;
+  const sign = (n: number, digits: number) => { const a = Math.abs(n).toFixed(digits); return `${Number(a) === 0 ? '' : n > 0 ? '+' : '−'}${a}`; };
   const fmtDelta = (mg: number) => unit === 'mmol' ? sign(mg / 18.016, 1) : sign(mg, 0);
   const fmtRate = (mg: number) => unit === 'mmol' ? sign(mg / 18.016, 2) : sign(mg, 1);
-  const left = inspect ? Math.min(Math.max(8, (i !== null ? ((series.t[i] - (view.end - view.span)) / view.span) * width : inspect.x) - 80), width - 168) : 0;
   const lastT = series.t.length ? series.t[series.t.length - 1] : null;
+  // the value keeps its glucose colour, as on the graph
+  const valueTone = (v: number) => (range.low !== null && v < range.low ? 'text-over' : range.high !== null && v > range.high ? 'text-near' : 'text-ok');
 
   return (
-    <div ref={wrap} className="relative select-none" style={{ height }} dir="ltr">
+    <div ref={wrap} className="relative select-none" style={{ height: total }} dir="ltr">
       <canvas
         ref={canvas} style={{ width: '100%', height, touchAction: 'none' }}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel}
         role="img" aria-label={t('رسم السكر {from}–{to}، {state}', { from: clock(view.end - view.span), to: clock(view.end), state: freshness(lastT, now) === 'live' ? t('مباشر') : t('غير محدّث') })}
       />
-      {inspect && (
-        <div className="pointer-events-none absolute top-1 w-40 rounded-xl bg-white/95 p-2 text-xs shadow-card ring-1 ring-slate-200" style={{ left }} dir={dir()}>
-          <div className="num font-bold text-slate-500">{clock(i !== null ? series.t[i] : inspect.t)}</div>
-          {i !== null ? (
-            <>
-              <div><span className="num text-lg font-bold">{formatGlucose(series.v[i], unit)}</span> <span className="text-slate-500">{unitLabel(unit)}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">{t('خلال 15 د')}</span><b className="num" dir="ltr">{d15 !== null ? fmtDelta(d15) : '—'}</b></div>
-              <div className="flex justify-between"><span className="text-slate-500">{t('لكل دقيقة')}</span><b className="num" dir="ltr">{rate !== null ? fmtRate(rate) : '—'}</b></div>
-            </>
-          ) : <div className="text-slate-500">{t('لا توجد قراءة هنا')}</div>}
-          {trackList.map((k) => { const at = i !== null ? series.t[i] : inspect.t; return at <= now && (
-            <div key={k} className="flex justify-between"><span className="text-slate-500">{k === 'iob' ? t('إنسولين نشط') : t('كارب نشط')}</span><b className="num">{k === 'iob' ? t('{v} و', { v: tracks![k]!(at).toFixed(1) }) : t('{v} غ', { v: Math.round(tracks![k]!(at)) })}</b></div>
-          ); })}
-        </div>
-      )}
+      <div className="flex h-12 items-center gap-2.5 overflow-hidden border-t border-slate-100 px-3 text-sm" dir={dir()} aria-live="polite">
+        {inspect ? (
+          <>
+            <button onClick={() => setInspect(null)} aria-label={t('إغلاق')} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg text-slate-500 active:bg-slate-50">✕</button>
+            <span className="num font-bold text-slate-600">{clock(i !== null ? series.t[i] : inspect.t)}</span>
+            {i !== null ? (
+              <>
+                <b className={cx('num text-xl', valueTone(series.v[i]))} title={unitLabel(unit)}>{formatGlucose(series.v[i], unit)}</b>
+                <span className="whitespace-nowrap text-xs text-slate-500"><b className="num text-slate-800" dir="ltr">{d15 !== null ? fmtDelta(d15) : '—'}</b> {t('خلال 15 د')}</span>
+                <span className="whitespace-nowrap text-xs text-slate-500"><b className="num text-slate-800" dir="ltr">{rate !== null ? fmtRate(rate) : '—'}</b>{t('/د')}</span>
+              </>
+            ) : <span className="text-slate-500">{t('لا توجد قراءة هنا')}</span>}
+            {trackList.map((k) => { const at = i !== null ? series.t[i] : inspect.t; return at <= now && (
+              <span key={k} className="whitespace-nowrap text-xs text-slate-500">{k === 'iob' ? 'IOB' : 'COB'} <b className="num text-slate-800">{k === 'iob' ? t('{v} و', { v: tracks![k]!(at).toFixed(1) }) : t('{v} غ', { v: Math.round(tracks![k]!(at)) })}</b></span>
+            ); })}
+          </>
+        ) : <span className="px-1 text-xs text-slate-400">{t('اضغط مطوّلًا على الرسم لقراءة أي نقطة')}</span>}
+      </div>
     </div>
   );
 }

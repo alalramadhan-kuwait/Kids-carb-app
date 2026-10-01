@@ -215,4 +215,6 @@ export const analysis: Record<string, string> = {
   'مقارنة فترتين': 'Compare two periods',
   'كيف يتغيّر السكر بعد كل وصفة': 'How glucose changes after each recipe',
   'أسبوع بأسبوع، المدرسة والعطلة': 'Week to week, school and weekend',
+  'اضغط مطوّلًا على الرسم لقراءة أي نقطة': 'Long-press the graph to read any point',
+  '/د': '/min',
 };

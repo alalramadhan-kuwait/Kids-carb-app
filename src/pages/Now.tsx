@@ -233,7 +233,7 @@ function HomeChart({ live }: { live: Reading[] }) {
   const { series } = useSeries(view.end - view.span, view.end, live);
   const marks = useMemo(() => buildMarks(history, events), [history, events]);
   const layers = useMemo(() => defaultLayers(), []);
-  const height = useMemo(() => Math.round(Math.min(440, Math.max(240, window.innerHeight * 0.36))), []);
+  const height = useMemo(() => Math.round(Math.min(440, Math.max(240, window.innerHeight * 0.36)) + 48), []); // + the readout strip
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
   return (
     <div className="relative -mx-4">
