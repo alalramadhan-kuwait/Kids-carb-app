@@ -568,7 +568,10 @@ test('merging keeps order, replaces the same instant, and handles unsorted batch
   const a = mergeSeries(emptySeries(), [10, 20, 30], [1, 2, 3]);
   const b = mergeSeries(a, [25, 20, 5], [9, 8, 7]);
   assert.deepEqual(Array.from(b.t), [5, 10, 20, 25, 30]); assert.deepEqual(Array.from(b.v), [7, 1, 8, 9, 3]);
-  const t0 = performance.now(); mergeSeries(fx.s, [END + M], [100]); assert.ok(performance.now() - t0 < 15);
+  // timing: warm up, then the best of three, so a busy machine does not fail the check
+  mergeSeries(fx.s, [END + M], [100]);
+  const best = Math.min(...[0, 1, 2].map(() => { const t0 = performance.now(); mergeSeries(fx.s, [END + M], [100]); return performance.now() - t0; }));
+  assert.ok(best < 15, `${best.toFixed(1)} ms`);
 });
 
 test('inspector values: nearest reading, 15-minute change, rate, freshness', () => {
