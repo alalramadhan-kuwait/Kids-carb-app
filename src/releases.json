@@ -1,5 +1,17 @@
 [
   {
+    "version": "0.21.0",
+    "date": "2026-10-01",
+    "notes": [
+      "شاشة الآن أوضح: السكر واتجاهه أولًا، ثم اليوم وآخر ما سُجّل، وسطر واحد لما بقي من الإعداد",
+      "زر «سجّل» أكبر، وزر شاشة الليل يظهر في المساء فقط"
+    ],
+    "notes_en": [
+      "A clearer Now screen: glucose and its direction first, then today and the latest entries, and one line for what is left to set up",
+      "A bigger Log button; the night screen button shows only in the evening"
+    ]
+  },
+  {
     "version": "0.20.0",
     "date": "2026-10-01",
     "notes": [
