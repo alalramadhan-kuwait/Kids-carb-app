@@ -16,6 +16,8 @@ developer can build from it directly.
    "no data" alert that Libre followers do not get.
 4. **Never hide uncertainty.** Old readings, gaps, warm-up, and insufficient data are always shown as such,
    never smoothed over or interpolated.
+5. **Little text on everyday screens.** Numbers, arrows and short labels. All calculations, analysis and
+   engineering detail live in the **متقدم (Advanced)** tab (section 10).
 
 ---
 
@@ -137,7 +139,7 @@ Phases are defined in section 7.
 - **Why:** answers "was insulin given?" and gives context to every rise and fall.
 - **Data:** `events` (kind = insulin).
 - **Where:** Home "+ Log", Meals & Insulin, Timeline.
-- **Sees:** "4 u rapid · 13:05 · Mum". **No calculator, no suggestion, no insulin-on-board in Phase 1–2.**
+- **Sees:** "4 u rapid · 13:05 · Mum". **No calculator, no suggestion.** Insulin-on-board appears only in the Advanced tab (section 10.9).
 - **Alerts:** duplicate guard (3.15); optional neutral "meal logged, no insulin logged" reminder.
 - **Phase:** 1.
 
@@ -218,7 +220,7 @@ Phases are defined in section 7.
 
 Bottom navigation (5 tabs, parent-first):
 
-**الآن (Now)** · **الخط الزمني (Timeline)** · **الوجبات (Meals)** · **التقارير (Reports)** · **المزيد (More)**
+**الآن (Now)** · **السجل (Timeline)** · **الوجبات (Meals)** · **متقدم (Advanced)** · **المزيد (More)**
 
 Recipes, Products and the meal planner move under *Meals*; the current *History* becomes part of *Timeline*.
 
@@ -259,11 +261,14 @@ overlaid) once there are ≥ 3 logged meals with complete glucose data.
 Active alerts with *I'm on it / Treated / Snooze*; history with who acknowledged what and when; settings per
 profile (Day / Night / School) and per person.
 
-### 4.6 Trends & Patterns
-AGP-style chart (14 days), TIR stacked bars per day, insight list with evidence and dismiss.
+### 4.6 Advanced (متقدم) — trends, patterns, reports and calculations
+One tab for everything analytical, so the other tabs stay short. Top screen: six summary groups; tap any
+number for its full analysis. Reports (day / week / month, CSV, clinic PDF) and the AGP chart live here too.
+Full specification in section 10.
 
-### 4.7 Reports (التقارير)
-Day / Week / Month / custom; metrics from 3.18; export CSV; PDF for the clinic (Phase 3).
+### 4.7 Reports
+Inside Advanced: Day / Week / Month / custom; metrics from 3.18 and section 10; export CSV; PDF for the clinic
+(Phase 3).
 
 ### 4.8 School Mode
 Schedule, who is the school contact, what the school sees; at pickup: "School day: lowest 4.1 at 10:20,
@@ -490,14 +495,15 @@ their scope allows. Service role (edge functions) writes readings, alerts, stats
 - School nurse quick-logging through a share link
 
 **Avoid**
-- Any dose calculator, dose suggestion, ratio or correction factor tuning, or "give X g" advice
+- Any dose calculator, dose suggestion, or advice to change a ratio or correction factor, or "give X g" advice
+  (the Advanced tab *shows* prescribed and observed parameters side by side; it never proposes new ones)
 - Presenting our alerts as the primary alarm, or letting anyone switch off urgent low / no data at night
 - AI photo carb estimates feeding totals (contradicts the label-only rule)
 - Interpolating across gaps, editing CGM values, hiding warm-up or old readings
 - Estimated HbA1c without enough data, or shown as a lab value
 - Gamification, scores or "bad day" language about a child
 - A dense dashboard: one status sentence beats ten tiles
-- Insulin-on-board until the basics have been in daily use for months (it invites dose decisions)
+- Insulin-on-board on everyday screens or feeding any suggestion (it lives in Advanced only, section 10.9)
 
 ---
 
@@ -541,6 +547,234 @@ calculated" note in the app.
 
 ---
 
+---
+
+## 10. Advanced (متقدم) — the engineering dashboard
+
+The Advanced tab treats glucose control like a process: state, variability, excursions, insulin response,
+meal response, correlations and derived parameters. Everyday screens stay simple; this tab carries the depth.
+
+### 10.1 Two layers that are never mixed
+
+Every number carries one badge:
+
+| Badge | Meaning | Examples |
+|---|---|---|
+| **Published** | Formula from a standard or guideline, the same for every person | TIR/TBR/TAR, mean, SD, CV, GMI, MAGE, MODD, CONGA, LBGI/HBGI, ADRR, ISF estimate 1800/TDD |
+| **Layan-derived** | Measured from her own data, with n and confidence | Observed ICR and ISF, meal response, time-of-day factors, correlations |
+| **Prescribed** | Entered by a parent from her care team | ICR and ISF by time of day, targets, insulin action time |
+
+Published and Layan-derived values are never averaged together or shown as one number.
+
+### 10.2 Safety boundary (applies to every item below)
+
+- Prescribed values are entered by a parent; the app never edits them.
+- Observed values are shown *next to* prescribed ones, labelled "observed — for discussion with her care
+  team". The app never says increase, reduce, change, or use.
+- Below the minimum sample size (10.11) a derived value is hidden, not shown faintly.
+- Correlation is reported as association ("meals with > 20 g fat were associated with larger 3–5 h rises in
+  14 comparable meals"), never as cause.
+- IOB is display-only and never feeds a suggestion.
+- A wording test in CI fails the build if any Advanced string contains a dose instruction
+  (e.g. "increase", "decrease", "give", "زِد", "قلّل", "أعطِ" followed by a dose).
+
+### 10.3 Top screen
+
+Period selector: **Today · 3 d · 7 d · 14 d · 30 d · 90 d**. Six groups, two to four numbers each, every number
+with its badge and a confidence dot. Tap any number → detail page with chart, formula ("How this is
+calculated"), n, confidence and the events behind it.
+
+```
+CONTROL     TIR · TBR · TAR · Mean · GMI · CV
+INSULIN     TDD · Basal/Bolus · ICR (prescribed | observed) · ISF (prescribed | observed) · IOB
+RESPONSE    Meal ΔG · Peak · iAUC · Recovery
+STABILITY   SD · CV · MODD · MAGE
+RISK        Hypo events · Hyper events · LBGI · HBGI
+ANALYSIS    Meals · Insulin · Exercise · Time of day · Correlations · Factors
+```
+
+### 10.4 Glycemic state (Published)
+
+| KPI | Calculation | Min data | Phase |
+|---|---|---|---|
+| Current glucose, Δ, rate of change | as 5.1–5.2; RoC = least-squares slope over 15 min | 3 points, no gap | 1 |
+| Mean, median, min, max | time-weighted mean (5.4); median and extremes of readings | coverage ≥ 70% | 2 |
+| SD | time-weighted standard deviation | coverage ≥ 70% | 2 |
+| CV | SD / mean × 100 (consensus ≤ 36%) | coverage ≥ 70% | 2 |
+| GMI | 3.31 + 0.02392 × mean (mg/dL), labelled "GMI, not HbA1c" | ≥ 14 days, ≥ 70% | 2 |
+| Data availability | covered time / period length | — | 1 |
+
+### 10.5 Time in Range performance (Published)
+
+Bands in mmol/L: TBR level 2 < 3.0 · TBR level 1+2 < 3.9 · TIR 3.9–10.0 · TAR level 1+2 > 10.0 · TAR level 2 > 13.9.
+Reference targets shown as faint markers (TIR > 70%, < 3.9 under 4%, < 3.0 under 1%, > 10.0 under 25%,
+> 13.9 under 5%) with the note "her care team's targets come first"; her own targets, if entered, replace them.
+
+Each percentage is also shown as time per day: `hours = pct × 24` → **82% = 19 h 41 min/day**.
+Phase 2.
+
+### 10.6 Insulin engineering
+
+| KPI | Calculation | Layer | Min data | Phase |
+|---|---|---|---|---|
+| TDD | Σ basal + Σ bolus per local day | Published | day marked "insulin log complete" | 3 |
+| Basal %, Bolus % | basal / TDD × 100; bolus / TDD × 100 | Published | complete days | 3 |
+| Meal, correction, basal insulin | Σ by bolus purpose | — | purpose recorded | 3 |
+| U/kg/day | TDD / weight | Published | weight within 90 days | 3 |
+| 7-day and 14-day TDD, trend | mean of complete days; slope of daily TDD | Published | ≥ 5 / 10 complete days | 3 |
+| ICR prescribed | parent-entered per time block | Prescribed | — | 3 |
+| ICR used (observed) | median of carbs / meal bolus for clean meals, per time block | Layan-derived | n ≥ 10 | 3 |
+| ICR matched-outcome | median ratio among clean meals whose 3 h glucose ended within ±1.7 mmol/L of G₀ with no hypo | Layan-derived | n ≥ 10 | 3 |
+| ISF published estimate | 1800 / TDD (mg/dL/U) ≈ 100 / TDD (mmol/L/U), labelled "published starting estimate" | Published | 7-day TDD | 3 |
+| ISF prescribed | parent-entered per time block | Prescribed | — | 3 |
+| ISF observed | 10.8 | Layan-derived | n ≥ 10 | 3 |
+
+The detail page shows **prescribed | observed | published estimate** side by side with n and confidence.
+
+### 10.7 Meal response (Layan-derived)
+
+For every meal with carbs logged:
+
+| Value | Definition |
+|---|---|
+| G₀ | glucose within ±10 min of meal time |
+| CHO, fat, protein, fiber | from the meal entry (label data, already in this app) |
+| Insulin, ratio used | meal bolus linked to the meal; CHO / U |
+| Pre-bolus time | meal time − bolus time (positive = before eating) |
+| G(t) | at +30, +60, +90, +120, +180, +240 min (nearest reading within ±5 min; never across a gap) |
+| ΔG(t) | G(t) − G₀ |
+| Peak excursion, time to peak | max G − G₀ in 0–4 h; its time |
+| iAUC | incremental area above G₀, trapezoid rule, positive parts only, 0–4 h (mmol·h/L) |
+| Recovery time | from peak until glucose stays within her target range (or within ±1.0 of G₀) for 15 min |
+| Undershoot | min G in 0–4 h − G₀ |
+
+**Clean meal:** no other carbs and no correction bolus in 0–4 h, no hypo treatment, no exercise, CGM coverage ≥ 90%
+in the window. Comparisons (rice vs pasta vs cereal, recipe vs recipe) use clean meals only, show n, and
+overlay the median curve with its 25–75% band. Phase 2 (G(t), ΔG, peak, TTP, iAUC, recovery, undershoot),
+Phase 3 (pre-bolus and insulin linkage).
+
+### 10.8 Correction analysis (Layan-derived)
+
+Observed ISF = (G_start − G_end) / correction units, with G_end = glucose 3 h after the bolus (configurable
+2–4 h; rapid-acting insulin).
+**Clean correction:** bolus purpose = correction; no carbs from 3 h before to 4 h after; no other bolus in
+the 4 h before (IOB from earlier doses below 0.2 U) or during; no exercise; no hypo treatment; CGM coverage
+≥ 90%. Distribution per time block — night 00–06, morning 06–11, afternoon 11–17, evening 17–24 (editable) —
+with median, interquartile range and n. Phase 3.
+
+### 10.9 Insulin on board (display only)
+
+`IOB(t) = Σ doseᵢ × remaining(t − tᵢ)`, using the exponential insulin-activity curve (as in open-source
+Loop/OpenAPS) with **duration of action and peak time entered from the care team**. The model and its two
+parameters are printed under every IOB value.
+Also shown: time since last bolus, bolus overlap (a bolus while IOB > 0), and a *stacking* flag (two or more
+boluses within the action time). Flags are information only: "2 boluses within 3 h". Phase 3, after the care
+team has seen and agreed the model parameters.
+
+### 10.10 Variability & risk (Published, marked "Analytical")
+
+| KPI | Calculation | Min data |
+|---|---|---|
+| MAGE | mean amplitude of peak-to-nadir excursions larger than 1 SD (Service 1970); implementation documented, results checked against the `iglu` reference package | 7 days |
+| MODD | mean of \|G(t) − G(t − 24 h)\| over paired readings (±5 min) | 2 days, paired coverage ≥ 70% |
+| CONGA-n (n = 1, 2, 4 h) | SD of D(t) = G(t) − G(t − n h) | 1 day |
+| LBGI / HBGI | f = 1.509 × ((ln G)^1.084 − 5.381) with G in mg/dL; r = 10 f²; LBGI = mean of r where f < 0, HBGI = mean of r where f > 0 | 1 day |
+| ADRR | mean over days of (max daily low-risk r + max daily high-risk r) | 14 days |
+
+These carry the badge "Analytical — not a clinical target" and live behind an expandable section. Phase 3.
+
+### 10.11 Event engine (feeds everything above)
+
+Detected automatically and stored as rows, so every metric can show the events behind it:
+
+| Event | Attributes |
+|---|---|
+| Hypo | start, lowest value, duration, treatment carbs, recovery time, rebound peak (max within 2 h after) |
+| Hyper | start, peak, duration, correction given, response (fall in 3 h) |
+| Meal | 10.7 |
+| Correction | starting glucose, units, IOB at the time, fall, observed ISF, clean yes/no and why not |
+| Exercise | glucose before, trend, IOB, carbs, minimum during, after, overnight minimum the following night |
+
+Phase 2 (hypo, hyper, meal), Phase 3 (correction, exercise).
+
+### 10.12 Correlations & factors (Layan-derived)
+
+Relationships analysed (each a scatter plot with n, Pearson r, Spearman ρ, R², direction and confidence):
+carbs ↔ peak and iAUC · insulin ↔ fall · pre-bolus time ↔ peak · G₀ ↔ excursion · fat ↔ 3–5 h rise ·
+protein ↔ late rise · fiber ↔ peak · exercise ↔ slope and overnight minimum · night ↔ variability ·
+time of day ↔ observed ISF and ICR · meal type ↔ excursion · day of week ↔ TIR · insulin ↔ hypo within 4 h.
+
+Shown only when n ≥ 10 comparable events. Confidence: **High** n ≥ 30 and |r| CI excludes 0 ·
+**Medium** n ≥ 15 · **Low** n 10–14. Sentence template: "*X* was associated with *Y* in *n* comparable *events*".
+
+**Factors** = observed value in a condition ÷ her baseline observed value, e.g. evening ISF 3.2 ÷ baseline 4.0
+= 0.80 → "observed evening sensitivity ≈ 20% lower (n = 12, medium)". Conditions: time of day, exercise day,
+meal composition (high fat / protein / fiber), pre-bolus band (0–5, 5–10, 10–15, 15–20, > 20 min), starting
+glucose band, trend arrow, hypo in the last 24 h, illness, ketones. Phase 3.
+
+### 10.13 Data quality on every number
+
+| Confidence | Event-based metrics | CGM-period metrics |
+|---|---|---|
+| High | n ≥ 30 | ≥ 14 days and ≥ 90% coverage |
+| Medium | n 15–29 | ≥ 14 days and ≥ 70% |
+| Low | n 10–14 | 7–13 days or 50–69% |
+| Hidden | n < 10 (meal response per recipe: n < 3) | < 50% coverage |
+
+Shown as a dot plus "n = 24" under every value.
+
+### 10.14 Extra data this needs
+
+```sql
+alter table carb.events add column bolus_purpose text check (bolus_purpose in ('meal','correction','both')),
+                       add column linked_meal_event uuid references carb.events(id),
+                       add column ketones_mmol numeric;            -- kind = 'ketones'
+-- kind gains: 'basal', 'ketones', 'illness'
+
+create table carb.child_profile (id boolean primary key default true, weight_kg numeric, weight_at date,
+  insulin_rapid text, insulin_basal text, updated_by uuid, updated_at timestamptz);
+
+create table carb.prescribed_params (            -- entered by a parent from the care team, versioned
+  id uuid primary key default gen_random_uuid(), block text check (block in ('night','morning','afternoon','evening')),
+  icr_g_per_u numeric, isf_mmol_per_u numeric, target_mmol numeric,
+  dia_hours numeric, peak_minutes int, effective_from date not null, entered_by uuid, entered_at timestamptz default now());
+
+create table carb.insulin_days (day date primary key, complete boolean, confirmed_by uuid);   -- "today's insulin log is complete"
+
+create table carb.analytics_events (              -- output of the event engine
+  id uuid primary key default gen_random_uuid(), kind text, start_at timestamptz, end_at timestamptz,
+  source_event uuid references carb.events(id), metrics jsonb, clean boolean, not_clean_reason text,
+  computed_at timestamptz default now());
+
+create table carb.analytics_cache (period text, metric text, value numeric, n int, confidence text,
+  inputs jsonb, computed_at timestamptz, primary key (period, metric));
+```
+
+Logging changes: the insulin entry gains *purpose* (meal / correction / both) and *basal*; a meal bolus links
+to its meal; a "today's insulin is complete" tick at bedtime makes TDD trustworthy.
+
+### 10.15 Acceptance criteria (Advanced)
+
+1. **Formulas** — every Published metric has a unit test on a fixture data set whose expected values come from
+   the `iglu` R package (MAGE, MODD, CONGA, LBGI, HBGI, ADRR, CV, GMI) to within 1%.
+2. **Layers** — every value on screen carries exactly one badge; no screen combines Published and
+   Layan-derived values into one number.
+3. **Gating** — with 9 clean corrections no observed ISF is shown; with 10 it appears with "Low" confidence.
+4. **Clean windows** — a correction followed by a snack 2 h later is excluded and the detail page says why.
+5. **Wording** — the CI wording test passes; no Advanced string tells anyone to change a dose.
+6. **IOB** — the model name and parameters are printed under every IOB value; IOB is absent from Home and
+   from every alert.
+7. **Speed** — the top screen loads in under 1 s from cache; heavy analysis is computed nightly and on demand,
+   never on the phone at open.
+
+### 10.16 Phasing summary
+
+| Phase | Advanced content |
+|---|---|
+| 2 | Control and TIR (incl. hours/day), median, data-quality dots, meal response (G(t), ΔG, peak, iAUC, recovery, undershoot), hypo/hyper/meal events, per-recipe comparison |
+| 3 | Insulin engineering, prescribed vs observed ICR/ISF, correction analysis, IOB (after care-team agreement), MAGE/MODD/CONGA/LBGI/HBGI/ADRR, correlations, factors, correction and exercise events |
+
+
 ## Sources
 
 - Gluroo: [The Collaborative Diabetes Management App](https://gluroo.com/home-old/),
@@ -555,6 +789,7 @@ calculated" note in the app.
 - mySugr: [Logbook user manual](https://assets.mysugr.com/app_logbook/ios/3.122.0/manual/eu/en/user_manual_tab_bar.pdf)
 - Nightscout: [cgm-remote-monitor](https://github.com/nightscout/cgm-remote-monitor),
   [configuration](https://nightscout.github.io/nightscout/setup_variables/)
+- Variability and risk metrics: [iglu R package documentation](https://irinagain.github.io/iglu/)
 - Sugarmate phone-call alerts: [overview](https://healthcare.toolsinfo.com/tool/sugarmate),
   [ADCES alarm-fatigue hacks](https://www.adces.org/education/danatech/glucose-monitoring/continuous-glucose-monitors-(cgm)/cgm-101/10-smart-hacks-for-alarm-fatigue-heavy-sleepers-and-people-with-disabilities)
 - Consensus metrics: [International Consensus on Use of CGM](https://pmc.ncbi.nlm.nih.gov/articles/PMC6467165/),
