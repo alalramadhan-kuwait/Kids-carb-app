@@ -3,6 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 const url = import.meta.env.VITE_SUPABASE_URL as string;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
+/** True when the page was opened from a password-reset email. Read before supabase-js clears the URL. */
+export const openedFromRecovery = typeof location !== 'undefined' && /type=recovery/.test(location.hash + location.search);
+
 /** Everything this app owns lives in the `carb` schema; nothing here touches `public`. */
 export const supabase = createClient(url, key, { db: { schema: 'carb' }, auth: { persistSession: true } });
 

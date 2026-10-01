@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase, uploadPhoto } from '../lib/supabase';
 import { useData } from '../lib/data';
@@ -12,6 +12,17 @@ import { Alert, Badge, Btn, Card, CarbBadge, Field, NumInput, Page, Photo, input
 export function More() {
   const nav = useNavigate();
   const [email, setEmail] = useState('');
+  const [me, setMe] = useState('');
+  const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
+  useEffect(() => { supabase.auth.getUser().then(({ data }) => setMe(data.user?.email ?? '')); }, []);
+  const shared = me.endsWith('.local');
+  const changePw = async () => {
+    if (pw.length < 8) return toast('كلمة المرور 8 خانات على الأقل');
+    if (pw !== pw2) return toast('الكلمتان غير متطابقتين');
+    const { error } = await supabase.auth.updateUser({ password: pw });
+    if (error) toast(error.message.includes('different') ? 'اختر كلمة مختلفة عن الحالية' : error.message); else { toast('تم تغيير كلمة المرور ✓'); setPw(''); setPw2(''); }
+  };
   const link = (to: string, icon: string, label: string, hint: string) => (
     <Link to={to}><Card className="flex items-center gap-3 !p-4"><span className="text-2xl">{icon}</span><div className="flex-1"><div className="font-bold">{label}</div><div className="text-sm text-slate-500">{hint}</div></div><span className="text-slate-300">‹</span></Card></Link>
   );
@@ -22,6 +33,14 @@ export function More() {
         {link('/cgm', '🩸', 'قراءات السكر', 'ربط LibreLinkUp لعرض السكر الحي')}
         {link('/snacks', '🍎', 'السناكات', 'قاعدة بيانات السناكات')}
         {link('/settings', '⚙️', 'الإعدادات', 'الحد الأقصى للكارب وأهداف المنتجات')}
+        <Card className="space-y-2">
+          <h2 className="font-bold">حسابي</h2>
+          <p className="text-sm text-slate-600">الدخول بالبريد: <span dir="ltr" className="font-medium">{me || '…'}</span></p>
+          {shared && <Alert tone="near">هذا الحساب مشترك مع تطبيق المناوبات: تغيير كلمة المرور هنا يغيّرها هناك أيضًا، ولن تعمل "نسيت كلمة المرور" لأن البريد غير حقيقي. الأفضل حساب مستقل ببريد حقيقي.</Alert>}
+          <input className={inputCls} dir="ltr" type="password" autoComplete="new-password" placeholder="كلمة مرور جديدة" value={pw} onChange={(e) => setPw(e.target.value)} />
+          <input className={inputCls} dir="ltr" type="password" autoComplete="new-password" placeholder="أعد كتابتها" value={pw2} onChange={(e) => setPw2(e.target.value)} />
+          <Btn block disabled={!pw} onClick={changePw}>تغيير كلمة المرور</Btn>
+        </Card>
         <Card className="space-y-2">
           <h2 className="font-bold">إضافة أحد الوالدين</h2>
           <p className="text-sm text-slate-600">يُنشئ الأب حسابه أولًا (بالبريد وكلمة المرور)، ثم اكتب بريده هنا.</p>
