@@ -50,6 +50,7 @@
 @media (prefers-color-scheme: dark) { :root:not([data-theme="day"]) { --drop-urgent: #FF5A68; --drop-low: #FF7A83; --drop-in: #5FD3A2; --drop-high: #F5B65A; --drop-vhigh: #F0954A; } }
 :root[data-theme="night"] { --drop-urgent: #FF5A68; --drop-low: #FF7A83; --drop-in: #5FD3A2; --drop-high: #F5B65A; --drop-vhigh: #F0954A; }
 
+html { font-size: 15px; } /* compact: everything sized in rem follows */
 html, body { background: rgb(var(--bg)); color: rgb(var(--text)); font-family: 'Rubik', system-ui, -apple-system, 'Segoe UI', sans-serif; }
 body { -webkit-tap-highlight-color: transparent; padding-bottom: env(safe-area-inset-bottom); }
 .num { font-family: 'Rubik', system-ui, sans-serif; font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; display: inline-block; }

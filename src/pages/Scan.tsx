@@ -70,7 +70,7 @@ export default function Scan() {
       {step.s === 'pick' && (
         <div className="space-y-4">
           {err && <Alert tone="over">{err} {err === t(ERR.no_key) && <Link to="/settings" className="underline">{t('الإعدادات')}</Link>}</Alert>}
-          <button onClick={() => cam.current?.click()} className="flex min-h-[160px] w-full flex-col items-center justify-center gap-3 rounded-3xl bg-brand text-white active:opacity-90">
+          <button onClick={() => cam.current?.click()} className="flex min-h-[136px] w-full flex-col items-center justify-center gap-3 rounded-3xl bg-brand text-white active:opacity-90">
             <Icon name="camera" size={44} /><span className="text-xl font-bold">{t('التقاط صورة')}</span>
             <span className="text-sm opacity-80">{t('للأكل أو لباركود المنتج')}</span>
           </button>

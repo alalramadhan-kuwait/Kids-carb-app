@@ -212,7 +212,7 @@ function Shell() {
             const on = tab.to === '/' ? pathname === '/' : tab.match.some((m) => pathname === m || pathname.startsWith(m + '/'));
             return (
               <li key={tab.to}>
-                <NavLink to={tab.to} aria-current={on ? 'page' : undefined} className="flex min-h-[64px] items-center justify-center py-1.5">
+                <NavLink to={tab.to} aria-current={on ? 'page' : undefined} className="flex min-h-[56px] items-center justify-center py-1">
                   <span className={cx('flex min-w-[60px] flex-col items-center gap-0.5 rounded-2xl px-2.5 py-1.5 text-xs transition-colors', on ? 'bg-brand-soft font-semibold text-brand' : 'text-slate-500')}><Icon name={tab.icon} active={on} />{t(tab.label)}</span>
                 </NavLink>
               </li>

@@ -12,7 +12,7 @@ export default {
         sans: ['Rubik', 'system-ui', '-apple-system', '"Segoe UI"', 'sans-serif'],
         num: ['Rubik', 'system-ui', 'sans-serif'],
       },
-      borderRadius: { xl: '16px', '2xl': '24px' },
+      borderRadius: { xl: '12px', '2xl': '18px', '3xl': '22px' },
       boxShadow: { sm: 'var(--shadow-card)' },
       colors: {
         white: v('surface'),

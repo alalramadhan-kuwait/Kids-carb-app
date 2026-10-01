@@ -53,8 +53,8 @@ export function More() {
     if (error) toast(error.message.includes('different') ? t('اختر كلمة مختلفة عن الحالية') : error.message); else { toast(t('تم تغيير كلمة المرور ✓')); setPw(''); setPw2(''); }
   };
   const link = (to: string, icon: IconName, label: string, hint: string) => (
-    <li><Link to={to} className="flex min-h-[64px] items-center gap-3 px-4 py-3 active:bg-slate-50">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name={icon} size={22} /></span>
+    <li><Link to={to} className="flex min-h-[56px] items-center gap-3 px-4 py-2.5 active:bg-slate-50">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name={icon} size={20} /></span>
       <span className="min-w-0 flex-1"><span className="block font-semibold">{label}</span><span className="block truncate text-sm text-slate-500">{hint}</span></span>
       <span className="text-slate-300">{isEn() ? '›' : '‹'}</span>
     </Link></li>

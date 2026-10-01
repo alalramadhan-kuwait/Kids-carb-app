@@ -81,13 +81,13 @@ export default function Now() {
           <Card className="!pb-2">
             <div className="flex items-center gap-2">
               <span className={cx('h-3 w-3 shrink-0 rounded-full', TONE_DOT[sentence.tone])} />
-              <span className={cx('text-lg font-bold', TONE_TEXT[sentence.tone])}>{g ? sentence.text : failed ? t('تعذّر تحميل القراءة') : '…'}</span>
+              <span className={cx('text-base font-bold', TONE_TEXT[sentence.tone])}>{g ? sentence.text : failed ? t('تعذّر تحميل القراءة') : '…'}</span>
               {latest && <span className="ms-auto text-sm text-slate-500">{sinceText(latest.taken_at)}</span>}
             </div>
             {latest && age?.state !== 'stale' ? (
               <div className={cx('mt-1 flex items-center gap-3', age?.state === 'old' && 'opacity-50')}>
-                <span className="num text-[72px] font-bold leading-none text-brand-num">{formatGlucose(latest.mg_dl, unit)}</span>
-                {latest.trend && <span className="text-brand-num"><Icon name={TREND_ICON[latest.trend]} size={44} label={TREND_WORDS[latest.trend]} /></span>}
+                <span className="num text-[60px] font-bold leading-none text-brand-num">{formatGlucose(latest.mg_dl, unit)}</span>
+                {latest.trend && <span className="text-brand-num"><Icon name={TREND_ICON[latest.trend]} size={36} label={TREND_WORDS[latest.trend]} /></span>}
                 <span className="self-end pb-2 text-sm text-slate-500">{unitLabel(unit)}</span>
               </div>
             ) : latest ? (
@@ -139,9 +139,9 @@ export default function Now() {
       </div>
 
       {/* Fitts: the one primary action, big, in the thumb zone above the tab bar */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(72px+env(safe-area-inset-bottom))] z-30 px-4">
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(66px+env(safe-area-inset-bottom))] z-30 px-4">
         <div className="mx-auto flex max-w-2xl justify-start">
-          <button onClick={() => setLogOpen(true)} className="pointer-events-auto flex min-h-[56px] items-center gap-2 rounded-full bg-brand pe-6 ps-5 text-lg font-bold text-white shadow-[0_8px_24px_rgba(91,72,214,0.30)] active:scale-[0.98]">
+          <button onClick={() => setLogOpen(true)} className="pointer-events-auto flex min-h-[50px] items-center gap-2 rounded-full bg-brand pe-5 ps-4 text-base font-bold text-white shadow-[0_8px_24px_rgba(91,72,214,0.30)] active:scale-[0.98]">
             <Icon name="plus" size={24} /> {t('سجّل')}
           </button>
         </div>
@@ -169,7 +169,7 @@ function SetupRing({ done, total }: { done: number; total: number }) {
  */
 function LayanHeader({ alertCount, night }: { alertCount: number; night: boolean }) {
   const heart = 'M12 20.5s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.9c0 5.4-7.5 10-7.5 10z';
-  const W = 116, H = 92; // artwork box
+  const W = 100, H = 78; // artwork box
   const hearts: [number, number, number, number][] = [[-78, 24, 12, -12], [64, 10, 12, 14], [74, 46, 14, -8]]; // dx from centre, y, size, rotation
   const evening = night || new Date().getHours() >= 19;
   return (

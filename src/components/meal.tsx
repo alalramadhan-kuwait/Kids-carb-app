@@ -42,7 +42,7 @@ export function MealCard({ recipe, meal, chosenToday }: { recipe: Recipe; meal: 
   return (
     <li className="flex items-center gap-3 px-3 py-2.5">
       <Link to={`/recipes/${recipe.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-        <Photo path={recipe.image_path} category={recipe.category} art={recipeArt(recipe.category)} className="h-14 w-14 shrink-0 rounded-xl" />
+        <Photo path={recipe.image_path} category={recipe.category} art={recipeArt(recipe.category)} className="h-12 w-12 shrink-0 rounded-xl" />
         <span className="min-w-0">
           <span className="block truncate font-bold">{recipe.name}</span>
           <span className="mt-1 block"><CarbBadge carbs={meal.total.carbs} level={meal.level} unknown={!meal.complete} size="sm" /></span>

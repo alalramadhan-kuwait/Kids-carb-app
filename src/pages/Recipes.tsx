@@ -30,8 +30,8 @@ export function RecipeList() {
           const why = !recipe.approved ? t('تحت المراجعة') : blocker({ recipe, ings: [], meal }, settings);
           return (
             <li key={recipe.id}>
-              <Link to={`/recipes/${recipe.id}`} className="flex min-h-[64px] items-center gap-3 px-3 py-2.5 active:bg-slate-50">
-                <Photo path={recipe.image_path} category={recipe.category} art={recipeArt(recipe.category)} className="h-14 w-14 shrink-0 rounded-xl" />
+              <Link to={`/recipes/${recipe.id}`} className="flex min-h-[56px] items-center gap-3 px-3 py-2.5 active:bg-slate-50">
+                <Photo path={recipe.image_path} category={recipe.category} art={recipeArt(recipe.category)} className="h-12 w-12 shrink-0 rounded-xl" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1 font-bold">{recipe.favorite && <span aria-label={t('مفضلة')} className="text-brand"><Icon name="heart" size={16} active /></span>}<span className="truncate">{recipe.name}</span></div>
                   {why && <div className="mt-0.5 truncate text-xs text-slate-500">{why}</div>}
