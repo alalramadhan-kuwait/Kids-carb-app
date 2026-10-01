@@ -11,6 +11,7 @@ import { PERIODS, delta15, freshness, limitEnd, rateAt, type View } from '../eng
 import StatsPanel from './Advanced';
 import { DayView } from './Day';
 import { Patterns } from './Patterns';
+import { MealResponse } from './MealResponse';
 import { EventSheet } from '../components/EventSheet';
 import { Sheet, Toggle } from '../components/ui';
 import { LAYERS, buildMarks, defaultLayers, type Group, type Layer } from '../engine/events';
@@ -20,22 +21,22 @@ const loadLayers = (): Set<Layer> => {
   return defaultLayers();
 };
 
-const MODES = [{ id: 'live', label: 'مباشر' }, { id: 'day', label: 'اليوم' }, { id: 'patterns', label: 'الأنماط' }, { id: 'stats', label: 'الأرقام' }] as const;
+const MODES = [{ id: 'live', label: 'مباشر' }, { id: 'day', label: 'اليوم' }, { id: 'patterns', label: 'الأنماط' }, { id: 'meals', label: 'الوجبات' }, { id: 'stats', label: 'الأرقام' }] as const;
 const FRESH = { live: { text: 'مباشر', cls: 'bg-ok-soft text-ok' }, delayed: { text: 'متأخر', cls: 'bg-near-soft text-near' }, missing: { text: 'منقطع', cls: 'bg-over-soft text-over' } };
 
 /** التحليل: Live (the timeline engine) and the numbers. More modes arrive stage by stage (GLUCOSE_PLAN 11.2). */
 export default function Analysis() {
   const [params, setParams] = useSearchParams();
-  const mode = (['day', 'patterns', 'stats'] as const).find((m) => m === params.get('mode')) ?? 'live';
+  const mode = (['day', 'patterns', 'meals', 'stats'] as const).find((m) => m === params.get('mode')) ?? 'live';
   return (
     <Page title="التحليل">
-      <div className="mb-3 grid grid-cols-4 gap-1 rounded-2xl bg-slate-100 p-1" role="tablist">
+      <div className="-mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-1" role="tablist">
         {MODES.map((m) => (
           <button key={m.id} role="tab" aria-selected={mode === m.id} onClick={() => setParams(m.id === 'live' ? {} : { mode: m.id }, { replace: true })}
-            className={cx('min-h-[40px] rounded-xl text-sm font-bold', mode === m.id ? 'bg-white shadow-card' : 'text-slate-500')}>{m.label}</button>
+            className={cx('min-h-[40px] shrink-0 rounded-full px-4 text-sm font-bold', mode === m.id ? 'bg-brand text-white' : 'bg-slate-50 text-slate-600')}>{m.label}</button>
         ))}
       </div>
-      {mode === 'live' ? <Live /> : mode === 'day' ? <DayView /> : mode === 'patterns' ? <Patterns /> : <StatsPanel />}
+      {mode === 'live' ? <Live /> : mode === 'day' ? <DayView /> : mode === 'patterns' ? <Patterns /> : mode === 'meals' ? <MealResponse /> : <StatsPanel />}
     </Page>
   );
 }

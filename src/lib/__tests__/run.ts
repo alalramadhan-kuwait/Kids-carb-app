@@ -12,6 +12,7 @@ import { buildMarks, defaultLayers, groupLabel, groupMarks, mealResponse } from 
 import { dayStartOf, dayTitle, dayTotals, lowEpisodes } from '../../engine/day';
 import { inWindow, isNight, schoolWindow } from '../schedule';
 import { daysFor, solidRuns } from '../../engine/profile';
+import { GRID, alignCurve, buildOccurrence, coverage, medianCurve, notClean, summary, windowSeries } from '../../engine/meals';
 import { alertMessage, evaluate, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
 import { PERIODS, delta15, freshness, gapsIn, mergeSeries, emptySeries, nearest, rateAt, runsFor, timeTicks, tickLabel, zoomAt } from '../../engine/series';
@@ -693,6 +694,28 @@ test('patterns: day filters and bins with too few days', () => {
   const b = (bin: number, days: number) => ({ bin, days, n: days, p10: 0, p25: 0, p50: 0, p75: 0, p90: 0 });
   const runs = solidRuns([b(0, 6), b(1, 6), b(2, 3), b(3, 7), b(5, 7)]);
   assert.deepEqual(runs.map((r) => r.map((x) => x.bin)), [[0, 1], [3], [5]]);
+});
+
+test('meal response per recipe: clean meals, aligned curves and medians', () => {
+  const t0 = Date.parse('2026-10-01T10:00:00Z');
+  const curve = (rise: number) => { const o: number[] = [], v: number[] = []; for (let m = -60; m <= 240; m += 5) { o.push(m); v.push(110 + (m <= 0 ? 0 : m <= 60 ? rise * m / 60 : rise * Math.max(0, 1 - (m - 60) / 150))); } return { o, v }; };
+  const occ = [40, 60, 50, 200].map((rise, k) => {
+    const c = curve(rise), tk = t0 + k * 86400000;
+    const meal = { id: 'm' + k, kind: 'meal', recipe_id: 'r', name: 'مجبوس', eaten_at: new Date(tk).toISOString(), total_carbs: 45 } as any;
+    return buildOccurrence(meal, windowSeries(tk, c.o, c.v), [meal], [], tk + 6 * 3600000);
+  });
+  assert.equal(coverage(occ[0].series, occ[0].t0), 1);
+  assert.deepEqual(occ.map((o) => o.reasons.length), [0, 0, 0, 0]);
+  const s = summary(occ);
+  assert.equal(s.n, 4); assert.equal(s.rise, 55); assert.equal(s.ttp, 60); assert.equal(s.g0, 110); // the 200 outlier moves the median only a little
+  const mc = medianCurve(occ.map((o) => o.curve));
+  assert.equal(mc[GRID.indexOf(60)]!.p50, 110 + 55);
+  assert.equal(alignCurve(windowSeries(t0, [0, 100], [100, 120]), t0)[GRID.indexOf(50)], null); // no reading within ±5 min of +50
+  // not clean: a snack 90 minutes later, a hypo treatment, and missing readings
+  const meal = { id: 'x', eaten_at: new Date(t0).toISOString(), total_carbs: 45 } as any;
+  const snack = { id: 'y', eaten_at: new Date(t0 + 90 * 60000).toISOString() } as any;
+  const treat = evr({ id: 't', kind: 'treatment', carbs_g: 15, occurred_at: new Date(t0 + 120 * 60000).toISOString() });
+  assert.deepEqual(notClean(meal, [meal, snack], [treat as any], windowSeries(t0, [0, 30], [100, 120])), ['أكل آخر خلال 4 ساعات', 'علاج انخفاض', 'قراءات ناقصة']);
 });
 
 console.log('releases');

@@ -51,7 +51,7 @@ export function RecipeList() {
 export function RecipeView() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { recipes, ingsByRecipe, products, settings, reload } = useData();
+  const { recipes, ingsByRecipe, products, settings, reload, history } = useData();
   const recipe = recipes.find((r) => r.id === id);
   const base = useMemo(() => ingsByRecipe.get(id ?? '') ?? [], [ingsByRecipe, id]);
   // quantities can be changed for this meal only; that logs as a modified meal
@@ -109,6 +109,11 @@ export function RecipeView() {
         ))}
       </Card>
 
+      {(() => { const n = history.filter((h) => h.kind === 'meal' && h.recipe_id === recipe.id).length; return n > 0 && (
+        <Link to={`/analysis?mode=meals&recipe=${recipe.id}`} className="mb-3 flex min-h-[52px] items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 shadow-sm">
+          <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-muted/70 text-brand"><Icon name="glucose" size={19} /></span>
+          <span className="flex-1 font-medium">كيف يستجيب سكرها لهذه الوصفة</span><span className="text-sm text-slate-500"><span className="num">{n}</span> مرة</span><span className="text-slate-400">‹</span>
+        </Link>); })()}
       <Card className="mb-3">
         <h2 className="mb-2 font-bold">المكونات</h2>
         {(['main', 'drink', 'snack'] as const).map((role) => {

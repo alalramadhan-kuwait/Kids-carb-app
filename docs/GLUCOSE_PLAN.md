@@ -1001,7 +1001,11 @@ parent, the night screen (96 px, screen kept on) and the after-school summary. C
 Stage 6 shipped in 0.14.0: `carb.glucose_profile` (15-minute bins of the Kuwait clock, 10/25/50/75/90th
 percentiles, distinct days per bin; checked against a hand calculation on a rolled-back fixture, weekday
 filter included), Patterns mode with 7/14/30/90 days and all/school/weekend/custom day filters, bins with
-fewer than 5 days drawn hollow. Completed: 68 %. The app loads the last 60 days of
+fewer than 5 days drawn hollow. Completed: 68 %.
+Stage 7 shipped in 0.15.0: `carb.glucose_windows` (−60…+240 min around up to 200 meals in one call), curves
+aligned at T0 on a 5-minute grid (nearest reading ±5 min, never across a gap), clean-meal rules from 10.7 with
+the reason shown, median curve and 25–75 % band and the medians summary from ≥ 3 clean meals, Analysis →
+الوجبات and a link from every recipe. Pre-bolus comparison is left for later. Completed: 78 %. The app loads the last 60 days of
 events, so markers older than that do not show yet.
 
 
