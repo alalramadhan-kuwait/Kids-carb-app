@@ -10,7 +10,8 @@ import { ICONS } from '../../icons/defs';
 import { describeEvent, sleepWindow, unitsWord } from '../events';
 import { buildMarks, defaultLayers, groupLabel, groupMarks, mealResponse } from '../../engine/events';
 import { dayStartOf, dayTitle, dayTotals, lowEpisodes } from '../../engine/day';
-import { alertMessage, evaluate, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
+import { inWindow, isNight, schoolWindow } from '../schedule';
+import { alertMessage, evaluate, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
 import { PERIODS, delta15, freshness, gapsIn, mergeSeries, emptySeries, nearest, rateAt, runsFor, timeTicks, tickLabel, zoomAt } from '../../engine/series';
 import { findDuplicate, gmi, hoursOfDay, kuwaitDayStart, sinceText, statusSentence } from '../now';
@@ -381,7 +382,7 @@ test('insulin units read correctly in Arabic', () => {
 
 console.log('alerts');
 
-const CFG: AlertCfg = { urgentLow: 55, low: 70, high: 250, lowDelay: 5, highDelay: 30, noDataMin: 20, renotify: 10, highRenotify: 60 };
+const CFG: AlertCfg = { urgentLow: 55, low: 70, high: 250, lowDelay: 5, highDelay: 30, noDataMin: 20, renotify: 10, highRenotify: 60, escalateMin: 30 };
 const T0 = Date.parse('2026-10-01T12:00:00Z');
 const at = (min: number) => T0 + min * 60000;
 const rd = (min: number, mg: number) => ({ taken_at: new Date(at(min)).toISOString(), mg_dl: mg, trend: 2 });
@@ -389,65 +390,102 @@ const open = (o: Partial<OpenAlert>): OpenAlert => ({ id: 'a', kind: 'low', stat
   last_notified_at: new Date(T0).toISOString(), snoozed_until: null, clear_since: null, value_mgdl: 65, worst_mgdl: 65, ...o });
 
 test('low waits its delay, then notifies once; a brief dip that recovers never notifies', () => {
-  let s = evaluate(at(0), rd(0, 66), CFG, [], true);
+  let s = evaluate(at(0), [rd(0, 66)], CFG, [], true);
   assert.deepEqual(s.map((x) => [x.kind, x.op, x.patch.state, x.notify]), [['low', 'create', 'pending', undefined]]);
-  s = evaluate(at(3), rd(3, 64), CFG, [open({ state: 'pending', active_at: null, last_notified_at: null })], true);
+  s = evaluate(at(3), [rd(3, 64)], CFG, [open({ state: 'pending', active_at: null, last_notified_at: null })], true);
   assert.equal(s[0].op, 'update'); assert.equal(s[0].notify, undefined); assert.equal(s[0].patch.worst_mgdl, 64);
-  s = evaluate(at(5), rd(5, 64), CFG, [open({ state: 'pending', active_at: null, last_notified_at: null })], true);
+  s = evaluate(at(5), [rd(5, 64)], CFG, [open({ state: 'pending', active_at: null, last_notified_at: null })], true);
   assert.equal(s[0].patch.state, 'active'); assert.equal(s[0].notify, 'alert');
-  s = evaluate(at(3), rd(3, 75), CFG, [open({ state: 'pending' })], true);
+  s = evaluate(at(3), [rd(3, 75)], CFG, [open({ state: 'pending' })], true);
   assert.equal(s[0].op, 'delete');
 });
 
 test('urgent low notifies at once; the plain low stays quiet while it sounds', () => {
-  const s = evaluate(at(0), rd(0, 50), CFG, [], true);
+  const s = evaluate(at(0), [rd(0, 50)], CFG, [], true);
   assert.deepEqual(s.map((x) => [x.kind, x.patch.state, x.notify]), [['urgent_low', 'active', 'alert'], ['low', 'pending', undefined]]);
-  const s2 = evaluate(at(10), rd(10, 50), CFG, [open({ kind: 'urgent_low', id: 'u', last_notified_at: new Date(at(9)).toISOString() }), open({ id: 'l', last_notified_at: null, active_at: null, state: 'pending' })], true);
+  const s2 = evaluate(at(10), [rd(10, 50)], CFG, [open({ kind: 'urgent_low', id: 'u', last_notified_at: new Date(at(9)).toISOString() }), open({ id: 'l', last_notified_at: null, active_at: null, state: 'pending' })], true);
   assert.equal(s2.find((x) => x.kind === 'low')!.patch.state, 'active');
   assert.equal(s2.find((x) => x.kind === 'low')!.notify, undefined);
 });
 
 test('repeats only while the condition holds, and resolves only after holding clear (hysteresis)', () => {
-  assert.equal(evaluate(at(10), rd(10, 66), CFG, [open({})], true)[0].notify, 'repeat');
-  assert.equal(evaluate(at(10), rd(10, 75), CFG, [open({})], true)[0].notify, undefined); // between 70 and 80: no repeat, not resolved
-  let s = evaluate(at(20), rd(20, 85), CFG, [open({})], true);
+  assert.equal(evaluate(at(10), [rd(10, 66)], CFG, [open({})], true)[0].notify, 'repeat');
+  assert.equal(evaluate(at(10), [rd(10, 75)], CFG, [open({})], true)[0].notify, undefined); // between 70 and 80: no repeat, not resolved
+  let s = evaluate(at(20), [rd(20, 85)], CFG, [open({})], true);
   assert.equal(s[0].op, 'update'); assert.equal(s[0].patch.clear_since, new Date(at(20)).toISOString());
-  s = evaluate(at(35), rd(35, 90), CFG, [open({ clear_since: new Date(at(20)).toISOString() })], true);
+  s = evaluate(at(35), [rd(35, 90)], CFG, [open({ clear_since: new Date(at(20)).toISOString() })], true);
   assert.equal(s[0].op, 'resolve'); assert.equal(s[0].notify, 'resolved');
-  s = evaluate(at(30), rd(30, 72), CFG, [open({ clear_since: new Date(at(20)).toISOString() })], true);
+  s = evaluate(at(30), [rd(30, 72)], CFG, [open({ clear_since: new Date(at(20)).toISOString() })], true);
   assert.equal(s[0].patch.clear_since, null); // dipped back: the clock restarts
 });
 
 test('"I am on it" silences until the snooze ends, then repeats if still low', () => {
   const ack = open({ state: 'acknowledged', snoozed_until: new Date(at(15)).toISOString() });
-  assert.equal(evaluate(at(12), rd(12, 62), CFG, [ack], true)[0].notify, undefined);
-  const s = evaluate(at(15), rd(15, 62), CFG, [ack], true)[0];
+  assert.equal(evaluate(at(12), [rd(12, 62)], CFG, [ack], true)[0].notify, undefined);
+  const s = evaluate(at(15), [rd(15, 62)], CFG, [ack], true)[0];
   assert.equal(s.notify, 'repeat'); assert.equal(s.patch.state, 'active');
 });
 
 test('a stale reading neither raises nor clears; no data alerts after the set minutes and only with a CGM', () => {
-  assert.equal(evaluate(at(30), rd(10, 60), CFG, [], true).filter((x) => x.kind !== 'no_data').length, 0);
-  const held = evaluate(at(25), rd(5, 90), CFG, [open({})], true).find((x) => x.kind === 'low')!;
+  assert.equal(evaluate(at(30), [rd(10, 60)], CFG, [], true).filter((x) => x.kind !== 'no_data').length, 0);
+  const held = evaluate(at(25), [rd(5, 90)], CFG, [open({})], true).find((x) => x.kind === 'low')!;
   assert.equal(held.op, 'update'); assert.equal(held.patch.clear_since, null);
-  assert.equal(evaluate(at(25), rd(4, 100), CFG, [], true)[0].kind, 'no_data');
-  assert.equal(evaluate(at(19), rd(0, 100), CFG, [], true).length, 0);
-  assert.equal(evaluate(at(25), rd(4, 100), CFG, [], false).length, 0);
-  const back = evaluate(at(26), rd(26, 100), CFG, [open({ kind: 'no_data' })], true);
+  assert.equal(evaluate(at(25), [rd(4, 100)], CFG, [], true)[0].kind, 'no_data');
+  assert.equal(evaluate(at(19), [rd(0, 100)], CFG, [], true).length, 0);
+  assert.equal(evaluate(at(25), [rd(4, 100)], CFG, [], false).length, 0);
+  const back = evaluate(at(26), [rd(26, 100)], CFG, [open({ kind: 'no_data' })], true);
   assert.equal(back[0].op, 'resolve'); assert.equal(back[0].notify, 'resolved');
 });
 
 test('an alert with no threshold is off, and an open one closes silently', () => {
   const off = { ...CFG, low: null, urgentLow: null };
-  assert.equal(evaluate(at(0), rd(0, 40), off, [], true).length, 0);
-  const s = evaluate(at(0), rd(0, 40), off, [open({})], true);
+  assert.equal(evaluate(at(0), [rd(0, 40)], off, [], true).length, 0);
+  const s = evaluate(at(0), [rd(0, 40)], off, [open({})], true);
   assert.equal(s[0].op, 'resolve'); assert.equal(s[0].notify, undefined);
+});
+
+
+test('profiles: night and school windows in Kuwait time change the thresholds; night can silence highs', () => {
+  const cfg: AlertCfg = { ...CFG, night: { start: '21:00', end: '06:30', low: 90, high: 300, highSilent: true }, school: { days: [0, 1, 2, 3, 4], start: '07:00', end: '14:00', low: 80, high: null } };
+  const kt = (iso: string) => Date.parse(iso) - 3 * 3600000; // Kuwait local → UTC
+  assert.equal(profileAt(kt('2026-10-01T23:30:00Z'), cfg), 'night');   // Thursday 23:30
+  assert.equal(profileAt(kt('2026-10-01T05:00:00Z'), cfg), 'night');   // 05:00 wraps midnight
+  assert.equal(profileAt(kt('2026-10-01T09:00:00Z'), cfg), 'school');  // Thursday is a school day
+  assert.equal(profileAt(kt('2026-10-02T09:00:00Z'), cfg), 'day');     // Friday is not
+  const n = kt('2026-10-01T23:30:00Z');
+  const lowAtNight = evaluate(n, [{ taken_at: new Date(n - 60000).toISOString(), mg_dl: 85, trend: 3 }], cfg, [], true);
+  assert.equal(lowAtNight[0].kind, 'low'); assert.equal(lowAtNight[0].patch.profile, 'night'); // 85 is low under the night threshold of 90
+  const highAtNight = evaluate(n, [{ taken_at: new Date(n - 60000).toISOString(), mg_dl: 320, trend: 3 }], { ...cfg, highDelay: 0 }, [], true);
+  assert.equal(highAtNight[0].kind, 'high'); assert.equal(highAtNight[0].silent, true);
+});
+
+test('rapid fall: a sustained slope beyond the set rate, never from a single jump or across a gap', () => {
+  const pts = (vals: number[], step = 5) => vals.map((v, k) => ({ taken_at: new Date(at(k * step)).toISOString(), mg_dl: v, trend: null }));
+  assert.equal(Math.round(rate15(pts([180, 165, 150, 135])) ?? 0), -3);
+  assert.equal(rate15(pts([180, 120])), null);                                 // two points are not a trend
+  const cfg = { ...CFG, rapidRate: 2.5 };
+  const s1 = evaluate(at(15), pts([180, 165, 150, 135]), cfg, [], true).filter((x) => x.kind === 'rapid_fall');
+  assert.equal(s1[0].op, 'create'); assert.equal(s1[0].patch.state, 'pending');
+  const gapped = [...pts([180, 165]), { taken_at: new Date(at(40)).toISOString(), mg_dl: 120, trend: null }, { taken_at: new Date(at(45)).toISOString(), mg_dl: 118, trend: null }];
+  assert.equal(rate15(gapped), null);
+});
+
+test('escalation: nobody answers within the set minutes, the backup parent is told once', () => {
+  const cfg = { ...CFG, escalateMin: 10 };
+  const s = evaluate(at(10), [rd(10, 64)], cfg, [open({})], true)[0];
+  assert.equal(s.notify, 'escalate'); assert.ok(s.patch.escalated_at);
+  assert.equal(evaluate(at(12), [rd(12, 64)], cfg, [open({ escalated_at: new Date(at(10)).toISOString(), last_notified_at: new Date(at(10)).toISOString() })], true)[0].notify, undefined);
+  assert.equal(evaluate(at(10), [rd(10, 64)], cfg, [open({ state: 'acknowledged', snoozed_until: new Date(at(25)).toISOString() })], true)[0].notify, undefined);
+  const fam = [{ user_id: 'mum', alert_role: 'primary' }, { user_id: 'dad', alert_role: 'backup' }, { user_id: 'gran', alert_role: 'off' }];
+  assert.deepEqual(recipients(fam, 'alert'), ['mum']); assert.deepEqual(recipients(fam, 'escalate'), ['mum', 'dad']);
+  assert.deepEqual(recipients([{ user_id: 'dad', alert_role: 'backup' }], 'alert'), ['dad']); // no primary: nobody is left out
 });
 
 test('alert wording is facts only, in her unit', () => {
   const m = alertMessage('low', 'alert', { child: 'ليان', value: 63, trend: 2, unit: 'mmol', minutes: 4 });
   assert.equal(m.title, 'ليان: منخفض 3.5 ↘'); assert.equal(m.body, 'منذ 4 د · خطة الطبيب');
   assert.equal(alertMessage('no_data', 'alert', { child: 'ليان', value: null, trend: null, unit: 'mgdl', minutes: 21 }).title, 'ليان: لا توجد قراءة منذ 21 د');
-  for (const k of ['urgent_low', 'low', 'high', 'no_data'] as const) for (const n of ['alert', 'repeat', 'resolved'] as const) {
+  for (const k of ['urgent_low', 'low', 'high', 'no_data', 'rapid_fall', 'rapid_rise'] as const) for (const n of ['alert', 'repeat', 'resolved', 'escalate'] as const) {
     const t = Object.values(alertMessage(k, n, { child: 'ليان', value: 60, trend: 1, unit: 'mgdl', minutes: 3 })).join(' ');
     assert.ok(!/وحد|غرام|جرام|أعط|اعط|جرعة/.test(t), t);
   }
@@ -635,6 +673,15 @@ test('day totals separate meal carbs, hypo treatment, rapid and long insulin, an
     evr({ id: 't', kind: 'treatment', carbs_g: 15, occurred_at: '2026-10-01T07:36:00Z' }), evr({ id: 'c', kind: 'carbs', carbs_g: 10, occurred_at: '2026-10-01T12:00:00Z' }),
     evr({ id: 'd', insulin_units: 2, insulin_type: 'rapid', occurred_at: '2026-10-01T12:00:00Z', deleted_at: '2026-10-01T12:01:00Z' })];
   assert.deepEqual(dayTotals(hist as any, evs as any, start, end), { carbs: 100, treatment: 15, rapid: 3, long: 12, meals: 2 });
+});
+
+test('night and school windows on the phone match the server (Kuwait time, overnight wrap)', () => {
+  assert.equal(inWindow(23 * 60, '21:00', '06:30'), true); assert.equal(inWindow(7 * 60, '21:00', '06:30'), false);
+  assert.equal(isNight({ night_start: '21:00:00', night_end: '06:30:00' }, Date.parse('2026-10-01T20:00:00Z')), true); // 23:00 Kuwait
+  assert.equal(isNight({ night_start: null, night_end: null }, Date.parse('2026-10-01T20:00:00Z')), false);
+  const w = schoolWindow({ school_days: [0, 1, 2, 3, 4], school_start: '07:00:00', school_end: '14:00:00' }, Date.parse('2026-10-01T10:00:00Z'))!;
+  assert.equal(new Date(w.from).toISOString(), '2026-10-01T04:00:00.000Z'); assert.equal(new Date(w.to).toISOString(), '2026-10-01T11:00:00.000Z');
+  assert.equal(schoolWindow({ school_days: [0, 1, 2, 3, 4], school_start: '07:00', school_end: '14:00' }, Date.parse('2026-10-02T10:00:00Z')), null); // Friday
 });
 
 console.log('releases');

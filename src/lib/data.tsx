@@ -61,7 +61,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       q('recipe_ingredients').order('sort'), q('snacks').order('created_at'),
       q('meal_history').order('eaten_at', { ascending: false }).limit(1000), q('meal_plan').order('plan_date'),
       supabase.from('events').select('*').is('deleted_at', null).gte('occurred_at', since).order('occurred_at', { ascending: false }).limit(1000),
-      supabase.from('members').select('user_id,display_name'),
+      supabase.from('members').select('user_id,display_name,alert_role'),
       supabase.auth.getUser(),
     ]);
     const err = [s, p, r, i, sn, h, pl, ev, mem].find((x) => x.error)?.error;
@@ -72,7 +72,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       settings: s.data ? { ...DEFAULT_SETTINGS, ...(s.data as any),
         max_meal_carbs: Number((s.data as any).max_meal_carbs), preferred_min: Number((s.data as any).preferred_min),
         preferred_max: Number((s.data as any).preferred_max), tbsp_size: Number((s.data as any).tbsp_size),
-        glucose_low_mgdl: num((s.data as any).glucose_low_mgdl), glucose_high_mgdl: num((s.data as any).glucose_high_mgdl) } : DEFAULT_SETTINGS,
+        glucose_low_mgdl: num((s.data as any).glucose_low_mgdl), glucose_high_mgdl: num((s.data as any).glucose_high_mgdl),
+        alert_rapid_rate: num((s.data as any).alert_rapid_rate) } : DEFAULT_SETTINGS,
       products: (p.data ?? []).map(fixProduct),
       recipes: (r.data ?? []).map((x: any) => ({ ...x, saved_total_carbs: num(x.saved_total_carbs) })),
       snacks: (sn.data ?? []).map((x: any) => ({ ...x, quantity: Number(x.quantity) })),

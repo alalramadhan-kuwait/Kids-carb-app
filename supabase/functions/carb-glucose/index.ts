@@ -3,7 +3,7 @@
 // them. The login is kept in Supabase Vault; the browser can save it but never read it back.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { hostFor, LLU_PRODUCT, LLU_VERSION, LluError, loginProblem, maskEmail, readingsFromGraph, redirectRegion, sha256Hex, tooSoon } from './lib.ts';
-import { ackMessage, alertMessage, evaluate, type AlertKind, type OpenAlert } from './alerts.ts';
+import { ackMessage, alertMessage, evaluate, recipients, type AlertCfg, type AlertKind, type OpenAlert } from './alerts.ts';
 import { newVapid, sendPush, type Vapid } from './push.ts';
 
 const cors = {
@@ -78,8 +78,9 @@ async function vapid(db: Db): Promise<Vapid> {
 }
 
 /** Sends to every phone of the family (or only/except one person) and logs each delivery. */
-async function pushAll(db: Db, payload: Record<string, unknown>, o: { kind: string; alertId?: string; urgency: 'normal' | 'high'; only?: string; except?: string }) {
+async function pushAll(db: Db, payload: Record<string, unknown>, o: { kind: string; alertId?: string; urgency: 'normal' | 'high'; only?: string; except?: string; users?: string[] }) {
   let q = db.from('push_subscriptions').select('*');
+  if (o.users) { if (!o.users.length) return []; q = q.in('user_id', o.users); }
   if (o.only) q = q.eq('user_id', o.only);
   if (o.except) q = q.neq('user_id', o.except);
   const { data: subs } = await q;
@@ -99,19 +100,29 @@ async function pushAll(db: Db, payload: Record<string, unknown>, o: { kind: stri
 
 // ── Alerts: evaluated after every server poll ─────────────────────────────────
 async function runAlerts(db: Db, now: number) {
-  const [st, set, last, open] = await Promise.all([
+  const [st, set, last, open, mem] = await Promise.all([
     db.from('cgm_state').select('connected').eq('id', true).single(),
     db.from('settings').select('*').eq('id', true).single(),
-    db.from('glucose_readings').select('taken_at,mg_dl,trend').order('taken_at', { ascending: false }).limit(1),
+    db.from('glucose_readings').select('taken_at,mg_dl,trend').gte('taken_at', new Date(now - 25 * 60000).toISOString()).order('taken_at'),
     db.from('alerts').select('*').neq('state', 'resolved'),
+    db.from('members').select('user_id,alert_role'),
   ]);
   const s: any = set.data;
   if (!s) { console.error('alerts: settings', set.error?.message); return; }
-  const latest = (last.data as any[])?.[0] ?? null;
-  const cfg = { urgentLow: s.alert_urgent_low_mgdl, low: s.alert_low_mgdl, high: s.alert_high_mgdl, lowDelay: s.alert_low_delay_min,
-    highDelay: s.alert_high_delay_min, noDataMin: s.alert_nodata_min, renotify: s.alert_renotify_min, highRenotify: s.alert_high_renotify_min };
+  let readings = (last.data ?? []) as any[];
+  if (!readings.length) { // nothing in 25 min: the newest reading still decides "no data" and its age
+    const { data } = await db.from('glucose_readings').select('taken_at,mg_dl,trend').order('taken_at', { ascending: false }).limit(1);
+    readings = (data ?? []) as any[];
+  }
+  const latest = readings[readings.length - 1] ?? null;
+  const cfg: AlertCfg = { urgentLow: s.alert_urgent_low_mgdl, low: s.alert_low_mgdl, high: s.alert_high_mgdl, lowDelay: s.alert_low_delay_min,
+    highDelay: s.alert_high_delay_min, noDataMin: s.alert_nodata_min, renotify: s.alert_renotify_min, highRenotify: s.alert_high_renotify_min,
+    rapidRate: s.alert_rapid_rate === null ? null : Number(s.alert_rapid_rate), escalateMin: s.escalate_min,
+    night: s.night_start && s.night_end ? { start: s.night_start, end: s.night_end, low: s.night_low_mgdl, high: s.night_high_mgdl, highSilent: s.night_high_silent } : null,
+    school: s.school_start && s.school_end ? { days: s.school_days ?? [], start: s.school_start, end: s.school_end, low: s.school_low_mgdl, high: s.school_high_mgdl } : null };
+  const members = (mem.data ?? []) as { user_id: string; alert_role: string }[];
   const openRows = (open.data ?? []) as (OpenAlert & Record<string, unknown>)[];
-  const steps = evaluate(now, latest, cfg, openRows, Boolean((st.data as any)?.connected));
+  const steps = evaluate(now, readings, cfg, openRows, Boolean((st.data as any)?.connected));
   for (const step of steps) {
     let id = step.id, startedAt = openRows.find((a) => a.id === id)?.started_at ?? new Date(now).toISOString();
     if (step.op === 'create') {
@@ -121,14 +132,14 @@ async function runAlerts(db: Db, now: number) {
     } else if (step.op === 'delete') { await db.from('alerts').delete().eq('id', id!); continue; }
     else if (step.op === 'resolve') await db.from('alerts').update({ state: 'resolved', ...step.patch }).eq('id', id!);
     else await db.from('alerts').update(step.patch).eq('id', id!);
-    if (!step.notify) continue;
+    if (!step.notify || step.silent) continue;
     const minutes = step.kind === 'no_data'
       ? (latest ? (now - Date.parse(latest.taken_at)) / 60000 : 0)
       : (now - Date.parse(startedAt)) / 60000;
     const value = step.kind === 'no_data' ? null : (latest?.mg_dl ?? null);
     const m = alertMessage(step.kind, step.notify, { child: s.child_name, value, trend: latest?.trend ?? null, unit: s.glucose_unit === 'mmol' ? 'mmol' : 'mgdl', minutes });
     await pushAll(db, { title: m.title, body: m.body, tag: `alert-${step.kind}`, url: './#/', kind: step.kind, sticky: step.kind === 'urgent_low' && step.notify !== 'resolved' },
-      { kind: step.notify, alertId: id, urgency: m.urgency });
+      { kind: step.notify, alertId: id, urgency: m.urgency, users: recipients(members, step.notify) });
   }
 }
 

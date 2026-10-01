@@ -7,9 +7,10 @@ import { sinceText } from '../lib/now';
 import type { AlertKind, AlertRow } from '../lib/types';
 import { Btn, cx, toast } from './ui';
 
-export const ALERT_NAME: Record<AlertKind, string> = { urgent_low: 'منخفض جدًا', low: 'منخفض', high: 'مرتفع', no_data: 'لا توجد قراءة' };
+export const ALERT_NAME: Record<AlertKind, string> = { urgent_low: 'منخفض جدًا', low: 'منخفض', high: 'مرتفع', no_data: 'لا توجد قراءة', rapid_fall: 'نزول سريع', rapid_rise: 'صعود سريع' };
 const STYLE: Record<AlertKind, string> = {
   urgent_low: 'bg-over text-white', low: 'bg-over-soft text-over', high: 'bg-near-soft text-near', no_data: 'bg-slate-100 text-slate-700',
+  rapid_fall: 'bg-over-soft text-over', rapid_rise: 'bg-near-soft text-near',
 };
 const clock = (iso: string) => new Date(iso).toLocaleTimeString('ar-KW-u-nu-latn', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kuwait' });
 

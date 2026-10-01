@@ -11,6 +11,7 @@ import { Icon, StatusIcon, TREND_ICON, TREND_WORDS } from '../components/Icon';
 import { LogSheet } from '../components/LogSheet';
 import { AlertStrip } from '../components/AlertStrip';
 import { VersionTag } from '../components/Version';
+import { schoolWindow } from '../lib/schedule';
 // imported (not from /public) so every new artwork gets a new hashed file name and phones never keep an old copy
 import layanWebp from '../assets/layan_peek.webp';
 import layanPng from '../assets/layan_peek.png';
@@ -98,6 +99,8 @@ export default function Now() {
           </ul>
         </Card>
 
+        <SchoolSummary />
+
         {today && today.n > 0 && (
           <Link to="/analysis?mode=stats" className="flex min-h-[44px] items-center gap-3 px-1 font-medium text-brand-num">
             <span>اليوم</span>
@@ -166,9 +169,14 @@ function LayanHeader({ alertCount }: { alertCount: number }) {
           <img src={layanPng} alt="" className="absolute left-0 w-full select-none" style={{ bottom: 'calc(-0.0454 * 156px * 388 / 480)' }} draggable={false} />
         </picture>
       </div>
-      <Link to="/more" aria-label="الحساب والمزيد" className="grid h-12 w-12 place-items-center rounded-full text-slate-600">
-        <Icon name="user" size={32} />
-      </Link>
+      <div className="flex flex-col items-center">
+        <Link to="/more" aria-label="الحساب والمزيد" className="grid h-12 w-12 place-items-center rounded-full text-slate-600">
+          <Icon name="user" size={32} />
+        </Link>
+        <Link to="/night" aria-label="شاشة الليل" className="grid h-11 w-11 place-items-center rounded-full text-slate-500">
+          <Icon name="moon" size={24} />
+        </Link>
+      </div>
     </header>
   );
 }
@@ -239,5 +247,35 @@ function Graph({ readings, low, high, reference, meals, insulin, carbs, unit }: 
       {last && <circle cx={x(last.t)} cy={y(last.v)} r="4.5" fill="rgb(var(--primary-strong))" stroke="rgb(var(--surface))" strokeWidth="1.5" />}
       {marks(meals, 'meals')}{marks(insulin, 'insulin')}{marks(carbs, 'carbs')}
     </svg>
+  );
+}
+
+/** After school (until 5 hours later) on a school day: how the school hours went, in one card. */
+function SchoolSummary() {
+  const { settings, history, events } = useData();
+  const [st, setSt] = useState<GlucoseStats | null>(null);
+  const w = schoolWindow(settings);
+  const now = Date.now();
+  const show = !!w && now >= w.to && now < w.to + 5 * 3600000;
+  useEffect(() => {
+    if (!show || !w) return;
+    glucoseStats(new Date(w.from), new Date(w.to), settings.glucose_low_mgdl, settings.glucose_high_mgdl).then(setSt).catch(() => setSt(null));
+  }, [show, w?.from]);
+  if (!show || !w || !st || st.n === 0) return null;
+  const unit = settings.glucose_unit;
+  const inWin = (iso: string) => { const t = Date.parse(iso); return t >= w.from && t < w.to; };
+  const entries = history.filter((h) => inWin(h.eaten_at)).length + events.filter((e) => !e.deleted_at && inWin(e.occurred_at)).length;
+  return (
+    <Link to="/analysis?mode=day">
+      <Card className="space-y-1.5 !py-3">
+        <div className="flex items-center gap-2 font-bold"><Icon name="school" size={20} /> يوم المدرسة</div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
+          <span>ضمن النطاق <b className="num text-ok">{Math.round(st.pct_in)}%</b></span>
+          {st.min !== null && <span>أقل <b className="num">{formatGlucose(st.min, unit)}</b></span>}
+          {st.max !== null && <span>أعلى <b className="num">{formatGlucose(st.max, unit)}</b></span>}
+          <span><b className="num">{entries}</b> تسجيل</span>
+        </div>
+      </Card>
+    </Link>
   );
 }

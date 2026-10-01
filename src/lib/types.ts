@@ -94,6 +94,13 @@ export interface Settings {
   alert_renotify_min: number;
   alert_high_renotify_min: number;
   child_name: string;
+  alert_rapid_rate: number | null;
+  night_start: string | null; night_end: string | null;
+  night_low_mgdl: number | null; night_high_mgdl: number | null;
+  night_high_silent: boolean; night_theme: boolean;
+  school_days: number[]; school_start: string | null; school_end: string | null;
+  school_low_mgdl: number | null; school_high_mgdl: number | null;
+  escalate_min: number;
 }
 
 export interface HistoryLine {
@@ -151,9 +158,13 @@ export const DEFAULT_SETTINGS: Settings = {
   alert_renotify_min: 10,
   alert_high_renotify_min: 60,
   child_name: 'ليان',
+  alert_rapid_rate: null,
+  night_start: null, night_end: null, night_low_mgdl: null, night_high_mgdl: null, night_high_silent: false, night_theme: true,
+  school_days: [0, 1, 2, 3, 4], school_start: null, school_end: null, school_low_mgdl: null, school_high_mgdl: null,
+  escalate_min: 10,
 };
 
-export type AlertKind = 'urgent_low' | 'low' | 'high' | 'no_data';
+export type AlertKind = 'urgent_low' | 'low' | 'high' | 'no_data' | 'rapid_fall' | 'rapid_rise';
 export interface AlertRow {
   id: string;
   kind: AlertKind;
@@ -189,4 +200,4 @@ export interface EventRow {
   created_by: string;
   deleted_at: string | null;
 }
-export interface Member { user_id: string; display_name: string | null }
+export interface Member { user_id: string; display_name: string | null; alert_role?: 'primary' | 'backup' | 'off' }

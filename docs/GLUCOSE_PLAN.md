@@ -993,7 +993,11 @@ Stage 4 shipped in 0.12.0: Analysis → اليوم with day navigation (arrows, 
 `glucose_stats`, More metrics (SD, CV, min, max, coverage, carbs, treatment, rapid and long insulin), the 24-hour
 graph with night/morning/afternoon/evening shading, and the day's entries plus detected lows (≥ 10 min below
 the range, never across a gap); a row centres the graph on its moment (240 ms animation) and the rail opens
-the event sheet. Completed: 48 %. The app loads the last 60 days of
+the event sheet. Completed: 48 %.
+Stage 5 shipped in 0.13.0: night and school profiles (own thresholds, silent highs at night, night colours),
+rapid fall/rise alerts from a 15-minute least-squares slope (≥ 3 points, no gap, 2-minute delay), escalation to
+the backup parent after the set minutes without «أنا عليها» (urgent low after 5 at most), alert roles per
+parent, the night screen (96 px, screen kept on) and the after-school summary. Completed: 58 %. The app loads the last 60 days of
 events, so markers older than that do not show yet.
 
 

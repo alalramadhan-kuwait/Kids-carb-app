@@ -16,6 +16,8 @@ import Plan from './pages/Plan';
 import Cgm from './pages/Cgm';
 import AlertsPage from './pages/Alerts';
 import CarePlanPage from './pages/CarePlan';
+import Night from './pages/Night';
+import { isNight } from './lib/schedule';
 import { UpdateBanner, VersionTag } from './components/Version';
 import { Icon } from './components/Icon';
 import type { IconName } from './icons/defs';
@@ -142,6 +144,22 @@ const TABS: { to: string; label: string; icon: IconName; match: string[] }[] = [
   { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm', '/alerts', '/care-plan'] },
 ];
 
+/** Night colours during the parents' night window (if they turned it on); the phone's dark mode still applies otherwise. */
+function NightTheme() {
+  const { settings } = useData();
+  useEffect(() => {
+    const apply = () => {
+      const root = document.documentElement, on = settings.night_theme && isNight(settings);
+      if (on) root.dataset.theme = 'night';
+      else if (root.dataset.theme === 'night' && !location.hash.startsWith('#/night')) delete root.dataset.theme;
+    };
+    apply();
+    const t = setInterval(apply, 60000);
+    return () => clearInterval(t);
+  }, [settings]);
+  return null;
+}
+
 function Shell() {
   const { loading, error } = useData();
   const { pathname } = useLocation();
@@ -149,6 +167,7 @@ function Shell() {
   if (error) return <Centered><Alert tone="over">تعذّر تحميل البيانات: {error}</Alert></Centered>;
   return (
     <>
+      <NightTheme />
       <Routes>
         <Route path="/" element={<Now />} />
         <Route path="/meals" element={<Today />} />
@@ -167,6 +186,7 @@ function Shell() {
         <Route path="/cgm" element={<Cgm />} />
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/care-plan" element={<CarePlanPage />} />
+        <Route path="/night" element={<Night />} />
         <Route path="/snacks" element={<SnacksPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/more" element={<More />} />

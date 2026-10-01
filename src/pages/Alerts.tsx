@@ -8,14 +8,19 @@ import { sinceText } from '../lib/now';
 import type { AlertRow, Settings } from '../lib/types';
 import { ALERT_NAME } from '../components/AlertStrip';
 import { Icon } from '../components/Icon';
-import { Alert, Btn, Card, Field, NumInput, Page, toast } from '../components/ui';
+import { Alert, Btn, Card, Chip, Field, NumInput, Page, Toggle, cx, inputCls, toast } from '../components/ui';
+import { hhmm } from '../lib/schedule';
 
 type Sub = { id: string; user_id: string; device_label: string | null; last_ok_at: string | null; last_error: string | null; endpoint: string };
-const KEYS = ['alert_urgent_low_mgdl', 'alert_low_mgdl', 'alert_high_mgdl', 'alert_low_delay_min', 'alert_high_delay_min', 'alert_nodata_min', 'alert_renotify_min'] as const;
+const KEYS = ['alert_urgent_low_mgdl', 'alert_low_mgdl', 'alert_high_mgdl', 'alert_low_delay_min', 'alert_high_delay_min', 'alert_nodata_min', 'alert_renotify_min',
+  'alert_rapid_rate', 'night_start', 'night_end', 'night_low_mgdl', 'night_high_mgdl', 'night_high_silent', 'night_theme',
+  'school_days', 'school_start', 'school_end', 'school_low_mgdl', 'school_high_mgdl', 'escalate_min'] as const;
+const WEEK = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
+const ROLE: [string, string][] = [['primary', 'أولًا'], ['backup', 'احتياط'], ['off', 'لا']];
 
 export default function AlertsPage() {
   const nav = useNavigate();
-  const { settings, reload, nameOf } = useData();
+  const { settings, reload, nameOf, members } = useData();
   const [ps, setPs] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
   const [s, setS] = useState<Settings>(settings);
@@ -32,15 +37,29 @@ export default function AlertsPage() {
   useEffect(() => { pushState().then(setPs); loadLists(); }, []);
 
   const unit = s.glucose_unit;
-  const g = (k: 'alert_urgent_low_mgdl' | 'alert_low_mgdl' | 'alert_high_mgdl') => (s[k] === null ? null : Number(formatGlucose(s[k]!, unit)));
-  const setG = (k: 'alert_urgent_low_mgdl' | 'alert_low_mgdl' | 'alert_high_mgdl') => (v: number | null) => setS({ ...s, [k]: v === null ? null : toMgdl(v, unit) });
+  type GKey = 'alert_urgent_low_mgdl' | 'alert_low_mgdl' | 'alert_high_mgdl' | 'night_low_mgdl' | 'night_high_mgdl' | 'school_low_mgdl' | 'school_high_mgdl';
+  const g = (k: GKey) => (s[k] === null ? null : Number(formatGlucose(s[k]!, unit)));
+  const setG = (k: GKey) => (v: number | null) => setS({ ...s, [k]: v === null ? null : toMgdl(v, unit) });
+  // rapid change is stored in mg/dL per minute and shown in the parents' unit per minute
+  const rate = s.alert_rapid_rate === null ? null : unit === 'mmol' ? Math.round((s.alert_rapid_rate / 18.016) * 100) / 100 : s.alert_rapid_rate;
+  const setRate = (v: number | null) => setS({ ...s, alert_rapid_rate: v === null ? null : Math.round((unit === 'mmol' ? v * 18.016 : v) * 10) / 10 });
+  const time = (k: 'night_start' | 'night_end' | 'school_start' | 'school_end') => (
+    <input type="time" dir="ltr" className={inputCls} value={hhmm(s[k])} onChange={(e) => setS({ ...s, [k]: e.target.value || null })} />
+  );
+  const setRole = async (user: string, role: string) => {
+    const { error } = await supabase.rpc('set_alert_role', { p_user: user, p_role: role });
+    if (error) toast(error.message); else await reload();
+  };
   const u = s.alert_urgent_low_mgdl, l = s.alert_low_mgdl, h = s.alert_high_mgdl;
   const problem =
     u !== null && (u < 40 || u > 100) ? 'المنخفض جدًا خارج المعقول' :
     l !== null && (l < 50 || l > 150) ? 'المنخفض خارج المعقول' :
     h !== null && (h < 120 || h > 450) ? 'المرتفع خارج المعقول' :
     u !== null && l !== null && u >= l ? 'المنخفض جدًا يجب أن يكون أقل من المنخفض' :
-    l !== null && h !== null && l >= h ? 'المنخفض يجب أن يكون أقل من المرتفع' : '';
+    l !== null && h !== null && l >= h ? 'المنخفض يجب أن يكون أقل من المرتفع' :
+    s.alert_rapid_rate !== null && (s.alert_rapid_rate < 1 || s.alert_rapid_rate > 6) ? 'سرعة التغيّر خارج المعقول' :
+    (s.night_start === null) !== (s.night_end === null) ? 'اكتب بداية ونهاية الليل' :
+    (s.school_start === null) !== (s.school_end === null) ? 'اكتب بداية ونهاية المدرسة' : '';
 
   const save = async () => {
     const patch = Object.fromEntries(KEYS.map((k) => [k, s[k]]));
@@ -87,6 +106,57 @@ export default function AlertsPage() {
             <Field label="تكرار كل"><NumInput value={s.alert_renotify_min} onChange={(v) => setS({ ...s, alert_renotify_min: v ?? 10 })} /></Field>
           </div>
           {problem && <Alert tone="near">{problem}</Alert>}
+          <Btn kind="primary" block disabled={!!problem} onClick={save}>حفظ</Btn>
+        </Card>
+
+        <Card className="space-y-3">
+          <h2 className="font-bold">النزول أو الصعود السريع</h2>
+          <Field label={`أسرع من (${unitLabel(unit)} بالدقيقة)`} hint="فارغ = متوقف. من الطبيب.">
+            <NumInput value={rate} onChange={setRate} />
+          </Field>
+        </Card>
+
+        <Card className="space-y-3">
+          <div className="flex items-center justify-between"><h2 className="font-bold">وضع الليل</h2><span className="text-xs text-slate-500">فارغ = متوقف</span></div>
+          <div className="grid grid-cols-2 gap-2"><Field label="من">{time('night_start')}</Field><Field label="إلى">{time('night_end')}</Field></div>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="منخفض بالليل" hint="فارغ = مثل النهار"><NumInput value={g('night_low_mgdl')} onChange={setG('night_low_mgdl')} /></Field>
+            <Field label="مرتفع بالليل" hint="فارغ = مثل النهار"><NumInput value={g('night_high_mgdl')} onChange={setG('night_high_mgdl')} /></Field>
+          </div>
+          <label className="flex min-h-[44px] items-center justify-between"><span>المرتفع بدون إشعار بالليل</span><Toggle on={s.night_high_silent} onChange={(v) => setS({ ...s, night_high_silent: v })} label="المرتفع بدون إشعار بالليل" /></label>
+          <label className="flex min-h-[44px] items-center justify-between"><span>ألوان الليل في وقته</span><Toggle on={s.night_theme} onChange={(v) => setS({ ...s, night_theme: v })} label="ألوان الليل في وقته" /></label>
+        </Card>
+
+        <Card className="space-y-3">
+          <div className="flex items-center justify-between"><h2 className="font-bold">وضع المدرسة</h2><span className="text-xs text-slate-500">فارغ = متوقف</span></div>
+          <div className="flex flex-wrap gap-1.5">
+            {WEEK.map((w, d) => <Chip key={d} active={s.school_days.includes(d)} onClick={() => setS({ ...s, school_days: s.school_days.includes(d) ? s.school_days.filter((x) => x !== d) : [...s.school_days, d].sort() })}>{w}</Chip>)}
+          </div>
+          <div className="grid grid-cols-2 gap-2"><Field label="من">{time('school_start')}</Field><Field label="إلى">{time('school_end')}</Field></div>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="منخفض بالمدرسة" hint="فارغ = مثل النهار"><NumInput value={g('school_low_mgdl')} onChange={setG('school_low_mgdl')} /></Field>
+            <Field label="مرتفع بالمدرسة" hint="فارغ = مثل النهار"><NumInput value={g('school_high_mgdl')} onChange={setG('school_high_mgdl')} /></Field>
+          </div>
+        </Card>
+
+        <Card className="space-y-3">
+          <h2 className="font-bold">من يصله التنبيه</h2>
+          <ul className="space-y-2">
+            {members.map((m) => (
+              <li key={m.user_id} className="flex items-center gap-2">
+                <span className="flex-1 font-medium">{nameOf(m.user_id)}</span>
+                <div className="flex gap-1" role="radiogroup">
+                  {ROLE.map(([v, label]) => (
+                    <button key={v} role="radio" aria-checked={(m.alert_role ?? 'primary') === v} onClick={() => setRole(m.user_id, v)}
+                      className={cx('min-h-[40px] rounded-xl px-3 text-sm font-medium', (m.alert_role ?? 'primary') === v ? 'bg-brand text-white' : 'bg-slate-50 text-slate-600')}>{label}</button>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <Field label="إذا لم يرد أحد، يصل للاحتياط بعد (دقائق)" hint="المنخفض جدًا بعد 5 دقائق كحد أقصى">
+            <NumInput value={s.escalate_min} onChange={(v) => setS({ ...s, escalate_min: v ?? 10 })} />
+          </Field>
           <Btn kind="primary" block disabled={!!problem} onClick={save}>حفظ</Btn>
         </Card>
 
