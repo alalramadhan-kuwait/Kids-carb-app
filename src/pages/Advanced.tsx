@@ -3,7 +3,7 @@ import { useData } from '../lib/data';
 import { glucoseStats, type GlucoseStats } from '../lib/api';
 import { formatGlucose, unitLabel } from '../lib/glucose';
 import { gmi, hoursOfDay, kuwaitDayStart } from '../lib/now';
-import { Badge, Card, Chip, Page } from '../components/ui';
+import { Badge, Card, Chip } from '../components/ui';
 
 const PERIODS = [
   { id: 'today', label: 'اليوم', days: 0 },
@@ -22,8 +22,8 @@ const BANDS = [
   { key: 'pct_vhigh', label: 'مرتفع جدًا', range: '> 13.9', cls: 'bg-near' },
 ] as const;
 
-/** متقدم: the numbers behind the day. Published formulas only, each with its data coverage. */
-export default function Advanced() {
+/** The numbers behind the day (Analysis → الأرقام). Published formulas only, each with its data coverage. */
+export default function StatsPanel() {
   const { settings } = useData();
   const [period, setPeriod] = useState<(typeof PERIODS)[number]['id']>('today');
   const [s, setS] = useState<GlucoseStats | null>(null);
@@ -42,7 +42,7 @@ export default function Advanced() {
   const cv = s?.mean && s.sd !== null ? (s.sd / s.mean) * 100 : null;
 
   return (
-    <Page title="متقدم">
+    <>
       <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4">
         {PERIODS.map((p) => <Chip key={p.id} active={period === p.id} onClick={() => setPeriod(p.id)}>{p.label}</Chip>)}
       </div>
@@ -86,7 +86,7 @@ export default function Advanced() {
           <p className="px-1 text-xs text-slate-400">تحليل الإنسولين والوجبات والارتباطات يأتي في المراحل القادمة.</p>
         </div>
       )}
-    </Page>
+    </>
   );
 }
 

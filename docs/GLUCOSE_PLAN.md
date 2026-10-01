@@ -980,6 +980,12 @@ Phase 2 step 6 (Daily view); A5–A6 are part of Phase 2 step 9; A4, A7, A8 are 
 
 Each stage ships as its own app version and is accepted against the criteria in sections 9 and 11.14.
 
+**Progress:** stage 1 shipped in 0.7.0; stage 2 in 0.8.0 (measured: a 90-day frame draws in 0.6 ms median,
+1.3 ms worst, on the test browser; a single 2.9 mmol/L reading survives at every zoom and pan position; a
+27-minute gap is drawn and labelled). Completed: 30 %. Interim in stage 2: beyond 3 days the trace is drawn as
+a light min–max range band until the daily-strip (stage 4) and AGP (stage 6) renderers replace it; pinch
+snaps to the nearest standard period on release.
+
 
 ## Sources
 

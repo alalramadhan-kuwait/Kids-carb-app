@@ -75,10 +75,10 @@ export default function Now() {
                 <StatusIcon name={status} size={18} />{STATUS[status].label}
               </span>
             )}
-            {g && <Graph readings={g.readings} low={settings.glucose_low_mgdl} high={settings.glucose_high_mgdl}
+            {g && <Link to="/analysis" aria-label="افتح الرسم الكامل" className="block"><Graph readings={g.readings} low={settings.glucose_low_mgdl} high={settings.glucose_high_mgdl}
               meals={history.filter((h) => h.kind === 'meal').map((h) => h.eaten_at)}
               insulin={events.filter((e) => e.kind === 'insulin').map((e) => e.occurred_at)}
-              carbs={events.filter((e) => e.kind === 'carbs' || e.kind === 'treatment').map((e) => e.occurred_at)} />}
+              carbs={events.filter((e) => e.kind === 'carbs' || e.kind === 'treatment').map((e) => e.occurred_at)} /></Link>}
             {g?.error && <p className="mt-1 text-sm text-over">{GLUCOSE_ERRORS[g.error] ?? g.error} <button className="underline" onClick={reload}>إعادة</button></p>}
           </Card>
         )}
@@ -90,7 +90,7 @@ export default function Now() {
         </Card>
 
         {today && today.n > 0 && (
-          <Link to="/advanced" className="flex items-center gap-2 px-1 text-sm text-slate-600">
+          <Link to="/analysis?mode=stats" className="flex items-center gap-2 px-1 text-sm text-slate-600">
             <span>اليوم</span>
             <span className="flex h-2 flex-1 overflow-hidden rounded-full bg-slate-100" aria-hidden>
               <i style={{ width: `${today.pct_vlow + today.pct_low}%` }} className="bg-over-fill" />

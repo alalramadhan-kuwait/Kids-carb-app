@@ -6,7 +6,7 @@ import { DataProvider, useData } from './lib/data';
 import { Alert, Btn, Card, Field, Toaster, cx, inputCls } from './components/ui';
 import Today from './pages/Today';
 import Now from './pages/Now';
-import Advanced from './pages/Advanced';
+import Analysis from './pages/Analysis';
 import { RecipeList, RecipeView } from './pages/Recipes';
 import RecipeEdit from './pages/RecipeEdit';
 import { ProductList } from './pages/Products';
@@ -138,7 +138,7 @@ const TABS: { to: string; label: string; icon: IconName; match: string[] }[] = [
   { to: '/', label: 'الآن', icon: 'home', match: ['/'] },
   { to: '/timeline', label: 'السجل', icon: 'history', match: ['/timeline'] },
   { to: '/meals', label: 'الوجبات', icon: 'meals', match: ['/meals', '/recipes', '/products', '/plan', '/snacks'] },
-  { to: '/advanced', label: 'متقدم', icon: 'advanced', match: ['/advanced'] },
+  { to: '/analysis', label: 'التحليل', icon: 'advanced', match: ['/analysis', '/advanced'] },
   { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm', '/alerts', '/care-plan'] },
 ];
 
@@ -154,7 +154,8 @@ function Shell() {
         <Route path="/meals" element={<Today />} />
         <Route path="/timeline" element={<History />} />
         <Route path="/history" element={<Navigate to="/timeline" replace />} />
-        <Route path="/advanced" element={<Advanced />} />
+        <Route path="/analysis" element={<Analysis />} />
+        <Route path="/advanced" element={<Navigate to="/analysis?mode=stats" replace />} />
         <Route path="/recipes" element={<RecipeList />} />
         <Route path="/recipes/new" element={<RecipeEdit />} />
         <Route path="/recipes/:id" element={<RecipeView />} />

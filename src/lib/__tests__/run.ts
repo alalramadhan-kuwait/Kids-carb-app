@@ -10,6 +10,7 @@ import { ICONS } from '../../icons/defs';
 import { unitsWord } from '../events';
 import { alertMessage, evaluate, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
+import { PERIODS, delta15, freshness, gapsIn, mergeSeries, emptySeries, nearest, rateAt, runsFor, timeTicks, tickLabel, zoomAt } from '../../engine/series';
 import { findDuplicate, gmi, hoursOfDay, kuwaitDayStart, sinceText, statusSentence } from '../now';
 import { DEFAULT_SETTINGS, type HistoryEntry, type Ingredient, type Product, type Recipe, type Settings } from '../types';
 
@@ -455,6 +456,83 @@ test('push payload encryption matches RFC 8291 appendix A', async () => {
     b64u.dec('BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4'), b64u.dec('BTBZMqHH6r4Tts7J_aSIgg'),
     { salt: b64u.dec('DGv6ra1nlYgDCS1FRnbzlw'), asPublic: b64u.dec('BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8'), asPrivate: b64u.dec('yfWPiYE-n46HLnH0KqZOF1fJJU3MYrct3AELtAQ-oRw') });
   assert.equal(b64u.enc(out), 'DGv6ra1nlYgDCS1FRnbzlwAAEABBBP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A_yl95bQpu6cVPTpK4Mqgkf1CXztLVBSt2Ks3oZwbuwXPXLWyouBWLVWGNWQexSgSxsj_Qulcy4a-fN');
+});
+
+console.log('timeline engine');
+
+// 90 days of 1-minute readings: a gentle wave, one 52 mg/dL (2.9 mmol/L) reading, and a 27-minute gap
+const DAY = 86400000, M = 60000, END = Date.parse('2026-10-01T12:00:00Z'), START = END - 90 * DAY;
+const fx = (() => {
+  const t: number[] = [], v: number[] = [];
+  for (let x = START; x <= END; x += M) {
+    if (x > END - 2 * DAY && x < END - 2 * DAY + 27 * M) continue; // the gap
+    t.push(x); v.push(Math.round(130 + 40 * Math.sin(x / (3 * 3600000))));
+  }
+  const k = Math.floor(t.length * 0.37); v[k] = 52;
+  return { s: mergeSeries(emptySeries(), t, v), lowAt: t[k] };
+})();
+
+test('a single low reading survives min-max decimation at every zoom and every pan position', () => {
+  for (const p of PERIODS) for (const frac of [0.05, 0.5, 0.95]) {
+    const end = fx.lowAt + p.ms * frac, start = end - p.ms;
+    const runs = runsFor(fx.s, start, end, 390);
+    assert.ok(runs.some((r) => r.v.includes(52)), `${p.id} at ${frac}`);
+    const pts = runs.reduce((n, r) => n + r.x.length, 0);
+    assert.ok(pts <= 2 * 390 + 2 * runs.length + 4, `${p.id}: ${pts} points drawn for 390 px`);
+  }
+});
+
+test('decimation never invents a value or joins across a gap', () => {
+  const gapStart = END - 2 * DAY;
+  const runs = runsFor(fx.s, gapStart - 3 * 3600000, gapStart + 3 * 3600000, 390);
+  assert.equal(runs.length, 2);
+  const all = new Set(Array.from(fx.s.v));
+  for (const r of runsFor(fx.s, END - 30 * DAY, END, 390)) for (const v of r.v) assert.ok(all.has(v));
+});
+
+test('a 27-minute gap is found with its length; the open gap after the last reading counts too', () => {
+  const gapStart = END - 2 * DAY;
+  const gaps = gapsIn(fx.s, gapStart - 3600000, gapStart + 3600000, END);
+  assert.equal(gaps.length, 1); assert.equal(gaps[0].minutes, 27); assert.equal(gaps[0].open, false);
+  const open = gapsIn(fx.s, END - 3600000, END + 30 * M, END + 30 * M);
+  const last = open[open.length - 1]; assert.equal(last.open, true); assert.equal(last.minutes, 30);
+  assert.equal(gapsIn(fx.s, END - 3600000, END, END + 10 * M).length, 0);
+});
+
+test('decimating 90 days for one frame is fast enough for 60 fps', () => {
+  const t0 = performance.now();
+  for (let k = 0; k < 20; k++) runsFor(fx.s, END - 90 * DAY + k * DAY, END, 390);
+  const per = (performance.now() - t0) / 20;
+  assert.ok(per < 8, `${per.toFixed(2)} ms per frame`);
+});
+
+test('merging keeps order, replaces the same instant, and handles unsorted batches', () => {
+  const a = mergeSeries(emptySeries(), [10, 20, 30], [1, 2, 3]);
+  const b = mergeSeries(a, [25, 20, 5], [9, 8, 7]);
+  assert.deepEqual(Array.from(b.t), [5, 10, 20, 25, 30]); assert.deepEqual(Array.from(b.v), [7, 1, 8, 9, 3]);
+  const t0 = performance.now(); mergeSeries(fx.s, [END + M], [100]); assert.ok(performance.now() - t0 < 15);
+});
+
+test('inspector values: nearest reading, 15-minute change, rate, freshness', () => {
+  const s = mergeSeries(emptySeries(), [0, 5, 10, 15].map((m) => END + m * M), [100, 95, 90, 85]);
+  assert.equal(nearest(s, END + 6 * M), 1);
+  assert.equal(nearest(s, END + 40 * M), null);
+  assert.equal(delta15(s, 3), -15);
+  assert.equal(Math.round(rateAt(s, 3)! * 100) / 100, -1);
+  assert.equal(freshness(END, END + 4 * M), 'live'); assert.equal(freshness(END, END + 12 * M), 'delayed'); assert.equal(freshness(END, END + 16 * M), 'missing');
+  const gapped = mergeSeries(emptySeries(), [0, 30, 35, 40].map((m) => END + m * M), [100, 95, 90, 85]);
+  assert.equal(delta15(gapped, 3), null); // the 15-minute point would sit across the gap
+});
+
+test('zoom keeps the time under the fingers fixed; ticks follow Kuwait time', () => {
+  const v = { end: END, span: 6 * 3600000 };
+  const z = zoomAt(v, 0.5, 0.25);
+  const at = (w: typeof v, f: number) => w.end - w.span * (1 - f);
+  assert.equal(at(z, 0.25), at(v, 0.25)); assert.equal(z.span, 3 * 3600000);
+  assert.equal(zoomAt(v, 1e-6, 0.5).span, 30 * M); // never closer than 30 minutes
+  const { step, ticks } = timeTicks(END - 6 * 3600000, END, 390);
+  assert.equal(step, 3600000); assert.equal(tickLabel(ticks[0], step).length, 5);
+  assert.equal(tickLabel(Date.parse('2026-10-01T21:00:00Z'), 3600000), '2/10'); // midnight in Kuwait shows the date
 });
 
 console.log('releases');
