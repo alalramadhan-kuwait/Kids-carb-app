@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.8.1",
+    "date": "2026-10-01",
+    "notes": [
+      "حاسبة الجرعة: عند كتابة الكارب ترتفع الحاسبة فوق لوحة المفاتيح، والنتيجة تظهر بجانب الخانة",
+      "نافذة الإنسولين تفتح بدون لوحة المفاتيح لتظهر الحاسبة أولًا",
+      "زر «سجّل» لا يظهر خلف النافذة"
+    ],
+    "notes_en": [
+      "Dose calculator: typing the carbs lifts it above the keyboard, and the answer shows next to the box",
+      "The insulin sheet opens without the keyboard, so the calculator is visible first",
+      "The Log button no longer shows behind the sheet"
+    ]
+  },
+  {
     "version": "1.8.0",
     "date": "2026-10-01",
     "notes": [

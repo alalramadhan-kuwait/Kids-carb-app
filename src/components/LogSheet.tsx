@@ -120,7 +120,7 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
                 {kind === 'note'
                   ? <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('مثلًا: مريضة، حفلة، تغيير الحساس')} autoFocus />
                   : <NumInput value={kind === 'insulin' ? units : kind === 'exercise' ? mins : grams} onChange={kind === 'insulin' ? setUnits : kind === 'exercise' ? setMins : setGrams}
-                      className="!min-h-[56px] !text-center !text-3xl font-bold" autoFocus />}
+                      className="!min-h-[56px] !text-center !text-3xl font-bold" autoFocus={kind !== 'insulin'} />}
               </div>
               <Btn kind="primary" className={cx('min-h-[56px] shrink-0 !px-5', KIND_STYLE[kind].solid)} disabled={!valid || busy || (!!dup && !dupAck)} onClick={save}>{t('حفظ')}</Btn>
             </div>

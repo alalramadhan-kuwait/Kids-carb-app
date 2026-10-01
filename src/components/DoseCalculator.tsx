@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { callGlucose } from '../lib/api';
@@ -39,6 +39,9 @@ export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'mea
     .filter((c) => c.t <= now && now - c.t <= 30 * MIN && (lastRapidAt === null || c.t > lastRapidAt))
     .reduce((sum, c) => sum + c.grams, 0), [history, events, now, lastRapidAt]);
   const [carbs, setCarbs] = useState<number | null>(null);
+  const box = useRef<HTMLElement>(null);
+  // when the keyboard opens for the carbs, bring the whole calculator up so its answer stays in view
+  const lift = () => window.setTimeout(() => box.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 350);
   useEffect(() => { setCarbs((c) => (c === null && recentCarbs > 0 ? Math.round(recentCarbs) : c)); }, [recentCarbs]);
 
   const iobP = s.iob_dia_min && s.iob_peak_min ? { dia: s.iob_dia_min, peak: s.iob_peak_min } : null;
@@ -66,14 +69,16 @@ export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'mea
   if (!g) return <div className="rounded-2xl bg-slate-50 p-3 text-sm text-slate-500">{t('حاسبة الجرعة…')}</div>;
   const purpose = r.food > 0 && r.correction > 0 ? 'both' : r.food > 0 ? 'meal' : 'correction';
   return (
-    <section className="space-y-2 rounded-2xl bg-slate-50 p-3" aria-label={t('حاسبة الجرعة')}>
+    <section ref={box} className="scroll-mt-2 space-y-2 rounded-2xl bg-slate-50 p-3" aria-label={t('حاسبة الجرعة')}>
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-bold">{t('حاسبة الجرعة')}</h3>
         {ratio && target && <span className="text-xs text-slate-500">{t('كارب {cr} غ/وحدة · تصحيح {isf} · هدف {lo}–{hi}', { cr: fmt(ratio.cr), isf: gl(ratio.isf), lo: '\u2066' + gl(target.low), hi: gl(target.high) + '\u2069' /* keep the range left to right in Arabic */ })}</span>}
       </div>
       <label className="flex items-center gap-3">
         <span className="flex-1 text-sm text-slate-600">{t('كارب الوجبة (غ)')}</span>
-        <NumInput value={carbs} onChange={setCarbs} className="!w-24 !text-center" aria-label={t('كارب الوجبة (غ)')} />
+        <NumInput value={carbs} onChange={setCarbs} onFocus={lift} enterKeyHint="done" className="!w-24 !text-center" aria-label={t('كارب الوجبة (غ)')} />
+        {/* the answer right next to what is being typed, visible even with the keyboard up */}
+        {!r.block && <b className="num w-16 shrink-0 text-end text-lg">= {fmt(r.dose)}</b>}
       </label>
       {r.block ? (
         <p className={cx('text-sm font-medium', r.block === 'low' || r.block === 'falling' ? 'text-over' : 'text-slate-700')}>

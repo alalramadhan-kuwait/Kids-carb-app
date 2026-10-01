@@ -158,7 +158,7 @@ export default function Now() {
       </div>
 
       {/* Fitts: the one primary action, big, in the thumb zone above the tab bar */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(66px+env(safe-area-inset-bottom))] z-30 px-4">
+      <div className={cx('pointer-events-none fixed inset-x-0 bottom-[calc(66px+env(safe-area-inset-bottom))] z-30 px-4', logOpen && 'hidden')}>
         <div className="mx-auto flex max-w-2xl justify-start">
           <button onClick={() => setLogOpen(true)} className="pointer-events-auto flex min-h-[50px] items-center gap-2 rounded-full bg-brand pe-5 ps-4 text-base font-bold text-white shadow-[0_8px_24px_rgba(91,72,214,0.30)] active:scale-[0.98]">
             <Icon name="plus" size={24} /> {t('سجّل')}
