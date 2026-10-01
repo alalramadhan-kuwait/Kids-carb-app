@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.9.0",
+    "date": "2026-10-01",
+    "notes": [
+      "سهم السكر محسوب من قراءات ليان في آخر 15 دقيقة: 7 درجات، مع سهمين للنزول أو الصعود السريع جدًا",
+      "تحت الرقم: «ينزل ببطء · −0.8 خلال 15 د · ≈ 5.6 عند 1:15»، ويظهر سهم Libre إذا اختلف",
+      "نفس السهم في الرئيسية وصفحة الحالة وشاشة الليل وعند الضغط المطوّل على الرسم، والحاسبة تستخدمه"
+    ],
+    "notes_en": [
+      "The glucose arrow is worked out from Layan's last 15 minutes of readings: 7 steps, with double arrows for very fast change",
+      "Under the number: \"Falling slowly · −0.8 in 15 min · ≈ 5.6 at 1:15\", plus Libre's arrow when it differs",
+      "The same arrow on Home, Status, the night screen and the graph's long-press; the dose calculator uses it too"
+    ]
+  },
+  {
     "version": "1.8.2",
     "date": "2026-10-01",
     "notes": [

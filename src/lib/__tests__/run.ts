@@ -942,7 +942,7 @@ console.log('dose calculator');
   const { suggestDose } = await import('../../engine/dose');
   const T = Date.UTC(2026, 9, 1, 9, 0), M = 60000;
   const base = { now: T, carbs: 45, ratio: { from: '00:00', cr: 15, isf: 54 }, target: { low: 99, high: 117 }, lowMg: 70,
-    glucose: { mg: 171, at: T - 2 * M, trend: 3 }, sensorStartedAt: T - 5 * 86400000, iob: 0, lastRapidAt: null, gapMin: 120, step: 1 };
+    glucose: { mg: 171, at: T - 2 * M, level: 0 }, sensorStartedAt: T - 5 * 86400000, iob: 0, lastRapidAt: null, gapMin: 120, step: 1 };
   test('food plus correction to the top of the range, rounded down to the pen', () => {
     const r = suggestDose(base);
     assert.equal(r.block, null); assert.equal(r.food, 3); assert.equal(r.correction, 1); assert.equal(r.dose, 4);
@@ -950,8 +950,8 @@ console.log('dose calculator');
     assert.equal(suggestDose({ ...base, carbs: 40, step: 0.5 }).dose, 3.5);
   });
   test('inside the range there is no correction; below it the food dose is lowered', () => {
-    assert.equal(suggestDose({ ...base, glucose: { mg: 110, at: T, trend: 3 } }).correction, 0);
-    const r = suggestDose({ ...base, glucose: { mg: 72, at: T, trend: 3 } });
+    assert.equal(suggestDose({ ...base, glucose: { mg: 110, at: T, level: 0 } }).correction, 0);
+    const r = suggestDose({ ...base, glucose: { mg: 72, at: T, level: 0 } });
     assert.equal(r.correction, -0.5); assert.equal(r.dose, 2, '3 − 0.5 = 2.5 → 2');
   });
   test('insulin still working covers the correction, never the food', () => {
@@ -963,9 +963,9 @@ console.log('dose calculator');
     assert.equal(suggestDose({ ...base, lastRapidAt: T - 90 * M }).block, 'recent_dose');
     assert.equal(suggestDose({ ...base, lastRapidAt: T - 90 * M }).until, T + 30 * M);
     assert.equal(suggestDose({ ...base, lastRapidAt: T - 121 * M }).block, null);
-    assert.equal(suggestDose({ ...base, glucose: { mg: 171, at: T - 16 * M, trend: 3 } }).block, 'no_reading');
-    assert.equal(suggestDose({ ...base, glucose: { mg: 65, at: T, trend: 3 } }).block, 'low');
-    assert.equal(suggestDose({ ...base, glucose: { mg: 171, at: T, trend: 1 } }).block, 'falling');
+    assert.equal(suggestDose({ ...base, glucose: { mg: 171, at: T - 16 * M, level: 0 } }).block, 'no_reading');
+    assert.equal(suggestDose({ ...base, glucose: { mg: 65, at: T, level: 0 } }).block, 'low');
+    assert.equal(suggestDose({ ...base, glucose: { mg: 171, at: T, level: -2 } }).block, 'falling');
     assert.equal(suggestDose({ ...base, sensorStartedAt: T - 30 * M }).block, 'warmup');
     assert.equal(suggestDose({ ...base, ratio: null }).block, 'no_plan');
     assert.equal(suggestDose({ ...base, iob: null }).block, 'no_plan');
@@ -1017,6 +1017,34 @@ console.log('prediction tracking');
       { checks: { '60': { pred: 150, actual: 300 } }, excluded: 'sensor_day1' },
     ]);
     assert.equal(a[0].n, 2); assert.equal(a[0].mae, 15); assert.equal(a[0].bias, 5); assert.equal(a[0].within, 0.5);
+  });
+}
+
+console.log('trend');
+
+{
+  const { trendFrom, levelOf, levelFromLibre, libreOf } = await import('../../engine/trend');
+  const M = 60000, T = Date.UTC(2026, 9, 1, 9, 0);
+  const R = (mins: number[], f: (m: number) => number) => mins.map((m) => ({ taken_at: new Date(T + m * M).toISOString(), mg_dl: f(m), trend: null }));
+  test('seven steps, with double arrows over 3 mg/dL a minute', () => {
+    assert.deepEqual([-3.5, -2.5, -1.5, 0, 0.9, 1.5, 2.5, 3.2].map(levelOf), [-3, -2, -1, 0, 0, 1, 2, 3]);
+    assert.equal(levelFromLibre(1), -2); assert.equal(libreOf(-3), 1); assert.equal(libreOf(0), 3);
+  });
+  test('rate from a straight fit over the last 15–20 minutes', () => {
+    const tr = trendFrom(R([-15, -12, -9, -6, -3, 0], (m) => 120 + 2 * m), T)!;
+    assert.ok(Math.abs(tr.rate - 2) < 1e-9); assert.ok(Math.abs(tr.change15 - 30) < 1e-9); assert.equal(tr.level, 2);
+    assert.ok(Math.abs(tr.projected30! - 180) < 1e-9);
+  });
+  test('one odd reading does not flip it', () => {
+    const tr = trendFrom(R([-15, -12, -9, -6, -3, 0], (m) => (m === 0 ? 112 : 100)), T)!;
+    assert.equal(tr.level, 0);
+  });
+  test('no trend from old readings, across a gap, or from too little', () => {
+    assert.equal(trendFrom(R([-40, -35, -30], (m) => 100 + m), T), null);
+    assert.equal(trendFrom(R([-3, 0], (m) => 100 + m), T), null, 'under 5 minutes');
+    const gap = trendFrom(R([-20, -2, 0], (m) => 100 + m), T);
+    assert.equal(gap, null, 'the 18-minute gap leaves only 2 minutes');
+    assert.equal(trendFrom(R([-8, 0], (m) => 100 + 2 * m), T)!.projected30, null, 'two points: a direction, no projection');
   });
 }
 

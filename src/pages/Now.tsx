@@ -28,6 +28,8 @@ import { KIND_STYLE } from '../lib/kinds';
 import { units2, useOnBoard } from './Status';
 import { sensorLife } from '../engine/status';
 import { syncPredictions } from '../lib/predictions';
+import { trendFrom, libreOf } from '../engine/trend';
+import { TrendArrow, TrendLine } from '../components/Trend';
 
 const TONE_DOT: Record<Tone, string> = { ok: 'bg-ok-fill', low: 'bg-over-fill', urgent: 'bg-over', high: 'bg-near-fill', warn: 'bg-near-fill', plain: 'bg-slate-300' };
 const TONE_TEXT: Record<Tone, string> = { ok: 'text-ok', low: 'text-over', urgent: 'text-over', high: 'text-near', warn: 'text-near', plain: 'text-slate-700' };
@@ -48,7 +50,8 @@ export default function Now() {
   const age = latest ? glucoseAge(latest.taken_at) : null;
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
   const status = latest ? glucoseStatus(latest.mg_dl, rng.low, rng.high) : null;
-  const sentence = statusSentence({ hasReading: !!latest, age: age?.state ?? null, status, trend: latest?.trend ?? null });
+  const trend = useMemo(() => (g ? trendFrom(g.readings, Date.now()) : null), [g]);
+  const sentence = statusSentence({ hasReading: !!latest, age: age?.state ?? null, status, trend: trend ? libreOf(trend.level) : latest?.trend ?? null });
   const notConnected = !!g && !g.connected;
   const ob = useOnBoard(latest);
   // keep prediction tracking up to date in the background (at most every 5 minutes)
@@ -96,10 +99,12 @@ export default function Now() {
             {latest && age?.state !== 'stale' ? (
               <div className={cx('mt-1 flex items-center gap-3', age?.state === 'old' && 'opacity-50')}>
                 <span className="num text-[60px] font-bold leading-none text-brand-num">{formatGlucose(latest.mg_dl, unit)}</span>
-                {latest.trend && <span className="text-brand-num"><Icon name={TREND_ICON[latest.trend]} size={36} label={TREND_WORDS[latest.trend]} /></span>}
+                <span className="text-brand-num"><TrendArrow trend={trend} libre={latest.trend} size={36} /></span>
                 <span className="self-end pb-2 text-sm text-slate-500">{unitLabel(unit)}</span>
               </div>
-            ) : latest ? (
+            ) : null}
+            {latest && age?.state === 'fresh' && <TrendLine trend={trend} libre={latest.trend} unit={unit} className="mt-1 text-sm text-slate-600" />}
+            {latest && age?.state === 'stale' ? (
               <p className="mt-1 text-sm text-near">{t('آخر قراءة')} <span className="num font-bold">{formatGlucose(latest.mg_dl, unit)}</span> {sinceText(latest.taken_at)}. {t('تحقق من جوال ليان والحساس.')}</p>
             ) : null}
             {g?.error && <p className="mt-1 text-sm text-over">{GLUCOSE_ERRORS[g.error] ?? g.error} <button className="min-h-[44px] underline" onClick={reload}>{t('إعادة')}</button></p>}

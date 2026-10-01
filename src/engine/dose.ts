@@ -12,7 +12,7 @@ export interface DoseInput {
   ratio: Ratio | null;                             // the doctor's block in effect now
   target: { low: number; high: number } | null;    // mg/dL; inside it there is no correction
   lowMg: number | null;                            // below this: no dose at all
-  glucose: { mg: number; at: number; trend: number | null } | null;
+  glucose: { mg: number; at: number; level: number | null } | null; // level: -3 … 3 from engine/trend
   sensorStartedAt: number | null;
   iob: number | null;                              // rapid units still working (null: no model)
   lastRapidAt: number | null;
@@ -36,7 +36,7 @@ export function suggestDose(p: DoseInput): DoseResult {
   if (!g || p.now - g.at > 15 * MIN) return none('no_reading');
   if (p.sensorStartedAt !== null && p.now - p.sensorStartedAt < 60 * MIN) return none('warmup');
   if (p.lowMg !== null && g.mg < p.lowMg) return none('low');
-  if (g.trend === 1) return none('falling');
+  if (g.level !== null && g.level <= -2) return none('falling'); // falling fast (2 mg/dL a minute or more)
 
   const food = Math.max(0, p.carbs) / p.ratio.cr;
   // above the range: down to its top; below it: lower the dose up to its bottom; inside it: nothing

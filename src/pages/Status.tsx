@@ -13,6 +13,8 @@ import { isEn, locale, t } from '../i18n';
 import type { Settings } from '../lib/types';
 import { usePredictions } from '../lib/predictions';
 import { PredictionAccuracy } from '../components/PredictionAccuracy';
+import { trendFrom } from '../engine/trend';
+import { TrendArrow, TrendLine } from '../components/Trend';
 
 const MIN = 60000;
 export const units2 = (u: number) => String(Math.round(u * 100) / 100);
@@ -47,6 +49,7 @@ export default function Status() {
   const { g, reload } = useGlucose();
   const latest = g?.latest ?? null;
   const o = useOnBoard(latest);
+  const trend = g ? trendFrom(g.readings, Date.now()) : null;
   const unit = s.glucose_unit;
   const predictions = usePredictions(g?.sensor?.started_at ? Date.parse(g.sensor.started_at) : null);
   const age = latest ? glucoseAge(latest.taken_at) : null;
@@ -64,10 +67,11 @@ export default function Status() {
             {latest ? (
               <span className={cx('flex items-center gap-1', age?.state !== 'fresh' && 'opacity-50')}>
                 <b className="num text-2xl text-brand-num">{formatGlucose(latest.mg_dl, unit)}</b>
-                {latest.trend && <Icon name={TREND_ICON[latest.trend]} size={20} label={TREND_WORDS[latest.trend]} />}
+                <TrendArrow trend={trend} libre={latest.trend} size={20} />
               </span>
             ) : <span className="text-slate-500">—</span>}
           </Row>
+          {latest && age?.state === 'fresh' && <TrendLine trend={trend} libre={latest.trend} unit={unit} className="-mt-1 ps-6 text-xs text-slate-500" />}
           <Row sign="+" label={t('كارب ما زال يُمتص')} sub={lastMeal ? t('آخر أكل {when}', { when: sinceText(lastMeal.eaten_at) }) : ''}
             effect={o.est !== null && o.ratio && o.cob ? signed((o.cob / o.ratio.cr) * o.ratio.isf) : undefined}>
             {o.cob !== null ? <b className="num text-lg">{t('{g} غ', { g: fmt(o.cob) })}</b> : <Missing />}

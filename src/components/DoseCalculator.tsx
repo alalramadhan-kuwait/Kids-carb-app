@@ -8,6 +8,7 @@ import { kuwaitClock } from '../lib/schedule';
 import { carbsFrom, dosesFrom, iobAt, iobParamsOk } from '../engine/iob';
 import { ratioAt } from '../engine/status';
 import { suggestDose, type DoseBlock } from '../engine/dose';
+import { levelFromLibre, trendFrom } from '../engine/trend';
 import type { DoseCalc } from '../lib/types';
 import { NumInput, cx } from './ui';
 import { locale, t } from '../i18n';
@@ -51,7 +52,7 @@ export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'mea
   const latest = g?.latest ?? null;
   const r = suggestDose({
     now, carbs: carbs ?? 0, ratio, target, lowMg: s.alert_low_mgdl ?? s.glucose_low_mgdl,
-    glucose: latest ? { mg: latest.mg_dl, at: Date.parse(latest.taken_at), trend: latest.trend } : null,
+    glucose: latest ? { mg: latest.mg_dl, at: Date.parse(latest.taken_at), level: (g ? trendFrom(g.readings, now) : null)?.level ?? levelFromLibre(latest.trend) } : null,
     sensorStartedAt: g?.sensor?.started_at ? Date.parse(g.sensor.started_at) : null,
     iob, lastRapidAt, gapMin: s.dose_gap_min ?? 120, step: s.pen_step ?? 1,
   });

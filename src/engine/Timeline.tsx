@@ -11,6 +11,8 @@ import { groupLabel, groupMarks, type Group, type Layer, type Mark, type MarkKin
 import { ICONS, type IconName } from '../icons/defs';
 import { dir, t } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
+import { levelOf } from './trend';
+import { LevelArrow } from '../components/Trend';
 
 const MARK_ICON: Record<MarkKind, IconName> = { meal: 'meals', carbs: 'carbs', insulin: 'insulin', basal: 'insulin', treatment: 'treatment', exercise: 'activity', note: 'note', sleep: 'moon' };
 const iconPaths = new Map<IconName, Path2D[]>();
@@ -419,6 +421,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
             {i !== null ? (
               <>
                 <b className={cx('num text-xl', valueTone(series.v[i]))} title={unitLabel(unit)}>{formatGlucose(series.v[i], unit)}</b>
+                {rate !== null && <span className="text-slate-600"><LevelArrow level={levelOf(rate)} size={18} /></span>}
                 <span className="whitespace-nowrap text-xs text-slate-500"><b className="num text-slate-800" dir="ltr">{d15 !== null ? fmtDelta(d15) : '—'}</b> {t('خلال 15 د')}</span>
                 <span className="whitespace-nowrap text-xs text-slate-500"><b className="num text-slate-800" dir="ltr">{rate !== null ? fmtRate(rate) : '—'}</b>{t('/د')}</span>
               </>

@@ -222,4 +222,12 @@ export const core: Record<string, string> = {
   '{g} غ كارب': '{g} g carbs',
   '{u} وحدة سريع': '{u} U rapid',
   'عرض أيام أقدم': 'Show older days',
+  "ينزل بسرعة كبيرة": "Falling very fast",
+  "ينزل بسرعة": "Falling fast",
+  "ينزل ببطء": "Falling slowly",
+  "يصعد ببطء": "Rising slowly",
+  "يصعد بسرعة": "Rising fast",
+  "يصعد بسرعة كبيرة": "Rising very fast",
+  "≈ {v} عند {time}": "≈ {v} at {time}",
+  "Libre: {a}": "Libre: {a}",
 };
