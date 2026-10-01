@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Timeline } from '../engine/Timeline';
+import { useSeries } from '../engine/useSeries';
+import { limitEnd, type View } from '../engine/series';
+import { buildMarks, defaultLayers, type Group } from '../engine/events';
+import { EventSheet } from '../components/EventSheet';
 import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { useGlucose } from '../hooks/useGlucose';
 import { glucoseStats, type GlucoseStats } from '../lib/api';
-import { effectiveRange, formatGlucose, glucoseAge, glucoseStatus, GLUCOSE_ERRORS, unitLabel, type GlucoseUnit, type Reading } from '../lib/glucose';
+import { effectiveRange, formatGlucose, glucoseAge, glucoseStatus, GLUCOSE_ERRORS, unitLabel, type Reading } from '../lib/glucose';
 import { kuwaitDayStart, sinceText, statusSentence, type Tone } from '../lib/now';
 import { fmt } from '../lib/carbs';
-import { ICONS, type IconName } from '../icons/defs';
+import type { IconName } from '../icons/defs';
 import { Icon, TREND_ICON, TREND_WORDS } from '../components/Icon';
 import { LogSheet } from '../components/LogSheet';
 import { AlertStrip } from '../components/AlertStrip';
@@ -88,13 +93,11 @@ export default function Now() {
             ) : latest ? (
               <p className="mt-1 text-sm text-near">{t('آخر قراءة')} <span className="num font-bold">{formatGlucose(latest.mg_dl, unit)}</span> {sinceText(latest.taken_at)}. {t('تحقق من جوال ليان والحساس.')}</p>
             ) : null}
-            {g && <Link to="/analysis" aria-label={t('افتح الرسم الكامل')} className="block"><Graph readings={g.readings} low={rng.low} high={rng.high} reference={rng.reference}
-              meals={history.filter((h) => h.kind === 'meal').map((h) => h.eaten_at)}
-              insulin={events.filter((e) => e.kind === 'insulin').map((e) => e.occurred_at)}
-              carbs={events.filter((e) => e.kind === 'carbs' || e.kind === 'treatment').map((e) => e.occurred_at)} unit={unit} /></Link>}
             {g?.error && <p className="mt-1 text-sm text-over">{GLUCOSE_ERRORS[g.error] ?? g.error} <button className="min-h-[44px] underline" onClick={reload}>{t('إعادة')}</button></p>}
           </Card>
         )}
+        {/* the graph runs edge to edge with no box around it, so it can use the whole width and plenty of height */}
+        {g?.connected && <HomeChart live={g.readings} />}
 
         {/* 2 · Supporting: today in one line (details in Analysis), then what was last logged */}
         <section aria-label={t('اليوم')} className="space-y-1">
@@ -207,73 +210,41 @@ function Line({ icon, text, when, who }: { icon: IconName; text: React.ReactNode
   );
 }
 
-/** 3 hours, fixed window ending now. Gaps (> 20 min) are breaks, never joined. Markers show what happened. */
-function Graph({ readings, low, high, reference, meals, insulin, carbs, unit }: { readings: Reading[]; low: number | null; high: number | null; reference: boolean; meals: string[]; insulin: string[]; carbs: string[]; unit: GlucoseUnit }) {
-  // the plot takes the room the screen has (about a fifth of its height), so the graph is readable at a glance
-  const PH = Math.round(Math.min(200, Math.max(120, (typeof window === 'undefined' ? 800 : window.innerHeight) * 0.2)));
-  const W = 320, PW = 292, TOP = 6, AX = TOP + PH + 14, H = AX + 24; // plot width leaves a column for glucose labels
-  const t1 = Date.now(), t0 = t1 - 3 * 3600000;
-  const pts = readings.map((r) => ({ t: new Date(r.taken_at).getTime(), v: r.mg_dl })).filter((p) => p.t >= t0);
-  const ticks = unit === 'mmol' ? [4, 10, 16].map((m) => m * 18.016) : [70, 180, 300];
-  const lo = Math.min(ticks[0] - 10, ...pts.map((p) => p.v)), hi = Math.max(ticks[2] + 10, ...pts.map((p) => p.v));
-  const x = (t: number) => ((t - t0) / (t1 - t0)) * PW;
-  const y = (v: number) => TOP + PH - ((v - lo) / (hi - lo)) * PH;
-  const segs: string[][] = [];
-  pts.forEach((p, i) => {
-    if (i === 0 || p.t - pts[i - 1].t > 20 * 60000) segs.push([]);
-    segs[segs.length - 1].push(`${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`);
-  });
-  // hour labels in Kuwait time: 12 م, 1 م …
-  const KW = 3 * 3600000, H1 = 3600000;
-  const hours: number[] = []; for (let t = Math.ceil((t0 + KW) / H1) * H1 - KW; t <= t1; t += H1) hours.push(t);
-  const hourLabel = (ts: number) => { const h = new Date(ts + KW).getUTCHours(); return `${h % 12 || 12} ${h < 12 ? t('ص') : t('م')}`; };
-  const marks = (list: string[], icon: IconName) => list.map((iso) => new Date(iso).getTime()).filter((t) => t >= t0 && t <= t1).map((t) => (
-    <g key={icon + t} transform={`translate(${x(t) - 7},${TOP + PH - 16})`}>
-      <circle cx="7" cy="7" r="8" fill="rgb(var(--surface))" stroke="rgb(var(--primary-muted))" />
-      <g transform="translate(1.6,1.6) scale(0.45)" fill="none" stroke="rgb(var(--primary-strong))" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-        {ICONS[icon].d.map((d) => <path key={d} d={d} />)}
-      </g>
-    </g>
-  ));
-  const last = pts[pts.length - 1];
-  const sparse = pts.length <= 24; // dots only when they are few enough to read as points
+/**
+ * The live graph on Now: the same engine as Analysis (dots coloured by level, gaps left as breaks, what was logged
+ * on the rail, long-press to read any point), full width, three hours ending now. It can be dragged back in time;
+ * «الآن» brings it back.
+ */
+function HomeChart({ live }: { live: Reading[] }) {
+  const { settings, history, events } = useData();
+  const SPAN = 3 * 3600000;
+  const [now, setNow] = useState(Date.now());
+  const [following, setFollowing] = useState(true);
+  const [view, setView] = useState<View>(() => ({ span: SPAN, end: limitEnd(Infinity, Date.now(), SPAN) }));
+  const [picked, setPicked] = useState<Group | null>(null);
+  useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 15000); return () => window.clearInterval(id); }, []);
+  useEffect(() => { setNow(Date.now()); }, [live]);
+  useEffect(() => { if (following) setView((v) => ({ span: v.span, end: limitEnd(Infinity, now, v.span) })); }, [now, following]);
+  const onView = useCallback((v: View) => {
+    const t1 = Date.now(), isLive = v.end >= t1 + v.span * 0.02;
+    setFollowing(isLive);
+    setView(isLive ? { span: v.span, end: limitEnd(Infinity, t1, v.span) } : v);
+  }, []);
+  const { series } = useSeries(view.end - view.span, view.end, live);
+  const marks = useMemo(() => buildMarks(history, events), [history, events]);
+  const layers = useMemo(() => defaultLayers(), []);
+  const height = useMemo(() => Math.round(Math.min(440, Math.max(240, window.innerHeight * 0.36))), []);
+  const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full" role="img" aria-label={t('آخر 3 ساعات')} direction="ltr">
-      <rect x="0" y={TOP - 4} width={PW} height={PH + 8} rx="10" fill="rgb(var(--surface-2))" />
-      {!reference ? (
-        <rect x="0" y={y(high ?? hi)} width={PW} height={Math.max(0, y(low ?? lo) - y(high ?? hi))} fill="rgb(var(--st-in))" opacity="0.14" />
-      ) : (
-        // the reference range in use until the parents set hers: dashed and labelled so it is never taken for her own
-        <g>
-          <rect x="0" y={y(high!)} width={PW} height={y(low!) - y(high!)} fill="rgb(var(--st-in))" opacity="0.08" />
-          <line x1="0" x2={PW} y1={y(high!)} y2={y(high!)} stroke="rgb(var(--st-in))" strokeOpacity="0.55" strokeDasharray="4 4" />
-          <line x1="0" x2={PW} y1={y(low!)} y2={y(low!)} stroke="rgb(var(--st-in))" strokeOpacity="0.55" strokeDasharray="4 4" />
-          <text x="4" y={y(high!) - 3} fontSize="9.5" fill="rgb(var(--st-in-text))" fillOpacity="0.85" fontFamily="Rubik, system-ui" direction={dir()} textAnchor={isEn() ? 'start' : 'end'}>{t('مرجعي {a} إلى {b}', { a: formatGlucose(low!, unit), b: formatGlucose(high!, unit) })}</text>
-        </g>
+    <div className="relative -mx-4">
+      <Timeline series={series} view={view} now={now} onView={onView} unit={settings.glucose_unit} height={height}
+        range={rng} marks={marks} layers={layers} onSelect={setPicked} />
+      {!following && (
+        <button onClick={() => { setFollowing(true); setView({ span: SPAN, end: limitEnd(Infinity, Date.now(), SPAN) }); }}
+          className="absolute start-4 top-2 min-h-[40px] rounded-full bg-brand px-4 text-sm font-bold text-white shadow">{t('الآن')}</button>
       )}
-      {ticks.map((v) => <line key={'g' + v} x1="0" x2={PW} y1={y(v)} y2={y(v)} stroke="rgb(var(--border))" strokeWidth="1" />)}
-      {ticks.map((v) => (
-        <text key={v} x={W - 2} y={y(v) + 4} textAnchor="end" fontSize="10.5" fill="rgb(var(--text-3))" fontFamily="Rubik, system-ui">{formatGlucose(v, unit).replace(/\.0$/, '')}</text>
-      ))}
-      {hours.map((ts) => x(ts) > 12 && x(ts) < PW - 12 && (
-        <text key={ts} x={x(ts)} y={AX + 4} textAnchor="middle" fontSize="10.5" fill="rgb(var(--text-3))" fontFamily="Rubik, system-ui" direction={dir()}>{hourLabel(ts)}</text>
-      ))}
-      <defs>
-        <clipPath id="now-hi"><rect x="0" y="0" width={PW} height={high !== null ? y(high) : 0} /></clipPath>
-        <clipPath id="now-lo"><rect x="0" y={low !== null ? y(low) : H} width={PW} height={H} /></clipPath>
-      </defs>
-      {/* one trace, re-stroked in the glucose colours where it is above or below her range */}
-      {(['', 'now-hi', 'now-lo'] as const).map((clip) => (
-        <g key={clip} clipPath={clip ? `url(#${clip})` : undefined}>
-          {segs.map((sg, i) => sg.length > 1
-            ? <polyline key={i} points={sg.join(' ')} fill="none" stroke={clip === 'now-hi' ? 'rgb(var(--st-high))' : clip === 'now-lo' ? 'rgb(var(--st-low))' : 'rgb(var(--primary))'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-            : <circle key={i} cx={sg[0].split(',')[0]} cy={sg[0].split(',')[1]} r="2.6" fill={clip === 'now-hi' ? 'rgb(var(--st-high))' : clip === 'now-lo' ? 'rgb(var(--st-low))' : 'rgb(var(--primary))'} />)}
-        </g>
-      ))}
-      {sparse && pts.map((p) => <circle key={p.t} cx={x(p.t)} cy={y(p.v)} r="2.6" fill="rgb(var(--surface))" stroke="rgb(var(--primary))" strokeWidth="1.8" />)}
-      {last && <circle cx={x(last.t)} cy={y(last.v)} r="4.5" fill="rgb(var(--primary-strong))" stroke="rgb(var(--surface))" strokeWidth="1.5" />}
-      {marks(meals, 'meals')}{marks(insulin, 'insulin')}{marks(carbs, 'carbs')}
-    </svg>
+      <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
+    </div>
   );
 }
 

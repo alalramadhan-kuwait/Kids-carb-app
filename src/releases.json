@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.1.0",
+    "date": "2026-10-01",
+    "notes": [
+      "رسم الآن بعرض الشاشة كاملًا وبدون إطار، وهو نفس رسم التحليل: نقطة لكل قراءة بلونها، وأيقونات ما سُجّل",
+      "اسحب الرسم للخلف لترى ما قبل، واضغط مطوّلًا لقراءة أي نقطة، وزر «الآن» يرجعك"
+    ],
+    "notes_en": [
+      "The Now graph is full width with no frame, the same graph as Analysis: a dot for each reading in its colour, and icons for what was logged",
+      "Drag the graph back to see earlier, long-press to read any point, and «Now» brings you back"
+    ]
+  },
+  {
     "version": "1.0.1",
     "date": "2026-10-01",
     "notes": [
