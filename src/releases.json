@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.1.1",
+    "date": "2026-10-01",
+    "notes": [
+      "سحب الرسم أنعم ولا يعلق: السحب للجانب يحرّك الرسم، وللأعلى والأسفل يحرّك الصفحة",
+      "قراءة نقطة معيّنة تحتاج ضغطة أطول قليلًا حتى لا تبدأ بالخطأ أثناء السحب"
+    ],
+    "notes_en": [
+      "Smoother graph dragging that no longer sticks: sideways moves the graph, up and down scrolls the page",
+      "Reading a point needs a slightly longer press, so it doesn't start by mistake while dragging"
+    ]
+  },
+  {
     "version": "1.1.0",
     "date": "2026-10-01",
     "notes": [

@@ -19,10 +19,22 @@ export interface Range { low: number | null; high: number | null; reference?: bo
 export interface Tracks { iob?: (t: number) => number; cob?: (t: number) => number }
 export interface Inspect { t: number; i: number | null; x: number }
 
-const LONG_PRESS = 350, TAP_SLOP = 8, DOUBLE_TAP = 300;
+const LONG_PRESS = 500, TAP_SLOP = 8, DOUBLE_TAP = 300;
+// Colour tokens are read from the page once per theme, not on every frame (getComputedStyle is slow on phones).
+const cssCache = new Map<string, string>();
+let cssSig = '';
 const css = (name: string, a = 1) => {
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return a === 1 ? `rgb(${v})` : `rgb(${v} / ${a})`;
+  const root = document.documentElement;
+  const sig = `${root.dataset.theme ?? ''}|${matchMedia('(prefers-color-scheme: dark)').matches}`;
+  if (sig !== cssSig) { cssCache.clear(); cssSig = sig; }
+  const key = name + a;
+  let out = cssCache.get(key);
+  if (!out) {
+    const v = getComputedStyle(root).getPropertyValue(name).trim();
+    out = a === 1 ? `rgb(${v})` : `rgb(${v} / ${a})`;
+    cssCache.set(key, out);
+  }
+  return out;
 };
 const KW = 3 * 3600000;
 const clock = (t: number) => { const d = new Date(t + KW); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
@@ -257,7 +269,7 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
 
   // ── gestures ──
   const g = useRef({
-    pts: new Map<number, { x: number; y: number }>(), mode: 'none' as 'none' | 'pan' | 'pinch' | 'cross' | 'pending',
+    pts: new Map<number, { x: number; y: number }>(), mode: 'none' as 'none' | 'pan' | 'pinch' | 'cross' | 'pending' | 'scroll', frame: 0, lastY: 0,
     x0: 0, y0: 0, t0: 0, view0: view, dist0: 0, mid0: 0, timer: 0, lastTap: { t: 0, x: 0 }, vel: 0, lastX: 0, lastT: 0, fling: 0, wasLow: false, lastInspectT: 0,
   });
   const rect = () => wrap.current!.getBoundingClientRect();
@@ -291,11 +303,23 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
       setInspect(null);
     }
   };
+  // Pointer moves are coalesced to one update per screen frame; the latest position wins.
   const onMove = (e: React.PointerEvent) => {
     const s = g.current; if (!s.pts.has(e.pointerId)) return;
     s.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (!s.frame) s.frame = requestAnimationFrame(() => { s.frame = 0; step(); });
+  };
+  const step = () => {
+    const s = g.current; if (!s.pts.size) return;
+    const e = { clientX: [...s.pts.values()][0].x, clientY: [...s.pts.values()][0].y };
     const r = rect();
     if (s.mode === 'cross') return inspectAt(e.clientX);
+    // the graph decides the direction itself: sideways moves the graph, up/down scrolls the page
+    if (s.mode === 'pending') {
+      const dx = Math.abs(e.clientX - s.x0), dy = Math.abs(e.clientY - s.y0);
+      if (dy > TAP_SLOP && dy > dx) { window.clearTimeout(s.timer); s.mode = 'scroll'; s.lastY = s.y0; }
+    }
+    if (s.mode === 'scroll') { window.scrollBy(0, s.lastY - e.clientY); s.lastY = e.clientY; return; }
     if (s.mode === 'pinch' && s.pts.size >= 2) {
       const [a, b] = [...s.pts.values()];
       const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1, mid = ((a.x + b.x) / 2 - r.left) / r.width;
@@ -313,7 +337,10 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
     }
   };
   const onUp = (e: React.PointerEvent) => {
-    const s = g.current; s.pts.delete(e.pointerId);
+    const s = g.current;
+    if (s.frame) { cancelAnimationFrame(s.frame); s.frame = 0; step(); } // apply the last move before letting go
+    s.pts.delete(e.pointerId);
+    if (s.mode === 'scroll') { if (s.pts.size === 0) s.mode = 'none'; return; }
     window.clearTimeout(s.timer);
     const r = rect();
     if (s.mode === 'pinch') {
@@ -375,7 +402,7 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
   return (
     <div ref={wrap} className="relative select-none" style={{ height }} dir="ltr">
       <canvas
-        ref={canvas} style={{ width: '100%', height, touchAction: 'pan-y' }}
+        ref={canvas} style={{ width: '100%', height, touchAction: 'none' }}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel}
         role="img" aria-label={t('رسم السكر {from}–{to}، {state}', { from: clock(view.end - view.span), to: clock(view.end), state: freshness(lastT, now) === 'live' ? t('مباشر') : t('غير محدّث') })}
       />
