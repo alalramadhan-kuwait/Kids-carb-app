@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { callGlucose } from '../lib/api';
-import { formatGlucose, glucoseAge, glucoseStatus, GLUCOSE_ERRORS, unitLabel, type GlucoseState, type Reading } from '../lib/glucose';
+import { formatGlucose, glucoseAge, glucoseStatus, GLUCOSE_ERRORS, mergeReading, unitLabel, type GlucoseState, type Reading } from '../lib/glucose';
 import { useData } from '../lib/data';
+import { supabase } from '../lib/supabase';
 import { Card, asset, cx } from './ui';
 import { Icon, StatusIcon, TREND_ICON, TREND_WORDS } from './Icon';
 import { STATUS } from '../icons/defs';
@@ -43,7 +44,20 @@ export default function GlucoseCard() {
     const age = window.setInterval(() => tick((n) => n + 1), 30_000); // keep "3 minutes ago" honest between polls
     const vis = () => { if (document.visibilityState === 'visible') void load(); };
     document.addEventListener('visibilitychange', vis);
-    return () => { window.clearInterval(poll); window.clearInterval(age); document.removeEventListener('visibilitychange', vis); };
+    // Realtime: the server stores a reading every minute; show it the moment it lands instead of on the next poll.
+    const channel = supabase
+      .channel('glucose-live')
+      .on('postgres_changes', { event: '*', schema: 'carb', table: 'glucose_readings' }, (msg) => {
+        const r = msg.new as Partial<Reading>;
+        if (r && r.taken_at && typeof r.mg_dl === 'number') {
+          setG((cur) => (cur ? mergeReading(cur, { taken_at: r.taken_at!, mg_dl: r.mg_dl!, trend: r.trend ?? null }) : cur));
+        }
+      })
+      .subscribe();
+    return () => {
+      window.clearInterval(poll); window.clearInterval(age); document.removeEventListener('visibilitychange', vis);
+      void supabase.removeChannel(channel);
+    };
   }, [load]);
 
   if (!g && !failed) return null;

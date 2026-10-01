@@ -4,7 +4,7 @@ import { computeLine, computeMeal, deriveLabel, labelMismatch, levelFor, targetM
 import { blocker, candidatesOf, suggest } from '../suggest';
 import { shoppingList } from '../shopping';
 import { hostFor, loginProblem, redirectRegion, maskEmail, parseLluTimestamp, readingsFromGraph, sha256Hex, toReading, tooSoon } from '../../../supabase/functions/carb-glucose/lib';
-import { formatGlucose, glucoseAge, glucoseLevel, glucoseStatus, toMgdl } from '../glucose';
+import { formatGlucose, glucoseAge, glucoseLevel, glucoseStatus, mergeReading, toMgdl } from '../glucose';
 import { TREND_ICON, TREND_WORDS } from '../../components/Icon';
 import { ICONS } from '../../icons/defs';
 import { DEFAULT_SETTINGS, type HistoryEntry, type Ingredient, type Product, type Recipe, type Settings } from '../types';
@@ -312,6 +312,18 @@ test('status chip needs the parents range; urgent low and very high use the repo
   assert.equal(glucoseStatus(120, 70, 180), 'in_range');
   assert.equal(glucoseStatus(200, 70, 180), 'high');
   assert.equal(glucoseStatus(300, 70, 180), 'very_high');
+});
+
+test('a pushed reading updates the live card without duplicates and keeps 3 hours', () => {
+  const now = Date.parse('2026-10-01T12:00:00Z');
+  const g = { connected: true, account_hint: null, last_ok_at: null, last_error: null,
+    latest: { taken_at: '2026-10-01T11:58:00.000Z', mg_dl: 100, trend: 3 },
+    readings: [{ taken_at: '2026-10-01T08:30:00.000Z', mg_dl: 90, trend: null }, { taken_at: '2026-10-01T11:58:00.000Z', mg_dl: 100, trend: 3 }] };
+  const m = mergeReading(g, { taken_at: '2026-10-01T11:59:00.000Z', mg_dl: 104, trend: 4 }, now);
+  assert.equal(m.latest?.mg_dl, 104);
+  assert.equal(m.readings.length, 2); // 08:30 is older than 3 h and drops out
+  const again = mergeReading(m, { taken_at: '2026-10-01T11:59:00.000Z', mg_dl: 104, trend: 4 }, now);
+  assert.equal(again.readings.length, 2); // same reading twice is one reading
 });
 
 console.log('releases');

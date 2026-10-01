@@ -40,6 +40,15 @@ export function glucoseStatus(mgdl: number, low: number | null, high: number | n
   return 'in_range';
 }
 
+/** Add a pushed reading to the 3-hour window: no duplicates, sorted, newest is "latest". */
+export function mergeReading(g: GlucoseState, r: Reading, now = Date.now()): GlucoseState {
+  const since = now - 3 * 3600 * 1000;
+  const map = new Map(g.readings.map((x) => [x.taken_at, x]));
+  map.set(r.taken_at, r);
+  const readings = [...map.values()].filter((x) => new Date(x.taken_at).getTime() >= since).sort((a, b) => a.taken_at.localeCompare(b.taken_at));
+  return { ...g, readings, latest: readings[readings.length - 1] ?? g.latest };
+}
+
 export const GLUCOSE_ERRORS: Record<string, string> = {
   bad_credentials: 'البريد أو كلمة المرور غير صحيحين. استخدم حساب LibreLinkUp (المتابع)، وليس حساب Libre الرئيسي.',
   terms_required: 'افتح تطبيق LibreLinkUp على الجوال مرة واحدة ووافق على الشروط، ثم أعد المحاولة.',
