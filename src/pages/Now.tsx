@@ -209,7 +209,9 @@ function Line({ icon, text, when, who }: { icon: IconName; text: React.ReactNode
 
 /** 3 hours, fixed window ending now. Gaps (> 20 min) are breaks, never joined. Markers show what happened. */
 function Graph({ readings, low, high, reference, meals, insulin, carbs, unit }: { readings: Reading[]; low: number | null; high: number | null; reference: boolean; meals: string[]; insulin: string[]; carbs: string[]; unit: GlucoseUnit }) {
-  const W = 320, PW = 292, TOP = 6, PH = 62, AX = TOP + PH + 14, H = AX + 24; // plot width leaves a column for glucose labels
+  // the plot takes the room the screen has (about a fifth of its height), so the graph is readable at a glance
+  const PH = Math.round(Math.min(200, Math.max(120, (typeof window === 'undefined' ? 800 : window.innerHeight) * 0.2)));
+  const W = 320, PW = 292, TOP = 6, AX = TOP + PH + 14, H = AX + 24; // plot width leaves a column for glucose labels
   const t1 = Date.now(), t0 = t1 - 3 * 3600000;
   const pts = readings.map((r) => ({ t: new Date(r.taken_at).getTime(), v: r.mg_dl })).filter((p) => p.t >= t0);
   const ticks = unit === 'mmol' ? [4, 10, 16].map((m) => m * 18.016) : [70, 180, 300];
@@ -249,15 +251,25 @@ function Graph({ readings, low, high, reference, meals, insulin, carbs, unit }: 
           <text x="4" y={y(high!) - 3} fontSize="9.5" fill="rgb(var(--st-in-text))" fillOpacity="0.85" fontFamily="Rubik, system-ui" direction={dir()} textAnchor={isEn() ? 'start' : 'end'}>{t('مرجعي {a} إلى {b}', { a: formatGlucose(low!, unit), b: formatGlucose(high!, unit) })}</text>
         </g>
       )}
+      {ticks.map((v) => <line key={'g' + v} x1="0" x2={PW} y1={y(v)} y2={y(v)} stroke="rgb(var(--border))" strokeWidth="1" />)}
       {ticks.map((v) => (
         <text key={v} x={W - 2} y={y(v) + 4} textAnchor="end" fontSize="10.5" fill="rgb(var(--text-3))" fontFamily="Rubik, system-ui">{formatGlucose(v, unit).replace(/\.0$/, '')}</text>
       ))}
       {hours.map((ts) => x(ts) > 12 && x(ts) < PW - 12 && (
         <text key={ts} x={x(ts)} y={AX + 4} textAnchor="middle" fontSize="10.5" fill="rgb(var(--text-3))" fontFamily="Rubik, system-ui" direction={dir()}>{hourLabel(ts)}</text>
       ))}
-      {segs.map((sg, i) => sg.length > 1
-        ? <polyline key={i} points={sg.join(' ')} fill="none" stroke="rgb(var(--primary))" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-        : <circle key={i} cx={sg[0].split(',')[0]} cy={sg[0].split(',')[1]} r="2.4" fill="rgb(var(--primary))" />)}
+      <defs>
+        <clipPath id="now-hi"><rect x="0" y="0" width={PW} height={high !== null ? y(high) : 0} /></clipPath>
+        <clipPath id="now-lo"><rect x="0" y={low !== null ? y(low) : H} width={PW} height={H} /></clipPath>
+      </defs>
+      {/* one trace, re-stroked in the glucose colours where it is above or below her range */}
+      {(['', 'now-hi', 'now-lo'] as const).map((clip) => (
+        <g key={clip} clipPath={clip ? `url(#${clip})` : undefined}>
+          {segs.map((sg, i) => sg.length > 1
+            ? <polyline key={i} points={sg.join(' ')} fill="none" stroke={clip === 'now-hi' ? 'rgb(var(--st-high))' : clip === 'now-lo' ? 'rgb(var(--st-low))' : 'rgb(var(--primary))'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            : <circle key={i} cx={sg[0].split(',')[0]} cy={sg[0].split(',')[1]} r="2.6" fill={clip === 'now-hi' ? 'rgb(var(--st-high))' : clip === 'now-lo' ? 'rgb(var(--st-low))' : 'rgb(var(--primary))'} />)}
+        </g>
+      ))}
       {sparse && pts.map((p) => <circle key={p.t} cx={x(p.t)} cy={y(p.v)} r="2.6" fill="rgb(var(--surface))" stroke="rgb(var(--primary))" strokeWidth="1.8" />)}
       {last && <circle cx={x(last.t)} cy={y(last.v)} r="4.5" fill="rgb(var(--primary-strong))" stroke="rgb(var(--surface))" strokeWidth="1.5" />}
       {marks(meals, 'meals')}{marks(insulin, 'insulin')}{marks(carbs, 'carbs')}

@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.0.1",
+    "date": "2026-10-01",
+    "notes": [
+      "رسم الساعات الثلاث في شاشة الآن أكبر ويستغل المساحة، والخط يتلوّن بالأصفر أو الأحمر خارج النطاق"
+    ],
+    "notes_en": [
+      "The 3-hour graph on Now is bigger and uses the free space; the line turns amber or red outside the range"
+    ]
+  },
+  {
     "version": "1.0.0",
     "date": "2026-10-01",
     "notes": [
