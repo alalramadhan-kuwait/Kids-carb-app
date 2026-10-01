@@ -1,0 +1,115 @@
+// CGM Timeline Engine — event layer (GLUCOSE_PLAN 11.5, 10.7). Pure: builds rail markers from what the parents
+// logged, groups markers that would collide, and computes a meal's glucose response from stored readings.
+import type { EventRow, HistoryEntry } from '../lib/types';
+import { GAP_MS, lowerBound, nearest, type Series } from './series';
+
+const MIN = 60000;
+
+export type Layer = 'meals' | 'insulin' | 'treatment' | 'basal' | 'exercise' | 'notes' | 'sleep';
+export const LAYERS: { id: Layer; label: string; on: boolean }[] = [
+  { id: 'meals', label: 'الوجبات والكارب', on: true },
+  { id: 'insulin', label: 'الإنسولين السريع', on: true },
+  { id: 'treatment', label: 'علاج الانخفاض', on: true },
+  { id: 'basal', label: 'الإنسولين الطويل', on: false },
+  { id: 'exercise', label: 'الرياضة', on: false },
+  { id: 'notes', label: 'الملاحظات', on: false },
+  { id: 'sleep', label: 'النوم', on: false },
+];
+export const defaultLayers = () => new Set(LAYERS.filter((l) => l.on).map((l) => l.id));
+
+export type MarkKind = 'meal' | 'carbs' | 'insulin' | 'basal' | 'treatment' | 'exercise' | 'note' | 'sleep';
+export interface Mark {
+  key: string; t: number; end?: number; kind: MarkKind; layer: Layer;
+  carbs?: number; units?: number; name?: string;
+  event?: EventRow; meal?: HistoryEntry;
+}
+
+export function buildMarks(history: HistoryEntry[], events: EventRow[]): Mark[] {
+  const out: Mark[] = [];
+  for (const h of history) out.push({ key: 'h' + h.id, t: Date.parse(h.eaten_at), kind: 'meal', layer: 'meals', carbs: h.total_carbs, name: h.name, meal: h });
+  for (const e of events) {
+    if (e.deleted_at) continue;
+    const t = Date.parse(e.occurred_at), base = { key: 'e' + e.id, t, event: e };
+    switch (e.kind) {
+      case 'insulin': out.push(e.insulin_type === 'long'
+        ? { ...base, kind: 'basal', layer: 'basal', units: e.insulin_units ?? undefined }
+        : { ...base, kind: 'insulin', layer: 'insulin', units: e.insulin_units ?? undefined }); break;
+      case 'carbs': out.push({ ...base, kind: 'carbs', layer: 'meals', carbs: e.carbs_g ?? undefined }); break;
+      case 'treatment': out.push({ ...base, kind: 'treatment', layer: 'treatment', carbs: e.carbs_g ?? undefined }); break;
+      case 'exercise': out.push({ ...base, kind: 'exercise', layer: 'exercise', end: t + (e.activity_min ?? 0) * MIN }); break;
+      case 'sleep': out.push({ ...base, kind: 'sleep', layer: 'sleep', end: e.ends_at ? Date.parse(e.ends_at) : t }); break;
+      default: out.push({ ...base, kind: 'note', layer: 'notes' });
+    }
+  }
+  return out.sort((a, b) => a.t - b.t);
+}
+
+export interface Group { x: number; t: number; marks: Mark[] }
+
+/** Markers closer than `px` on screen merge into one chip (e.g. a meal and its bolus). Sleep is drawn as a band, not grouped. */
+export function groupMarks(marks: Mark[], layers: Set<Layer>, start: number, end: number, width: number, px = 30): Group[] {
+  const groups: Group[] = [];
+  const k = width / (end - start);
+  for (const m of marks) {
+    if (!layers.has(m.layer) || m.kind === 'sleep' || m.t < start - (end - start) * 0.02 || m.t > end) continue;
+    const x = (m.t - start) * k, last = groups[groups.length - 1];
+    if (last && x - last.x < px) last.marks.push(m);
+    else groups.push({ x, t: m.t, marks: [m] });
+  }
+  return groups;
+}
+
+/** Short rail label: "45 غ + 3 و", with a hypo treatment kept apart ("علاج 15 غ") so it is never read as meal carbs. */
+export function groupLabel(g: Group): string {
+  let carbs = 0, units = 0, treat = 0;
+  for (const m of g.marks) {
+    if (m.kind === 'meal' || m.kind === 'carbs') carbs += m.carbs ?? 0;
+    if (m.kind === 'treatment') treat += m.carbs ?? 0;
+    if (m.kind === 'insulin') units += m.units ?? 0;
+  }
+  const r = (n: number) => String(Math.round(n * 10) / 10);
+  return [carbs ? `${r(carbs)} غ` : '', units ? `${r(units)} و` : '', treat ? `علاج ${r(treat)} غ` : ''].filter(Boolean).join(' + ');
+}
+
+// ── meal response (GLUCOSE_PLAN 10.7) ─────────────────────────────────────────
+export const OFFSETS = [30, 60, 90, 120, 180] as const;
+export interface MealResponse {
+  g0: number | null;                                  // glucose within ±10 min of the meal
+  at: Record<(typeof OFFSETS)[number], number | null>; // nearest reading within ±5 min, never across a gap
+  peak: number | null; rise: number | null; ttp: number | null; // in 0–4 h, up to the first gap
+  complete: boolean;                                  // 4 h of data with no gap
+  bolus: EventRow | null; prebolus: number | null;    // minutes; positive = insulin before eating
+}
+
+export function mealResponse(s: Series, t0: number, events: EventRow[], now = Date.now()): MealResponse {
+  const i0 = nearest(s, t0, 10 * MIN);
+  const g0 = i0 !== null ? s.v[i0] : null;
+  // contiguous data from the meal forward: stop at the first gap
+  const iEnd = lowerBound(s.t, t0);
+  let last = iEnd;
+  const limit = t0 + 240 * MIN;
+  while (last + 1 < s.t.length && s.t[last + 1] <= limit && s.t[last + 1] - s.t[last] <= GAP_MS) last++;
+  const reached = last < s.t.length && iEnd < s.t.length ? s.t[last] : -Infinity;
+  const startsClean = iEnd < s.t.length && s.t[iEnd] - t0 <= GAP_MS; // a reading soon after the meal
+  const at = {} as MealResponse['at'];
+  for (const o of OFFSETS) {
+    const j = startsClean ? nearest(s, t0 + o * MIN, 5 * MIN) : null;
+    at[o] = j !== null && s.t[j] <= reached ? s.v[j] : null;
+  }
+  let peak: number | null = null, ttp: number | null = null;
+  if (startsClean) for (let j = iEnd; j <= last; j++) if (peak === null || s.v[j] > peak) { peak = s.v[j]; ttp = Math.round((s.t[j] - t0) / MIN); }
+  const complete = startsClean && limit <= now && reached >= limit - 10 * MIN;
+  // the meal bolus: rapid insulin for a meal (or meal + correction) from 60 min before to 30 min after
+  let bolus: EventRow | null = null;
+  for (const e of events) {
+    if (e.deleted_at || e.kind !== 'insulin' || e.insulin_type === 'long' || e.bolus_purpose === 'correction') continue;
+    const dt = Date.parse(e.occurred_at) - t0;
+    if (dt < -60 * MIN || dt > 30 * MIN) continue;
+    if (!bolus || Math.abs(dt) < Math.abs(Date.parse(bolus.occurred_at) - t0)) bolus = e;
+  }
+  return {
+    g0, at, peak, ttp, complete, bolus,
+    rise: peak !== null && g0 !== null ? peak - g0 : null,
+    prebolus: bolus ? Math.round((t0 - Date.parse(bolus.occurred_at)) / MIN) : null,
+  };
+}

@@ -6,6 +6,12 @@ import {
   PERIODS, delta15, freshness, gapsIn, limitEnd, nearest, rateAt, runsFor, tickLabel, timeTicks, yDomain, zoomAt,
   type Series, type View,
 } from './series';
+import { groupLabel, groupMarks, type Group, type Layer, type Mark, type MarkKind } from './events';
+import { ICONS, type IconName } from '../icons/defs';
+
+const MARK_ICON: Record<MarkKind, IconName> = { meal: 'meals', carbs: 'carbs', insulin: 'insulin', basal: 'insulin', treatment: 'treatment', exercise: 'activity', note: 'note', sleep: 'moon' };
+const iconPaths = new Map<IconName, Path2D[]>();
+const pathsOf = (n: IconName) => { let p = iconPaths.get(n); if (!p) { p = (ICONS[n] as { d: string[] }).d.map((d) => new Path2D(d)); iconPaths.set(n, p); } return p; };
 
 export interface Range { low: number | null; high: number | null } // the parents' range, mg/dL
 export interface Inspect { t: number; i: number | null; x: number }
@@ -18,9 +24,10 @@ const css = (name: string, a = 1) => {
 const KW = 3 * 3600000;
 const clock = (t: number) => { const d = new Date(t + KW); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
 
-export function Timeline({ series, view, now, onView, range, unit, height }: {
+export function Timeline({ series, view, now, onView, range, unit, height, marks = [], layers, onSelect }: {
   series: Series; view: View; now: number; onView: (v: View, opts?: { animate?: boolean }) => void;
   range: Range; unit: GlucoseUnit; height: number;
+  marks?: Mark[]; layers?: Set<Layer>; onSelect?: (g: Group) => void;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -37,6 +44,9 @@ export function Timeline({ series, view, now, onView, range, unit, height }: {
 
   // ── drawing ──
   const PAD_T = 10, PAD_B = 22;
+  const hasRail = !!layers && layers.size > 0;
+  const RAIL = hasRail ? 44 : 0;
+  const groupsRef = useRef<Group[]>([]);
   const draw = useCallback(() => {
     const c = canvas.current; if (!c || !width) return;
     const dpr = Math.min(3, window.devicePixelRatio || 1);
@@ -45,7 +55,10 @@ export function Timeline({ series, view, now, onView, range, unit, height }: {
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, width, height);
     const { end, span } = view, start = end - span;
-    const plotH = height - PAD_T - PAD_B;
+    const plotH = height - PAD_T - PAD_B - RAIL;
+    const railY = PAD_T + plotH + 18;
+    const groups = hasRail ? groupMarks(marks, layers!, start, end, width) : [];
+    groupsRef.current = groups;
     const runs = runsFor(series, start, end, width);
     let maxV: number | null = null;
     for (const r of runs) for (const v of r.v) if (maxV === null || v > maxV) maxV = v;
@@ -89,6 +102,16 @@ export function Timeline({ series, view, now, onView, range, unit, height }: {
     }
     g.direction = 'ltr';
 
+    // sleep: a faint band behind the trace; event times: hairlines up through the plot
+    if (hasRail) {
+      if (layers!.has('sleep')) for (const m of marks) if (m.kind === 'sleep' && m.end! > start && m.t < end) {
+        g.fillStyle = css('--primary', 0.1); g.fillRect(X(m.t), PAD_T, X(m.end!) - X(m.t), plotH);
+      }
+      g.strokeStyle = css('--text-3', 0.35); g.lineWidth = 1; g.setLineDash([2, 3]);
+      for (const gr of groups) { const x = Math.round(gr.x) + 0.5; g.beginPath(); g.moveTo(x, PAD_T); g.lineTo(x, PAD_T + plotH); g.stroke(); }
+      g.setLineDash([]);
+    }
+
     // the trace: one path, stroked neutral, then re-stroked in state colours clipped to each band
     const path = new Path2D();
     for (const r of runs) {
@@ -130,21 +153,51 @@ export function Timeline({ series, view, now, onView, range, unit, height }: {
       g.fillStyle = css('--surface'); g.beginPath(); g.arc(x, y, 6, 0, 7); g.fill();
       g.fillStyle = css('--primary-strong'); g.beginPath(); g.arc(x, y, 4.5, 0, 7); g.fill();
     }
+    // event rail: one chip per group, its icon, a count when several, and a short label when there is room
+    if (hasRail) {
+      g.strokeStyle = css('--border'); g.lineWidth = 1; g.beginPath(); g.moveTo(0, PAD_T + plotH + 0.5); g.lineTo(width, PAD_T + plotH + 0.5); g.stroke();
+      if (layers!.has('exercise')) for (const m of marks) if (m.kind === 'exercise' && m.end! > start && m.t < end) {
+        g.fillStyle = css('--primary', 0.35); g.fillRect(X(m.t), railY + 13, Math.max(3, X(m.end!) - X(m.t)), 3);
+      }
+      g.font = '600 10.5px "Noto Sans Arabic", "Nunito Sans", system-ui, sans-serif'; g.textAlign = 'center'; g.direction = 'rtl'; g.textBaseline = 'alphabetic';
+      groups.forEach((gr, k) => {
+        const x = Math.min(width - 14, Math.max(14, gr.x));
+        const kind = gr.marks[0].kind;
+        const tone = kind === 'treatment' ? '--st-low' : '--primary-strong';
+        g.fillStyle = css('--surface'); g.strokeStyle = css(tone, 0.55); g.lineWidth = 1.5;
+        g.beginPath(); g.arc(x, railY, 12.5, 0, 7); g.fill(); g.stroke();
+        g.save(); g.translate(x - 8.4, railY - 8.4); g.scale(0.7, 0.7);
+        g.strokeStyle = css(tone); g.lineWidth = 2.4; g.lineCap = 'round'; g.lineJoin = 'round';
+        for (const p of pathsOf(MARK_ICON[kind])) g.stroke(p);
+        g.restore();
+        if (gr.marks.length > 1) {
+          g.fillStyle = css('--primary-strong'); g.beginPath(); g.arc(x + 10, railY - 10, 7, 0, 7); g.fill();
+          g.fillStyle = css('--surface'); g.direction = 'ltr'; g.fillText(String(gr.marks.length), x + 10, railY - 6.5); g.direction = 'rtl';
+        }
+        const label = span <= 12 * 3600000 ? groupLabel(gr) : '';
+        if (label) {
+          const w = g.measureText(label).width, next = groups[k + 1]?.x ?? Infinity, prev = groups[k - 1]?.x ?? -Infinity;
+          if (next - x > w / 2 + 16 && x - prev > w / 2 + 16) { g.fillStyle = css('--text-2'); g.fillText(label, x, railY + 25); }
+        }
+      });
+      g.direction = 'ltr';
+    }
+
     // now
     if (now >= start && now <= end) {
-      g.strokeStyle = css('--text-3', 0.6); g.setLineDash([3, 4]); g.beginPath(); g.moveTo(Math.round(X(now)) + 0.5, PAD_T); g.lineTo(Math.round(X(now)) + 0.5, height - PAD_B); g.stroke(); g.setLineDash([]);
+      g.strokeStyle = css('--text-3', 0.6); g.setLineDash([3, 4]); g.beginPath(); g.moveTo(Math.round(X(now)) + 0.5, PAD_T); g.lineTo(Math.round(X(now)) + 0.5, PAD_T + plotH); g.stroke(); g.setLineDash([]);
     }
     // crosshair
     if (inspect) {
       const x = inspect.i !== null ? X(series.t[inspect.i]) : inspect.x;
-      g.strokeStyle = css('--text'); g.lineWidth = 1; g.beginPath(); g.moveTo(Math.round(x) + 0.5, PAD_T); g.lineTo(Math.round(x) + 0.5, height - PAD_B); g.stroke();
+      g.strokeStyle = css('--text'); g.lineWidth = 1; g.beginPath(); g.moveTo(Math.round(x) + 0.5, PAD_T); g.lineTo(Math.round(x) + 0.5, PAD_T + plotH); g.stroke();
       if (inspect.i !== null) {
         const y = Y(series.v[inspect.i]);
         g.fillStyle = css('--surface'); g.beginPath(); g.arc(x, y, 7, 0, 7); g.fill();
         g.strokeStyle = css('--text'); g.lineWidth = 2; g.beginPath(); g.arc(x, y, 5, 0, 7); g.stroke();
       }
     }
-  }, [series, view, now, range.low, range.high, unit, width, height, inspect]);
+  }, [series, view, now, range.low, range.high, unit, width, height, inspect, marks, layers, hasRail, RAIL]);
 
   useEffect(() => { const id = requestAnimationFrame(draw); return () => cancelAnimationFrame(id); }, [draw]);
   useEffect(() => { // redraw on light/dark change
@@ -155,7 +208,7 @@ export function Timeline({ series, view, now, onView, range, unit, height }: {
   // ── gestures ──
   const g = useRef({
     pts: new Map<number, { x: number; y: number }>(), mode: 'none' as 'none' | 'pan' | 'pinch' | 'cross' | 'pending',
-    x0: 0, y0: 0, t0: 0, view0: view, dist0: 0, mid0: 0, timer: 0, lastTap: { t: 0, x: 0 }, vel: 0, lastX: 0, lastT: 0, fling: 0, wasLow: false,
+    x0: 0, y0: 0, t0: 0, view0: view, dist0: 0, mid0: 0, timer: 0, lastTap: { t: 0, x: 0 }, vel: 0, lastX: 0, lastT: 0, fling: 0, wasLow: false, lastInspectT: 0,
   });
   const rect = () => wrap.current!.getBoundingClientRect();
   const inspectAt = (clientX: number) => {
@@ -165,6 +218,9 @@ export function Timeline({ series, view, now, onView, range, unit, height }: {
     const low = i !== null && range.low !== null && series.v[i] < range.low;
     if (low && !g.current.wasLow) navigator.vibrate?.(8); // Android only; iPhone web apps cannot vibrate
     g.current.wasLow = low;
+    const prevT = g.current.lastInspectT;
+    if (prevT && layers && marks.some((m) => layers.has(m.layer) && (m.t - prevT) * (m.t - t) < 0)) navigator.vibrate?.(6);
+    g.current.lastInspectT = t;
     setInspect({ t, i, x });
   };
   const stopFling = () => { cancelAnimationFrame(g.current.fling); g.current.fling = 0; };
@@ -225,6 +281,13 @@ export function Timeline({ series, view, now, onView, range, unit, height }: {
         onView(zoomAt(viewRef.current, 0.5, (e.clientX - r.left) / r.width), { animate: true });
       } else {
         s.lastTap = { t: now2, x: e.clientX };
+        const y = e.clientY - r.top, x = e.clientX - r.left;
+        if (hasRail && onSelect && y > height - PAD_B - RAIL) {
+          let best: Group | null = null;
+          for (const gr of groupsRef.current) if (Math.abs(Math.min(width - 14, Math.max(14, gr.x)) - x) <= 22 && (!best || Math.abs(gr.x - x) < Math.abs(best.x - x))) best = gr;
+          if (best) { setInspect(null); onSelect(best); }
+          return void (s.pts.size === 0 && (s.mode = 'none'));
+        }
         if (inspect) setInspect(null); else inspectAt(e.clientX);
       }
     } else if (s.mode === 'pan' && Math.abs(s.vel) > 0.25) {

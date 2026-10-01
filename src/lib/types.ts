@@ -171,7 +171,7 @@ export interface AlertRow {
 
 export interface CarePlan { hypo: string | null; hyper: string | null; sick_day: string | null; contacts: string | null; updated_by: string | null; updated_at: string }
 
-export type EventKind = 'insulin' | 'carbs' | 'treatment' | 'note';
+export type EventKind = 'insulin' | 'carbs' | 'treatment' | 'note' | 'exercise' | 'sleep';
 export interface EventRow {
   id: string;
   client_id: string;
@@ -183,6 +183,9 @@ export interface EventRow {
   carbs_g: number | null;
   treatment: string | null;
   note: string | null;
+  activity_min?: number | null;
+  activity_level?: 'light' | 'moderate' | 'hard' | null;
+  ends_at?: string | null;
   created_by: string;
   deleted_at: string | null;
 }

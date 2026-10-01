@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useData } from '../lib/data';
 import { fmt, STATE_TEXT, UNIT_TEXT } from '../lib/carbs';
 import { deleteEvent, deleteHistory, restoreEvent } from '../lib/api';
-import { describeEvent } from '../lib/events';
+import { EVENT_ICON, describeEvent } from '../lib/events';
 import type { EventRow, HistoryEntry } from '../lib/types';
 import type { IconName } from '../icons/defs';
 import { formatGlucose, unitLabel } from '../lib/glucose';
@@ -94,7 +94,6 @@ export default function History() {
   );
 }
 
-const EVENT_ICON: Record<EventRow['kind'], IconName> = { insulin: 'insulin', carbs: 'carbs', treatment: 'treatment', note: 'note' };
 
 function EventItem({ e, who, onDelete }: { e: EventRow; who: string; onDelete: () => void }) {
   const d = new Date(e.occurred_at);

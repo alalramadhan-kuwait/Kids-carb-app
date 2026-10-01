@@ -7,7 +7,8 @@ import { hostFor, loginProblem, redirectRegion, maskEmail, parseLluTimestamp, re
 import { formatGlucose, glucoseAge, glucoseLevel, glucoseStatus, mergeReading, toMgdl } from '../glucose';
 import { TREND_ICON, TREND_WORDS } from '../../components/Icon';
 import { ICONS } from '../../icons/defs';
-import { unitsWord } from '../events';
+import { describeEvent, sleepWindow, unitsWord } from '../events';
+import { buildMarks, defaultLayers, groupLabel, groupMarks, mealResponse } from '../../engine/events';
 import { alertMessage, evaluate, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
 import { PERIODS, delta15, freshness, gapsIn, mergeSeries, emptySeries, nearest, rateAt, runsFor, timeTicks, tickLabel, zoomAt } from '../../engine/series';
@@ -533,6 +534,65 @@ test('zoom keeps the time under the fingers fixed; ticks follow Kuwait time', ()
   const { step, ticks } = timeTicks(END - 6 * 3600000, END, 390);
   assert.equal(step, 3600000); assert.equal(tickLabel(ticks[0], step).length, 5);
   assert.equal(tickLabel(Date.parse('2026-10-01T21:00:00Z'), 3600000), '2/10'); // midnight in Kuwait shows the date
+});
+
+console.log('event rail');
+
+const evr = (o: any) => ({ id: o.id ?? 'x', client_id: 'c', kind: 'insulin', occurred_at: '2026-10-01T12:00:00Z', insulin_units: null, insulin_type: null, bolus_purpose: null,
+  carbs_g: null, treatment: null, note: null, created_by: 'u', deleted_at: null, ...o });
+const meal = (o: any) => ({ id: 'm1', kind: 'meal', recipe_id: null, name: 'مجبوس دجاج', category: null, eaten_at: '2026-10-01T12:05:00Z', total_carbs: 45,
+  total_fat: null, total_fiber: null, total_protein: null, total_kcal: null, modified: false, glucose_mgdl: null, glucose_trend: null, glucose_at: null, lines: [], notes: null, ...o });
+
+test('every logged thing becomes a marker at its exact minute, on its own layer', () => {
+  const marks = buildMarks([meal({})] as any, [
+    evr({ id: 'i1', insulin_units: 3, insulin_type: 'rapid', bolus_purpose: 'meal', occurred_at: '2026-10-01T11:53:00Z' }),
+    evr({ id: 'b1', insulin_units: 12, insulin_type: 'long', occurred_at: '2026-10-01T20:00:00Z' }),
+    evr({ id: 't1', kind: 'treatment', carbs_g: 15, occurred_at: '2026-10-01T15:00:00Z' }),
+    evr({ id: 'x1', kind: 'exercise', activity_min: 35, occurred_at: '2026-10-01T16:20:00Z' }),
+    evr({ id: 'd1', kind: 'note', note: 'x', deleted_at: '2026-10-01T16:00:00Z' }),
+  ]);
+  assert.deepEqual(marks.map((m) => [m.kind, m.layer, new Date(m.t).toISOString().slice(11, 16)]),
+    [['insulin', 'insulin', '11:53'], ['meal', 'meals', '12:05'], ['treatment', 'treatment', '15:00'], ['exercise', 'exercise', '16:20'], ['basal', 'basal', '20:00']]);
+  assert.equal(marks[3].end! - marks[3].t, 35 * 60000);
+});
+
+test('markers that would collide group into one chip; hidden layers are skipped', () => {
+  const marks = buildMarks([meal({})] as any, [evr({ id: 'i1', insulin_units: 3, insulin_type: 'rapid', occurred_at: '2026-10-01T11:58:00Z' }),
+    evr({ id: 't1', kind: 'treatment', carbs_g: 15, occurred_at: '2026-10-01T15:00:00Z' }), evr({ id: 'b1', insulin_units: 12, insulin_type: 'long', occurred_at: '2026-10-01T13:00:00Z' })]);
+  const start = Date.parse('2026-10-01T10:00:00Z'), end = Date.parse('2026-10-01T16:00:00Z');
+  const groups = groupMarks(marks, defaultLayers(), start, end, 390);
+  assert.equal(groups.length, 2); // basal is off by default
+  assert.equal(groupLabel(groups[0]), '45 غ + 3 و'); assert.equal(groups[0].marks.length, 2);
+  assert.equal(groupLabel(groups[1]), 'علاج 15 غ');
+  assert.equal(groupMarks(marks, defaultLayers(), start, end, 4000).length, 3); // zoomed in: they separate
+});
+
+test('meal response on a fixture meal matches section 10.7', () => {
+  // meal 12:05, readings every 5 min: 110 at the meal, rising 2/min to a peak of 170 at +30, then down 1/min
+  const t0 = Date.parse('2026-10-01T12:05:00Z');
+  const ts: number[] = [], vs: number[] = [];
+  for (let m = -30; m <= 250; m += 5) { ts.push(t0 + m * M); vs.push(m <= 0 ? 110 : m <= 30 ? 110 + 2 * m : 170 - (m - 30)); }
+  const ser = mergeSeries(emptySeries(), ts, vs);
+  const bolus = evr({ id: 'i1', insulin_units: 3, insulin_type: 'rapid', bolus_purpose: 'meal', occurred_at: '2026-10-01T11:53:00Z' });
+  const r = mealResponse(ser, t0, [bolus as any], t0 + 6 * 3600000);
+  assert.equal(r.g0, 110); assert.equal(r.at[30], 170); assert.equal(r.at[60], 140); assert.equal(r.at[120], 80); assert.equal(r.at[180], 20);
+  assert.equal(r.peak, 170); assert.equal(r.rise, 60); assert.equal(r.ttp, 30); assert.equal(r.complete, true);
+  assert.equal(r.prebolus, 12); assert.equal(r.bolus?.id, 'i1');
+  // a gap after +60: later values are not reported and the response is partial
+  const cut = mergeSeries(emptySeries(), ts.filter((t) => t <= t0 + 60 * M || t >= t0 + 100 * M), vs.filter((_, k) => ts[k] <= t0 + 60 * M || ts[k] >= t0 + 100 * M));
+  const r2 = mealResponse(cut, t0, [], t0 + 6 * 3600000);
+  assert.equal(r2.at[60], 140); assert.equal(r2.at[120], null); assert.equal(r2.complete, false); assert.equal(r2.bolus, null);
+  // a correction dose is not the meal bolus
+  assert.equal(mealResponse(ser, t0, [{ ...bolus, bolus_purpose: 'correction' } as any], t0 + 6 * 3600000).bolus, null);
+});
+
+test('sleep from two clock times crosses midnight; exercise and sleep read naturally', () => {
+  const nowK = Date.parse('2026-10-02T04:00:00Z'); // 07:00 in Kuwait
+  const w = sleepWindow('21:30', '06:45', nowK);
+  assert.equal(w.occurred_at, '2026-10-01T18:30:00.000Z'); assert.equal(w.ends_at, '2026-10-02T03:45:00.000Z'); assert.equal(w.minutes, 555);
+  assert.equal(sleepWindow('13:00', '15:00', nowK).ends_at, '2026-10-01T12:00:00.000Z'); // 15:00 today is later than now → yesterday
+  assert.equal(describeEvent({ kind: 'exercise', activity_min: 35, activity_level: 'hard' } as any), 'رياضة 35 د · شديد');
+  assert.equal(describeEvent({ kind: 'sleep', occurred_at: w.occurred_at, ends_at: w.ends_at } as any), 'نوم 9:15 س');
 });
 
 console.log('releases');

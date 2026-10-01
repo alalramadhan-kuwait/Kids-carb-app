@@ -982,9 +982,13 @@ Each stage ships as its own app version and is accepted against the criteria in 
 
 **Progress:** stage 1 shipped in 0.7.0; stage 2 in 0.8.0 (measured: a 90-day frame draws in 0.6 ms median,
 1.3 ms worst, on the test browser; a single 2.9 mmol/L reading survives at every zoom and pan position; a
-27-minute gap is drawn and labelled). Completed: 30 %. Interim in stage 2: beyond 3 days the trace is drawn as
+27-minute gap is drawn and labelled). Interim in stage 2: beyond 3 days the trace is drawn as
 a light min–max range band until the daily-strip (stage 4) and AGP (stage 6) renderers replace it; pinch
 snaps to the nearest standard period on release.
+Stage 3 shipped in 0.9.0: rail markers at their exact minute, grouping by on-screen distance (hypo treatment
+labelled apart from meal carbs), event sheet with the 10.7 meal response checked on a fixture meal, Layers
+remembered per device, exercise and sleep logging. Completed: 40 %. The app loads the last 60 days of
+events, so markers older than that do not show yet.
 
 
 ## Sources

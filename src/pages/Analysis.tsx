@@ -9,6 +9,14 @@ import { Timeline } from '../engine/Timeline';
 import { useSeries } from '../engine/useSeries';
 import { PERIODS, delta15, freshness, limitEnd, rateAt, type View } from '../engine/series';
 import StatsPanel from './Advanced';
+import { EventSheet } from '../components/EventSheet';
+import { Sheet, Toggle } from '../components/ui';
+import { LAYERS, buildMarks, defaultLayers, type Group, type Layer } from '../engine/events';
+
+const loadLayers = (): Set<Layer> => {
+  try { const v = localStorage.getItem('layers'); if (v) return new Set(JSON.parse(v) as Layer[]); } catch { /* private mode */ }
+  return defaultLayers();
+};
 
 const MODES = [{ id: 'live', label: 'مباشر' }, { id: 'stats', label: 'الأرقام' }] as const;
 const FRESH = { live: { text: 'مباشر', cls: 'bg-ok-soft text-ok' }, delayed: { text: 'متأخر', cls: 'bg-near-soft text-near' }, missing: { text: 'منقطع', cls: 'bg-over-soft text-over' } };
@@ -31,8 +39,16 @@ export default function Analysis() {
 }
 
 function Live() {
-  const { settings } = useData();
+  const { settings, history, events } = useData();
   const { g } = useGlucose();
+  const [layers, setLayers] = useState<Set<Layer>>(loadLayers);
+  const [layersOpen, setLayersOpen] = useState(false);
+  const [picked, setPicked] = useState<Group | null>(null);
+  const marks = useMemo(() => buildMarks(history, events), [history, events]);
+  const toggle = (id: Layer, on: boolean) => {
+    const next = new Set(layers); if (on) next.add(id); else next.delete(id);
+    setLayers(next); try { localStorage.setItem('layers', JSON.stringify([...next])); } catch { /* ignore */ }
+  };
   const unit = settings.glucose_unit;
   const [now, setNow] = useState(Date.now());
   const [view, setView] = useState<View>(() => ({ span: PERIODS[0].ms, end: limitEnd(Infinity, Date.now(), PERIODS[0].ms) }));
@@ -94,7 +110,8 @@ function Live() {
 
       <div className="relative -mx-4 bg-white py-2 shadow-card">
         <Timeline series={series} view={view} now={now} onView={onView} unit={unit} height={height}
-          range={{ low: settings.glucose_low_mgdl, high: settings.glucose_high_mgdl }} />
+          range={{ low: settings.glucose_low_mgdl, high: settings.glucose_high_mgdl }}
+          marks={marks} layers={layers} onSelect={setPicked} />
         {loading && <div className="absolute start-3 top-3 text-xs text-slate-400">…</div>}
       </div>
 
@@ -102,9 +119,19 @@ function Live() {
         <div className="-mx-1 flex flex-1 gap-1.5 overflow-x-auto px-1" dir="ltr">
           {PERIODS.map((p) => <Chip key={p.id} active={period === p.id} onClick={() => onView({ span: p.ms, end: live ? Infinity : view.end }, { animate: true })}>{p.id}</Chip>)}
         </div>
+        <button onClick={() => setLayersOpen(true)} className="min-h-[40px] shrink-0 rounded-full bg-white px-3 text-sm font-bold ring-1 ring-slate-200">الطبقات</button>
         {!live && <button onClick={() => onView({ span: view.span, end: Infinity }, { animate: true })} className="min-h-[40px] shrink-0 rounded-full bg-brand px-4 text-sm font-bold text-white">الآن</button>}
       </div>
-      <p className="px-1 text-xs text-slate-400">اسحب للتنقل · اقرص للتكبير · اضغط مطوّلًا للتفاصيل</p>
+      <p className="px-1 text-xs text-slate-400">اسحب للتنقل · اقرص للتكبير · اضغط مطوّلًا للتفاصيل · اضغط أيقونة لما سُجّل</p>
+      <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
+      <Sheet open={layersOpen} onClose={() => setLayersOpen(false)} title="الطبقات">
+        <ul className="space-y-1">
+          <li className="flex min-h-[48px] items-center justify-between text-slate-500"><span>السكر</span><span className="text-xs">دائمًا</span></li>
+          {LAYERS.map((l) => (
+            <li key={l.id} className="flex min-h-[48px] items-center justify-between"><span>{l.label}</span><Toggle on={layers.has(l.id)} onChange={(v) => toggle(l.id, v)} label={l.label} /></li>
+          ))}
+        </ul>
+      </Sheet>
     </div>
   );
 }

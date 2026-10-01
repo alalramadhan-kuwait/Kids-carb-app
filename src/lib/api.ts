@@ -103,7 +103,7 @@ export async function callGlucose(body: Record<string, unknown>): Promise<Glucos
 }
 
 // ── events (insulin, carbs, treatment, note) ──────────────────────────────────
-export type NewEvent = Pick<EventRow, 'client_id' | 'kind' | 'occurred_at' | 'insulin_units' | 'insulin_type' | 'bolus_purpose' | 'carbs_g' | 'treatment' | 'note'>;
+export type NewEvent = Pick<EventRow, 'client_id' | 'kind' | 'occurred_at' | 'insulin_units' | 'insulin_type' | 'bolus_purpose' | 'carbs_g' | 'treatment' | 'note' | 'activity_min' | 'activity_level' | 'ends_at'>;
 
 /** Returns the new id, or null if this exact submission was already saved (double tap). */
 export async function saveEvent(e: NewEvent): Promise<string | null> {
