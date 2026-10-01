@@ -216,4 +216,7 @@ export const core: Record<string, string> = {
   'التنبيهات': 'Alerts',
   'اليوم': 'Today',
   'اللغة': 'Language',
+  'ربط الآن': 'Connect now',
+  'بقيت خطوة واحدة': 'One step left',
+  'بقيت {n} خطوات للإعداد': '{n} setup steps left',
 };
