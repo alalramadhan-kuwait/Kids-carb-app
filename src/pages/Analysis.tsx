@@ -9,6 +9,7 @@ import { Timeline } from '../engine/Timeline';
 import { useSeries } from '../engine/useSeries';
 import { PERIODS, delta15, freshness, limitEnd, rateAt, type View } from '../engine/series';
 import StatsPanel from './Advanced';
+import { DayView } from './Day';
 import { EventSheet } from '../components/EventSheet';
 import { Sheet, Toggle } from '../components/ui';
 import { LAYERS, buildMarks, defaultLayers, type Group, type Layer } from '../engine/events';
@@ -18,22 +19,22 @@ const loadLayers = (): Set<Layer> => {
   return defaultLayers();
 };
 
-const MODES = [{ id: 'live', label: 'مباشر' }, { id: 'stats', label: 'الأرقام' }] as const;
+const MODES = [{ id: 'live', label: 'مباشر' }, { id: 'day', label: 'اليوم' }, { id: 'stats', label: 'الأرقام' }] as const;
 const FRESH = { live: { text: 'مباشر', cls: 'bg-ok-soft text-ok' }, delayed: { text: 'متأخر', cls: 'bg-near-soft text-near' }, missing: { text: 'منقطع', cls: 'bg-over-soft text-over' } };
 
 /** التحليل: Live (the timeline engine) and the numbers. More modes arrive stage by stage (GLUCOSE_PLAN 11.2). */
 export default function Analysis() {
   const [params, setParams] = useSearchParams();
-  const mode = params.get('mode') === 'stats' ? 'stats' : 'live';
+  const mode = (['day', 'stats'] as const).find((m) => m === params.get('mode')) ?? 'live';
   return (
     <Page title="التحليل">
-      <div className="mb-3 grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1" role="tablist">
+      <div className="mb-3 grid grid-cols-3 gap-1 rounded-2xl bg-slate-100 p-1" role="tablist">
         {MODES.map((m) => (
           <button key={m.id} role="tab" aria-selected={mode === m.id} onClick={() => setParams(m.id === 'live' ? {} : { mode: m.id }, { replace: true })}
             className={cx('min-h-[40px] rounded-xl text-sm font-bold', mode === m.id ? 'bg-white shadow-card' : 'text-slate-500')}>{m.label}</button>
         ))}
       </div>
-      {mode === 'live' ? <Live /> : <StatsPanel />}
+      {mode === 'live' ? <Live /> : mode === 'day' ? <DayView /> : <StatsPanel />}
     </Page>
   );
 }

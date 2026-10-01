@@ -988,7 +988,12 @@ a light min–max range band until the daily-strip (stage 4) and AGP (stage 6) r
 snaps to the nearest standard period on release.
 Stage 3 shipped in 0.9.0: rail markers at their exact minute, grouping by on-screen distance (hypo treatment
 labelled apart from meal carbs), event sheet with the 10.7 meal response checked on a fixture meal, Layers
-remembered per device, exercise and sleep logging. Completed: 40 %. The app loads the last 60 days of
+remembered per device, exercise and sleep logging. Completed: 40 %.
+Stage 4 shipped in 0.12.0: Analysis → اليوم with day navigation (arrows, date picker), four KPIs from
+`glucose_stats`, More metrics (SD, CV, min, max, coverage, carbs, treatment, rapid and long insulin), the 24-hour
+graph with night/morning/afternoon/evening shading, and the day's entries plus detected lows (≥ 10 min below
+the range, never across a gap); a row centres the graph on its moment (240 ms animation) and the rail opens
+the event sheet. Completed: 48 %. The app loads the last 60 days of
 events, so markers older than that do not show yet.
 
 

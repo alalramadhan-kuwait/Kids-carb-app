@@ -24,10 +24,11 @@ const css = (name: string, a = 1) => {
 const KW = 3 * 3600000;
 const clock = (t: number) => { const d = new Date(t + KW); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
 
-export function Timeline({ series, view, now, onView, range, unit, height, marks = [], layers, onSelect }: {
+export function Timeline({ series, view, now, onView, range, unit, height, marks = [], layers, onSelect, dayParts, highlight }: {
   series: Series; view: View; now: number; onView: (v: View, opts?: { animate?: boolean }) => void;
   range: Range; unit: GlucoseUnit; height: number;
   marks?: Mark[]; layers?: Set<Layer>; onSelect?: (g: Group) => void;
+  dayParts?: boolean; highlight?: number | null;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -65,6 +66,19 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
     const [y0, y1] = yDomain(maxV);
     const Y = (v: number) => PAD_T + plotH - ((Math.min(Math.max(v, y0), y1) - y0) / (y1 - y0)) * plotH;
     const X = (t: number) => ((t - start) / span) * width;
+
+    // day parts (night, morning, afternoon, evening): alternate faint shading, one continuous timeline
+    if (dayParts && span >= 8 * 3600000) {
+      const KWO = 3 * 3600000, H6 = 6 * 3600000;
+      g.font = '500 10.5px Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.direction = 'rtl';
+      for (let t = Math.floor((start + KWO) / H6) * H6 - KWO; t < end; t += H6) {
+        const part = Math.round(((t + KWO) % 86400000) / H6); // 0 night, 1 morning, 2 afternoon, 3 evening
+        const a = Math.max(0, X(t)), b = Math.min(width, X(t + H6));
+        if (part % 2 === 0) { g.fillStyle = css('--surface-2', 0.6); g.fillRect(a, PAD_T, b - a, plotH); }
+        if (b - a > 40) { g.fillStyle = css('--text-3'); g.fillText(['ليل', 'صباح', 'ظهر', 'مساء'][part], (a + b) / 2, PAD_T + plotH - 3); }
+      }
+      g.direction = 'ltr';
+    }
 
     // target band: the parents' range; while it is the reference range it is dashed and labelled «مرجعي»
     if (range.low !== null || range.high !== null) {
@@ -194,6 +208,11 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
     if (now >= start && now <= end) {
       g.strokeStyle = css('--text-3', 0.6); g.setLineDash([3, 4]); g.beginPath(); g.moveTo(Math.round(X(now)) + 0.5, PAD_T); g.lineTo(Math.round(X(now)) + 0.5, PAD_T + plotH); g.stroke(); g.setLineDash([]);
     }
+    // the moment picked from the list
+    if (highlight != null && highlight >= start && highlight <= end) {
+      const x = Math.round(X(highlight)) + 0.5;
+      g.strokeStyle = css('--primary-strong', 0.9); g.lineWidth = 2; g.beginPath(); g.moveTo(x, PAD_T); g.lineTo(x, PAD_T + plotH); g.stroke(); g.lineWidth = 1;
+    }
     // crosshair
     if (inspect) {
       const x = inspect.i !== null ? X(series.t[inspect.i]) : inspect.x;
@@ -204,7 +223,7 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
         g.strokeStyle = css('--text'); g.lineWidth = 2; g.beginPath(); g.arc(x, y, 5, 0, 7); g.stroke();
       }
     }
-  }, [series, view, now, range.low, range.high, range.reference, unit, width, height, inspect, marks, layers, hasRail, RAIL]);
+  }, [series, view, now, range.low, range.high, range.reference, unit, width, height, inspect, marks, layers, hasRail, RAIL, dayParts, highlight]);
 
   useEffect(() => { const id = requestAnimationFrame(draw); return () => cancelAnimationFrame(id); }, [draw]);
   useEffect(() => { // redraw on light/dark change

@@ -9,6 +9,7 @@ import { TREND_ICON, TREND_WORDS } from '../../components/Icon';
 import { ICONS } from '../../icons/defs';
 import { describeEvent, sleepWindow, unitsWord } from '../events';
 import { buildMarks, defaultLayers, groupLabel, groupMarks, mealResponse } from '../../engine/events';
+import { dayStartOf, dayTitle, dayTotals, lowEpisodes } from '../../engine/day';
 import { alertMessage, evaluate, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
 import { PERIODS, delta15, freshness, gapsIn, mergeSeries, emptySeries, nearest, rateAt, runsFor, timeTicks, tickLabel, zoomAt } from '../../engine/series';
@@ -601,6 +602,39 @@ test('the reference range stands in until the parents set hers, and is marked as
   assert.deepEqual(effectiveRange(80, null), { low: 80, high: null, reference: false });
   const r = effectiveRange(null, null);
   assert.equal(glucoseStatus(65, r.low, r.high), 'low'); assert.equal(glucoseStatus(120, r.low, r.high), 'in_range');
+});
+
+console.log('day view');
+
+test('a Kuwait day runs from local midnight (21:00 UTC the day before)', () => {
+  assert.equal(new Date(dayStartOf(Date.parse('2026-10-01T20:59:00Z'))).toISOString(), '2026-09-30T21:00:00.000Z');
+  assert.equal(new Date(dayStartOf(Date.parse('2026-10-01T21:00:00Z'))).toISOString(), '2026-10-01T21:00:00.000Z');
+  const d = dayStartOf(Date.parse('2026-10-01T10:00:00Z'));
+  assert.equal(dayTitle(d, Date.parse('2026-10-01T10:00:00Z')), 'اليوم · الخميس 1 أكتوبر');
+  assert.equal(dayTitle(d - 86400000, Date.parse('2026-10-01T10:00:00Z')), 'أمس · الأربعاء 30 سبتمبر');
+  assert.equal(dayTitle(d - 3 * 86400000, Date.parse('2026-10-01T10:00:00Z')), 'الاثنين · 28 سبتمبر');
+});
+
+test('low episodes: at least 10 minutes below the line, split by gaps, with their lowest value', () => {
+  const t0 = Date.parse('2026-10-01T06:00:00Z');
+  const vals = [90, 68, 64, 60, 62, 66, 75, 69, 90, 67, 66, 65]; // 5-min steps: 10:00 low run of 25 min, a 5-min blip, then a run cut by a gap
+  const times = vals.map((_, k) => t0 + k * 5 * M);
+  times[10] += 30 * M; times[11] += 30 * M; // gap before the last two
+  const ser = mergeSeries(emptySeries(), times, vals);
+  const eps = lowEpisodes(ser, t0, t0 + 3 * 3600000, 70);
+  assert.equal(eps.length, 1);
+  assert.equal(eps[0].t, t0 + 5 * M); assert.equal(eps[0].nadir, 60); assert.equal(eps[0].minutes, 20);
+  assert.equal(lowEpisodes(ser, t0, t0 + 3 * 3600000, 70, 5).length, 2); // the 35-40 min pair counts at 5 min, the blip never
+});
+
+test('day totals separate meal carbs, hypo treatment, rapid and long insulin, and skip deleted entries', () => {
+  const start = Date.parse('2026-09-30T21:00:00Z'), end = start + 86400000;
+  const hist = [meal({ eaten_at: '2026-10-01T04:15:00Z', total_carbs: 42 }), meal({ id: 'm2', eaten_at: '2026-10-01T10:05:00Z', total_carbs: 48 }),
+    meal({ id: 'm3', eaten_at: '2026-09-30T20:00:00Z', total_carbs: 30 })];
+  const evs = [evr({ insulin_units: 3, insulin_type: 'rapid', occurred_at: '2026-10-01T04:05:00Z' }), evr({ id: 'b', insulin_units: 12, insulin_type: 'long', occurred_at: '2026-10-01T17:00:00Z' }),
+    evr({ id: 't', kind: 'treatment', carbs_g: 15, occurred_at: '2026-10-01T07:36:00Z' }), evr({ id: 'c', kind: 'carbs', carbs_g: 10, occurred_at: '2026-10-01T12:00:00Z' }),
+    evr({ id: 'd', insulin_units: 2, insulin_type: 'rapid', occurred_at: '2026-10-01T12:00:00Z', deleted_at: '2026-10-01T12:01:00Z' })];
+  assert.deepEqual(dayTotals(hist as any, evs as any, start, end), { carbs: 100, treatment: 15, rapid: 3, long: 12, meals: 2 });
 });
 
 console.log('releases');
