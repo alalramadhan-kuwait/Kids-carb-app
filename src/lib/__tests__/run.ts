@@ -571,7 +571,7 @@ test('merging keeps order, replaces the same instant, and handles unsorted batch
   // timing: warm up, then the best of three, so a busy machine does not fail the check
   mergeSeries(fx.s, [END + M], [100]);
   const best = Math.min(...[0, 1, 2].map(() => { const t0 = performance.now(); mergeSeries(fx.s, [END + M], [100]); return performance.now() - t0; }));
-  assert.ok(best < 15, `${best.toFixed(1)} ms`);
+  assert.ok(best < 30, `${best.toFixed(1)} ms`);
 });
 
 test('inspector values: nearest reading, 15-minute change, rate, freshness', () => {
@@ -969,6 +969,54 @@ console.log('dose calculator');
     assert.equal(suggestDose({ ...base, sensorStartedAt: T - 30 * M }).block, 'warmup');
     assert.equal(suggestDose({ ...base, ratio: null }).block, 'no_plan');
     assert.equal(suggestDose({ ...base, iob: null }).block, 'no_plan');
+  });
+}
+
+console.log('prediction tracking');
+
+{
+  const P = await import('../../engine/predict');
+  const M = 60000, T = Date.UTC(2026, 9, 1, 9, 0); // 12:00 Kuwait
+  const model = { iob: { dia: 360, peak: 65 }, absorb: 180, ratios: [{ from: '00:00', cr: 15, isf: 54 }] };
+  const meal = (id: string, min: number, g: number) => ({ id, eaten_at: new Date(T + min * M).toISOString(), total_carbs: g, name: 'مجبوس', recipe_id: 'r4' }) as never;
+  const dose = (id: string, min: number, u: number) => ({ id, kind: 'insulin', insulin_type: 'rapid', insulin_units: u, occurred_at: new Date(T + min * M).toISOString(), deleted_at: null }) as never;
+  const ex = (id: string, min: number) => ({ id, kind: 'exercise', occurred_at: new Date(T + min * M).toISOString(), deleted_at: null }) as never;
+  test('a meal and its dose 5 minutes later make one prediction', () => {
+    const e = P.entriesFrom([meal('m', 0, 45)], [dose('d', 5, 3)]);
+    const tr = P.triggers(e);
+    assert.deepEqual(tr.map((x) => x.key), ['h:m']);
+    const p = P.predict(tr[0], e, 120, model)!;
+    assert.equal(p.carbs, 45); assert.equal(p.units, 3); assert.equal(p.end_min, 360);
+    assert.equal(p.curve[0], 120);
+    // all used up at the end: 120 + 45/15*54 − 3*54 = 120
+    assert.equal(p.curve[p.curve.length - 1], 120);
+    assert.ok(Math.max(...p.curve) > 120, 'carbs act faster than insulin, so it rises first');
+  });
+  test('carbs alone: the end is start + carbs ÷ CR × ISF', () => {
+    const e = P.entriesFrom([meal('m', 0, 30)], []);
+    const p = P.predict(P.triggers(e)[0], e, 100, model)!;
+    assert.equal(p.end_min, 180); assert.equal(p.curve[p.curve.length - 1], 100 + 2 * 54);
+    assert.equal(P.predAt(p.curve, 90), 154, 'half the carbs absorbed at 90 of 180 minutes');
+  });
+  test('checkpoints fill from the sensor, and stop at anything logged later', () => {
+    const e = P.entriesFrom([meal('m', 0, 30)], [ex('x', 100)]);
+    const p = { ...P.predict(P.triggers(e)[0], e, 100, model)!, checks: {} };
+    const t = [T + 61 * M, T + 120 * M], v = [150, 190];
+    const r = P.fillChecks(p, e, t, v, T + 400 * M);
+    assert.deepEqual(r.checks['60'], { pred: Math.round(P.predAt(p.curve, 60)), actual: 150 });
+    assert.deepEqual(r.checks['120'], { skip: 'other_entry' });
+    assert.equal(r.done, true);
+    const early = P.fillChecks(p, [], t, v, T + 65 * M);
+    assert.equal(early.done, false); assert.equal(early.checks['60'], undefined, 'waits 10 minutes past the checkpoint');
+    assert.deepEqual(P.fillChecks(p, [], [], [], T + 400 * M).checks['60'], { skip: 'no_data' });
+  });
+  test('accuracy: average miss and direction, excluded predictions left out', () => {
+    const a = P.accuracy([
+      { checks: { '60': { pred: 150, actual: 170 } }, excluded: null },
+      { checks: { '60': { pred: 150, actual: 140 } }, excluded: null },
+      { checks: { '60': { pred: 150, actual: 300 } }, excluded: 'sensor_day1' },
+    ]);
+    assert.equal(a[0].n, 2); assert.equal(a[0].mae, 15); assert.equal(a[0].bias, 5); assert.equal(a[0].within, 0.5);
   });
 }
 

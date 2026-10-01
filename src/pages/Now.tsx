@@ -27,6 +27,7 @@ import { dir, isEn, t } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
 import { units2, useOnBoard } from './Status';
 import { sensorLife } from '../engine/status';
+import { syncPredictions } from '../lib/predictions';
 
 const TONE_DOT: Record<Tone, string> = { ok: 'bg-ok-fill', low: 'bg-over-fill', urgent: 'bg-over', high: 'bg-near-fill', warn: 'bg-near-fill', plain: 'bg-slate-300' };
 const TONE_TEXT: Record<Tone, string> = { ok: 'text-ok', low: 'text-over', urgent: 'text-over', high: 'text-near', warn: 'text-near', plain: 'text-slate-700' };
@@ -50,6 +51,9 @@ export default function Now() {
   const sentence = statusSentence({ hasReading: !!latest, age: age?.state ?? null, status, trend: latest?.trend ?? null });
   const notConnected = !!g && !g.connected;
   const ob = useOnBoard(latest);
+  // keep prediction tracking up to date in the background (at most every 5 minutes)
+  useEffect(() => { syncPredictions(settings, history, events, g?.sensor?.started_at ? Date.parse(g.sensor.started_at) : null).catch(() => {}); },
+    [settings, history, events, g?.sensor?.started_at]);
   const sensor = g?.sensor?.started_at ? sensorLife(g.sensor.started_at, settings.sensor_days ?? 14, Date.now()) : null;
 
   const lastMeal = history.find((h) => h.kind === 'meal');

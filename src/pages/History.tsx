@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useData } from '../lib/data';
 import { fmt, stateText, unitText } from '../lib/carbs';
 import { deleteEvent, deleteHistory, restoreEvent } from '../lib/api';
@@ -12,6 +12,9 @@ import { Btn, Card, Chip, Page, Sheet, cx, toast } from '../components/ui';
 import { dayStartOf, dayTitle, dayTotals } from '../engine/day';
 import { isEn, t, tMaybe } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
+import { supabase } from '../lib/supabase';
+import { checkMinutes } from '../engine/predict';
+import type { PredictionRow } from '../lib/predictions';
 
 const DAY = 86400000;
 type Kind = 'all' | 'meals' | 'insulin' | 'treatment' | 'other';
@@ -132,6 +135,35 @@ function MealDetail({ h, n, unit }: { h: HistoryEntry; n: number; unit: 'mmol' |
       </ul>
       {h.total_kcal !== null && <p className="num text-xs text-slate-500">{t('دهون {fat}غ • ألياف {fiber}غ • بروتين {protein}غ • {kcal} سعرة', { fat: fmt(h.total_fat), fiber: fmt(h.total_fiber), protein: fmt(h.total_protein), kcal: h.total_kcal })}</p>}
       <p className="text-xs text-slate-500">{t('اختيرت {n} مرة', { n })}{h.modified ? ' · ' + t('معدّلة') : ''}</p>
+      <MealPrediction id={h.id} unit={unit} />
+    </div>
+  );
+}
+
+/** The estimate frozen at this meal, next to what the sensor showed (prediction tracking). */
+function MealPrediction({ id, unit }: { id: string; unit: 'mmol' | 'mgdl' }) {
+  const [p, setP] = useState<PredictionRow | null>(null);
+  useEffect(() => {
+    let live = true;
+    supabase.from('predictions').select('*').eq('key', 'h:' + id).maybeSingle().then(({ data }) => { if (live) setP(data as PredictionRow | null); });
+    return () => { live = false; };
+  }, [id]);
+  if (!p) return null;
+  return (
+    <div className="rounded-xl bg-slate-50 p-2.5">
+      <div className="mb-1 text-xs font-bold text-slate-600">{t('التقدير عند الوجبة ← الحساس')}</div>
+      <ul className="space-y-0.5 text-sm">
+        {checkMinutes(p.end_min).map(([k, m]) => {
+          const c = p.checks[k];
+          return (
+            <li key={k} className="flex justify-between gap-2">
+              <span className="text-slate-600">{t('بعد {h} س', { h: Math.round((m / 60) * 10) / 10 })}</span>
+              <span>{!c ? t('بانتظار') : 'skip' in c ? (c.skip === 'other_entry' ? t('تسجيل آخر') : t('لا قراءة'))
+                : <span className="num">{formatGlucose(c.pred, unit)} → {formatGlucose(c.actual, unit)}</span>}</span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

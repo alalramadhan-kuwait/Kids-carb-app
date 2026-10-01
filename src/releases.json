@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.8.0",
+    "date": "2026-10-01",
+    "notes": [
+      "دقة التقدير: يُحفظ التقدير الأول عند كل وجبة، ثم يُقارن بالحساس بعد ساعة وساعتين وفي النهاية",
+      "في صفحة الحالة: متوسط الفرق، وهل السكر غالبًا أعلى أو أقل من التقدير، وآخر الوجبات",
+      "تفاصيل كل وجبة في السجل تعرض التقدير مقابل الحساس"
+    ],
+    "notes_en": [
+      "Estimate accuracy: the first estimate at each meal is saved, then compared with the sensor at 1 h, 2 h and the end",
+      "On the Status page: the average difference, whether glucose usually ends higher or lower than estimated, and recent meals",
+      "Each meal's details in the Log show the estimate against the sensor"
+    ]
+  },
+  {
     "version": "1.7.0",
     "date": "2026-10-01",
     "notes": [

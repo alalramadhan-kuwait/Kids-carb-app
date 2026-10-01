@@ -11,6 +11,8 @@ import { Icon, TREND_ICON, TREND_WORDS } from '../components/Icon';
 import { Card, Page, cx } from '../components/ui';
 import { isEn, locale, t } from '../i18n';
 import type { Settings } from '../lib/types';
+import { usePredictions } from '../lib/predictions';
+import { PredictionAccuracy } from '../components/PredictionAccuracy';
 
 const MIN = 60000;
 export const units2 = (u: number) => String(Math.round(u * 100) / 100);
@@ -46,6 +48,7 @@ export default function Status() {
   const latest = g?.latest ?? null;
   const o = useOnBoard(latest);
   const unit = s.glucose_unit;
+  const predictions = usePredictions(g?.sensor?.started_at ? Date.parse(g.sensor.started_at) : null);
   const age = latest ? glucoseAge(latest.taken_at) : null;
   const lastMeal = history[0] ?? null;
   const lastDose = events.find((e) => e.kind === 'insulin' && e.insulin_type !== 'long') ?? null;
@@ -83,6 +86,8 @@ export default function Status() {
             {t('تقدير تقريبي من المسجّل فقط، ولا يعرف الرياضة ولا المرض ولا الأكل غير المسجّل. للجرعة استخدموا الحاسبة في «سجّل ← إنسولين».')}
           </p>
         </Card>
+
+        <PredictionAccuracy rows={predictions} unit={unit} />
 
         <SensorCard startedAt={g?.sensor?.started_at ?? null} days={s.sensor_days ?? 14} connected={!!g?.connected} />
 
