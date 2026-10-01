@@ -4,7 +4,7 @@ import { computeLine, computeMeal, deriveLabel, labelMismatch, levelFor, targetM
 import { blocker, candidatesOf, suggest } from '../suggest';
 import { shoppingList } from '../shopping';
 import { hostFor, loginProblem, maskEmail, parseLluTimestamp, readingsFromGraph, sha256Hex, toReading, tooSoon } from '../../../supabase/functions/carb-glucose/lib';
-import { formatGlucose, glucoseAge, glucoseLevel, toMgdl } from '../glucose';
+import { formatGlucose, glucoseAge, glucoseLevel, glucoseStatus, toMgdl } from '../glucose';
 import { TREND_ICON, TREND_WORDS } from '../../components/Icon';
 import { ICONS } from '../../icons/defs';
 import { DEFAULT_SETTINGS, type HistoryEntry, type Ingredient, type Product, type Recipe, type Settings } from '../types';
@@ -296,6 +296,15 @@ test('trend arrows follow Libre: straight up/down are the fast ones, diagonals a
   assert.ok(ICONS.trend_falling_fast.d[0].startsWith('M12 4v'), 'fast fall is a vertical arrow');
   assert.ok(ICONS.trend_rising.d[0] === 'M6 18L18 6', 'moderate rise is diagonal');
   assert.ok(ICONS.trend_falling.d[0] === 'M6 6l12 12', 'moderate fall is diagonal');
+});
+
+test('status chip needs the parents range; urgent low and very high use the reporting bands', () => {
+  assert.equal(glucoseStatus(50, null, null), null);
+  assert.equal(glucoseStatus(50, 70, 180), 'urgent_low');
+  assert.equal(glucoseStatus(65, 70, 180), 'low');
+  assert.equal(glucoseStatus(120, 70, 180), 'in_range');
+  assert.equal(glucoseStatus(200, 70, 180), 'high');
+  assert.equal(glucoseStatus(300, 70, 180), 'very_high');
 });
 
 console.log('releases');

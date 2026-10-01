@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { callGlucose } from '../lib/api';
-import { formatGlucose, glucoseAge, glucoseLevel, GLUCOSE_ERRORS, unitLabel, type GlucoseState, type Reading } from '../lib/glucose';
+import { formatGlucose, glucoseAge, glucoseStatus, GLUCOSE_ERRORS, unitLabel, type GlucoseState, type Reading } from '../lib/glucose';
 import { useData } from '../lib/data';
 import { Card, cx } from './ui';
-import { Icon, TREND_ICON, TREND_WORDS } from './Icon';
+import { Icon, StatusIcon, TREND_ICON, TREND_WORDS } from './Icon';
+import { STATUS } from '../icons/defs';
 
-const TONE = { none: 'text-slate-800', in: 'text-ok', low: 'text-over', high: 'text-near' } as const;
+const CHIP = { urgent_low: 'bg-over-soft text-over', low: 'bg-over-soft text-over', in_range: 'bg-ok-soft text-ok', high: 'bg-near-soft text-near', very_high: 'bg-near-soft text-near' } as const;
 
 function Spark({ readings, low, high }: { readings: Reading[]; low: number | null; high: number | null }) {
   if (readings.length < 2) return null;
@@ -18,9 +19,9 @@ function Spark({ readings, low, high }: { readings: Reading[]; low: number | nul
   const pts = readings.map((r) => `${x(new Date(r.taken_at).getTime()).toFixed(1)},${y(r.mg_dl).toFixed(1)}`).join(' ');
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 h-16 w-full" role="img" aria-label="آخر 3 ساعات">
-      {low !== null && <line x1="0" x2={W} y1={y(low)} y2={y(low)} stroke="#c0392b" strokeDasharray="4 4" strokeWidth="1" opacity=".5" />}
-      {high !== null && <line x1="0" x2={W} y1={y(high)} y2={y(high)} stroke="#b7791f" strokeDasharray="4 4" strokeWidth="1" opacity=".5" />}
-      <polyline points={pts} fill="none" stroke="#2f6f8f" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+      {low !== null && <line x1="0" x2={W} y1={y(low)} y2={y(low)} stroke="rgb(var(--st-low))" strokeDasharray="4 4" strokeWidth="1" opacity=".5" />}
+      {high !== null && <line x1="0" x2={W} y1={y(high)} y2={y(high)} stroke="rgb(var(--st-high))" strokeDasharray="4 4" strokeWidth="1" opacity=".5" />}
+      <polyline points={pts} fill="none" stroke="rgb(var(--primary-strong))" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
     </svg>
   );
 }
@@ -54,7 +55,7 @@ export default function GlucoseCard() {
   const unit = settings.glucose_unit;
   const latest = g.latest;
   const age = latest ? glucoseAge(latest.taken_at) : null;
-  const level = latest ? glucoseLevel(latest.mg_dl, settings.glucose_low_mgdl, settings.glucose_high_mgdl) : 'none';
+  const status = latest ? glucoseStatus(latest.mg_dl, settings.glucose_low_mgdl, settings.glucose_high_mgdl) : null;
   const err = g.error ? GLUCOSE_ERRORS[g.error] ?? g.error : null;
 
   return (
@@ -63,13 +64,18 @@ export default function GlucoseCard() {
         <div>
           <div className="text-sm text-slate-500">السكر الآن</div>
           {latest && age?.state !== 'stale' ? (
-            <div className={cx('flex items-baseline gap-2', age?.state === 'old' ? 'opacity-60' : TONE[level])}>
-              <span className="num text-5xl font-bold">{formatGlucose(latest.mg_dl, unit)}</span>
+            <div className={cx('flex flex-wrap items-baseline gap-2', age?.state === 'old' && 'opacity-50')}>
+              <span className="num text-[64px] font-bold leading-none">{formatGlucose(latest.mg_dl, unit)}</span>
               {latest.trend && <span className="flex items-center gap-1 self-center"><Icon name={TREND_ICON[latest.trend]} size={30} label={TREND_WORDS[latest.trend]} /><span className="text-sm font-medium">{TREND_WORDS[latest.trend]}</span></span>}
               <span className="text-sm font-medium text-slate-500">{unitLabel(unit)}</span>
             </div>
           ) : (
             <div className="text-3xl font-bold text-slate-400">— <span className="text-base font-medium">لا قراءة حديثة</span></div>
+          )}
+          {latest && age?.state !== 'stale' && status && (
+            <span className={cx('mt-2 inline-flex items-center gap-1.5 rounded-full py-1 pe-3 ps-2 text-sm font-semibold', CHIP[status])}>
+              <StatusIcon name={status} size={18} />{STATUS[status].label}
+            </span>
           )}
         </div>
         {age && <div className={cx('text-sm', age.state === 'fresh' ? 'text-slate-500' : 'font-bold text-near')}>

@@ -30,6 +30,16 @@ export function glucoseLevel(mgdl: number, low: number | null, high: number | nu
   return 'in';
 }
 
+/** Status for the chip next to the number. Needs the parents' range; urgent low / very high use the reporting bands. */
+export type GlucoseStatus = 'urgent_low' | 'low' | 'in_range' | 'high' | 'very_high';
+export function glucoseStatus(mgdl: number, low: number | null, high: number | null): GlucoseStatus | null {
+  if (low === null && high === null) return null;
+  if (mgdl < 54) return 'urgent_low';
+  if (low !== null && mgdl < low) return 'low';
+  if (high !== null && mgdl > high) return mgdl > 250 ? 'very_high' : 'high';
+  return 'in_range';
+}
+
 export const GLUCOSE_ERRORS: Record<string, string> = {
   bad_credentials: 'البريد أو كلمة المرور غير صحيحين. استخدم حساب LibreLinkUp (المتابع)، وليس حساب Libre الرئيسي.',
   terms_required: 'افتح تطبيق LibreLinkUp على الجوال مرة واحدة ووافق على الشروط، ثم أعد المحاولة.',

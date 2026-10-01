@@ -1,3 +1,3 @@
 { "name": "ليان", "short_name": "ليان", "lang": "ar", "dir": "rtl", "display": "standalone",
-  "start_url": "./", "background_color": "#f6f8f9", "theme_color": "#2f6f8f",
+  "start_url": "./", "background_color": "#FFF9F3", "theme_color": "#7776D8",
   "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }] }

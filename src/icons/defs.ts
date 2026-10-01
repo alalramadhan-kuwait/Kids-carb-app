@@ -53,11 +53,11 @@ export type IconName = keyof typeof ICONS;
 /** Glucose status: a drop with a white mark inside. No faces. Shape + mark + words, never colour alone. */
 const DROP = 'M12 2.6s7 7.5 7 12.2a7 7 0 0 1-14 0C5 10.1 12 2.6 12 2.6z';
 export const STATUS = {
-  urgent_low: { color: '#C83E4D', token: '--st-urgent', mark: ['M9 10.5l3 3 3-3', 'M9 14.5l3 3 3-3'], label: 'منخفض جدًا' },
-  low: { color: '#E95F68', token: '--st-low', mark: ['M9 13l3 3 3-3'], label: 'منخفض' },
-  in_range: { color: '#46B98A', token: '--st-in', mark: ['M8.8 14.8l2.3 2.3 4.2-4.6'], label: 'ضمن النطاق' },
-  high: { color: '#F2A541', token: '--st-high', mark: ['M9 16l3-3 3 3'], label: 'مرتفع' },
-  very_high: { color: '#D9822B', token: '--st-vhigh', mark: ['M9 14l3-3 3 3', 'M9 18l3-3 3 3'], label: 'مرتفع جدًا' },
+  urgent_low: { color: '#C83E4D', token: '--drop-urgent', mark: ['M9 10.5l3 3 3-3', 'M9 14.5l3 3 3-3'], label: 'منخفض جدًا' },
+  low: { color: '#E95F68', token: '--drop-low', mark: ['M9 13l3 3 3-3'], label: 'منخفض' },
+  in_range: { color: '#46B98A', token: '--drop-in', mark: ['M8.8 14.8l2.3 2.3 4.2-4.6'], label: 'ضمن النطاق' },
+  high: { color: '#F2A541', token: '--drop-high', mark: ['M9 16l3-3 3 3'], label: 'مرتفع' },
+  very_high: { color: '#D9822B', token: '--drop-vhigh', mark: ['M9 14l3-3 3 3', 'M9 18l3-3 3 3'], label: 'مرتفع جدًا' },
 } as const;
 export type StatusName = keyof typeof STATUS;
 export const DROP_PATH = DROP;

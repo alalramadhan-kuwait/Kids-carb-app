@@ -2,7 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body { background: #f6f8f9; color: #1c2b33; font-family: 'IBM Plex Sans Arabic', system-ui, Tahoma, sans-serif; }
+/* Layan design system tokens (DESIGN_SYSTEM.md §2–4, §15) as RGB triplets for Tailwind. */
+:root {
+  --bg: 255 249 243; --surface: 255 255 255; --surface-2: 247 242 238;
+  --border: 233 229 227; --border-strong: 214 208 205;
+  --text: 48 43 43; --text-2: 111 106 108; --text-3: 154 148 150; --toast: 48 43 43;
+  --primary: 119 118 216; --primary-strong: 94 92 196; --primary-soft: 232 231 250;
+  --st-in: 70 185 138;   --st-in-text: 31 122 85;  --st-in-soft: 227 245 236;
+  --st-high: 242 165 65; --st-high-text: 143 90 0; --st-high-soft: 253 241 220;
+  --st-low: 233 95 104;  --st-low-text: 184 58 68; --st-low-soft: 252 230 232;
+  --shadow-card: 0 2px 10px rgba(48, 43, 43, 0.06);
+  color-scheme: light;
+}
+/* Night: follows the phone's dark mode (and data-theme="night" for the night schedule later). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="day"]) {
+    --bg: 23 22 43; --surface: 34 33 64; --surface-2: 44 43 82;
+    --border: 55 53 94; --border-strong: 74 71 120;
+    --text: 241 238 247; --text-2: 180 175 198; --text-3: 130 125 155; --toast: 241 238 247;
+    --primary: 169 168 242; --primary-strong: 169 168 242; --primary-soft: 51 49 106;
+    --st-in: 95 211 162;   --st-in-text: 95 211 162;   --st-in-soft: 27 53 52;
+    --st-high: 245 182 90; --st-high-text: 245 182 90; --st-high-soft: 58 46 34;
+    --st-low: 255 122 131; --st-low-text: 255 122 131; --st-low-soft: 58 32 48;
+    --shadow-card: none;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="night"] {
+  --bg: 23 22 43; --surface: 34 33 64; --surface-2: 44 43 82;
+  --border: 55 53 94; --border-strong: 74 71 120;
+  --text: 241 238 247; --text-2: 180 175 198; --text-3: 130 125 155; --toast: 241 238 247;
+  --primary: 169 168 242; --primary-strong: 169 168 242; --primary-soft: 51 49 106;
+  --st-in: 95 211 162;   --st-in-text: 95 211 162;   --st-in-soft: 27 53 52;
+  --st-high: 245 182 90; --st-high-text: 245 182 90; --st-high-soft: 58 46 34;
+  --st-low: 255 122 131; --st-low-text: 255 122 131; --st-low-soft: 58 32 48;
+  --shadow-card: none;
+  color-scheme: dark;
+}
+/* status drop fills (full colours, used by the SVG status icons) */
+:root { --drop-urgent: #C83E4D; --drop-low: #E95F68; --drop-in: #46B98A; --drop-high: #F2A541; --drop-vhigh: #D9822B; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="day"]) { --drop-urgent: #FF5A68; --drop-low: #FF7A83; --drop-in: #5FD3A2; --drop-high: #F5B65A; --drop-vhigh: #F0954A; } }
+:root[data-theme="night"] { --drop-urgent: #FF5A68; --drop-low: #FF7A83; --drop-in: #5FD3A2; --drop-high: #F5B65A; --drop-vhigh: #F0954A; }
+
+html, body { background: rgb(var(--bg)); color: rgb(var(--text)); font-family: 'Noto Sans Arabic', 'Nunito Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; }
 body { -webkit-tap-highlight-color: transparent; padding-bottom: env(safe-area-inset-bottom); }
-.num { font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; display: inline-block; }
+.num { font-family: 'Nunito Sans', system-ui, sans-serif; font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; display: inline-block; }
 input, select, textarea { font: inherit; }
