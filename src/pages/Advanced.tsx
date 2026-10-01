@@ -53,12 +53,12 @@ export default function StatsPanel() {
       <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4">
         {PERIODS.map((p) => <Chip key={p.id} active={period === p.id} onClick={() => setPeriod(p.id)}>{t(p.label)}</Chip>)}
       </div>
-      {err && <Card><p className="text-sm text-over">{err}</p></Card>}
+      {err && <Card><p className="text-sm font-medium text-brand">{err}</p></Card>}
       {!s && !err && <Card><p className="text-slate-500">…</p></Card>}
       {s && s.n === 0 && <Card><p className="text-slate-500">{t('لا توجد قراءات في هذه الفترة.')}</p></Card>}
       {s && s.n > 0 && (
         <div className="space-y-3">
-          {!enough && <Card className="!py-3"><p className="text-sm text-near">{t('البيانات تغطي')} <b className="num">{Math.round(s.coverage)}%</b> {t('فقط من الفترة. الأرقام أدناه تقريبية حتى تصل إلى 70%.')}</p></Card>}
+          {!enough && <Card className="!py-3"><p className="text-sm text-slate-600">{t('البيانات تغطي')} <b className="num">{Math.round(s.coverage)}%</b> {t('فقط من الفترة. الأرقام أدناه تقريبية حتى تصل إلى 70%.')}</p></Card>}
 
           <Card className="space-y-3">
             <div className="flex items-center justify-between"><h2 className="font-bold">{t('الوقت ضمن النطاق')}</h2><Badge>{t('منشور')}</Badge></div>

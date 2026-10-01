@@ -70,7 +70,7 @@ export function MealResponse() {
       <Card className="!px-2">
         <div className="mb-1 flex items-center justify-between px-2"><h2 className="font-bold">{t('من أول لقمة')}</h2><Badge>{t('من بياناتها')}</Badge></div>
         {!occ ? <p className="px-2 text-slate-500">…</p> : <ResponseChart occ={occ} unit={unit} range={effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl)} />}
-        {occ && clean.length < MIN_CLEAN && <p className="mt-1 px-2 text-xs text-near">{t('الوسيط يظهر بعد {n} وجبات نظيفة.', { n: MIN_CLEAN })}</p>}
+        {occ && clean.length < MIN_CLEAN && <p className="mt-1 px-2 text-xs text-slate-500">{t('الوسيط يظهر بعد {n} وجبات نظيفة.', { n: MIN_CLEAN })}</p>}
       </Card>
       {clean.length >= MIN_CLEAN && (
         <Card className="grid grid-cols-3 gap-2 !py-3 text-center">
@@ -92,7 +92,7 @@ export function MealResponse() {
                 <span className="w-20 shrink-0 text-slate-500">{relDay(new Date(o.t0))}</span>
                 <span className="num shrink-0">{t('{v} غ', { v: fmt(o.meal.total_carbs) })}</span>
                 <span className="flex-1 text-slate-600">{o.response.rise !== null ? <>{t('ارتفاع')} <b className="num">+{formatGlucose(o.response.rise, unit)}</b></> : '—'}</span>
-                {o.reasons.length ? <span className="text-xs text-near">{o.reasons[0]}</span> : <span className="text-xs text-ok">{t('نظيفة')}</span>}
+                {o.reasons.length ? <span className="text-xs text-slate-500">{o.reasons[0]}</span> : <span className="text-xs font-medium text-brand">{t('نظيفة')}</span>}
               </li>
             ))}
           </ul>

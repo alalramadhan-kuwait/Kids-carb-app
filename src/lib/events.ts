@@ -10,7 +10,7 @@ export const LEVEL_TEXT = tr({ light: 'خفيف', moderate: 'متوسط', hard: 
 const hm = (min: number) => (min < 60 ? t('{m} د', { m: min }) : t('{hm} س', { hm: `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}` }));
 
 /** Arabic number agreement: 1 وحدة, 2 وحدتان, 3–10 وحدات, 11+ and fractions وحدة. */
-export const unitsWord = (n: number) => (isEn() ? (n === 1 ? 'unit' : 'units') : n === 2 ? 'وحدتان' : Number.isInteger(n) && n >= 3 && n <= 10 ? 'وحدات' : 'وحدة'); // i18n-ok
+export const unitsWord = (n: number) => (isEn() ? (n === 1 ? 'unit' : 'units') : n === 2 ? 'وحدتان' : Number.isInteger(n) && n >= 3 && n <= 10 ? 'وحدات' : 'وحدة'); // i18n-ok: data, English handled above
 
 export const describeEvent = (e: Describable) => {
   if (e.kind === 'insulin') return `${e.insulin_units} ${unitsWord(e.insulin_units ?? 0)} · ${e.insulin_type === 'long' ? t('طويل المفعول') : t('سريع')}`;

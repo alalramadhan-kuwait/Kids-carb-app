@@ -24,16 +24,16 @@ function Appearance() {
   const pick = (v: ThemePref) => { setP(v); setThemePref(v); };
   const opts: [ThemePref, string][] = [['auto', t('تلقائي')], ['day', t('نهاري')], ['night', t('ليلي')]];
   return (
-    <Card className="space-y-2">
-      <h2 className="font-bold">{t('المظهر')}</h2>
+    <div className="space-y-1.5">
+      <div className="text-sm font-medium text-slate-600">{t('المظهر')}</div>
       <div className="grid grid-cols-3 gap-1 rounded-full bg-slate-50 p-1" role="radiogroup" aria-label={t('المظهر')}>
         {opts.map(([v, l]) => (
           <button key={v} role="radio" aria-checked={p === v} onClick={() => pick(v)}
             className={cx('min-h-[44px] rounded-full text-sm font-bold', p === v ? 'bg-brand text-white' : 'text-slate-600')}>{l}</button>
         ))}
       </div>
-      <p className="text-xs text-slate-500">{p === 'auto' ? t('يتبع الوضع الداكن في الجوال، وألوان الليل في وقت النوم إن كانت مفعّلة في التنبيهات.') : t('على هذا الجوال فقط.')}</p>
-    </Card>
+      {p === 'auto' && <p className="text-xs text-slate-500">{t('يتبع الوضع الداكن في الجوال، وألوان الليل في وقت النوم إن كانت مفعّلة في التنبيهات.')}</p>}
+    </div>
   );
 }
 
@@ -58,49 +58,64 @@ export function More() {
       <span className="text-slate-300">{isEn() ? '›' : '‹'}</span>
     </Link></li>
   );
+  const group = (title: string, children: ReactNode) => (
+    <section>
+      <h2 className="mb-1.5 px-1 text-sm font-bold text-slate-500">{title}</h2>
+      <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">{children}</ul>
+    </section>
+  );
+  // four groups (Miller): her care, meals, the app, the account; forms open only when asked for
   return (
     <Page title={t('المزيد')}>
-      <div className="-mt-3 mb-3"><VersionTag /></div>
-      <Card className="mb-3 flex items-center gap-3 !p-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="family" size={22} /></span>
-        <span dir="ltr" className="min-w-0 flex-1 truncate text-start text-sm">{me || '…'}</span>
-        <Btn kind="ghost" onClick={async () => { await supabase.auth.signOut(); nav('/'); }}>{t('تسجيل الخروج')}</Btn>
-      </Card>
-      <div className="space-y-3">
-        <Card className="!p-0 overflow-hidden">
-          <ul className="divide-y divide-slate-100">
-            {link('/alerts', 'bell', t('التنبيهات'), t('المنخفض والمرتفع وانقطاع القراءة'))}
-            {link('/care-plan', 'heart', t('خطة الطبيب'), t('تظهر مع كل تنبيه'))}
-            {link('/cgm', 'sensor', t('قراءات السكر'), t('ربط LibreLinkUp لعرض السكر الحي'))}
-          </ul>
-        </Card>
-        <Card className="space-y-2"><h2 className="font-bold">{t('اللغة')}{!isEn() && <span className="font-normal text-slate-400"> · Language</span>}</h2><LangSwitch /></Card>
-        <Appearance />
-        <Card className="!p-0 overflow-hidden">
-          <ul className="divide-y divide-slate-100">
-            {link('/plan', 'meals', t('خطة الأيام وقائمة الشراء'), t('وجبات لعدة أيام وعدد الأشخاص'))}
-            {link('/snacks', 'carbs', t('السناكات'), t('قاعدة بيانات السناكات'))}
-            {link('/settings', 'settings', t('الإعدادات'), t('الحد الأقصى للكارب ونطاق السكر'))}
-            {link('/share', 'family', t('المشاركة والتقارير'), t('رابط للمدرسة أو العائلة، ملف CSV، تقرير للعيادة'))}
-          </ul>
-        </Card>
-        <Card className="space-y-2">
-          <h2 className="font-bold">{t('تغيير كلمة المرور')}</h2>
-          {shared && <Alert tone="near">{t('هذا الحساب مشترك مع تطبيق المناوبات: تغيير كلمة المرور هنا يغيّرها هناك أيضًا، ولن تعمل "نسيت كلمة المرور" لأن البريد غير حقيقي. الأفضل حساب مستقل ببريد حقيقي.')}</Alert>}
-          <input className={inputCls} dir="ltr" type="password" autoComplete="new-password" placeholder={t('كلمة مرور جديدة')} value={pw} onChange={(e) => setPw(e.target.value)} />
-          <input className={inputCls} dir="ltr" type="password" autoComplete="new-password" placeholder={t('أعد كتابتها')} value={pw2} onChange={(e) => setPw2(e.target.value)} />
-          <Btn block disabled={!pw} onClick={changePw}>{t('تغيير كلمة المرور')}</Btn>
-        </Card>
-        <Card className="space-y-2">
-          <h2 className="font-bold">{t('إضافة أحد الوالدين')}</h2>
-          <p className="text-sm text-slate-600">{t('يُنشئ الأب حسابه أولًا (بالبريد وكلمة المرور)، ثم اكتب بريده هنا.')}</p>
-          <input className={inputCls} dir="ltr" type="email" placeholder="email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <Btn block disabled={!email} onClick={async () => {
-            const { error } = await supabase.rpc('add_member_by_email', { p_email: email });
-            if (error) toast(error.message.includes('no account') ? t('لا يوجد حساب بهذا البريد بعد') : error.message); else { toast(t('تمت الإضافة ✓')); setEmail(''); }
-          }}>{t('إضافة')}</Btn>
-        </Card>
-        <p className="pt-2 text-center text-xs text-slate-400">{t('هذا التطبيق لا يحسب ولا يقترح جرعات الإنسولين. الجرعة قرار الأهل مع الطبيب.')}</p>
+      <div className="space-y-5">
+        {group(t('رعاية ليان'), <>
+          {link('/alerts', 'bell', t('التنبيهات'), t('المنخفض والمرتفع وانقطاع القراءة'))}
+          {link('/care-plan', 'heart', t('خطة الطبيب'), t('تظهر مع كل تنبيه'))}
+          {link('/cgm', 'sensor', t('قراءات السكر'), t('ربط LibreLinkUp لعرض السكر الحي'))}
+          {link('/share', 'family', t('المشاركة والتقارير'), t('رابط للمدرسة أو العائلة، ملف CSV، تقرير للعيادة'))}
+        </>)}
+        {group(t('الوجبات'), <>
+          {link('/plan', 'meals', t('خطة الأيام وقائمة الشراء'), t('وجبات لعدة أيام وعدد الأشخاص'))}
+          {link('/snacks', 'carbs', t('السناكات'), t('قاعدة بيانات السناكات'))}
+        </>)}
+        {group(t('التطبيق'), <>
+          {link('/settings', 'settings', t('الإعدادات'), t('الحد الأقصى للكارب ونطاق السكر'))}
+          <li className="space-y-4 px-4 py-4">
+            <div className="space-y-1.5"><div className="text-sm font-medium text-slate-600">{t('اللغة')}{!isEn() && <span className="text-slate-400"> · Language</span>}</div><LangSwitch /></div>
+            <Appearance />
+          </li>
+        </>)}
+        {group(t('الحساب'), <>
+          <li className="flex min-h-[56px] items-center gap-3 px-4 py-2">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="family" size={22} /></span>
+            <span dir="ltr" className="min-w-0 flex-1 truncate text-start text-sm">{me || '…'}</span>
+          </li>
+          <li><details className="group px-4">
+            <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between font-medium">{t('إضافة أحد الوالدين')}<span className="text-slate-300">{isEn() ? '›' : '‹'}</span></summary>
+            <div className="space-y-2 pb-4">
+              <p className="text-sm text-slate-600">{t('يُنشئ الأب حسابه أولًا (بالبريد وكلمة المرور)، ثم اكتب بريده هنا.')}</p>
+              <input className={inputCls} dir="ltr" type="email" placeholder="email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Btn block disabled={!email} onClick={async () => {
+                const { error } = await supabase.rpc('add_member_by_email', { p_email: email });
+                if (error) toast(error.message.includes('no account') ? t('لا يوجد حساب بهذا البريد بعد') : error.message); else { toast(t('تمت الإضافة ✓')); setEmail(''); }
+              }}>{t('إضافة')}</Btn>
+            </div>
+          </details></li>
+          <li><details className="px-4">
+            <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between font-medium">{t('تغيير كلمة المرور')}<span className="text-slate-300">{isEn() ? '›' : '‹'}</span></summary>
+            <div className="space-y-2 pb-4">
+              {shared && <Alert tone="near">{t('هذا الحساب مشترك مع تطبيق المناوبات: تغيير كلمة المرور هنا يغيّرها هناك أيضًا، ولن تعمل "نسيت كلمة المرور" لأن البريد غير حقيقي. الأفضل حساب مستقل ببريد حقيقي.')}</Alert>}
+              <input className={inputCls} dir="ltr" type="password" autoComplete="new-password" placeholder={t('كلمة مرور جديدة')} value={pw} onChange={(e) => setPw(e.target.value)} />
+              <input className={inputCls} dir="ltr" type="password" autoComplete="new-password" placeholder={t('أعد كتابتها')} value={pw2} onChange={(e) => setPw2(e.target.value)} />
+              <Btn block disabled={!pw} onClick={changePw}>{t('تغيير كلمة المرور')}</Btn>
+            </div>
+          </details></li>
+          <li><button className="flex min-h-[52px] w-full items-center px-4 text-start font-medium text-slate-600" onClick={async () => { await supabase.auth.signOut(); nav('/'); }}>{t('تسجيل الخروج')}</button></li>
+        </>)}
+        <footer className="space-y-1 pt-1 text-center text-xs text-slate-400">
+          <p>{t('هذا التطبيق لا يحسب ولا يقترح جرعات الإنسولين. الجرعة قرار الأهل مع الطبيب.')}</p>
+          <VersionTag />
+        </footer>
       </div>
     </Page>
   );
@@ -163,13 +178,13 @@ export function SnacksPage() {
               <div className="min-w-0 flex-1">
                 <div className="font-bold">{s.name}</div>
                 <div className="truncate text-xs text-slate-500">{m.lines[0].product?.name ?? tMaybe(s.slot_category)} • <span className="num">{fmt(s.quantity)}</span> {s.unit === 'g' ? t('غ') : s.unit === 'ml' ? t('مل') : s.unit === 'tbsp' ? t('ملعقة') : t('حبة')}</div>
-                {m.lines[0].problem && <div className="text-xs text-over">{problemText(m.lines[0].problem)}</div>}
+                {m.lines[0].problem && <div className="text-xs font-medium text-brand">{problemText(m.lines[0].problem)}</div>}
                 {m.lines[0].product && !m.lines[0].product.approved && <Badge tone="near">{t('منتج غير معتمد')}</Badge>}
               </div>
               {m.complete && <CarbBadge carbs={m.total.carbs} level="normal" />}
               <div className="flex flex-col gap-1">
                 <button className="text-sm text-brand" onClick={() => setEdit(s)}>{t('تعديل')}</button>
-                <button className="text-sm text-over" onClick={async () => { if (confirm(t('حذف السناك؟'))) { await deleteSnack(s.id); await reload(); } }}>{t('حذف')}</button>
+                <button className="min-h-[44px] px-2 text-sm text-slate-500" onClick={async () => { if (confirm(t('حذف السناك؟'))) { await deleteSnack(s.id); await reload(); } }}>{t('حذف')}</button>
               </div>
             </Card>
           );
@@ -220,7 +235,7 @@ export function SettingsPage() {
                 <option value="per100">{t('≤ لكل 100')}</option><option value="serving">{t('≤ للحبة/الحصة')}</option>
               </select>
               <NumInput aria-label={t('الحد')} value={ct.max} onChange={(v) => setT(i, { max: v ?? 0 })} />
-              <button aria-label={t('حذف')} className="h-11 rounded-xl bg-over-soft text-over" onClick={() => setS({ ...s, category_targets: s.category_targets.filter((_, n) => n !== i) })}>✕</button>
+              <button aria-label={t('حذف')} className="h-11 rounded-xl bg-slate-100 text-slate-500" onClick={() => setS({ ...s, category_targets: s.category_targets.filter((_, n) => n !== i) })}>✕</button>
             </div>
           ))}
           <datalist id="tcats">{PRODUCT_CATEGORIES.map((c) => <option key={c} value={c} />)}</datalist>
@@ -250,7 +265,7 @@ export function SettingsPage() {
             <Field label={t('الذروة (د)')}><NumInput value={s.iob_peak_min} onChange={(v) => setS({ ...s, iob_peak_min: v })} /></Field>
             <Field label={t('الكارب (د)')}><NumInput value={s.cob_absorb_min} onChange={(v) => setS({ ...s, cob_absorb_min: v })} /></Field>
           </div>
-          {iobBad && <p className="text-sm font-bold text-over">{iobBad}</p>}
+          {iobBad && <p className="text-sm font-bold text-brand">{iobBad}</p>}
         </Card>
 
         <Btn kind="primary" block disabled={bad} onClick={async () => {

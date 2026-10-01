@@ -124,7 +124,7 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
           )}
           {kind === 'sleep' && draft && (valid
             ? <p className="-mt-2 text-sm text-slate-600">{describeEvent(draft)}</p>
-            : <p className="-mt-2 text-sm text-near">{t('أطول من 16 ساعة. تحقّق من الوقتين.')}</p>)}
+            : <p className="-mt-2 text-sm font-medium text-brand">{t('أطول من 16 ساعة. تحقّق من الوقتين.')}</p>)}
           <Field label={kind === 'note' ? t('الملاحظة') : t('ملاحظة (اختياري)')}>
             <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={kind === 'note' ? t('مثلًا: مريضة، حفلة، تغيير الحساس') : ''} />
           </Field>

@@ -55,7 +55,7 @@ function Item({ m, series, unit, events, who }: { m: Mark; series: Series; unit:
         </div>
         <Row label={t('أعلى قراءة')} value={r.peak !== null ? g(r.peak) + (r.ttp !== null ? ' · ' + t('بعد {m} د', { m: r.ttp }) : '') : '—'} />
         <Row label={t('الارتفاع')} value={r.rise !== null ? delta(r.rise) : '—'} />
-        {!r.complete && <p className="mt-1 text-xs text-near">{m.t + 4 * 3600000 > Date.now() ? t('لم تمر 4 ساعات بعد.') : t('البيانات ناقصة في هذه الفترة، فالأرقام جزئية.')}</p>}
+        {!r.complete && <p className="mt-1 text-xs text-slate-500">{m.t + 4 * 3600000 > Date.now() ? t('لم تمر 4 ساعات بعد.') : t('البيانات ناقصة في هذه الفترة، فالأرقام جزئية.')}</p>}
       </section>
     );
   }

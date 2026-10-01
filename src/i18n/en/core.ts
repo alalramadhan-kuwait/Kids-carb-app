@@ -219,4 +219,7 @@ export const core: Record<string, string> = {
   'ربط الآن': 'Connect now',
   'بقيت خطوة واحدة': 'One step left',
   'بقيت {n} خطوات للإعداد': '{n} setup steps left',
+  '{g} غ كارب': '{g} g carbs',
+  '{u} وحدة سريع': '{u} U rapid',
+  'عرض أيام أقدم': 'Show older days',
 };

@@ -55,7 +55,7 @@ export default function Plan() {
         onChange={() => setTicked((t) => { const n = new Set(t); if (n.has(i.key)) n.delete(i.key); else n.add(i.key); return n; })} />
       <div className={cx('min-w-0 flex-1', ticked.has(i.key) && 'text-slate-400 line-through')}>
         <div className="font-medium">{i.name}{i.brand ? ` — ${i.brand}` : ''}</div>
-        {i.unresolved ? <div className="text-xs text-over">{t('لا يوجد منتج مسجّل — أضفه ليُحسب')}</div>
+        {i.unresolved ? <div className="text-xs font-medium text-brand">{t('لا يوجد منتج مسجّل — أضفه ليُحسب')}</div>
           : <div className="text-xs text-slate-500">{tMaybe(i.category)}{i.plated !== null ? ` • ${t('الوزن بعد الطبخ {n}', { n: fmt(i.plated) })}` : ''}</div>}
       </div>
       {!i.unresolved && <div className="text-end"><div className="num font-bold">{fmt(i.qty)} {i.unit === 'g' ? t('غ') : t('مل')}</div>{i.packs !== null && <div className="text-xs text-slate-500">≈ {t('{n} عبوة', { n: i.packs })}</div>}</div>}
@@ -95,7 +95,7 @@ export default function Plan() {
               return (
                 <li key={p.id} className="flex items-center justify-between gap-2 py-2">
                   <span><b>{dayName(d)}</b> <span className="num text-xs text-slate-500">{fmtDate(d)}</span> — {recipes.find((r) => r.id === p.recipe_id)?.name} <Badge>{t('{n} أشخاص', { n: p.people })}</Badge></span>
-                  <button aria-label={t('حذف')} className="text-over" onClick={async () => { await deletePlan([p.id]); await reload(); }}>✕</button>
+                  <button aria-label={t('حذف')} className="grid h-11 w-11 place-items-center text-slate-400" onClick={async () => { await deletePlan([p.id]); await reload(); }}>✕</button>
                 </li>
               );
             })}
@@ -107,8 +107,8 @@ export default function Plan() {
       <Card>
         {list.length === 0 ? <p className="text-slate-500">{t('احفظ خطة لتظهر القائمة.')}</p> : (
           <>
-            {need.length > 0 && <><div className="mb-1 text-sm font-bold text-over">{t('ينقصنا')}</div><ul className="mb-3 divide-y divide-slate-100">{need.map(item)}</ul></>}
-            {have.length > 0 && <><div className="mb-1 text-sm font-bold text-ok">{t('موجود بالبيت / مكوّنات طبيعية')}</div><ul className="divide-y divide-slate-100">{have.map(item)}</ul></>}
+            {need.length > 0 && <><div className="mb-1 text-sm font-bold text-brand">{t('ينقصنا')}</div><ul className="mb-3 divide-y divide-slate-100">{need.map(item)}</ul></>}
+            {have.length > 0 && <><div className="mb-1 text-sm font-bold text-slate-600">{t('موجود بالبيت / مكوّنات طبيعية')}</div><ul className="divide-y divide-slate-100">{have.map(item)}</ul></>}
             <p className="mt-3 text-xs text-slate-500">{t('الكميات = كمية الوجبة × عدد الأشخاص. المنتجات المطبوخة تظهر بوزنها قبل الطبخ إن كان معامل الطبخ مسجّلًا.')}</p>
           </>
         )}

@@ -7,7 +7,7 @@ import { gmi } from '../lib/now';
 import { Badge, Card, Chip, cx } from '../components/ui';
 import { MIN_DAYS, daysFor, solidRuns, type Bin, type DayFilter } from '../engine/profile';
 import { dayStartOf, dayTitle } from '../engine/day';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { fetchSeries } from '../engine/useSeries';
 import { DISMISS_MS, findPatterns, visible, type PatternCard } from '../engine/patterns';
 import { isEn, t } from '../i18n';
@@ -60,7 +60,7 @@ export function Patterns() {
           <h2 className="font-bold">{days >= 14 ? t('ملف السكر اليومي (AGP)') : t('يومها المعتاد')}</h2>
           <Badge>{t('منشور')}</Badge>
         </div>
-        {err ? <p className="px-2 text-sm text-over">{err}</p> : !bins ? <p className="px-2 text-slate-500">…</p> : bins.length === 0 ? (
+        {err ? <p className="px-2 text-sm font-medium text-brand">{err}</p> : !bins ? <p className="px-2 text-slate-500">…</p> : bins.length === 0 ? (
           <p className="px-2 py-6 text-center text-sm text-slate-500">{t('لا توجد قراءات في هذه الفترة.')}</p>
         ) : <ProfileChart bins={bins} unit={unit} range={effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl)} />}
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 px-2 text-xs text-slate-500">
@@ -69,7 +69,7 @@ export function Patterns() {
           <span className="inline-flex items-center gap-1"><i className="h-3 w-4 rounded-sm bg-brand-light/15" /> 10–90%</span>
           <span className="inline-flex items-center gap-1"><i className="h-0 w-4 border-t-2 border-dashed border-slate-300" /> {t('أقل من {n} أيام', { n: MIN_DAYS })}</span>
         </div>
-        {bins && bins.length > 0 && enoughBins < 48 && <p className="mt-2 px-2 text-xs text-near">{t('البيانات قليلة بعد: النمط يصير أوضح مع المزيد من الأيام.')}</p>}
+        {bins && bins.length > 0 && enoughBins < 48 && <p className="mt-2 px-2 text-xs text-slate-500">{t('البيانات قليلة بعد: النمط يصير أوضح مع المزيد من الأيام.')}</p>}
       </Card>
 
       {stats && stats.n > 0 && (
@@ -83,6 +83,16 @@ export function Patterns() {
           <p className="col-span-3 text-[11px] text-slate-400">{t('الأرقام للفترة كاملة')}{filter !== 'all' ? ' ' + t('(كل الأيام)') : ''}. {t('GMI يحتاج 14 يومًا و70% بيانات، وهو تقدير وليس HbA1c.')}</p>
         </Card>
       )}
+
+      {/* deeper analyses, one level down */}
+      <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
+        {([['meals', 'استجابة الوجبات', 'كيف يتغيّر السكر بعد كل وصفة'], ['compare', 'مقارنة فترتين', 'أسبوع بأسبوع، المدرسة والعطلة']] as const).map(([m, l, h]) => ( // i18n-ok
+          <li key={m}><Link to={`/analysis?mode=${m}`} className="flex min-h-[56px] items-center gap-3 px-4 py-2 active:bg-slate-50">
+            <span className="min-w-0 flex-1"><span className="block font-bold">{t(l)}</span><span className="block truncate text-xs text-slate-500">{t(h)}</span></span>
+            <span className="text-slate-300">{isEn() ? '›' : '‹'}</span>
+          </Link></li>
+        ))}
+      </ul>
     </div>
   );
 }

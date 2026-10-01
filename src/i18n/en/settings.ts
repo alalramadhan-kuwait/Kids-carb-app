@@ -239,4 +239,7 @@ export const settings: Record<string, string> = {
   "الرابط غير صالح أو انتهى": "This link is invalid or has expired",
   "اطلب رابطًا جديدًا من الأهل.": "Ask the family for a new link.",
   "للعرض فقط وقد تتأخر عن الجهاز. يتحدّث كل دقيقة.": "For display only, and may lag behind the device. Updates every minute.",
+  'التطبيق': 'App',
+  'الحساب': 'Account',
+  'رعاية ليان': 'Layan\'s care',
 };

@@ -107,7 +107,7 @@ export default function RecipeEdit() {
                       {products.map((p) => <option key={p.id} value={`prod:${p.id}`}>{p.name}{p.brand ? ` — ${p.brand}` : ''}</option>)}
                     </optgroup>
                   </select>
-                  <button aria-label={t('حذف المكوّن')} className="w-11 shrink-0 rounded-xl bg-over-soft text-over" onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}>✕</button>
+                  <button aria-label={t('حذف المكوّن')} className="w-11 shrink-0 rounded-xl bg-slate-100 text-slate-500" onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}>✕</button>
                 </div>
                 <div className="grid grid-cols-[1fr_1fr_1fr] gap-2">
                   <NumInput aria-label={t('الكمية')} placeholder={t('الكمية')} value={r.quantity} onChange={(v) => set(r.key, { quantity: v, qty_confirmed: true })} />
@@ -127,7 +127,7 @@ export default function RecipeEdit() {
                 {line && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-500">{line.product?.name ?? ''}</span>
-                    {line.problem ? <span className="text-over">{problemText(line.problem)}</span> : <span className="num font-bold">{t('{n}غ كارب', { n: fmt(line.carbs) })}</span>}
+                    {line.problem ? <span className="font-medium text-brand">{problemText(line.problem)}</span> : <span className="num font-bold">{t('{n}غ كارب', { n: fmt(line.carbs) })}</span>}
                   </div>
                 )}
                 {idx === rows.length - 1 && null}

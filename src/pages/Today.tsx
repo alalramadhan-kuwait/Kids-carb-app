@@ -4,7 +4,7 @@ import { useData } from '../lib/data';
 import { blocker, suggest } from '../lib/suggest';
 import { computeSnack, problemText, type Problem } from '../lib/carbs';
 import { sameDay } from '../lib/constants';
-import { Alert, Btn, Card, Page, Photo, CarbBadge, snackArt } from '../components/ui';
+import { Alert, Btn, Page, CarbBadge } from '../components/ui';
 import { MealCard, useChoose } from '../components/meal';
 import { isEn, t, tMaybe } from '../i18n';
 
@@ -51,14 +51,14 @@ export default function Today() {
       </div>
 
       <h2 className="mb-2 text-lg font-bold">{t('اقتراحات اليوم')}</h2>
-      <div className="space-y-2.5">
+      <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
         {picks.map((c) => <MealCard key={c.recipe.id} recipe={c.recipe} meal={c.meal} chosenToday={chosenToday.has(c.recipe.id)} />)}
-      </div>
+      </ul>
       {eligible > 3 && <Btn block kind="ghost" className="mt-3" onClick={more}>{t('اقتراحات أخرى')}</Btn>}
 
       {picks.length < 3 && (missing.items.length > 0 || missing.pending.length > 0) && (
         <details className="mt-3 rounded-2xl border border-slate-100 bg-white px-4 py-3">
-          <summary className="flex min-h-[32px] cursor-pointer list-none items-center justify-between text-sm font-medium text-near">
+          <summary className="flex min-h-[32px] cursor-pointer list-none items-center justify-between text-sm font-medium text-brand">
             <span>{t('{n} وصفات تنقصها بيانات', { n: missing.items.length + missing.pending.length })}</span><span className="text-slate-400">{isEn() ? '›' : '‹'}</span>
           </summary>
           <ul className="mt-2 space-y-1.5 text-sm">
@@ -77,23 +77,24 @@ export default function Today() {
         </details>
       )}
 
-      <h2 className="mb-2 mt-8 text-lg font-bold">{t('السناكات')}</h2>
-      <div className="grid grid-cols-2 gap-3">
+      <h2 className="mb-2 mt-6 text-lg font-bold">{t('السناكات')}</h2>
+      <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
         {snacks.map((s) => {
           const meal = computeSnack(s, products, settings);
           return (
-            <Card key={s.id} className="space-y-2 !p-3">
-              <Photo path={s.image_path} category={s.name} art={snackArt(s.name)} className="h-20 w-full rounded-xl" />
-              <div className="truncate font-bold">{s.name}</div>
-              <CarbBadge carbs={meal.total.carbs} level="normal" size="sm" unknown={!meal.complete} />
-              <Btn block disabled={busy || !meal.complete}
+            <li key={s.id} className="flex items-center gap-3 px-4 py-2.5">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-bold">{s.name}</span>
+                <span className="mt-1 block"><CarbBadge carbs={meal.total.carbs} level="normal" size="sm" unknown={!meal.complete} /></span>
+              </span>
+              <Btn kind="soft" className="min-h-[44px] shrink-0 !px-4" disabled={busy || !meal.complete}
                 onClick={() => choose({ kind: 'snack', recipe_id: null, name: s.name,
                   category: 'سناك', // i18n-ok: stored category name
                   meal, modified: false })}>{t('اخترناه')}</Btn>
-            </Card>
+            </li>
           );
         })}
-      </div>
+      </ul>
       {recipes.length === 0 && <div className="mt-4"><Alert tone="info">{t('لا توجد وصفات بعد.')}</Alert></div>}
     </Page>
   );

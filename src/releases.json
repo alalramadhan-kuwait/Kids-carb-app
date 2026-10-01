@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.0.0",
+    "date": "2026-10-01",
+    "notes": [
+      "السجل مرتّب حسب الأيام مع مجموع كل يوم، والحذف من داخل التسجيل",
+      "الوجبات والوصفات في قوائم أهدأ، والكارب بلون واحد؛ الأحمر والأخضر والأصفر للسكر فقط",
+      "التحليل بأربعة أقسام؛ استجابة الوجبات والمقارنة داخل الأنماط",
+      "المزيد في أربع مجموعات، والحساب وتسجيل الخروج في آخرها"
+    ],
+    "notes_en": [
+      "The Log is grouped by day with each day's totals; delete from inside an entry",
+      "Calmer lists for meals and recipes, with carbs in one colour; red, green and amber are for glucose only",
+      "Analysis has four sections; meal response and compare are inside Patterns",
+      "More is in four groups, with the account and sign-out at the end"
+    ]
+  },
+  {
     "version": "0.21.0",
     "date": "2026-10-01",
     "notes": [

@@ -19,7 +19,7 @@ import { Sheet, Toggle } from '../components/ui';
 import { carbsFrom, cobAt, dosesFrom, iobAt, iobParamsOk, modelLine } from '../engine/iob';
 import type { Tracks } from '../engine/Timeline';
 import { LAYERS, buildMarks, defaultLayers, type Group, type Layer } from '../engine/events';
-import { t } from '../i18n';
+import { isEn, t } from '../i18n';
 
 const loadLayers = (): Set<Layer> => {
   try { const v = localStorage.getItem('layers'); if (v) return new Set(JSON.parse(v) as Layer[]); } catch { /* private mode */ }
@@ -27,8 +27,10 @@ const loadLayers = (): Set<Layer> => {
 };
 
 // labels stay Arabic here and are shown with t()
-const MODES = [{ id: 'live', label: 'مباشر' }, { id: 'day', label: 'اليوم' }, { id: 'patterns', label: 'الأنماط' }, { id: 'meals', label: 'الوجبات' }, { id: 'compare', label: 'مقارنة' }, { id: 'stats', label: 'الأرقام' }] as const; // i18n-ok
-const FRESH = { live: { text: 'مباشر', cls: 'bg-ok-soft text-ok' }, delayed: { text: 'متأخر', cls: 'bg-near-soft text-near' }, missing: { text: 'منقطع', cls: 'bg-over-soft text-over' } }; // i18n-ok
+// four tabs (Hick); meal response and compare open from inside الأنماط, which stays selected while they are shown
+const MODES = [{ id: 'live', label: 'مباشر' }, { id: 'day', label: 'اليوم' }, { id: 'patterns', label: 'الأنماط' }, { id: 'stats', label: 'الأرقام' }] as const; // i18n-ok
+const SUB = { meals: 'استجابة الوجبات', compare: 'مقارنة فترتين' } as const; // i18n-ok
+const FRESH = { live: { text: 'مباشر', cls: 'bg-brand-soft text-brand' }, delayed: { text: 'متأخر', cls: 'bg-near-soft text-near' }, missing: { text: 'منقطع', cls: 'bg-over-soft text-over' } }; // i18n-ok
 
 /** التحليل: Live (the timeline engine) and the numbers. More modes arrive stage by stage (GLUCOSE_PLAN 11.2). */
 export default function Analysis() {
@@ -36,18 +38,35 @@ export default function Analysis() {
   const mode = (['day', 'patterns', 'meals', 'compare', 'stats'] as const).find((m) => m === params.get('mode')) ?? 'live';
   return (
     <Page title={t('التحليل')}>
-      <div className="-mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-1" role="tablist">
-        {MODES.map((m) => (
-          <button key={m.id} role="tab" aria-selected={mode === m.id} onClick={() => setParams(m.id === 'live' ? {} : { mode: m.id }, { replace: true })}
-            className={cx('min-h-[40px] shrink-0 rounded-full px-4 text-sm font-bold', mode === m.id ? 'bg-brand text-white' : 'bg-slate-50 text-slate-600')}>{t(m.label)}</button>
-        ))}
+      <div className="mb-3 grid grid-cols-4 gap-1 rounded-full bg-slate-50 p-1" role="tablist">
+        {MODES.map((m) => {
+          const on = mode === m.id || (m.id === 'patterns' && (mode === 'meals' || mode === 'compare'));
+          return (
+            <button key={m.id} role="tab" aria-selected={on} onClick={() => setParams(m.id === 'live' ? {} : { mode: m.id }, { replace: true })}
+              className={cx('min-h-[44px] rounded-full text-sm font-bold', on ? 'bg-brand text-white' : 'text-slate-600')}>{t(m.label)}</button>
+          );
+        })}
       </div>
+      {(mode === 'meals' || mode === 'compare') && (
+        <button onClick={() => setParams({ mode: 'patterns' }, { replace: true })} className="mb-2 flex min-h-[44px] items-center gap-2 px-1 font-bold">
+          <span className="text-slate-400">{isEn() ? '‹' : '›'}</span>{t(SUB[mode])}
+        </button>
+      )}
       {mode === 'live' ? <Live /> : mode === 'day' ? <DayView /> : mode === 'patterns' ? <Patterns /> : mode === 'meals' ? <MealResponse /> : mode === 'compare' ? <Compare /> : <StatsPanel />}
     </Page>
   );
 }
 
+/** The gesture hint shows on the first few visits only (progressive disclosure). */
+function useFirstVisits(key: string, n = 3) {
+  const [show] = useState(() => {
+    try { const c = Number(localStorage.getItem(key) ?? 0); localStorage.setItem(key, String(c + 1)); return c < n; } catch { return true; }
+  });
+  return show;
+}
+
 function Live() {
+  const firstVisits = useFirstVisits('hint_live');
   const { settings, history, events } = useData();
   const { g } = useGlucose();
   const land = useLandscape();
@@ -159,7 +178,7 @@ function Live() {
         {!live && <button onClick={() => onView({ span: view.span, end: Infinity }, { animate: true })} className="min-h-[40px] shrink-0 rounded-full bg-brand px-4 text-sm font-bold text-white">{t('الآن')}</button>}
       </div>
       {model && <p className="px-1 text-xs text-slate-500">{model}</p>}
-      <p className="px-1 text-xs text-slate-400">{t('اسحب للتنقل · اقرص للتكبير · اضغط مطوّلًا للتفاصيل · اضغط أيقونة لما سُجّل')}</p>
+      {firstVisits && <p className="px-1 text-xs text-slate-400">{t('اسحب للتنقل · اقرص للتكبير · اضغط مطوّلًا للتفاصيل · اضغط أيقونة لما سُجّل')}</p>}
       <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
       <Sheet open={layersOpen} onClose={() => setLayersOpen(false)} title={t('الطبقات')}>
         <ul className="space-y-1">

@@ -118,7 +118,7 @@ export function DayView() {
         <Kpi label={t('منخفض')} value={pct(low)} tone="over" />
         <Kpi label={t('مرتفع')} value={pct(high)} tone="near" />
       </div>
-      {stats && stats.n > 0 && stats.coverage < 70 && <p className="px-1 text-xs text-near">{t('البيانات تغطي')} <span className="num">{Math.round(stats.coverage)}%</span> {t('من اليوم فقط.')}</p>}
+      {stats && stats.n > 0 && stats.coverage < 70 && <p className="px-1 text-xs text-slate-500">{t('البيانات تغطي')} <span className="num">{Math.round(stats.coverage)}%</span> {t('من اليوم فقط.')}</p>}
 
       <div ref={graphRef} className="relative -mx-4 bg-white py-2 shadow-card">
         <Timeline series={series} view={view} now={Date.now()} onView={onView} unit={unit} height={height} range={rng}

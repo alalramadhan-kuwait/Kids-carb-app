@@ -32,13 +32,21 @@ function code(src: string) {
 }
 
 export function checkI18n(root: string) {
-  const missing: string[] = [], params: string[] = [], bare: string[] = [], templ: string[] = [];
+  const missing: string[] = [], params: string[] = [], bare: string[] = [], templ: string[] = [], tables: string[] = [];
   const unescape = (s: string) => s.replace(/\\(['"\\])/g, '$1');
   for (const f of walk(root)) {
     const lines = code(readFileSync(f, 'utf8'));
     const raw = readFileSync(f, 'utf8').split('\n');
     lines.forEach((l, i) => {
-      if (raw[i].includes('i18n-ok')) return;
+      if (raw[i].includes('i18n-ok')) {
+        // a label table kept in Arabic: its strings still need English, unless the line says it is stored data
+        if (/i18n-ok[^\n]*(stored|data|digits|regex)/.test(raw[i]) || /\/[^/]*[\u0600-\u06FF][^/]*\/[gimsuy]*\.test/.test(l)) return;
+        for (const m of l.matchAll(/(['"])((?:\\.|(?!\1).)*?)\1/g)) {
+          const key = unescape(m[2]);
+          if (AR.test(key) && EN[key] === undefined) tables.push(`${f}:${i + 1}  ${key}`);
+        }
+        return;
+      }
       if (/\bt\(\s*`/.test(l)) templ.push(`${f}:${i + 1}`);
       for (const m of l.matchAll(CALL)) {
         const key = unescape(m[2]);
@@ -52,5 +60,5 @@ export function checkI18n(root: string) {
       if (AR.test(l.replace(CALL, ''))) bare.push(`${f}:${i + 1}  ${l.trim().slice(0, 90)}`);
     });
   }
-  return { missing, params, bare, templ };
+  return { missing, params, bare, templ, tables };
 }

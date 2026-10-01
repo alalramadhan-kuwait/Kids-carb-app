@@ -849,8 +849,8 @@ test('English: every t() text has a translation with the same placeholders, and 
   const { checkI18n } = await import('../../i18n/check');
   const r = checkI18n(new URL('../../', import.meta.url).pathname);
   const show = (name: string, a: string[]) => (a.length ? `\n${name} (${a.length}):\n  ` + a.slice(0, 40).join('\n  ') : '');
-  assert.ok(!r.missing.length && !r.params.length && !r.bare.length && !r.templ.length,
-    show('missing English', r.missing) + show('placeholders differ', r.params) + show('Arabic outside t()', r.bare) + show('template literal in t()', r.templ));
+  assert.ok(!r.missing.length && !r.params.length && !r.bare.length && !r.templ.length && !r.tables.length,
+    show('missing English', r.missing) + show('placeholders differ', r.params) + show('Arabic outside t()', r.bare) + show('template literal in t()', r.templ) + show('label table without English', r.tables));
 });
 
 test('t(): placeholders, English plurals, fallback to Arabic', async () => {

@@ -24,27 +24,25 @@ export function RecipeList() {
         <Chip active={!cat} onClick={() => setCat('')}>{t('الكل')}</Chip>
         {cats.map((c) => <Chip key={c} active={cat === c} onClick={() => setCat(c)}>{tMaybe(c)}</Chip>)}
       </div>
-      <div className="space-y-3">
+      {/* one list; only exceptions get a label ("ready" is the normal case and needs none) */}
+      <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
         {rows.map(({ recipe, meal }) => {
-          const why = blocker({ recipe, ings: [], meal }, settings);
+          const why = !recipe.approved ? t('تحت المراجعة') : blocker({ recipe, ings: [], meal }, settings);
           return (
-            <Link key={recipe.id} to={`/recipes/${recipe.id}`}>
-              <Card className="flex items-center gap-3 !p-3">
-                <Photo path={recipe.image_path} category={recipe.category} art={recipeArt(recipe.category)} className="h-20 w-20 shrink-0 rounded-xl" />
+            <li key={recipe.id}>
+              <Link to={`/recipes/${recipe.id}`} className="flex min-h-[64px] items-center gap-3 px-3 py-2.5 active:bg-slate-50">
+                <Photo path={recipe.image_path} category={recipe.category} art={recipeArt(recipe.category)} className="h-14 w-14 shrink-0 rounded-xl" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1 font-bold">{recipe.favorite && <span aria-label={t('مفضلة')} className="text-brand"><Icon name="heart" size={16} active /></span>}<span className="truncate">{recipe.name}</span></div>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {!recipe.approved ? <Badge tone="near">{t('تحت المراجعة')}</Badge> : why ? <Badge tone="near">{why}</Badge> : <Badge tone="ok">{t('جاهزة')}</Badge>}
-                    {recipe.category && <Badge>{tMaybe(recipe.category)}</Badge>}
-                  </div>
+                  {why && <div className="mt-0.5 truncate text-xs text-slate-500">{why}</div>}
                 </div>
-                <CarbBadge carbs={meal.total.carbs} level={meal.level} unknown={!meal.complete} />
-              </Card>
-            </Link>
+                <CarbBadge carbs={meal.total.carbs} level={meal.level} unknown={!meal.complete} size="sm" />
+              </Link>
+            </li>
           );
         })}
-        {rows.length === 0 && <Card><p className="text-slate-500">{t('لا توجد وصفات.')}</p></Card>}
-      </div>
+        {rows.length === 0 && <li className="p-4 text-slate-500">{t('لا توجد وصفات.')}</li>}
+      </ul>
     </Page>
   );
 }

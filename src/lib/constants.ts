@@ -14,7 +14,7 @@ const EMOJI: Record<string, string> = {
 };
 export const emojiFor = (category?: string | null) => (category && EMOJI[category]) || '🍽️';
 
-export const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']; // i18n-ok
+export const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']; // i18n-ok: data, English twin below
 export const DAY_NAMES_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 export const dayName = (d: Date) => (isEn() ? DAY_NAMES_EN : DAY_NAMES)[d.getDay()];
 export const fmtDate = (d: Date) => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;

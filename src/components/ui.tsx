@@ -74,7 +74,8 @@ export function Btn({ kind = 'soft', block, className, ...p }: BtnProps) {
 }
 
 export function Alert({ tone = 'near', children }: { tone?: 'near' | 'over' | 'ok' | 'info'; children: ReactNode }) {
-  const t = { near: 'bg-near-soft text-near', over: 'bg-over-soft text-over', ok: 'bg-ok-soft text-ok', info: 'bg-brand-soft text-brand' }[tone];
+  // not glucose: neutral boxes whose words carry the meaning; the side bar marks how much attention it needs
+  const t = { near: 'bg-white text-slate-800 border-s-4 border-brand-muted ring-1 ring-slate-100', over: 'bg-white font-medium text-slate-800 border-s-4 border-brand ring-1 ring-slate-100', ok: 'bg-brand-soft text-brand', info: 'bg-brand-soft text-brand' }[tone];
   return <div role="alert" className={cx('rounded-xl px-3 py-2 text-sm leading-relaxed', t)}>{children}</div>;
 }
 
@@ -82,14 +83,14 @@ export const Chip = ({ active, onClick, children }: { active?: boolean; onClick?
   <button onClick={onClick} className={cx('min-h-[36px] shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium', active ? 'bg-brand text-white' : 'bg-slate-50 text-slate-600')}>{children}</button>;
 
 export const Badge = ({ tone = 'gray', children }: { tone?: 'gray' | 'ok' | 'near' | 'over' | 'brand'; children: ReactNode }) => {
-  const t = { gray: 'bg-slate-100 text-slate-600', ok: 'bg-ok-soft text-ok', near: 'bg-near-soft text-near', over: 'bg-over-soft text-over', brand: 'bg-brand-soft text-brand' }[tone];
+  const t = { gray: 'bg-slate-100 text-slate-600', ok: 'bg-brand-soft text-brand', near: 'bg-slate-100 text-slate-700', over: 'bg-white text-slate-800 ring-1 ring-inset ring-brand', brand: 'bg-brand-soft text-brand' }[tone];
   return <span className={cx('inline-block rounded-full px-2 py-0.5 text-xs font-medium', t)}>{children}</span>;
 };
 
 export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
   return (
     <button role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)}
-      className={cx('relative h-7 w-12 shrink-0 rounded-full transition-colors', on ? 'bg-ok' : 'bg-slate-300')}>
+      className={cx('relative h-7 w-12 shrink-0 rounded-full transition-colors', on ? 'bg-brand' : 'bg-slate-300')}>
       <span className={cx('absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all', on ? 'start-0.5' : 'start-[1.375rem]')} />
     </button>
   );
@@ -115,9 +116,11 @@ export const snackArt = (name?: string | null) => (name && /عصير|juice/i.tes
 
 // ── carbs ───────────────────────────────────────────────────────────────────
 const LEVEL = {
-  normal: tr({ cls: 'bg-ok-soft text-ok', text: 'ضمن المعدل' }), // i18n-ok
-  near: tr({ cls: 'bg-near-soft text-near', text: 'قريبة من الحد' }), // i18n-ok
-  over: tr({ cls: 'bg-over-soft text-over', text: 'تتجاوز الحد' }), // i18n-ok
+  // red, green and amber belong to glucose only (DESIGN_SYSTEM §3): carbs stay neutral; over the limit is outlined
+  // and always says so in words where it matters (recipe view, logging confirmation)
+  normal: tr({ cls: 'bg-brand-soft text-brand-num', text: 'ضمن المعدل' }), // i18n-ok
+  near: tr({ cls: 'bg-brand-soft text-brand-num', text: 'قريبة من الحد' }), // i18n-ok
+  over: tr({ cls: 'bg-white text-brand-num ring-2 ring-inset ring-brand', text: 'تتجاوز الحد' }), // i18n-ok
 } as const;
 
 export function CarbBadge({ carbs, level, size = 'md', unknown }: { carbs: number; level: Level; size?: 'sm' | 'md' | 'lg'; unknown?: boolean }) {

@@ -170,7 +170,7 @@ export default function AlertsPage() {
             <ul className="space-y-1.5 text-sm">
               {subs.map((x) => (
                 <li key={x.id} className="flex items-center gap-2">
-                  <span className={x.last_error ? 'text-over' : 'text-ok'}>{x.last_error ? '!' : '✓'}</span>
+                  <span className={x.last_error ? 'font-bold text-slate-800' : 'text-brand'}>{x.last_error ? '!' : '✓'}</span>
                   <span className="flex-1"><b>{nameOf(x.user_id)}</b> · {x.device_label ?? t('جهاز')}</span>
                   <span className="text-xs text-slate-400">{x.last_ok_at ? t('وصل {when}', { when: sinceText(x.last_ok_at) }) : x.last_error ? t('لم يصل') : ''}</span>
                 </li>

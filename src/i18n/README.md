@@ -31,6 +31,7 @@ Rules
 - Medical wording: keep the meaning exact. Never turn a description into advice. Units: mmol/L, mg/dL,
   g, min (“د” → “min”, “س” → “h”), U for insulin units (“وحدة” → “U”/“units”).
 - English tone: short, plain, warm, sentence case. “ليان” → “Layan”. “الآن” (tab) → “Now”.
-- A line that must keep Arabic (e.g. matching stored Arabic data) gets `// i18n-ok`.
+- A line that must keep Arabic gets `// i18n-ok`. The check still requires English for every Arabic string on
+  it (label tables), unless the comment says why it is data: `// i18n-ok: data …` or `// i18n-ok: stored …`.
 - Check your files: `npx tsx scripts/i18n-report.ts src/pages/YourFile.tsx …` must print `clean`, and
   `npx tsc --noEmit -p .` must pass.

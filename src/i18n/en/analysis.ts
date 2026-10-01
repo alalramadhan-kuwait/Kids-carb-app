@@ -211,4 +211,8 @@ export const analysis: Record<string, string> = {
 
   // ── night ──
   'اضغط للخروج': 'Tap to leave',
+  'استجابة الوجبات': 'Meal response',
+  'مقارنة فترتين': 'Compare two periods',
+  'كيف يتغيّر السكر بعد كل وصفة': 'How glucose changes after each recipe',
+  'أسبوع بأسبوع، المدرسة والعطلة': 'Week to week, school and weekend',
 };
