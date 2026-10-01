@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.8.2",
+    "date": "2026-10-01",
+    "notes": [
+      "الرئيسية تفتح فورًا بآخر قراءة والرسم، ثم تتحدّث وحدها (عمر القراءة ظاهر دائمًا)"
+    ],
+    "notes_en": [
+      "Home opens instantly with the last reading and the graph, then updates itself (the reading's age is always shown)"
+    ]
+  },
+  {
     "version": "1.8.1",
     "date": "2026-10-01",
     "notes": [

@@ -63,7 +63,7 @@ export default function Now() {
   // Zeigarnik + goal gradient: one compact line naming the next step; it leaves when everything is set.
   // Connecting the sensor is not repeated here while the glucose card itself asks for it.
   const setup = [
-    { done: !!g?.connected || notConnected, label: t('ربط قراءات السكر'), to: '/cgm' },
+    { done: !g || g.connected || notConnected, label: t('ربط قراءات السكر'), to: '/cgm' }, // unknown while loading: not a step to nag about
     { done: settings.glucose_low_mgdl !== null || settings.glucose_high_mgdl !== null, label: t('تحديد نطاق السكر من الطبيب'), to: '/settings' },
     { done: settings.alert_low_mgdl !== null || settings.alert_urgent_low_mgdl !== null, label: t('حدود التنبيهات وتفعيلها'), to: '/alerts' },
     { done: members.length >= 2, label: t('إضافة الأب أو الأم'), to: '/more' },
