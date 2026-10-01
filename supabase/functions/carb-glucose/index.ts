@@ -58,15 +58,28 @@ async function graph(s: Secret) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   const url = Deno.env.get('SUPABASE_URL')!;
-  const asUser = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, {
-    global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } }, db: { schema: 'carb' }, auth: { persistSession: false },
-  });
-  const { data: member } = await asUser.rpc('is_member');
-  if (!member) return json({ error: 'not_allowed' }, 403);
   const db = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { db: { schema: 'carb' }, auth: { persistSession: false } });
 
+  // Two callers: a family member from the app, or the every-minute database job (pg_cron), which proves
+  // itself with a secret that lives only in Vault. The job may only "read"; nothing else.
+  const cronSecret = req.headers.get('x-cron-secret');
+  let fromCron = false;
+  if (cronSecret) {
+    const { data: ok } = await db.rpc('cron_secret_matches', { p: cronSecret });
+    if (!ok) return json({ error: 'not_allowed' }, 403);
+    fromCron = true;
+  } else {
+    const asUser = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } }, db: { schema: 'carb' }, auth: { persistSession: false },
+    });
+    const { data: member } = await asUser.rpc('is_member');
+    if (!member) return json({ error: 'not_allowed' }, 403);
+  }
+
   const body = await req.json().catch(() => ({}));
+  if (fromCron) body.action = 'read';
   const now = Date.now();
+  if (fromCron) await db.from('cgm_state').update({ last_cron_at: new Date(now).toISOString() }).eq('id', true);
 
   const recent = async () => {
     const since = new Date(now - 3 * 3600 * 1000).toISOString();
@@ -75,6 +88,7 @@ Deno.serve(async (req) => {
   };
   const state = async () => (await db.from('cgm_state').select('*').eq('id', true).single()).data;
   const reply = async (extra: Record<string, unknown> = {}) => {
+    if (fromCron) return json({ ok: !extra.error, ...extra });
     const st = await state();
     const readings = await recent();
     return json({ connected: Boolean(st?.connected), account_hint: st?.account_hint ?? null, last_ok_at: st?.last_ok_at ?? null,

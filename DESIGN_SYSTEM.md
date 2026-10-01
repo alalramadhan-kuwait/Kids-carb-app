@@ -297,6 +297,27 @@ illustration, no decoration.
 
 ---
 
+## 12b. UX laws — how every screen is judged
+
+Seven usability laws, each turned into a rule for this app. They decide *how it works*; the sections above
+decide *how it looks*.
+
+| Law | Rule in this app | Where it shows |
+|---|---|---|
+| **Fitts's Law** — big, close targets are faster to hit | Primary actions ≥ 52 px tall and within the thumb zone (bottom third). "سجّل" is a fixed button above the tab bar. In an alert, "أنا عليها" spans the full width. Destructive actions are small and far from primary ones. | Home, Log sheet, alerts |
+| **Hick's Law** — more choices, slower decisions | Max 5 tabs, max 3 meal suggestions, max 4 options in the Log sheet. Everything analytical lives in متقدم. Long forms show the essential fields; the rest open under "تفاصيل أكثر". | Tabs, Log sheet, product form |
+| **Zeigarnik Effect** — unfinished tasks stay in mind | Show what is unfinished as a short checklist: setup (sensor, range, care plan, second parent), missing products for recipes, "today's insulin log complete?" at bedtime. Never nag about medical results. | Home (setup card), Today, bedtime |
+| **Jakob's Law** — people expect what they already know | Trend arrows and colours follow Libre/Dexcom; glucose in mmol/L with one decimal; iOS-style bottom tab bar; standard share/back gestures. Do not invent new meanings for familiar symbols. | Everywhere glucose appears |
+| **Goal Gradient** — visible progress pulls people forward | Progress bars for setup and for multi-step forms; logging streaks. **Never** a progress bar, score or streak on glucose values, Time in Range or "good days". | Onboarding, setup, logging habits |
+| **Von Restorff** — the one different thing gets noticed | One primary button per screen. Medical red appears only for a real low/urgent state, so it always means something. No decoration on data screens, so an alert stands out. | Alerts, status chips |
+| **Miller's Law** — people hold about 5–9 items | Home shows at most 5 lines above the fold. Advanced opens with 6 groups. Long numbers are chunked ("19 h 41 min" instead of "82.0%" alone); lists are grouped by day. | Home, Advanced, Timeline |
+
+Also: the app answers a tap within 100 ms (pressed state) and shows content within 1 s from cache; glucose
+never waits on images or analysis.
+
+
+---
+
 ## 13. Privacy
 
 Layan's name and likeness are personal. While the app repository or link is public, illustrations of her
@@ -315,6 +336,10 @@ should not be committed. Make the repository private (or host from a private rep
 - [ ] Works in night colours?
 - [ ] Touch targets ≥ 44 px, works at 130% text?
 - [ ] Nothing suggests or changes an insulin dose?
+- [ ] One primary action, in the thumb zone, ≥ 52 px (Fitts, Von Restorff)?
+- [ ] At most 5 tabs / 4 options / 5 lines above the fold (Hick, Miller)?
+- [ ] Familiar symbols keep their usual meaning (Jakob)?
+- [ ] Progress and streaks only for habits, never for glucose (Goal Gradient)?
 
 ---
 

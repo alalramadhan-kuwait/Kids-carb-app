@@ -29,6 +29,10 @@ export default function Cgm() {
         {st?.connected ? (
           <Card className="space-y-3">
             <Alert tone="ok">مربوط بحساب LibreLinkUp: <span dir="ltr" className="font-bold">{st.account_hint}</span></Alert>
+            {st.last_ok_at && (() => {
+              const min = Math.max(0, Math.round((Date.now() - new Date(st.last_ok_at).getTime()) / 60000));
+              return <p className="text-sm text-slate-600">آخر تحديث من الخادم: {min < 1 ? 'الآن' : <>قبل <span className="num">{min}</span> د</>} {min <= 3 ? '✓ يعمل كل دقيقة، حتى والتطبيق مغلق' : '— متأخر، تحقق من الجوال الذي عليه Libre'}</p>;
+            })()}
             {st.last_error && <Alert tone="near">{GLUCOSE_ERRORS[st.last_error] ?? st.last_error}</Alert>}
             <p className="text-sm text-slate-600">الوحدة ونطاق التلوين من <Link to="/settings" className="text-brand underline">الإعدادات</Link>.</p>
             <Btn kind="danger" block onClick={async () => { if (confirm('فصل الربط وحذف بيانات الدخول المحفوظة؟')) { setSt(await callGlucose({ action: 'clear' })); toast('تم الفصل'); } }}>فصل الربط</Btn>
