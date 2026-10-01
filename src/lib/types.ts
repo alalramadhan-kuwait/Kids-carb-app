@@ -101,6 +101,8 @@ export interface Settings {
   school_days: number[]; school_start: string | null; school_end: string | null;
   school_low_mgdl: number | null; school_high_mgdl: number | null;
   escalate_min: number;
+  /** display-only IOB / COB, from the care team; null = off */
+  iob_dia_min: number | null; iob_peak_min: number | null; cob_absorb_min: number | null;
 }
 
 export interface HistoryLine {
@@ -162,6 +164,7 @@ export const DEFAULT_SETTINGS: Settings = {
   night_start: null, night_end: null, night_low_mgdl: null, night_high_mgdl: null, night_high_silent: false, night_theme: true,
   school_days: [0, 1, 2, 3, 4], school_start: null, school_end: null, school_low_mgdl: null, school_high_mgdl: null,
   escalate_min: 10,
+  iob_dia_min: null, iob_peak_min: null, cob_absorb_min: null,
 };
 
 export type AlertKind = 'urgent_low' | 'low' | 'high' | 'no_data' | 'rapid_fall' | 'rapid_rise';

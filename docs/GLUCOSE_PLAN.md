@@ -1016,6 +1016,12 @@ reaches only that function and no table (audited); CSV export (Kuwait time, both
 report (AGP, ranges, GMI, CV, coverage, logged totals). Per-person roles beyond alert roles are not built.
 Completed: 92 %. The app loads the last 60 days of
 events, so markers older than that do not show yet.
+Stage 10 shipped in 0.18.0: IOB and COB as two optional tracks under the glucose plot, each on its own scale,
+values in the long-press inspector, the model printed under the graph. IOB uses the exponential model of
+open-source Loop with the care team's duration and peak (rapid insulin only; long-acting excluded); COB is
+linear over the care team's absorption time. Columns `iob_dia_min`, `iob_peak_min`, `cob_absorb_min` are
+empty by default, so the layers stay locked until the parents enter them. Display only: nothing reads them to
+suggest anything. Completed: 97 %.
 
 
 ## Sources

@@ -16,6 +16,8 @@ import { MealResponse } from './MealResponse';
 import { Compare } from './Compare';
 import { EventSheet } from '../components/EventSheet';
 import { Sheet, Toggle } from '../components/ui';
+import { carbsFrom, cobAt, dosesFrom, iobAt, iobParamsOk, modelLine } from '../engine/iob';
+import type { Tracks } from '../engine/Timeline';
 import { LAYERS, buildMarks, defaultLayers, type Group, type Layer } from '../engine/events';
 
 const loadLayers = (): Set<Layer> => {
@@ -56,6 +58,16 @@ function Live() {
     setLayers(next); try { localStorage.setItem('layers', JSON.stringify([...next])); } catch { /* ignore */ }
   };
   const unit = settings.glucose_unit;
+  // IOB / COB: only with the care team's parameters, only when the parents turn the layer on; display only
+  const iobP = settings.iob_dia_min && settings.iob_peak_min ? { dia: settings.iob_dia_min, peak: settings.iob_peak_min } : null;
+  const iobOk = iobParamsOk(iobP), cobOk = !!settings.cob_absorb_min;
+  const tracks = useMemo<Tracks | undefined>(() => {
+    const t: Tracks = {};
+    if (iobOk && layers.has('iob')) { const d = dosesFrom(events); t.iob = (x) => iobAt(x, d, iobP!); }
+    if (cobOk && layers.has('cob')) { const c = carbsFrom(history, events), a = settings.cob_absorb_min!; t.cob = (x) => cobAt(x, c, a); }
+    return t.iob || t.cob ? t : undefined;
+  }, [iobOk, cobOk, layers, events, history, settings.iob_dia_min, settings.iob_peak_min, settings.cob_absorb_min]);
+  const model = tracks ? modelLine(tracks.iob ? iobP : null, tracks.cob ? settings.cob_absorb_min : null) : null;
   const [now, setNow] = useState(Date.now());
   const [view, setView] = useState<View>(() => ({ span: PERIODS[0].ms, end: limitEnd(Infinity, Date.now(), PERIODS[0].ms) }));
   const [live, setLive] = useState(true);
@@ -106,7 +118,7 @@ function Live() {
       </div>
       <div className="flex-1 bg-white">
         <Timeline series={series} view={view} now={now} onView={onView} unit={unit} height={Math.max(160, land.height - 48)}
-          range={rng} marks={marks} layers={layers} onSelect={setPicked} />
+          range={rng} marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} />
       </div>
       <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
     </div>
@@ -133,7 +145,7 @@ function Live() {
       <div className="relative -mx-4 bg-white py-2 shadow-card">
         <Timeline series={series} view={view} now={now} onView={onView} unit={unit} height={height}
           range={rng}
-          marks={marks} layers={layers} onSelect={setPicked} />
+          marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} />
         {loading && <div className="absolute start-3 top-3 text-xs text-slate-400">…</div>}
       </div>
 
@@ -144,14 +156,21 @@ function Live() {
         <button onClick={() => setLayersOpen(true)} className="min-h-[40px] shrink-0 rounded-full bg-white px-3 text-sm font-bold ring-1 ring-slate-200">الطبقات</button>
         {!live && <button onClick={() => onView({ span: view.span, end: Infinity }, { animate: true })} className="min-h-[40px] shrink-0 rounded-full bg-brand px-4 text-sm font-bold text-white">الآن</button>}
       </div>
+      {model && <p className="px-1 text-xs text-slate-500">{model}</p>}
       <p className="px-1 text-xs text-slate-400">اسحب للتنقل · اقرص للتكبير · اضغط مطوّلًا للتفاصيل · اضغط أيقونة لما سُجّل</p>
       <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
       <Sheet open={layersOpen} onClose={() => setLayersOpen(false)} title="الطبقات">
         <ul className="space-y-1">
           <li className="flex min-h-[48px] items-center justify-between text-slate-500"><span>السكر</span><span className="text-xs">دائمًا</span></li>
-          {LAYERS.map((l) => (
-            <li key={l.id} className="flex min-h-[48px] items-center justify-between"><span>{l.label}</span><Toggle on={layers.has(l.id)} onChange={(v) => toggle(l.id, v)} label={l.label} /></li>
-          ))}
+          {LAYERS.map((l) => {
+            const locked = (l.id === 'iob' && !iobOk) || (l.id === 'cob' && !cobOk);
+            return (
+              <li key={l.id} className="flex min-h-[48px] items-center justify-between gap-3">
+                <span>{l.label}{locked && <span className="block text-xs text-slate-500">يحتاج أرقام الفريق الطبي في الإعدادات</span>}</span>
+                {locked ? <span className="text-xs text-slate-400">مطفأ</span> : <Toggle on={layers.has(l.id)} onChange={(v) => toggle(l.id, v)} label={l.label} />}
+              </li>
+            );
+          })}
         </ul>
       </Sheet>
     </div>

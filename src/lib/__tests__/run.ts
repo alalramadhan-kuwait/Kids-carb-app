@@ -14,6 +14,7 @@ import { inWindow, isNight, schoolWindow } from '../schedule';
 import { daysFor, solidRuns } from '../../engine/profile';
 import { seriesStats } from '../../engine/stats';
 import { buildCsv } from '../export';
+import { cobAt, dosesFrom, iobAt, iobFraction, iobParamsOk } from '../../engine/iob';
 import { GRID, alignCurve, buildOccurrence, coverage, medianCurve, notClean, summary, windowSeries } from '../../engine/meals';
 import { alertMessage, evaluate, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
@@ -744,6 +745,18 @@ test('CSV export: Kuwait time, both units, logged entries in order, commas quote
   assert.equal(lines[1], '2026-10-01 07:05,إنسولين,,,,3,سريع,"قبل الفطور, بسرعة",ماما');
   assert.equal(lines[2], '2026-10-01 07:15,قراءة,126,7.0,,,,,');
   assert.ok(lines[3].startsWith('2026-10-01 07:20,وجبة,,,42'));
+});
+
+test('IOB follows the exponential model (1 at the dose, 0 at DIA, falling); COB is linear; long insulin is excluded', () => {
+  const p = { dia: 360, peak: 75 };
+  assert.equal(iobFraction(0, p), 1); assert.equal(iobFraction(360, p), 0);
+  let prev = 1; for (let t = 5; t <= 360; t += 5) { const f = iobFraction(t, p); assert.ok(f <= prev + 1e-9, `rises at ${t}`); prev = f; }
+  assert.ok(Math.abs(iobFraction(180, p) - 0.208) < 0.005, String(iobFraction(180, p))); // matches 1 − ∫activity, integrated independently
+  assert.equal(iobParamsOk({ dia: 240, peak: 130 }), false); assert.equal(iobParamsOk(p), true);
+  const t0 = Date.parse('2026-10-01T10:00:00Z');
+  const doses = dosesFrom([evr({ insulin_units: 3, insulin_type: 'rapid', occurred_at: '2026-10-01T10:00:00Z' }), evr({ id: 'l', insulin_units: 12, insulin_type: 'long', occurred_at: '2026-10-01T10:00:00Z' })] as any);
+  assert.equal(doses.length, 1); assert.equal(iobAt(t0, doses, p), 3); assert.equal(iobAt(t0 - 60000, doses, p), 0);
+  assert.equal(cobAt(t0 + 90 * M, [{ t: t0, grams: 45 }], 180), 22.5); assert.equal(cobAt(t0 + 200 * M, [{ t: t0, grams: 45 }], 180), 0);
 });
 
 console.log('releases');

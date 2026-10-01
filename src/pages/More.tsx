@@ -158,7 +158,13 @@ export function SettingsPage() {
   const { settings, reload } = useData();
   const [s, setS] = useState<Settings>(settings);
   const setT = (i: number, patch: Partial<CategoryTarget>) => setS({ ...s, category_targets: s.category_targets.map((t, n) => (n === i ? { ...t, ...patch } : t)) });
-  const bad = s.preferred_min > s.preferred_max || s.preferred_max > s.max_meal_carbs;
+  const out = (v: number | null, lo: number, hi: number) => v !== null && (v < lo || v > hi);
+  const iobBad = (s.iob_dia_min === null) !== (s.iob_peak_min === null) ? 'اكتبوا مدة العمل والذروة معًا.'
+    : out(s.iob_dia_min, 120, 480) ? 'مدة العمل بين 120 و480 دقيقة.'
+    : out(s.iob_peak_min, 35, 120) ? 'الذروة بين 35 و120 دقيقة.'
+    : s.iob_dia_min !== null && s.iob_peak_min! >= s.iob_dia_min / 2 ? 'الذروة يجب أن تكون أقل من نصف مدة العمل.'
+    : out(s.cob_absorb_min, 60, 360) ? 'امتصاص الكارب بين 60 و360 دقيقة.' : null;
+  const bad = s.preferred_min > s.preferred_max || s.preferred_max > s.max_meal_carbs || !!iobBad;
 
   return (
     <Page title="الإعدادات" back={() => nav(-1)}>
@@ -201,11 +207,23 @@ export function SettingsPage() {
               <option value="mmol">mmol/L</option><option value="mgdl">mg/dL</option>
             </select>
           </Field>
-          <p className="text-sm text-slate-600">نطاق تلوين الرقم ({unitLabel(s.glucose_unit)}). يكتبه الوالدان من توصية الطبيب، والتطبيق لا يفترض نطاقًا. اتركه فارغًا لعدم التلوين.</p>
+          <p className="text-sm text-slate-600">نطاق تلوين الرقم ({unitLabel(s.glucose_unit)}). يكتبه الوالدان من توصية الطبيب. إن تُرك فارغًا يُلوَّن بالنطاق المرجعي 70 إلى 180 ملغ/دل ويُكتب «مرجعي»، ولا تعتمد عليه التنبيهات.</p>
           <div className="grid grid-cols-2 gap-3">
             <Field label="أقل من (أحمر)"><NumInput value={s.glucose_low_mgdl === null ? null : Number(formatGlucose(s.glucose_low_mgdl, s.glucose_unit))} onChange={(v) => setS({ ...s, glucose_low_mgdl: v === null ? null : toMgdl(v, s.glucose_unit) })} /></Field>
             <Field label="أعلى من (أصفر)"><NumInput value={s.glucose_high_mgdl === null ? null : Number(formatGlucose(s.glucose_high_mgdl, s.glucose_unit))} onChange={(v) => setS({ ...s, glucose_high_mgdl: v === null ? null : toMgdl(v, s.glucose_unit) })} /></Field>
           </div>
+        </Card>
+
+        <Card className="space-y-3">
+          <h2 className="font-bold">الإنسولين والكارب النشط (IOB / COB)</h2>
+          <Alert tone="info">للعرض فقط على الرسم. اكتبوا الأرقام كما أعطاكم إياها الفريق الطبي. التطبيق لا يقترح جرعات ولا كميات علاج.</Alert>
+          <p className="text-sm text-slate-600">مدة عمل الإنسولين السريع وذروته، ومدة امتصاص الكارب، بالدقائق. اتركوها فارغة ليبقى العرض مطفأً.</p>
+          <div className="grid grid-cols-3 items-end gap-3">
+            <Field label="مدة العمل (د)"><NumInput value={s.iob_dia_min} onChange={(v) => setS({ ...s, iob_dia_min: v })} /></Field>
+            <Field label="الذروة (د)"><NumInput value={s.iob_peak_min} onChange={(v) => setS({ ...s, iob_peak_min: v })} /></Field>
+            <Field label="الكارب (د)"><NumInput value={s.cob_absorb_min} onChange={(v) => setS({ ...s, cob_absorb_min: v })} /></Field>
+          </div>
+          {iobBad && <p className="text-sm font-bold text-over">{iobBad}</p>}
         </Card>
 
         <Btn kind="primary" block disabled={bad} onClick={async () => {

@@ -14,6 +14,8 @@ const iconPaths = new Map<IconName, Path2D[]>();
 const pathsOf = (n: IconName) => { let p = iconPaths.get(n); if (!p) { p = (ICONS[n] as { d: string[] }).d.map((d) => new Path2D(d)); iconPaths.set(n, p); } return p; };
 
 export interface Range { low: number | null; high: number | null; reference?: boolean } // mg/dL; reference = the international range in use until the parents set hers
+/** Display-only secondary tracks (IOB in units, COB in grams), each on its own scale under the glucose plot. */
+export interface Tracks { iob?: (t: number) => number; cob?: (t: number) => number }
 export interface Inspect { t: number; i: number | null; x: number }
 
 const LONG_PRESS = 350, TAP_SLOP = 8, DOUBLE_TAP = 300;
@@ -24,11 +26,11 @@ const css = (name: string, a = 1) => {
 const KW = 3 * 3600000;
 const clock = (t: number) => { const d = new Date(t + KW); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
 
-export function Timeline({ series, view, now, onView, range, unit, height, marks = [], layers, onSelect, dayParts, highlight }: {
+export function Timeline({ series, view, now, onView, range, unit, height, marks = [], layers, onSelect, dayParts, highlight, tracks }: {
   series: Series; view: View; now: number; onView: (v: View, opts?: { animate?: boolean }) => void;
   range: Range; unit: GlucoseUnit; height: number;
   marks?: Mark[]; layers?: Set<Layer>; onSelect?: (g: Group) => void;
-  dayParts?: boolean; highlight?: number | null;
+  dayParts?: boolean; highlight?: number | null; tracks?: Tracks;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -47,6 +49,8 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
   const PAD_T = 10, PAD_B = 22;
   const hasRail = !!layers && layers.size > 0;
   const RAIL = hasRail ? 44 : 0;
+  const trackList = (['iob', 'cob'] as const).filter((k) => tracks?.[k]);
+  const TRACK_H = 34, TRK = trackList.length * TRACK_H;
   const groupsRef = useRef<Group[]>([]);
   const draw = useCallback(() => {
     const c = canvas.current; if (!c || !width) return;
@@ -56,8 +60,8 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, width, height);
     const { end, span } = view, start = end - span;
-    const plotH = height - PAD_T - PAD_B - RAIL;
-    const railY = PAD_T + plotH + 18;
+    const plotH = height - PAD_T - PAD_B - RAIL - TRK;
+    const railY = PAD_T + plotH + TRK + 18;
     const groups = hasRail ? groupMarks(marks, layers!, start, end, width) : [];
     groupsRef.current = groups;
     const runs = runsFor(series, start, end, width);
@@ -174,6 +178,25 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
       g.fillStyle = css('--surface'); g.beginPath(); g.arc(x, y, 6, 0, 7); g.fill();
       g.fillStyle = css('--primary-strong'); g.beginPath(); g.arc(x, y, 4.5, 0, 7); g.fill();
     }
+    // IOB / COB: an area per track, scaled to its own peak in view; the model is printed under the graph by the page
+    trackList.forEach((k, n) => {
+      const f = tracks![k]!, top = PAD_T + plotH + n * TRACK_H + 4, h = TRACK_H - 8;
+      const xs: number[] = [], vs: number[] = [];
+      for (let x = 0; x <= width; x += 3) { const t = start + (x / width) * span; if (t > now) break; xs.push(x); vs.push(f(t)); }
+      const peak = Math.max(0, ...vs);
+      g.strokeStyle = css('--border'); g.lineWidth = 1; g.beginPath(); g.moveTo(0, top + h + 0.5); g.lineTo(width, top + h + 0.5); g.stroke();
+      if (peak > 0 && xs.length > 1) {
+        const ty = (v: number) => top + h - (v / peak) * h;
+        g.beginPath(); g.moveTo(xs[0], top + h); xs.forEach((x, j) => g.lineTo(x, ty(vs[j]))); g.lineTo(xs[xs.length - 1], top + h); g.closePath();
+        g.fillStyle = css(k === 'iob' ? '--primary' : '--primary-muted', k === 'iob' ? 0.22 : 0.5); g.fill();
+        g.beginPath(); xs.forEach((x, j) => (j ? g.lineTo(x, ty(vs[j])) : g.moveTo(x, ty(vs[j])))); g.strokeStyle = css('--primary-strong', 0.8); g.lineWidth = 1.2; g.stroke();
+      }
+      g.font = '600 10.5px Rubik, system-ui, sans-serif'; g.fillStyle = css('--text-2'); g.textAlign = 'left'; g.textBaseline = 'top'; g.direction = 'rtl';
+      const unitTxt = k === 'iob' ? 'وحدة' : 'غ';
+      g.fillText(`${k.toUpperCase()} · أعلى ${k === 'iob' ? peak.toFixed(1) : Math.round(peak)} ${unitTxt}`, 4, top);
+      g.direction = 'ltr';
+    });
+
     // event rail: one chip per group, its icon, a count when several, and a short label when there is room
     if (hasRail) {
       g.strokeStyle = css('--border'); g.lineWidth = 1; g.beginPath(); g.moveTo(0, PAD_T + plotH + 0.5); g.lineTo(width, PAD_T + plotH + 0.5); g.stroke();
@@ -216,14 +239,14 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
     // crosshair
     if (inspect) {
       const x = inspect.i !== null ? X(series.t[inspect.i]) : inspect.x;
-      g.strokeStyle = css('--text'); g.lineWidth = 1; g.beginPath(); g.moveTo(Math.round(x) + 0.5, PAD_T); g.lineTo(Math.round(x) + 0.5, PAD_T + plotH); g.stroke();
+      g.strokeStyle = css('--text'); g.lineWidth = 1; g.beginPath(); g.moveTo(Math.round(x) + 0.5, PAD_T); g.lineTo(Math.round(x) + 0.5, PAD_T + plotH + TRK); g.stroke();
       if (inspect.i !== null) {
         const y = Y(series.v[inspect.i]);
         g.fillStyle = css('--surface'); g.beginPath(); g.arc(x, y, 7, 0, 7); g.fill();
         g.strokeStyle = css('--text'); g.lineWidth = 2; g.beginPath(); g.arc(x, y, 5, 0, 7); g.stroke();
       }
     }
-  }, [series, view, now, range.low, range.high, range.reference, unit, width, height, inspect, marks, layers, hasRail, RAIL, dayParts, highlight]);
+  }, [series, view, now, range.low, range.high, range.reference, unit, width, height, inspect, marks, layers, hasRail, RAIL, dayParts, highlight, tracks, TRK]);
 
   useEffect(() => { const id = requestAnimationFrame(draw); return () => cancelAnimationFrame(id); }, [draw]);
   useEffect(() => { // redraw on light/dark change
@@ -365,6 +388,9 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
               <div className="flex justify-between"><span className="text-slate-500">لكل دقيقة</span><b className="num" dir="ltr">{rate !== null ? fmtRate(rate) : '—'}</b></div>
             </>
           ) : <div className="text-slate-500">لا توجد قراءة هنا</div>}
+          {trackList.map((k) => { const at = i !== null ? series.t[i] : inspect.t; return at <= now && (
+            <div key={k} className="flex justify-between"><span className="text-slate-500">{k === 'iob' ? 'إنسولين نشط' : 'كارب نشط'}</span><b className="num">{k === 'iob' ? `${tracks![k]!(at).toFixed(1)} و` : `${Math.round(tracks![k]!(at))} غ`}</b></div>
+          ); })}
         </div>
       )}
     </div>

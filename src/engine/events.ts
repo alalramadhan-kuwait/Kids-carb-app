@@ -5,7 +5,7 @@ import { GAP_MS, lowerBound, nearest, type Series } from './series';
 
 const MIN = 60000;
 
-export type Layer = 'meals' | 'insulin' | 'treatment' | 'basal' | 'exercise' | 'notes' | 'sleep';
+export type Layer = 'meals' | 'insulin' | 'treatment' | 'basal' | 'exercise' | 'notes' | 'sleep' | 'iob' | 'cob';
 export const LAYERS: { id: Layer; label: string; on: boolean }[] = [
   { id: 'meals', label: 'الوجبات والكارب', on: true },
   { id: 'insulin', label: 'الإنسولين السريع', on: true },
@@ -14,6 +14,8 @@ export const LAYERS: { id: Layer; label: string; on: boolean }[] = [
   { id: 'exercise', label: 'الرياضة', on: false },
   { id: 'notes', label: 'الملاحظات', on: false },
   { id: 'sleep', label: 'النوم', on: false },
+  { id: 'iob', label: 'الإنسولين النشط (IOB)', on: false },
+  { id: 'cob', label: 'الكارب النشط (COB)', on: false },
 ];
 export const defaultLayers = () => new Set(LAYERS.filter((l) => l.on).map((l) => l.id));
 
