@@ -59,7 +59,7 @@ export function Page({ title, back, action, children }: { title: string; back?: 
 }
 
 export const Card = ({ children, className }: { children: ReactNode; className?: string }) =>
-  <section className={cx('rounded-2xl bg-white p-4 shadow-sm', className)}>{children}</section>;
+  <section className={cx('rounded-2xl border border-slate-100 bg-white p-4 shadow-sm', className)}>{children}</section>;
 
 type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { kind?: 'primary' | 'ghost' | 'danger' | 'soft'; block?: boolean };
 export function Btn({ kind = 'soft', block, className, ...p }: BtnProps) {

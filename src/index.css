@@ -4,25 +4,27 @@
 
 /* Layan design system tokens (DESIGN_SYSTEM.md §2–4, §15) as RGB triplets for Tailwind. */
 :root {
-  --bg: 251 245 238; --surface: 255 253 250; --surface-2: 246 238 229;
-  --border: 238 228 218; --border-strong: 222 208 195;
-  --text: 58 46 43; --text-2: 117 102 95; --text-3: 160 146 138; --toast: 58 46 43;
-  --primary: 160 104 150; --primary-strong: 122 66 112; --primary-soft: 245 233 240;
-  --accent-soft: 253 236 222;
+  --bg: 252 247 248; --surface: 255 253 253; --surface-2: 244 239 253;
+  --border: 228 220 249; --border-strong: 212 200 247;
+  --text: 38 30 92; --text-2: 98 90 135; --text-3: 144 132 169; --toast: 38 30 92;
+  --primary: 155 127 253; --primary-strong: 91 72 214; --primary-soft: 233 224 253; --primary-muted: 214 203 253;
+  --num: 48 34 134;
+  --accent-soft: 253 236 243;
   --st-in: 70 185 138;   --st-in-text: 31 122 85;  --st-in-soft: 227 245 236;
   --st-high: 242 165 65; --st-high-text: 143 90 0; --st-high-soft: 253 241 220;
   --st-low: 233 95 104;  --st-low-text: 184 58 68; --st-low-soft: 252 230 232;
-  --shadow-card: 0 1px 2px rgba(58, 46, 43, 0.04), 0 6px 18px rgba(122, 66, 112, 0.07);
+  --shadow-card: 0 4px 18px rgba(91, 72, 214, 0.06);
   color-scheme: light;
 }
 /* Night: follows the phone's dark mode (and data-theme="night" for the night schedule later). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="day"]) {
-    --bg: 29 22 21; --surface: 41 32 31; --surface-2: 52 41 39;
-    --border: 70 56 53; --border-strong: 92 75 71;
-    --text: 247 239 233; --text-2: 204 188 178; --text-3: 150 133 124; --toast: 247 239 233;
-    --primary: 226 178 216; --primary-strong: 226 178 216; --primary-soft: 70 47 64;
-    --accent-soft: 64 46 36;
+    --bg: 45 38 55; --surface: 53 46 67; --surface-2: 66 58 90;
+    --border: 78 68 108; --border-strong: 98 86 132;
+    --text: 245 242 251; --text-2: 200 190 222; --text-3: 150 140 178; --toast: 245 242 251;
+    --primary: 193 166 243; --primary-strong: 196 176 250; --primary-soft: 74 62 109; --primary-muted: 124 103 168;
+    --num: 219 205 250;
+    --accent-soft: 70 48 70;
     --st-in: 95 211 162;   --st-in-text: 95 211 162;   --st-in-soft: 27 53 52;
     --st-high: 245 182 90; --st-high-text: 245 182 90; --st-high-soft: 58 46 34;
     --st-low: 255 122 131; --st-low-text: 255 122 131; --st-low-soft: 58 32 48;
@@ -31,11 +33,12 @@
   }
 }
 :root[data-theme="night"] {
-  --bg: 29 22 21; --surface: 41 32 31; --surface-2: 52 41 39;
-  --border: 70 56 53; --border-strong: 92 75 71;
-  --text: 247 239 233; --text-2: 204 188 178; --text-3: 150 133 124; --toast: 247 239 233;
-  --primary: 226 178 216; --primary-strong: 226 178 216; --primary-soft: 70 47 64;
-  --accent-soft: 64 46 36;
+  --bg: 45 38 55; --surface: 53 46 67; --surface-2: 66 58 90;
+    --border: 78 68 108; --border-strong: 98 86 132;
+    --text: 245 242 251; --text-2: 200 190 222; --text-3: 150 140 178; --toast: 245 242 251;
+    --primary: 193 166 243; --primary-strong: 196 176 250; --primary-soft: 74 62 109; --primary-muted: 124 103 168;
+    --num: 219 205 250;
+    --accent-soft: 70 48 70;
   --st-in: 95 211 162;   --st-in-text: 95 211 162;   --st-in-soft: 27 53 52;
   --st-high: 245 182 90; --st-high-text: 245 182 90; --st-high-soft: 58 46 34;
   --st-low: 255 122 131; --st-low-text: 255 122 131; --st-low-soft: 58 32 48;
