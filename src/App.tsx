@@ -26,6 +26,8 @@ import { Icon } from './components/Icon';
 import type { IconName } from './icons/defs';
 import { More, SnacksPage, SettingsPage } from './pages/More';
 import { themePref } from './lib/theme';
+import { t } from './i18n';
+import { LangSwitch } from './components/LangSwitch';
 
 function Centered({ children }: { children: React.ReactNode }) {
   return <main className="mx-auto grid min-h-screen max-w-md place-items-center px-4"><div className="w-full space-y-4">{children}</div></main>;
@@ -41,38 +43,39 @@ function Login() {
   const go = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setErr('');
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setErr('البريد أو كلمة المرور غير صحيحة'); setBusy(false);
+    if (error) setErr(t('البريد أو كلمة المرور غير صحيحة')); setBusy(false);
   };
   const reset = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setErr('');
     // the link must come back to this app, not to the site's default address
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: location.origin + location.pathname });
     setBusy(false);
-    if (error) setErr(error.message.toLowerCase().includes('rate') ? 'حاولت كثيرًا. انتظر قليلًا ثم أعد المحاولة.' : 'تعذّر الإرسال. حاول لاحقًا.');
+    if (error) setErr(error.message.toLowerCase().includes('rate') ? t('حاولت كثيرًا. انتظر قليلًا ثم أعد المحاولة.') : t('تعذّر الإرسال. حاول لاحقًا.'));
     else setSent(true);
   };
   return (
     <Centered>
-      <img src={`${import.meta.env.BASE_URL}icons/layan-logo-256.webp`} alt="ليان" width={128} height={128} className="mx-auto h-32 w-32" />
-      <h1 className="text-center text-3xl font-bold">ليان</h1>
+      <img src={`${import.meta.env.BASE_URL}icons/layan-logo-256.webp`} alt={t('ليان')} width={128} height={128} className="mx-auto h-32 w-32" />
+      <h1 className="text-center text-3xl font-bold">{t('ليان')}</h1>
       <div className="text-center"><VersionTag /></div>
+      <LangSwitch className="mx-auto w-full max-w-xs" />
       <Card>
         {forgot ? (
           <form onSubmit={reset} className="space-y-3">
-            <p className="text-sm text-slate-600">اكتب بريدك الإلكتروني الحقيقي وسيصلك رابط لتعيين كلمة مرور جديدة.</p>
-            <Field label="البريد الإلكتروني"><input className={inputCls} dir="ltr" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></Field>
-            {sent && <Alert tone="ok">إن كان البريد مسجّلًا فقد أُرسل إليه رابط. افتحه من نفس الجوال.</Alert>}
+            <p className="text-sm text-slate-600">{t('اكتب بريدك الإلكتروني الحقيقي وسيصلك رابط لتعيين كلمة مرور جديدة.')}</p>
+            <Field label={t('البريد الإلكتروني')}><input className={inputCls} dir="ltr" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></Field>
+            {sent && <Alert tone="ok">{t('إن كان البريد مسجّلًا فقد أُرسل إليه رابط. افتحه من نفس الجوال.')}</Alert>}
             {err && <Alert tone="over">{err}</Alert>}
-            <Btn kind="primary" block disabled={busy || sent}>إرسال الرابط</Btn>
-            <Btn kind="ghost" block type="button" onClick={() => { setForgot(false); setSent(false); setErr(''); }}>رجوع</Btn>
+            <Btn kind="primary" block disabled={busy || sent}>{t('إرسال الرابط')}</Btn>
+            <Btn kind="ghost" block type="button" onClick={() => { setForgot(false); setSent(false); setErr(''); }}>{t('رجوع')}</Btn>
           </form>
         ) : (
           <form onSubmit={go} className="space-y-3">
-            <Field label="البريد الإلكتروني"><input className={inputCls} dir="ltr" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></Field>
-            <Field label="كلمة المرور"><input className={inputCls} dir="ltr" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></Field>
+            <Field label={t('البريد الإلكتروني')}><input className={inputCls} dir="ltr" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></Field>
+            <Field label={t('كلمة المرور')}><input className={inputCls} dir="ltr" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></Field>
             {err && <Alert tone="over">{err}</Alert>}
-            <Btn kind="primary" block disabled={busy}>دخول</Btn>
-            <button type="button" className="block w-full text-center text-sm text-brand underline" onClick={() => { setForgot(true); setErr(''); }}>نسيت كلمة المرور؟</button>
+            <Btn kind="primary" block disabled={busy}>{t('دخول')}</Btn>
+            <button type="button" className="block w-full text-center text-sm text-brand underline" onClick={() => { setForgot(true); setErr(''); }}>{t('نسيت كلمة المرور؟')}</button>
           </form>
         )}
       </Card>
@@ -88,22 +91,22 @@ export function SetPassword({ onDone }: { onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const save = async (e: React.FormEvent) => {
     e.preventDefault(); setErr('');
-    if (pw.length < 8) return setErr('كلمة المرور 8 خانات على الأقل');
-    if (pw !== pw2) return setErr('الكلمتان غير متطابقتين');
+    if (pw.length < 8) return setErr(t('كلمة المرور 8 خانات على الأقل'));
+    if (pw !== pw2) return setErr(t('الكلمتان غير متطابقتين'));
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password: pw });
     setBusy(false);
-    if (error) setErr(error.message.includes('different') ? 'اختر كلمة مختلفة عن الحالية' : 'تعذّر الحفظ: ' + error.message); else onDone();
+    if (error) setErr(error.message.includes('different') ? t('اختر كلمة مختلفة عن الحالية') : t('تعذّر الحفظ: {e}', { e: error.message })); else onDone();
   };
   return (
     <Centered>
-      <h1 className="text-center text-2xl font-bold">كلمة مرور جديدة</h1>
+      <h1 className="text-center text-2xl font-bold">{t('كلمة مرور جديدة')}</h1>
       <Card>
         <form onSubmit={save} className="space-y-3">
-          <Field label="كلمة المرور الجديدة"><input className={inputCls} dir="ltr" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /></Field>
-          <Field label="أعد كتابتها"><input className={inputCls} dir="ltr" type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></Field>
+          <Field label={t('كلمة المرور الجديدة')}><input className={inputCls} dir="ltr" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /></Field>
+          <Field label={t('أعد كتابتها')}><input className={inputCls} dir="ltr" type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></Field>
           {err && <Alert tone="over">{err}</Alert>}
-          <Btn kind="primary" block disabled={busy}>حفظ</Btn>
+          <Btn kind="primary" block disabled={busy}>{t('حفظ')}</Btn>
         </form>
       </Card>
     </Centered>
@@ -118,21 +121,21 @@ function Claim({ onDone }: { onDone: () => void }) {
   const go = async (e: React.FormEvent) => {
     e.preventDefault(); setErr('');
     const { error } = await supabase.rpc('claim_household', { p_code: code.trim(), p_name: name.trim() || null });
-    if (error) setErr(error.message.includes('already') ? 'التطبيق مفعّل مسبقًا. اطلب من أحد الوالدين إضافتك من "المزيد".' : 'رمز التفعيل غير صحيح'); else onDone();
+    if (error) setErr(error.message.includes('already') ? t('التطبيق مفعّل مسبقًا. اطلب من أحد الوالدين إضافتك من "المزيد".') : t('رمز التفعيل غير صحيح')); else onDone();
   };
   return (
     <Centered>
       <img src={`${import.meta.env.BASE_URL}icons/layan-logo-256.webp`} alt="" width={96} height={96} className="mx-auto h-24 w-24" />
-      <h1 className="text-center text-2xl font-bold">تفعيل التطبيق</h1>
+      <h1 className="text-center text-2xl font-bold">{t('تفعيل التطبيق')}</h1>
       <Card>
         <form onSubmit={go} className="space-y-3">
-          <Alert tone="info">هذا الحساب غير مضاف إلى التطبيق بعد. إن كان التطبيق مفعّلًا، اطلب من الأم أو الأب إضافة بريدك من المزيد ← إضافة أحد الوالدين، ثم ادخل من جديد.</Alert>
-          <p className="text-sm text-slate-600">رمز التفعيل لأول مرة فقط، عند تفعيل التطبيق لأول مستخدم.</p>
-          <Field label="اسمك"><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
-          <Field label="رمز التفعيل"><input className={inputCls} dir="ltr" value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+          <Alert tone="info">{t('هذا الحساب غير مضاف إلى التطبيق بعد. إن كان التطبيق مفعّلًا، اطلب من الأم أو الأب إضافة بريدك من المزيد ← إضافة أحد الوالدين، ثم ادخل من جديد.')}</Alert>
+          <p className="text-sm text-slate-600">{t('رمز التفعيل لأول مرة فقط، عند تفعيل التطبيق لأول مستخدم.')}</p>
+          <Field label={t('اسمك')}><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+          <Field label={t('رمز التفعيل')}><input className={inputCls} dir="ltr" value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
           {err && <Alert tone="over">{err}</Alert>}
-          <Btn kind="primary" block>تفعيل</Btn>
-          <Btn kind="ghost" block type="button" onClick={() => supabase.auth.signOut()}>خروج</Btn>
+          <Btn kind="primary" block>{t('تفعيل')}</Btn>
+          <Btn kind="ghost" block type="button" onClick={() => supabase.auth.signOut()}>{t('خروج')}</Btn>
         </form>
       </Card>
     </Centered>
@@ -141,11 +144,11 @@ function Claim({ onDone }: { onDone: () => void }) {
 
 /** Five tabs (Hick's Law). "match" lists the pages that belong to each tab. */
 const TABS: { to: string; label: string; icon: IconName; match: string[] }[] = [
-  { to: '/', label: 'الآن', icon: 'home', match: ['/'] },
-  { to: '/timeline', label: 'السجل', icon: 'history', match: ['/timeline'] },
-  { to: '/meals', label: 'الوجبات', icon: 'meals', match: ['/meals', '/recipes', '/products', '/plan', '/snacks'] },
-  { to: '/analysis', label: 'التحليل', icon: 'advanced', match: ['/analysis', '/advanced'] },
-  { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm', '/alerts', '/care-plan', '/share', '/report'] },
+  { to: '/', label: 'الآن', icon: 'home', match: ['/'] }, // i18n-ok
+  { to: '/timeline', label: 'السجل', icon: 'history', match: ['/timeline'] }, // i18n-ok
+  { to: '/meals', label: 'الوجبات', icon: 'meals', match: ['/meals', '/recipes', '/products', '/plan', '/snacks'] }, // i18n-ok
+  { to: '/analysis', label: 'التحليل', icon: 'advanced', match: ['/analysis', '/advanced'] }, // i18n-ok
+  { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm', '/alerts', '/care-plan', '/share', '/report'] }, // i18n-ok
 ];
 
 /** Appearance: a fixed day or night choice on this phone, or automatic (night colours in the parents' night window
@@ -160,9 +163,9 @@ function NightTheme() {
       if (want) root.dataset.theme = want; else delete root.dataset.theme;
     };
     apply();
-    const t = setInterval(apply, 60000);
+    const timer = setInterval(apply, 60000);
     window.addEventListener('themepref', apply);
-    return () => { clearInterval(t); window.removeEventListener('themepref', apply); };
+    return () => { clearInterval(timer); window.removeEventListener('themepref', apply); };
   }, [settings]);
   return null;
 }
@@ -170,8 +173,8 @@ function NightTheme() {
 function Shell() {
   const { loading, error } = useData();
   const { pathname } = useLocation();
-  if (loading) return <Centered><p className="text-center text-slate-500">جاري التحميل…</p></Centered>;
-  if (error) return <Centered><Alert tone="over">تعذّر تحميل البيانات: {error}</Alert></Centered>;
+  if (loading) return <Centered><p className="text-center text-slate-500">{t('جاري التحميل…')}</p></Centered>;
+  if (error) return <Centered><Alert tone="over">{t('تعذّر تحميل البيانات: {e}', { e: error })}</Alert></Centered>;
   return (
     <>
       <NightTheme />
@@ -203,12 +206,12 @@ function Shell() {
       </Routes>
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         <ul className="mx-auto grid max-w-2xl grid-cols-5">
-          {TABS.map((t) => {
-            const on = t.to === '/' ? pathname === '/' : t.match.some((m) => pathname === m || pathname.startsWith(m + '/'));
+          {TABS.map((tab) => {
+            const on = tab.to === '/' ? pathname === '/' : tab.match.some((m) => pathname === m || pathname.startsWith(m + '/'));
             return (
-              <li key={t.to}>
-                <NavLink to={t.to} aria-current={on ? 'page' : undefined} className="flex min-h-[64px] items-center justify-center py-1.5">
-                  <span className={cx('flex min-w-[60px] flex-col items-center gap-0.5 rounded-2xl px-2.5 py-1.5 text-xs transition-colors', on ? 'bg-brand-soft font-semibold text-brand' : 'text-slate-500')}><Icon name={t.icon} active={on} />{t.label}</span>
+              <li key={tab.to}>
+                <NavLink to={tab.to} aria-current={on ? 'page' : undefined} className="flex min-h-[64px] items-center justify-center py-1.5">
+                  <span className={cx('flex min-w-[60px] flex-col items-center gap-0.5 rounded-2xl px-2.5 py-1.5 text-xs transition-colors', on ? 'bg-brand-soft font-semibold text-brand' : 'text-slate-500')}><Icon name={tab.icon} active={on} />{t(tab.label)}</span>
                 </NavLink>
               </li>
             );
@@ -247,9 +250,9 @@ export default function App() {
   else if (!session) body = <Login />;
   else if (problem) body = (
     <Centered>
-      <Alert tone="over">تعذّر الاتصال بقاعدة البيانات: {problem}</Alert>
-      <p className="text-sm text-slate-600">إن كان الخطأ عن المخطط <span dir="ltr">carb</span>، أضِفه في Supabase ← Settings ← API ← Exposed schemas.</p>
-      <Btn block onClick={check}>إعادة المحاولة</Btn>
+      <Alert tone="over">{t('تعذّر الاتصال بقاعدة البيانات: {e}', { e: problem })}</Alert>
+      <p className="text-sm text-slate-600">{t('إن كان الخطأ عن المخطط')} <span dir="ltr">carb</span>{t('، أضِفه في Supabase ← Settings ← API ← Exposed schemas.')}</p>
+      <Btn block onClick={check}>{t('إعادة المحاولة')}</Btn>
     </Centered>
   );
   else if (member === null) body = null;

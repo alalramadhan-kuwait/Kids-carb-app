@@ -2,15 +2,17 @@
 // day's logged totals. The glucose percentages come from carb.glucose_stats so they match the other screens.
 import type { EventRow, HistoryEntry } from '../lib/types';
 import { GAP_MS, lowerBound, type Series } from './series';
+import { isEn, t } from '../i18n';
 
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR, KW = 3 * HOUR;
 
 /** Kuwait midnight (as UTC ms) of the day containing t. Kuwait has no daylight saving. */
 export const dayStartOf = (t: number) => Math.floor((t + KW) / DAY) * DAY - KW;
 
+/** Labels stay Arabic here; show them with t(part.label). */
 export const DAY_PARTS = [
-  { label: 'ليل', from: 0, to: 6 }, { label: 'صباح', from: 6, to: 12 },
-  { label: 'ظهر', from: 12, to: 18 }, { label: 'مساء', from: 18, to: 24 },
+  { label: 'ليل', from: 0, to: 6 }, { label: 'صباح', from: 6, to: 12 }, // i18n-ok
+  { label: 'ظهر', from: 12, to: 18 }, { label: 'مساء', from: 18, to: 24 }, // i18n-ok
 ] as const;
 
 export interface Episode { t: number; end: number; nadir: number; minutes: number }
@@ -51,11 +53,14 @@ export function dayTotals(history: HistoryEntry[], events: EventRow[], start: nu
   return { carbs: r1(t.carbs), treatment: r1(t.treatment), rapid: r1(t.rapid), long: r1(t.long), meals: t.meals };
 }
 
-/** Arabic weekday and date for a day start: «الخميس 1 أكتوبر». */
-const WEEKDAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
-const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+/** Weekday and date for a day start: «الخميس 1 أكتوبر» / "Thursday 1 October". */
+const WEEKDAYS = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']; // i18n-ok
+const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']; // i18n-ok
+const WEEKDAYS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 export function dayTitle(dayStart: number, now = Date.now()) {
-  const d = new Date(dayStart + KW);
-  const rel = dayStart === dayStartOf(now) ? 'اليوم' : dayStart === dayStartOf(now) - DAY ? 'أمس' : WEEKDAYS[d.getUTCDay()];
-  return `${rel} · ${rel === WEEKDAYS[d.getUTCDay()] ? '' : WEEKDAYS[d.getUTCDay()] + ' '}${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+  const d = new Date(dayStart + KW), en = isEn();
+  const wd = (en ? WEEKDAYS_EN : WEEKDAYS)[d.getUTCDay()], month = (en ? MONTHS_EN : MONTHS)[d.getUTCMonth()];
+  const rel = dayStart === dayStartOf(now) ? t('اليوم') : dayStart === dayStartOf(now) - DAY ? t('أمس') : wd;
+  return `${rel} · ${rel === wd ? '' : wd + ' '}${d.getUTCDate()} ${month}`;
 }

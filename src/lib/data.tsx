@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { supabase } from './supabase';
 import { computeMeal } from './carbs';
 import { candidatesOf, type Candidate } from './suggest';
+import { t } from '../i18n';
 import {
   DEFAULT_SETTINGS, type EventRow, type HistoryEntry, type Ingredient, type Member, type PlanRow, type Product, type Recipe, type Settings, type Snack,
 } from './types';
@@ -99,8 +100,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const nameOf = useCallback((id: string | null | undefined) => {
     if (!id) return '';
-    if (id === state.me) return 'أنت';
-    return state.members.find((m) => m.user_id === id)?.display_name || 'أحد الوالدين';
+    if (id === state.me) return t('أنت');
+    return state.members.find((m) => m.user_id === id)?.display_name || t('أحد الوالدين');
   }, [state.members, state.me]);
 
   const ingsByRecipe = useMemo(() => {

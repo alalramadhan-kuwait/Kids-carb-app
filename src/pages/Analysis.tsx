@@ -19,25 +19,27 @@ import { Sheet, Toggle } from '../components/ui';
 import { carbsFrom, cobAt, dosesFrom, iobAt, iobParamsOk, modelLine } from '../engine/iob';
 import type { Tracks } from '../engine/Timeline';
 import { LAYERS, buildMarks, defaultLayers, type Group, type Layer } from '../engine/events';
+import { t } from '../i18n';
 
 const loadLayers = (): Set<Layer> => {
   try { const v = localStorage.getItem('layers'); if (v) return new Set(JSON.parse(v) as Layer[]); } catch { /* private mode */ }
   return defaultLayers();
 };
 
-const MODES = [{ id: 'live', label: 'مباشر' }, { id: 'day', label: 'اليوم' }, { id: 'patterns', label: 'الأنماط' }, { id: 'meals', label: 'الوجبات' }, { id: 'compare', label: 'مقارنة' }, { id: 'stats', label: 'الأرقام' }] as const;
-const FRESH = { live: { text: 'مباشر', cls: 'bg-ok-soft text-ok' }, delayed: { text: 'متأخر', cls: 'bg-near-soft text-near' }, missing: { text: 'منقطع', cls: 'bg-over-soft text-over' } };
+// labels stay Arabic here and are shown with t()
+const MODES = [{ id: 'live', label: 'مباشر' }, { id: 'day', label: 'اليوم' }, { id: 'patterns', label: 'الأنماط' }, { id: 'meals', label: 'الوجبات' }, { id: 'compare', label: 'مقارنة' }, { id: 'stats', label: 'الأرقام' }] as const; // i18n-ok
+const FRESH = { live: { text: 'مباشر', cls: 'bg-ok-soft text-ok' }, delayed: { text: 'متأخر', cls: 'bg-near-soft text-near' }, missing: { text: 'منقطع', cls: 'bg-over-soft text-over' } }; // i18n-ok
 
 /** التحليل: Live (the timeline engine) and the numbers. More modes arrive stage by stage (GLUCOSE_PLAN 11.2). */
 export default function Analysis() {
   const [params, setParams] = useSearchParams();
   const mode = (['day', 'patterns', 'meals', 'compare', 'stats'] as const).find((m) => m === params.get('mode')) ?? 'live';
   return (
-    <Page title="التحليل">
+    <Page title={t('التحليل')}>
       <div className="-mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-1" role="tablist">
         {MODES.map((m) => (
           <button key={m.id} role="tab" aria-selected={mode === m.id} onClick={() => setParams(m.id === 'live' ? {} : { mode: m.id }, { replace: true })}
-            className={cx('min-h-[40px] shrink-0 rounded-full px-4 text-sm font-bold', mode === m.id ? 'bg-brand text-white' : 'bg-slate-50 text-slate-600')}>{m.label}</button>
+            className={cx('min-h-[40px] shrink-0 rounded-full px-4 text-sm font-bold', mode === m.id ? 'bg-brand text-white' : 'bg-slate-50 text-slate-600')}>{t(m.label)}</button>
         ))}
       </div>
       {mode === 'live' ? <Live /> : mode === 'day' ? <DayView /> : mode === 'patterns' ? <Patterns /> : mode === 'meals' ? <MealResponse /> : mode === 'compare' ? <Compare /> : <StatsPanel />}
@@ -110,10 +112,10 @@ function Live() {
     <div className="fixed inset-0 z-[46] flex flex-col bg-[rgb(var(--bg))] pe-[env(safe-area-inset-right)] ps-[env(safe-area-inset-left)]">
       <div className="flex h-12 items-center gap-3 px-3">
         {latest && <span className="num text-2xl font-bold text-brand-num">{formatGlucose(latest.mg_dl, unit)}</span>}
-        <span className={cx('rounded-full px-2 py-0.5 text-xs font-bold', FRESH[fresh].cls)}>{FRESH[fresh].text}</span>
+        <span className={cx('rounded-full px-2 py-0.5 text-xs font-bold', FRESH[fresh].cls)}>{t(FRESH[fresh].text)}</span>
         <div className="ms-auto flex gap-1.5" dir="ltr">
           {PERIODS.slice(0, 6).map((pp) => <Chip key={pp.id} active={period === pp.id} onClick={() => onView({ span: pp.ms, end: live ? Infinity : view.end }, { animate: true })}>{pp.id}</Chip>)}
-          {!live && <button onClick={() => onView({ span: view.span, end: Infinity }, { animate: true })} className="min-h-[36px] rounded-full bg-brand px-3 text-sm font-bold text-white">الآن</button>}
+          {!live && <button onClick={() => onView({ span: view.span, end: Infinity }, { animate: true })} className="min-h-[36px] rounded-full bg-brand px-3 text-sm font-bold text-white">{t('الآن')}</button>}
         </div>
       </div>
       <div className="flex-1 bg-white">
@@ -136,9 +138,9 @@ function Live() {
             </div>
             <div className="mt-1 text-sm text-slate-600">{change(d15, rate, unit)}</div>
           </div>
-        ) : <div className="text-lg font-bold text-slate-500">{g ? 'لا توجد قراءة حديثة' : '…'}</div>}
+        ) : <div className="text-lg font-bold text-slate-500">{g ? t('لا توجد قراءة حديثة') : '…'}</div>}
         <span className={cx('ms-auto mb-1 rounded-full px-2.5 py-1 text-xs font-bold', FRESH[fresh].cls)}>
-          {FRESH[fresh].text}{lastT ? ` · ${Math.max(0, Math.round((now - lastT) / 60000))} د` : ''}
+          {t(FRESH[fresh].text)}{lastT ? ' · ' + t('{n} د', { n: Math.max(0, Math.round((now - lastT) / 60000)) }) : ''}
         </span>
       </div>
 
@@ -153,21 +155,21 @@ function Live() {
         <div className="-mx-1 flex flex-1 gap-1.5 overflow-x-auto px-1" dir="ltr">
           {PERIODS.map((p) => <Chip key={p.id} active={period === p.id} onClick={() => onView({ span: p.ms, end: live ? Infinity : view.end }, { animate: true })}>{p.id}</Chip>)}
         </div>
-        <button onClick={() => setLayersOpen(true)} className="min-h-[40px] shrink-0 rounded-full bg-white px-3 text-sm font-bold ring-1 ring-slate-200">الطبقات</button>
-        {!live && <button onClick={() => onView({ span: view.span, end: Infinity }, { animate: true })} className="min-h-[40px] shrink-0 rounded-full bg-brand px-4 text-sm font-bold text-white">الآن</button>}
+        <button onClick={() => setLayersOpen(true)} className="min-h-[40px] shrink-0 rounded-full bg-white px-3 text-sm font-bold ring-1 ring-slate-200">{t('الطبقات')}</button>
+        {!live && <button onClick={() => onView({ span: view.span, end: Infinity }, { animate: true })} className="min-h-[40px] shrink-0 rounded-full bg-brand px-4 text-sm font-bold text-white">{t('الآن')}</button>}
       </div>
       {model && <p className="px-1 text-xs text-slate-500">{model}</p>}
-      <p className="px-1 text-xs text-slate-400">اسحب للتنقل · اقرص للتكبير · اضغط مطوّلًا للتفاصيل · اضغط أيقونة لما سُجّل</p>
+      <p className="px-1 text-xs text-slate-400">{t('اسحب للتنقل · اقرص للتكبير · اضغط مطوّلًا للتفاصيل · اضغط أيقونة لما سُجّل')}</p>
       <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
-      <Sheet open={layersOpen} onClose={() => setLayersOpen(false)} title="الطبقات">
+      <Sheet open={layersOpen} onClose={() => setLayersOpen(false)} title={t('الطبقات')}>
         <ul className="space-y-1">
-          <li className="flex min-h-[48px] items-center justify-between text-slate-500"><span>السكر</span><span className="text-xs">دائمًا</span></li>
+          <li className="flex min-h-[48px] items-center justify-between text-slate-500"><span>{t('السكر')}</span><span className="text-xs">{t('دائمًا')}</span></li>
           {LAYERS.map((l) => {
             const locked = (l.id === 'iob' && !iobOk) || (l.id === 'cob' && !cobOk);
             return (
               <li key={l.id} className="flex min-h-[48px] items-center justify-between gap-3">
-                <span>{l.label}{locked && <span className="block text-xs text-slate-500">يحتاج أرقام الفريق الطبي في الإعدادات</span>}</span>
-                {locked ? <span className="text-xs text-slate-400">مطفأ</span> : <Toggle on={layers.has(l.id)} onChange={(v) => toggle(l.id, v)} label={l.label} />}
+                <span>{t(l.label)}{locked && <span className="block text-xs text-slate-500">{t('يحتاج أرقام الفريق الطبي في الإعدادات')}</span>}</span>
+                {locked ? <span className="text-xs text-slate-400">{t('مطفأ')}</span> : <Toggle on={layers.has(l.id)} onChange={(v) => toggle(l.id, v)} label={t(l.label)} />}
               </li>
             );
           })}
@@ -180,9 +182,15 @@ function Live() {
 /** "نزل 0.7 خلال 15 د · 0.05 بالدقيقة": words instead of +/− signs, which read ambiguously inside Arabic text. */
 function change(d15: number | null, rate: number | null, unit: 'mmol' | 'mgdl') {
   const f = (mg: number, d: number) => (unit === 'mmol' ? Math.abs(mg / 18.016) : Math.abs(mg)).toFixed(unit === 'mmol' ? d : d === 2 ? 1 : 0);
-  const word = (x: number) => (Math.abs(x) < (unit === 'mmol' ? 1.8 : 2) ? 'ثابت' : x < 0 ? 'نزل' : 'صعد');
+  const word = (x: number) => (Math.abs(x) < (unit === 'mmol' ? 1.8 : 2) ? 'steady' : x < 0 ? 'down' : 'up');
   const parts: string[] = [];
-  if (d15 !== null) parts.push(word(d15) === 'ثابت' ? 'ثابت خلال 15 د' : `${word(d15)} ${f(d15, 1)} خلال 15 د`);
-  if (rate !== null && (d15 === null || word(d15) !== 'ثابت')) parts.push(`${d15 === null ? (rate < 0 ? 'ينزل ' : 'يصعد ') : ''}${f(rate, 2)} بالدقيقة`);
+  if (d15 !== null) {
+    const w = word(d15), v = f(d15, 1);
+    parts.push(w === 'steady' ? t('ثابت خلال 15 د') : w === 'down' ? t('نزل {v} خلال 15 د', { v }) : t('صعد {v} خلال 15 د', { v }));
+  }
+  if (rate !== null && (d15 === null || word(d15) !== 'steady')) {
+    const v = f(rate, 2);
+    parts.push(d15 !== null ? t('{v} بالدقيقة', { v }) : rate < 0 ? t('ينزل {v} بالدقيقة', { v }) : t('يصعد {v} بالدقيقة', { v }));
+  }
   return parts.join(' · ');
 }

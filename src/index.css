@@ -61,3 +61,10 @@ input, select, textarea { font: inherit; }
   html, body { background: #fff !important; }
   .report { color: #261E5C; }
 }
+
+/* Names and notes are written in either language. A truncated line takes its own direction, so an Arabic name in
+   the English app (or an English one in the Arabic app) reads correctly and loses its end, not its start; it stays
+   aligned with the page. Zero specificity, so text-center and friends still win. */
+.truncate, .line-clamp-1, .line-clamp-2 { unicode-bidi: plaintext; }
+:where(html[dir="ltr"] .truncate, html[dir="ltr"] .line-clamp-1, html[dir="ltr"] .line-clamp-2) { text-align: left; }
+:where(html[dir="rtl"] .truncate, html[dir="rtl"] .line-clamp-1, html[dir="rtl"] .line-clamp-2) { text-align: right; }

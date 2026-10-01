@@ -18,6 +18,7 @@ import layanPng from '../assets/layan_peek.png';
 import { useAlerts } from '../hooks/useAlerts';
 import { describeEvent } from '../lib/events';
 import { Card, Page, asset, cx } from '../components/ui';
+import { dir, isEn, t } from '../i18n';
 
 const TONE_DOT: Record<Tone, string> = { ok: 'bg-ok-fill', low: 'bg-over-fill', urgent: 'bg-over', high: 'bg-near-fill', warn: 'bg-near-fill', plain: 'bg-slate-300' };
 const TONE_TEXT: Record<Tone, string> = { ok: 'text-ok', low: 'text-over', urgent: 'text-over', high: 'text-near', warn: 'text-near', plain: 'text-slate-700' };
@@ -47,26 +48,26 @@ export default function Now() {
 
   // Zeigarnik: a short list of what is still unset, until it is all done
   const setup = [
-    { done: !!g?.connected, label: 'ربط قراءات السكر', to: '/cgm' },
-    { done: settings.glucose_low_mgdl !== null || settings.glucose_high_mgdl !== null, label: 'تحديد نطاق السكر من الطبيب', to: '/settings' },
-    { done: settings.alert_low_mgdl !== null || settings.alert_urgent_low_mgdl !== null, label: 'حدود التنبيهات وتفعيلها', to: '/alerts' },
-    { done: members.length >= 2, label: 'إضافة الأب أو الأم', to: '/more' },
-    { done: products.some((p) => p.kind === 'commercial' && p.approved), label: 'أول منتج من الملصق', to: '/products/new' },
+    { done: !!g?.connected, label: t('ربط قراءات السكر'), to: '/cgm' },
+    { done: settings.glucose_low_mgdl !== null || settings.glucose_high_mgdl !== null, label: t('تحديد نطاق السكر من الطبيب'), to: '/settings' },
+    { done: settings.alert_low_mgdl !== null || settings.alert_urgent_low_mgdl !== null, label: t('حدود التنبيهات وتفعيلها'), to: '/alerts' },
+    { done: members.length >= 2, label: t('إضافة الأب أو الأم'), to: '/more' },
+    { done: products.some((p) => p.kind === 'commercial' && p.approved), label: t('أول منتج من الملصق'), to: '/products/new' },
   ];
   const doneCount = setup.filter((s) => s.done).length;
 
   return (
     <main className="mx-auto max-w-2xl px-4 pb-28 pt-[max(12px,env(safe-area-inset-top))]">
-      <h1 className="sr-only">الآن</h1>
+      <h1 className="sr-only">{t('الآن')}</h1>
       <LayanHeader alertCount={alerts.open.length} />
       <div className="space-y-3 pb-24">
         <AlertStrip alerts={alerts.open} onChange={alerts.reload} />
         {g && !g.connected ? (
-          <Link to="/cgm"><Card className="flex items-center gap-3 !p-3"><img src={asset('04_objects/obj_cgm.svg')} alt="" className="h-10 w-10" /><span className="flex-1 font-medium">اربط قراءات السكر الحية</span><span className="text-slate-300">‹</span></Card></Link>
+          <Link to="/cgm"><Card className="flex items-center gap-3 !p-3"><img src={asset('04_objects/obj_cgm.svg')} alt="" className="h-10 w-10" /><span className="flex-1 font-medium">{t('اربط قراءات السكر الحية')}</span><span className="text-slate-300">{isEn() ? '›' : '‹'}</span></Card></Link>
         ) : (
           <Card>
             <div className={cx('mb-1 flex items-center gap-2 text-lg font-bold', TONE_TEXT[sentence.tone])}>
-              <span className={cx('h-3 w-3 shrink-0 rounded-full', TONE_DOT[sentence.tone])} />{g ? sentence.text : failed ? 'تعذّر تحميل القراءة' : '…'}
+              <span className={cx('h-3 w-3 shrink-0 rounded-full', TONE_DOT[sentence.tone])} />{g ? sentence.text : failed ? t('تعذّر تحميل القراءة') : '…'}
             </div>
             {latest && age?.state !== 'stale' ? (
               <div className={cx('flex flex-wrap items-center gap-x-3', age?.state === 'old' && 'opacity-50')}>
@@ -76,25 +77,25 @@ export default function Now() {
                 <span className="ms-auto text-sm text-slate-500">{sinceText(latest.taken_at)}</span>
               </div>
             ) : latest ? (
-              <p className="text-sm text-near">آخر قراءة <span className="num font-bold">{formatGlucose(latest.mg_dl, unit)}</span> {sinceText(latest.taken_at)}. تحقق من جوال ليان والحساس.</p>
+              <p className="text-sm text-near">{t('آخر قراءة')} <span className="num font-bold">{formatGlucose(latest.mg_dl, unit)}</span> {sinceText(latest.taken_at)}. {t('تحقق من جوال ليان والحساس.')}</p>
             ) : null}
             {latest && age?.state !== 'stale' && status && status !== 'in_range' && (
               <span className={cx('mt-2 inline-flex items-center gap-1.5 rounded-full py-1 pe-3 ps-2 text-sm font-semibold', CHIP[status])}>
                 <StatusIcon name={status} size={18} />{STATUS[status].label}
               </span>
             )}
-            {g && <Link to="/analysis" aria-label="افتح الرسم الكامل" className="block"><Graph readings={g.readings} low={rng.low} high={rng.high} reference={rng.reference}
+            {g && <Link to="/analysis" aria-label={t('افتح الرسم الكامل')} className="block"><Graph readings={g.readings} low={rng.low} high={rng.high} reference={rng.reference}
               meals={history.filter((h) => h.kind === 'meal').map((h) => h.eaten_at)}
               insulin={events.filter((e) => e.kind === 'insulin').map((e) => e.occurred_at)}
               carbs={events.filter((e) => e.kind === 'carbs' || e.kind === 'treatment').map((e) => e.occurred_at)} unit={unit} /></Link>}
-            {g?.error && <p className="mt-1 text-sm text-over">{GLUCOSE_ERRORS[g.error] ?? g.error} <button className="underline" onClick={reload}>إعادة</button></p>}
+            {g?.error && <p className="mt-1 text-sm text-over">{GLUCOSE_ERRORS[g.error] ?? g.error} <button className="underline" onClick={reload}>{t('إعادة')}</button></p>}
           </Card>
         )}
 
         <Card className="!p-0 overflow-hidden">
           <ul className="divide-y divide-slate-100">
-            <Line icon="meals" text={lastMeal ? `${lastMeal.name} · ${fmt(lastMeal.total_carbs)} غ` : 'لا توجد وجبة مسجّلة'} when={lastMeal?.eaten_at} />
-            <Line icon="insulin" text={lastInsulin ? describeEvent(lastInsulin) : 'لا يوجد إنسولين مسجّل'} when={lastInsulin?.occurred_at} who={lastInsulin ? nameOf(lastInsulin.created_by) : ''} />
+            <Line icon="meals" text={lastMeal ? <><bdi>{lastMeal.name}</bdi> · {t('{g} غ', { g: fmt(lastMeal.total_carbs) })}</> : t('لا توجد وجبة مسجّلة')} when={lastMeal?.eaten_at} />
+            <Line icon="insulin" text={lastInsulin ? describeEvent(lastInsulin) : t('لا يوجد إنسولين مسجّل')} when={lastInsulin?.occurred_at} who={lastInsulin ? nameOf(lastInsulin.created_by) : ''} />
             {lastTreatment && <Line icon="treatment" text={describeEvent(lastTreatment)} when={lastTreatment.occurred_at} who={nameOf(lastTreatment.created_by)} />}
           </ul>
         </Card>
@@ -103,30 +104,30 @@ export default function Now() {
 
         {today && today.n > 0 && (
           <Link to="/analysis?mode=stats" className="flex min-h-[44px] items-center gap-3 px-1 font-medium text-brand-num">
-            <span>اليوم</span>
+            <span>{t('اليوم')}</span>
             <span className="flex h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100" aria-hidden>
               <i style={{ width: `${today.pct_vlow + today.pct_low}%` }} className="bg-over-fill" />
               <i style={{ width: `${today.pct_in}%` }} className="bg-ok-fill" />
               <i style={{ width: `${today.pct_high + today.pct_vhigh}%` }} className="bg-near-fill" />
             </span>
-            <span>ضمن النطاق <b className="num">{Math.round(today.pct_in)}%</b></span>
-            {today.coverage < 70 && <span className="text-slate-400">· بيانات <span className="num">{Math.round(today.coverage)}%</span></span>}
+            <span>{t('ضمن النطاق')} <b className="num">{Math.round(today.pct_in)}%</b></span>
+            {today.coverage < 70 && <span className="text-slate-400">{t('· بيانات')} <span className="num">{Math.round(today.coverage)}%</span></span>}
           </Link>
         )}
 
         {doneCount < setup.length && (
           <Card className="space-y-3">
-            <div className="flex items-center justify-between"><h2 className="text-lg font-bold text-brand">إكمال الإعداد</h2><span className="num text-lg font-semibold text-brand-num">{doneCount}/{setup.length}</span></div>
+            <div className="flex items-center justify-between"><h2 className="text-lg font-bold text-brand">{t('إكمال الإعداد')}</h2><span className="num text-lg font-semibold text-brand-num">{doneCount}/{setup.length}</span></div>
             <div className="h-2 overflow-hidden rounded-full bg-slate-50"><div className="h-full rounded-full bg-brand-light" style={{ width: `${(doneCount / setup.length) * 100}%` }} /></div>
             <ul>
               {setup.filter((s) => !s.done).map((s) => (
-                <li key={s.label}><Link to={s.to} className="flex min-h-[48px] items-center gap-3 text-slate-600"><span className="h-6 w-6 shrink-0 rounded-full border-2 border-brand-muted" />{s.label}<span className="ms-auto text-slate-400">‹</span></Link></li>
+                <li key={s.label}><Link to={s.to} className="flex min-h-[48px] items-center gap-3 text-slate-600"><span className="h-6 w-6 shrink-0 rounded-full border-2 border-brand-muted" />{s.label}<span className="ms-auto text-slate-400">{isEn() ? '›' : '‹'}</span></Link></li>
               ))}
             </ul>
           </Card>
         )}
 
-        <p className="px-1 text-[11px] leading-relaxed text-slate-400">للعرض فقط وقد تتأخر عن الجهاز. القرارات والإنذارات من Libre أو Gluroo، وليس من هذا التطبيق.</p>
+        <p className="px-1 text-[11px] leading-relaxed text-slate-400">{t('للعرض فقط وقد تتأخر عن الجهاز. القرارات والإنذارات من Libre أو Gluroo، وليس من هذا التطبيق.')}</p>
         <div className="px-1 text-center"><VersionTag /></div>
       </div>
 
@@ -134,7 +135,7 @@ export default function Now() {
       <div className="pointer-events-none fixed inset-x-0 bottom-[calc(72px+env(safe-area-inset-bottom))] z-30 px-4">
         <div className="mx-auto flex max-w-2xl justify-start">
           <button onClick={() => setLogOpen(true)} className="pointer-events-auto flex min-h-[52px] items-center gap-2 rounded-full bg-brand pe-6 ps-5 text-lg font-bold text-white shadow-[0_8px_24px_rgba(91,72,214,0.30)] active:scale-[0.98]">
-            <Icon name="plus" size={22} /> سجّل
+            <Icon name="plus" size={22} /> {t('سجّل')}
           </button>
         </div>
       </div>
@@ -152,7 +153,7 @@ function LayanHeader({ alertCount }: { alertCount: number }) {
   const hearts: [number, number, number, number][] = [[-100, 30, 15, -12], [-90, 72, 12, 10], [80, 14, 14, 14], [94, 56, 17, -8]]; // dx from centre, y, size, rotation
   return (
     <header className="relative z-10 flex h-[120px] items-start justify-between">
-      <Link to="/alerts" aria-label={alertCount ? `التنبيهات: ${alertCount} مفتوح` : 'التنبيهات'} className="relative grid h-12 w-12 place-items-center rounded-full text-slate-600">
+      <Link to="/alerts" aria-label={alertCount ? t('التنبيهات: {n} مفتوح', { n: alertCount }) : t('التنبيهات')} className="relative grid h-12 w-12 place-items-center rounded-full text-slate-600">
         <Icon name="bell" size={30} />
         {alertCount > 0 && <span className="absolute end-2.5 top-2 h-2.5 w-2.5 rounded-full bg-over-fill ring-2 ring-[rgb(var(--bg))]" />}
       </Link>
@@ -170,10 +171,10 @@ function LayanHeader({ alertCount }: { alertCount: number }) {
         </picture>
       </div>
       <div className="flex flex-col items-center">
-        <Link to="/more" aria-label="الحساب والمزيد" className="grid h-12 w-12 place-items-center rounded-full text-slate-600">
+        <Link to="/more" aria-label={t('الحساب والمزيد')} className="grid h-12 w-12 place-items-center rounded-full text-slate-600">
           <Icon name="user" size={32} />
         </Link>
-        <Link to="/night" aria-label="شاشة الليل" className="grid h-11 w-11 place-items-center rounded-full text-slate-500">
+        <Link to="/night" aria-label={t('شاشة الليل')} className="grid h-11 w-11 place-items-center rounded-full text-slate-500">
           <Icon name="moon" size={24} />
         </Link>
       </div>
@@ -181,13 +182,13 @@ function LayanHeader({ alertCount }: { alertCount: number }) {
   );
 }
 
-function Line({ icon, text, when, who }: { icon: IconName; text: string; when?: string; who?: string }) {
+function Line({ icon, text, when, who }: { icon: IconName; text: React.ReactNode; when?: string; who?: string }) {
   return (
     <li><Link to="/timeline" className="flex min-h-[48px] items-center gap-3 px-4 py-1.5 active:bg-slate-50">
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-muted/70 text-brand"><Icon name={icon} size={19} /></span>
       <span className="min-w-0 flex-1 truncate font-medium">{text}</span>
-      {when && <span className="shrink-0 text-sm text-slate-500">{sinceText(when)}{who ? ` · ${who}` : ''}</span>}
-      <span className="text-slate-400">‹</span>
+      {when && <span className="shrink-0 text-sm text-slate-500">{sinceText(when)}{who ? <> · <bdi>{who}</bdi></> : ''}</span>}
+      <span className="text-slate-400">{isEn() ? '›' : '‹'}</span>
     </Link></li>
   );
 }
@@ -209,7 +210,7 @@ function Graph({ readings, low, high, reference, meals, insulin, carbs, unit }: 
   // hour labels in Kuwait time: 12 م, 1 م …
   const KW = 3 * 3600000, H1 = 3600000;
   const hours: number[] = []; for (let t = Math.ceil((t0 + KW) / H1) * H1 - KW; t <= t1; t += H1) hours.push(t);
-  const hourLabel = (t: number) => { const h = new Date(t + KW).getUTCHours(); return `${h % 12 || 12} ${h < 12 ? 'ص' : 'م'}`; };
+  const hourLabel = (ts: number) => { const h = new Date(ts + KW).getUTCHours(); return `${h % 12 || 12} ${h < 12 ? t('ص') : t('م')}`; };
   const marks = (list: string[], icon: IconName) => list.map((iso) => new Date(iso).getTime()).filter((t) => t >= t0 && t <= t1).map((t) => (
     <g key={icon + t} transform={`translate(${x(t) - 7},${TOP + PH - 16})`}>
       <circle cx="7" cy="7" r="8" fill="rgb(var(--surface))" stroke="rgb(var(--primary-muted))" />
@@ -221,7 +222,7 @@ function Graph({ readings, low, high, reference, meals, insulin, carbs, unit }: 
   const last = pts[pts.length - 1];
   const sparse = pts.length <= 24; // dots only when they are few enough to read as points
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full" role="img" aria-label="آخر 3 ساعات" direction="ltr">
+    <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full" role="img" aria-label={t('آخر 3 ساعات')} direction="ltr">
       <rect x="0" y={TOP - 4} width={PW} height={PH + 8} rx="10" fill="rgb(var(--surface-2))" />
       {!reference ? (
         <rect x="0" y={y(high ?? hi)} width={PW} height={Math.max(0, y(low ?? lo) - y(high ?? hi))} fill="rgb(var(--st-in))" opacity="0.14" />
@@ -231,7 +232,7 @@ function Graph({ readings, low, high, reference, meals, insulin, carbs, unit }: 
           <rect x="0" y={y(high!)} width={PW} height={y(low!) - y(high!)} fill="rgb(var(--st-in))" opacity="0.08" />
           <line x1="0" x2={PW} y1={y(high!)} y2={y(high!)} stroke="rgb(var(--st-in))" strokeOpacity="0.55" strokeDasharray="4 4" />
           <line x1="0" x2={PW} y1={y(low!)} y2={y(low!)} stroke="rgb(var(--st-in))" strokeOpacity="0.55" strokeDasharray="4 4" />
-          <text x="4" y={y(high!) - 3} fontSize="9.5" fill="rgb(var(--st-in-text))" fillOpacity="0.85" fontFamily="Rubik, system-ui" direction="rtl" textAnchor="end">{`مرجعي ${formatGlucose(low!, unit)} إلى ${formatGlucose(high!, unit)}`}</text>
+          <text x="4" y={y(high!) - 3} fontSize="9.5" fill="rgb(var(--st-in-text))" fillOpacity="0.85" fontFamily="Rubik, system-ui" direction={dir()} textAnchor={isEn() ? 'start' : 'end'}>{t('مرجعي {a} إلى {b}', { a: formatGlucose(low!, unit), b: formatGlucose(high!, unit) })}</text>
         </g>
       )}
       {ticks.map((v) => (
@@ -268,12 +269,12 @@ function SchoolSummary() {
   return (
     <Link to="/analysis?mode=day">
       <Card className="space-y-1.5 !py-3">
-        <div className="flex items-center gap-2 font-bold"><Icon name="school" size={20} /> يوم المدرسة</div>
+        <div className="flex items-center gap-2 font-bold"><Icon name="school" size={20} /> {t('يوم المدرسة')}</div>
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
-          <span>ضمن النطاق <b className="num text-ok">{Math.round(st.pct_in)}%</b></span>
-          {st.min !== null && <span>أقل <b className="num">{formatGlucose(st.min, unit)}</b></span>}
-          {st.max !== null && <span>أعلى <b className="num">{formatGlucose(st.max, unit)}</b></span>}
-          <span><b className="num">{entries}</b> تسجيل</span>
+          <span>{t('ضمن النطاق')} <b className="num text-ok">{Math.round(st.pct_in)}%</b></span>
+          {st.min !== null && <span>{t('أقل')} <b className="num">{formatGlucose(st.min, unit)}</b></span>}
+          {st.max !== null && <span>{t('أعلى')} <b className="num">{formatGlucose(st.max, unit)}</b></span>}
+          <span><b className="num">{entries}</b> {t('تسجيل')}</span>
         </div>
       </Card>
     </Link>

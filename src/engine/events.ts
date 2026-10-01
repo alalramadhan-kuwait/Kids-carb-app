@@ -2,20 +2,22 @@
 // logged, groups markers that would collide, and computes a meal's glucose response from stored readings.
 import type { EventRow, HistoryEntry } from '../lib/types';
 import { GAP_MS, lowerBound, nearest, type Series } from './series';
+import { t } from '../i18n';
 
 const MIN = 60000;
 
 export type Layer = 'meals' | 'insulin' | 'treatment' | 'basal' | 'exercise' | 'notes' | 'sleep' | 'iob' | 'cob';
+// labels stay Arabic here and are shown with t(l.label)
 export const LAYERS: { id: Layer; label: string; on: boolean }[] = [
-  { id: 'meals', label: 'الوجبات والكارب', on: true },
-  { id: 'insulin', label: 'الإنسولين السريع', on: true },
-  { id: 'treatment', label: 'علاج الانخفاض', on: true },
-  { id: 'basal', label: 'الإنسولين الطويل', on: false },
-  { id: 'exercise', label: 'الرياضة', on: false },
-  { id: 'notes', label: 'الملاحظات', on: false },
-  { id: 'sleep', label: 'النوم', on: false },
-  { id: 'iob', label: 'الإنسولين النشط (IOB)', on: false },
-  { id: 'cob', label: 'الكارب النشط (COB)', on: false },
+  { id: 'meals', label: 'الوجبات والكارب', on: true }, // i18n-ok
+  { id: 'insulin', label: 'الإنسولين السريع', on: true }, // i18n-ok
+  { id: 'treatment', label: 'علاج الانخفاض', on: true }, // i18n-ok
+  { id: 'basal', label: 'الإنسولين الطويل', on: false }, // i18n-ok
+  { id: 'exercise', label: 'الرياضة', on: false }, // i18n-ok
+  { id: 'notes', label: 'الملاحظات', on: false }, // i18n-ok
+  { id: 'sleep', label: 'النوم', on: false }, // i18n-ok
+  { id: 'iob', label: 'الإنسولين النشط (IOB)', on: false }, // i18n-ok
+  { id: 'cob', label: 'الكارب النشط (COB)', on: false }, // i18n-ok
 ];
 export const defaultLayers = () => new Set(LAYERS.filter((l) => l.on).map((l) => l.id));
 
@@ -70,7 +72,7 @@ export function groupLabel(g: Group): string {
     if (m.kind === 'insulin') units += m.units ?? 0;
   }
   const r = (n: number) => String(Math.round(n * 10) / 10);
-  return [carbs ? `${r(carbs)} غ` : '', units ? `${r(units)} و` : '', treat ? `علاج ${r(treat)} غ` : ''].filter(Boolean).join(' + ');
+  return [carbs ? t('{v} غ', { v: r(carbs) }) : '', units ? t('{v} و', { v: r(units) }) : '', treat ? t('علاج {v} غ', { v: r(treat) }) : ''].filter(Boolean).join(' + ');
 }
 
 // ── meal response (GLUCOSE_PLAN 10.7) ─────────────────────────────────────────

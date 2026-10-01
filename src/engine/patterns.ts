@@ -3,6 +3,7 @@
 import type { HistoryEntry } from '../lib/types';
 import { dayStartOf, lowEpisodes } from './day';
 import { nearest, type Series } from './series';
+import { t } from '../i18n';
 
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
 
@@ -51,9 +52,9 @@ export function findPatterns(p: PatternInput): PatternCard[] {
     }
     if (best)
       out.push({
-        id: `recurring_lows:${best.from}`, kind: 'recurring_lows', title: `انخفاضات متكررة بين ${hh(best.from)} و${hh(best.from + 2)}`,
-        facts: { text: `${best.list.length} انخفاضات تحت {0} بدأت في هذه الساعتين خلال آخر 14 يومًا. أدنى قراءة {1}.${p.reference ? ' الحد مرجعي.' : ''}`, mg: [p.low, Math.min(...best.list.map((e) => e.nadir))] },
-        rule: 'القاعدة: 3 انخفاضات أو أكثر (كل منها 10 دقائق على الأقل دون انقطاع في البيانات) تبدأ في نفس الساعتين خلال 14 يومًا.',
+        id: `recurring_lows:${best.from}`, kind: 'recurring_lows', title: t('انخفاضات متكررة بين {from} و{to}', { from: hh(best.from), to: hh(best.from + 2) }),
+        facts: { text: t('{n} انخفاضات تحت {0} بدأت في هذه الساعتين خلال آخر 14 يومًا. أدنى قراءة {1}.', { n: best.list.length }) + (p.reference ? ' ' + t('الحد مرجعي.') : ''), mg: [p.low, Math.min(...best.list.map((e) => e.nadir))] },
+        rule: t('القاعدة: 3 انخفاضات أو أكثر (كل منها 10 دقائق على الأقل دون انقطاع في البيانات) تبدأ في نفس الساعتين خلال 14 يومًا.'),
         n: best.list.length, days: [...new Set(best.list.map((e) => dayStartOf(e.t)))].sort((a, b) => b - a),
       });
   }
@@ -70,9 +71,11 @@ export function findPatterns(p: PatternInput): PatternCard[] {
     if (Math.abs(m) >= DRIFT_MG) {
       const down = m < 0, hits = nights.filter((n) => (down ? -n.d : n.d) >= DRIFT_MG);
       out.push({
-        id: `overnight_drift:${down ? 'down' : 'up'}`, kind: 'overnight_drift', title: down ? 'نزول خلال الليل' : 'ارتفاع خلال الليل',
-        facts: { text: `${down ? 'نزل' : 'ارتفع'} السكر بين 00:00 و06:00 أكثر من {0} في ${hits.length} من ${nights.length} ليالٍ. الوسيط {1}.`, mg: [DRIFT_MG, Math.abs(m)] },
-        rule: `القاعدة: وسيط التغيّر من 00:00 إلى 06:00 (قراءة ±15 د عند كل طرف) في آخر 7 ليالٍ، ${DRIFT_MG} ملغ/دل أو أكثر، و4 ليالٍ فيها بيانات على الأقل.`,
+        id: `overnight_drift:${down ? 'down' : 'up'}`, kind: 'overnight_drift', title: down ? t('نزول خلال الليل') : t('ارتفاع خلال الليل'),
+        facts: { text: down
+          ? t('نزل السكر بين 00:00 و06:00 أكثر من {0} في {hits} من {nights} ليالٍ. الوسيط {1}.', { hits: hits.length, nights: nights.length })
+          : t('ارتفع السكر بين 00:00 و06:00 أكثر من {0} في {hits} من {nights} ليالٍ. الوسيط {1}.', { hits: hits.length, nights: nights.length }), mg: [DRIFT_MG, Math.abs(m)] },
+        rule: t('القاعدة: وسيط التغيّر من 00:00 إلى 06:00 (قراءة ±15 د عند كل طرف) في آخر 7 ليالٍ، {mg} ملغ/دل أو أكثر، و4 ليالٍ فيها بيانات على الأقل.', { mg: DRIFT_MG }),
         n: nights.length, days: hits.map((h) => h.day),
       });
     }
@@ -95,9 +98,9 @@ export function findPatterns(p: PatternInput): PatternCard[] {
       .filter((g) => g.rows.length >= 3 && g.m >= RISE_MG).sort((a, b) => b.m - a.m).slice(0, 3);
     for (const g of rows)
       out.push({
-        id: `recipe_rise:${g.key}`, kind: 'recipe_rise', title: `ارتفاع بعد ${g.name}`,
-        facts: { text: `وسيط الارتفاع خلال ساعتين ونصف بعد الأكل {0} في ${g.rows.length} مرات.`, mg: [g.m] },
-        rule: `القاعدة: قراءة عند بداية الوجبة (±10 د) وأعلى قراءة بعدها خلال ساعتين ونصف؛ الوسيط ${RISE_MG} ملغ/دل أو أكثر في 3 مرات على الأقل خلال 30 يومًا.`,
+        id: `recipe_rise:${g.key}`, kind: 'recipe_rise', title: t('ارتفاع بعد {name}', { name: g.name }),
+        facts: { text: t('وسيط الارتفاع خلال ساعتين ونصف بعد الأكل {0} في {n} مرات.', { n: g.rows.length }), mg: [g.m] },
+        rule: t('القاعدة: قراءة عند بداية الوجبة (±10 د) وأعلى قراءة بعدها خلال ساعتين ونصف؛ الوسيط {mg} ملغ/دل أو أكثر في 3 مرات على الأقل خلال 30 يومًا.', { mg: RISE_MG }),
         n: g.rows.length, days: [...new Set(g.rows.map((r) => r.day))].sort((a, b) => b - a),
       });
   }
@@ -120,9 +123,12 @@ export function findPatterns(p: PatternInput): PatternCard[] {
         const ref = p90(past.map((x) => x[side]));
         if (td[side] > ref && td[side] >= 5)
           out.push({
-            id: `unusual_day:${today}:${side}`, kind: 'unusual_day', title: side === 'lo' ? 'اليوم وقت أطول تحت النطاق' : 'اليوم وقت أطول فوق النطاق',
-            facts: { text: `${side === 'lo' ? 'تحت' : 'فوق'} النطاق ${Math.round(td[side])}% من اليوم حتى الآن، وأعلى من 90% من أيامها في آخر 14 يومًا (${Math.round(ref)}%).${p.reference ? ' النطاق مرجعي.' : ''}` },
-            rule: 'القاعدة: نسبة اليوم فوق المئين التسعين لآخر 14 يومًا (الأيام التي فيها بيانات 70% أو أكثر، 7 أيام على الأقل)، وبعد 6 ساعات من البيانات اليوم.',
+            id: `unusual_day:${today}:${side}`, kind: 'unusual_day', title: side === 'lo' ? t('اليوم وقت أطول تحت النطاق') : t('اليوم وقت أطول فوق النطاق'),
+            facts: { text: (side === 'lo'
+              ? t('تحت النطاق {pct}% من اليوم حتى الآن، وأعلى من 90% من أيامها في آخر 14 يومًا ({ref}%).', { pct: Math.round(td[side]), ref: Math.round(ref) })
+              : t('فوق النطاق {pct}% من اليوم حتى الآن، وأعلى من 90% من أيامها في آخر 14 يومًا ({ref}%).', { pct: Math.round(td[side]), ref: Math.round(ref) }))
+              + (p.reference ? ' ' + t('النطاق مرجعي.') : '') },
+            rule: t('القاعدة: نسبة اليوم فوق المئين التسعين لآخر 14 يومًا (الأيام التي فيها بيانات 70% أو أكثر، 7 أيام على الأقل)، وبعد 6 ساعات من البيانات اليوم.'),
             n: past.length, days: [today],
           });
       }

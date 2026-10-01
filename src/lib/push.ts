@@ -1,6 +1,7 @@
 // This phone's alert notifications: permission, Web Push subscription, and saving it for the server.
 import { supabase } from './supabase';
 import { callGlucose } from './api';
+import { t } from '../i18n';
 
 export type PushState = 'unsupported' | 'needs_install' | 'denied' | 'off' | 'on';
 
@@ -33,7 +34,7 @@ function deviceLabel() {
   if (/iphone/i.test(ua)) return 'iPhone';
   if (/ipad/i.test(ua)) return 'iPad';
   if (/android/i.test(ua)) return 'Android';
-  return 'متصفح';
+  return t('متصفح');
 }
 
 /** Must be called from a tap (browsers require a user gesture for the permission prompt). */

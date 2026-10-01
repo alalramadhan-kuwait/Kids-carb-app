@@ -14,7 +14,7 @@ self.addEventListener('push', (e) => {
     requireInteraction: Boolean(d.sticky),
     icon: 'icons/icon-192.png',
     badge: 'icons/icon-192.png',
-    lang: 'ar', dir: 'rtl',
+    lang: d.lang === 'en' ? 'en' : 'ar', dir: d.lang === 'en' ? 'ltr' : 'rtl',
     data: { url: d.url || './#/' },
   }));
 });

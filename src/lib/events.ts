@@ -1,22 +1,23 @@
 import type { EventRow } from './types';
 import type { IconName } from '../icons/defs';
+import { isEn, t, tMaybe, tr } from '../i18n';
 
 export const EVENT_ICON: Record<EventRow['kind'], IconName> = { insulin: 'insulin', carbs: 'carbs', treatment: 'treatment', note: 'note', exercise: 'activity', sleep: 'moon' };
 
 type Describable = Pick<EventRow, 'kind' | 'insulin_units' | 'insulin_type' | 'carbs_g' | 'treatment' | 'note' | 'activity_min' | 'activity_level' | 'occurred_at' | 'ends_at'>;
 
-export const LEVEL_TEXT = { light: 'خفيف', moderate: 'متوسط', hard: 'شديد' } as const;
-const hm = (min: number) => (min < 60 ? `${min} د` : `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')} س`);
+export const LEVEL_TEXT = tr({ light: 'خفيف', moderate: 'متوسط', hard: 'شديد' } as const); // i18n-ok
+const hm = (min: number) => (min < 60 ? t('{m} د', { m: min }) : t('{hm} س', { hm: `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}` }));
 
 /** Arabic number agreement: 1 وحدة, 2 وحدتان, 3–10 وحدات, 11+ and fractions وحدة. */
-export const unitsWord = (n: number) => (n === 2 ? 'وحدتان' : Number.isInteger(n) && n >= 3 && n <= 10 ? 'وحدات' : 'وحدة');
+export const unitsWord = (n: number) => (isEn() ? (n === 1 ? 'unit' : 'units') : n === 2 ? 'وحدتان' : Number.isInteger(n) && n >= 3 && n <= 10 ? 'وحدات' : 'وحدة'); // i18n-ok
 
 export const describeEvent = (e: Describable) => {
-  if (e.kind === 'insulin') return `${e.insulin_units} ${unitsWord(e.insulin_units ?? 0)} · ${e.insulin_type === 'long' ? 'طويل المفعول' : 'سريع'}`;
-  if (e.kind === 'carbs') return `${e.carbs_g}غ كارب`;
-  if (e.kind === 'treatment') return `علاج انخفاض ${e.carbs_g}غ${e.treatment ? ` · ${e.treatment}` : ''}`;
-  if (e.kind === 'exercise') return `رياضة ${hm(e.activity_min ?? 0)}${e.activity_level ? ` · ${LEVEL_TEXT[e.activity_level]}` : ''}`;
-  if (e.kind === 'sleep' && e.ends_at) return `نوم ${hm(Math.round((Date.parse(e.ends_at) - Date.parse(e.occurred_at)) / 60000))}`;
+  if (e.kind === 'insulin') return `${e.insulin_units} ${unitsWord(e.insulin_units ?? 0)} · ${e.insulin_type === 'long' ? t('طويل المفعول') : t('سريع')}`;
+  if (e.kind === 'carbs') return t('{g}غ كارب', { g: e.carbs_g });
+  if (e.kind === 'treatment') return t('علاج انخفاض {g}غ', { g: e.carbs_g }) + (e.treatment ? ` · ${tMaybe(e.treatment)}` : '');
+  if (e.kind === 'exercise') return t('رياضة {d}', { d: hm(e.activity_min ?? 0) }) + (e.activity_level ? ` · ${LEVEL_TEXT[e.activity_level]}` : '');
+  if (e.kind === 'sleep' && e.ends_at) return t('نوم {d}', { d: hm(Math.round((Date.parse(e.ends_at) - Date.parse(e.occurred_at)) / 60000)) });
   return e.note ?? '';
 };
 

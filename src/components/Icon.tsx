@@ -1,4 +1,5 @@
 import { DROP_PATH, ICONS, STATUS, type IconDef, type IconName, type StatusName } from '../icons/defs';
+import { tr } from '../i18n';
 
 /** Line icon in the current text colour. `active` adds the soft fill used for the selected tab. */
 export function Icon({ name, size = 24, active, className, label }: { name: IconName; size?: number; active?: boolean; className?: string; label?: string }) {
@@ -28,4 +29,4 @@ export function StatusIcon({ name, size = 20 }: { name: StatusName; size?: numbe
 export const TREND_ICON: Record<number, IconName> = {
   1: 'trend_falling_fast', 2: 'trend_falling', 3: 'trend_stable', 4: 'trend_rising', 5: 'trend_rising_fast',
 };
-export const TREND_WORDS: Record<number, string> = { 1: 'نازل بسرعة', 2: 'نازل', 3: 'ثابت', 4: 'صاعد', 5: 'صاعد بسرعة' };
+export const TREND_WORDS: Record<number, string> = tr({ 1: 'نازل بسرعة', 2: 'نازل', 3: 'ثابت', 4: 'صاعد', 5: 'صاعد بسرعة' }); // i18n-ok

@@ -5,6 +5,7 @@ import { deriveLabel, fmt, labelMismatch, targetMiss } from '../lib/carbs';
 import { deleteProduct, saveProduct } from '../lib/api';
 import { uploadPhoto } from '../lib/supabase';
 import { PRODUCT_CATEGORIES } from '../lib/constants';
+import { t, tMaybe } from '../i18n';
 import { Alert, Btn, Card, Field, NumInput, Page, Photo, inputCls, toast } from '../components/ui';
 
 export default function ProductEdit() {
@@ -41,8 +42,8 @@ export default function ProductEdit() {
   const usedBy = useMemo(() => p ? recipes.filter((r) => (ingsByRecipe.get(r.id) ?? []).some((i) => i.product_id === p.id)).map((r) => r.name) : [], [p, recipes, ingsByRecipe]);
 
   const save = async () => {
-    if (!name.trim() || !category.trim()) return toast('اكتب اسم المنتج وفئته');
-    if (derived.per100 === null) return toast('أدخل Total Carbohydrate: لكل 100 أو للحصة مع وزنها');
+    if (!name.trim() || !category.trim()) return toast(t('اكتب اسم المنتج وفئته'));
+    if (derived.per100 === null) return toast(t('أدخل Total Carbohydrate: لكل 100 أو للحصة مع وزنها'));
     setBusy(true);
     try {
       await saveProduct({
@@ -53,92 +54,92 @@ export default function ProductEdit() {
         label_updated_at: new Date().toISOString().slice(0, 10),
       });
       await reload();
-      toast('تم حفظ المنتج ✓');
+      toast(t('تم حفظ المنتج ✓'));
       nav('/products', { replace: true });
-    } catch (e) { toast('تعذّر الحفظ: ' + (e as Error).message); } finally { setBusy(false); }
+    } catch (e) { toast(t('تعذّر الحفظ: {err}', { err: (e as Error).message })); } finally { setBusy(false); }
   };
 
   return (
-    <Page title={p ? 'تعديل منتج' : 'إضافة منتج'} back={() => nav(-1)}>
-      {!p && <div className="mb-3"><Alert tone="info">أدخل بيانات الملصق الغذائي كما هي. التطبيق يحسب دائمًا من <b>Total Carbohydrate</b> وليس من السكر فقط.</Alert></div>}
+    <Page title={p ? t('تعديل منتج') : t('إضافة منتج')} back={() => nav(-1)}>
+      {!p && <div className="mb-3"><Alert tone="info">{t('أدخل بيانات الملصق الغذائي كما هي. التطبيق يحسب دائمًا من')} <b>Total Carbohydrate</b> {t('وليس من السكر فقط.')}</Alert></div>}
       <div className="space-y-4">
         <Card className="space-y-3">
-          <Field label="اسم المنتج"><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
-          <Field label="الشركة"><input className={inputCls} value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="مثل: المطاحن، KDD، Americana" /></Field>
-          <Field label="الفئة">
+          <Field label={t('اسم المنتج')}><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+          <Field label={t('الشركة')}><input className={inputCls} value={brand} onChange={(e) => setBrand(e.target.value)} placeholder={t('مثل: المطاحن، KDD، Americana')} /></Field>
+          <Field label={t('الفئة')}>
             <input className={inputCls} list="pcats" value={category} onChange={(e) => setCategory(e.target.value)} />
-            <datalist id="pcats">{PRODUCT_CATEGORIES.map((c) => <option key={c} value={c} />)}</datalist>
+            <datalist id="pcats">{PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{tMaybe(c)}</option>)}</datalist>
           </Field>
           <div className="flex gap-2">
             {(['commercial', 'natural'] as const).map((k) => (
               <button key={k} onClick={() => setKind(k)} className={`min-h-[44px] flex-1 rounded-xl px-3 text-sm font-medium ${kind === k ? 'bg-brand text-white' : 'bg-white ring-1 ring-slate-200'}`}>
-                {k === 'commercial' ? 'منتج تجاري (من الملصق)' : 'مكوّن طبيعي (قيمة مرجعية)'}
+                {k === 'commercial' ? t('منتج تجاري (من الملصق)') : t('مكوّن طبيعي (قيمة مرجعية)')}
               </button>
             ))}
           </div>
           <div className="flex items-center gap-3">
             <Photo path={image} category={category} className="h-20 w-20 rounded-xl" />
             <label className="min-h-[44px] cursor-pointer rounded-xl bg-brand-soft px-4 py-2.5 font-medium text-brand">
-              {image ? 'تغيير الصورة' : 'صورة المنتج'}
+              {image ? t('تغيير الصورة') : t('صورة المنتج')}
               <input type="file" accept="image/*" capture="environment" className="hidden" onChange={async (e) => {
                 const f = e.target.files?.[0]; if (!f) return;
-                try { setImage(await uploadPhoto(f, 'products')); } catch (er) { toast('تعذّر رفع الصورة: ' + (er as Error).message); }
+                try { setImage(await uploadPhoto(f, 'products')); } catch (er) { toast(t('تعذّر رفع الصورة: {err}', { err: (er as Error).message })); }
               }} />
             </label>
           </div>
         </Card>
 
         <Card className="space-y-3">
-          <h2 className="font-bold">الملصق الغذائي — Total Carbohydrate</h2>
+          <h2 className="font-bold">{t('الملصق الغذائي — Total Carbohydrate')}</h2>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="وحدة القياس">
-              <select className={inputCls} value={unit} onChange={(e) => setUnit(e.target.value as 'g' | 'ml')}><option value="g">غرام (غ)</option><option value="ml">مل</option></select>
+            <Field label={t('وحدة القياس')}>
+              <select className={inputCls} value={unit} onChange={(e) => setUnit(e.target.value as 'g' | 'ml')}><option value="g">{t('غرام (غ)')}</option><option value="ml">{t('مل')}</option></select>
             </Field>
-            <Field label={`حجم العبوة (${unit === 'g' ? 'غ' : 'مل'})`}><NumInput value={packSize} onChange={setPackSize} /></Field>
-            <Field label={`كارب لكل 100${unit === 'g' ? 'غ' : 'مل'}`}><NumInput value={per100} onChange={setPer100} placeholder={derived.per100 !== null && per100 === null ? String(derived.per100) : ''} /></Field>
-            <Field label="وزن الحصة / الحبة"><NumInput value={serving} onChange={setServing} /></Field>
-            <Field label="كارب للحصة"><NumInput value={perServing} onChange={setPerServing} placeholder={derived.perServing !== null && perServing === null ? String(derived.perServing) : ''} /></Field>
+            <Field label={t('حجم العبوة ({unit})', { unit: unit === 'g' ? t('غ') : t('مل') })}><NumInput value={packSize} onChange={setPackSize} /></Field>
+            <Field label={t('كارب لكل 100{unit}', { unit: unit === 'g' ? t('غ') : t('مل') })}><NumInput value={per100} onChange={setPer100} placeholder={derived.per100 !== null && per100 === null ? String(derived.per100) : ''} /></Field>
+            <Field label={t('وزن الحصة / الحبة')}><NumInput value={serving} onChange={setServing} /></Field>
+            <Field label={t('كارب للحصة')}><NumInput value={perServing} onChange={setPerServing} placeholder={derived.perServing !== null && perServing === null ? String(derived.perServing) : ''} /></Field>
           </div>
-          <p className="text-sm text-slate-600">إن أدخلت أحد الرقمين (لكل 100 أو للحصة مع وزنها) يُحسب الآخر تلقائيًا:
-            {derived.per100 !== null ? <> لكل 100: <b className="num">{fmt(derived.per100)}</b></> : ' —'}
-            {derived.perServing !== null ? <> • للحصة: <b className="num">{fmt(derived.perServing)}</b></> : ''}</p>
-          {mismatch !== null && <Alert tone="near">الرقمان لا يتطابقان: حسب الكارب لكل 100 يجب أن تكون الحصة ≈ {fmt(mismatch)}غ. راجع الملصق.</Alert>}
-          {miss && <Alert tone="near">هذا المنتج فوق هدف الفئة "{miss.category}" ({miss.basis === 'per100' ? `≤${miss.max}غ لكل 100` : `≤${miss.max}غ للحصة`}). قيمته {fmt(miss.actual)}.</Alert>}
+          <p className="text-sm text-slate-600">{t('إن أدخلت أحد الرقمين (لكل 100 أو للحصة مع وزنها) يُحسب الآخر تلقائيًا:')}
+            {derived.per100 !== null ? <> {t('لكل 100:')} <b className="num">{fmt(derived.per100)}</b></> : ' —'}
+            {derived.perServing !== null ? <> • {t('للحصة:')} <b className="num">{fmt(derived.perServing)}</b></> : ''}</p>
+          {mismatch !== null && <Alert tone="near">{t('الرقمان لا يتطابقان: حسب الكارب لكل 100 يجب أن تكون الحصة ≈ {n}غ. راجع الملصق.', { n: fmt(mismatch) })}</Alert>}
+          {miss && <Alert tone="near">{t('هذا المنتج فوق هدف الفئة "{cat}" ({target}). قيمته {actual}.', { cat: tMaybe(miss.category), target: miss.basis === 'per100' ? t('≤{max}غ لكل 100', { max: miss.max }) : t('≤{max}غ للحصة', { max: miss.max }), actual: fmt(miss.actual) })}</Alert>}
           <div className="grid grid-cols-2 gap-3">
-            <Field label="دهون / 100"><NumInput value={fat} onChange={setFat} /></Field>
-            <Field label="ألياف / 100"><NumInput value={fiber} onChange={setFiber} /></Field>
-            <Field label="بروتين / 100"><NumInput value={protein} onChange={setProtein} /></Field>
-            <Field label="سعرات / 100"><NumInput value={kcal} onChange={setKcal} /></Field>
+            <Field label={t('دهون / 100')}><NumInput value={fat} onChange={setFat} /></Field>
+            <Field label={t('ألياف / 100')}><NumInput value={fiber} onChange={setFiber} /></Field>
+            <Field label={t('بروتين / 100')}><NumInput value={protein} onChange={setProtein} /></Field>
+            <Field label={t('سعرات / 100')}><NumInput value={kcal} onChange={setKcal} /></Field>
           </div>
         </Card>
 
         <Card className="space-y-3">
-          <h2 className="font-bold">الطبخ</h2>
-          <Field label="الأرقام أعلاه تخص الطعام…">
+          <h2 className="font-bold">{t('الطبخ')}</h2>
+          <Field label={t('الأرقام أعلاه تخص الطعام…')}>
             <select className={inputCls} value={basis} onChange={(e) => setBasis(e.target.value as 'as_sold' | 'cooked')}>
-              <option value="as_sold">كما في العبوة (نيء / جاف / مجمد)</option><option value="cooked">بعد الطبخ</option>
+              <option value="as_sold">{t('كما في العبوة (نيء / جاف / مجمد)')}</option><option value="cooked">{t('بعد الطبخ')}</option>
             </select>
           </Field>
           {basis === 'as_sold' && (
-            <Field label="معامل الطبخ (اختياري)" hint="كم غرامًا مطبوخًا يخرج من كل 1غ من العبوة؟ مثال: باستا 100غ جافة تصبح 240غ مطبوخة = 2.4. مطلوب فقط إذا وُزن المنتج بعد الطبخ في وصفة.">
+            <Field label={t('معامل الطبخ (اختياري)')} hint={t('كم غرامًا مطبوخًا يخرج من كل 1غ من العبوة؟ مثال: باستا 100غ جافة تصبح 240غ مطبوخة = 2.4. مطلوب فقط إذا وُزن المنتج بعد الطبخ في وصفة.')}>
               <NumInput value={cookedYield} onChange={setCookedYield} />
             </Field>
           )}
         </Card>
 
         <Card className="space-y-3">
-          <label className="flex items-center gap-3 py-1"><input type="checkbox" className="h-6 w-6" checked={approved} onChange={(e) => setApproved(e.target.checked)} /><span className="font-medium">معتمد (أدخلته من الملصق وراجعته)</span></label>
-          <label className="flex items-center gap-3 py-1"><input type="checkbox" className="h-6 w-6" checked={available} onChange={(e) => setAvailableState(e.target.checked)} /><span className="font-medium">موجود بالبيت الآن</span></label>
-          <Field label="ملاحظات"><textarea className={inputCls} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
-          {p && <p className="text-xs text-slate-500">آخر تحديث للملصق: {p.label_updated_at}</p>}
+          <label className="flex items-center gap-3 py-1"><input type="checkbox" className="h-6 w-6" checked={approved} onChange={(e) => setApproved(e.target.checked)} /><span className="font-medium">{t('معتمد (أدخلته من الملصق وراجعته)')}</span></label>
+          <label className="flex items-center gap-3 py-1"><input type="checkbox" className="h-6 w-6" checked={available} onChange={(e) => setAvailableState(e.target.checked)} /><span className="font-medium">{t('موجود بالبيت الآن')}</span></label>
+          <Field label={t('ملاحظات')}><textarea className={inputCls} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+          {p && <p className="text-xs text-slate-500">{t('آخر تحديث للملصق: {date}', { date: p.label_updated_at })}</p>}
         </Card>
 
-        <Btn kind="primary" block disabled={busy} onClick={save}>حفظ</Btn>
+        <Btn kind="primary" block disabled={busy} onClick={save}>{t('حفظ')}</Btn>
         {p && <Btn kind="danger" block onClick={async () => {
-          if (usedBy.length && !confirm(`المنتج مستخدم في: ${usedBy.join('، ')}. سيتوقف حسابها حتى تختاروا منتجًا آخر. حذفه؟`)) return;
-          if (!usedBy.length && !confirm('حذف المنتج؟')) return;
+          if (usedBy.length && !confirm(t('المنتج مستخدم في: {list}. سيتوقف حسابها حتى تختاروا منتجًا آخر. حذفه؟', { list: usedBy.join(t('، ')) }))) return;
+          if (!usedBy.length && !confirm(t('حذف المنتج؟'))) return;
           await deleteProduct(p.id); await reload(); nav('/products', { replace: true });
-        }}>حذف المنتج</Btn>}
+        }}>{t('حذف المنتج')}</Btn>}
       </div>
     </Page>
   );

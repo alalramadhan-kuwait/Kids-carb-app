@@ -8,13 +8,19 @@ import '@fontsource/rubik/600.css';
 import '@fontsource/rubik/700.css';
 import './index.css';
 import { registerSw } from './lib/push';
+import { applyLang, useLang } from './i18n';
+
+applyLang();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <HashRouter>
-      <App />
+      <Root />
     </HashRouter>
   </StrictMode>,
 );
+
+/** Switching language re-renders the whole app in the new language and direction. */
+function Root() { const l = useLang(); return <App key={l} />; }
 
 if (import.meta.env.PROD) registerSw();

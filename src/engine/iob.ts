@@ -4,6 +4,7 @@
 // IOB: the exponential insulin-activity model used by open-source Loop (Dragan Maksimovic), with duration of
 // action (DIA) and peak time. COB: carbs absorbed in a straight line over the absorption time.
 import type { EventRow, HistoryEntry } from '../lib/types';
+import { t } from '../i18n';
 
 const MIN = 60000;
 export interface IobParams { dia: number; peak: number } // minutes
@@ -46,5 +47,5 @@ export function cobAt(t: number, carbs: CarbEntry[], absorbMin: number): number 
   return sum;
 }
 export const modelLine = (p: IobParams | null, absorb: number | null) =>
-  [p ? `IOB: نموذج أُسّي، مدة ${Math.round(p.dia / 60 * 10) / 10} س، الذروة ${p.peak} د` : null, absorb ? `COB: امتصاص خطّي خلال ${absorb} د` : null]
-    .filter(Boolean).join(' · ') + ' — من الفريق الطبي، للعرض فقط';
+  [p ? t('IOB: نموذج أُسّي، مدة {h} س، الذروة {m} د', { h: Math.round(p.dia / 60 * 10) / 10, m: p.peak }) : null, absorb ? t('COB: امتصاص خطّي خلال {m} د', { m: absorb }) : null]
+    .filter(Boolean).join(' · ') + ' — ' + t('من الفريق الطبي، للعرض فقط');

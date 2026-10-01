@@ -8,14 +8,15 @@ import type { EventKind } from '../lib/types';
 import { Icon } from './Icon';
 import type { IconName } from '../icons/defs';
 import { Alert, Btn, Field, NumInput, Sheet, cx, inputCls, toast } from './ui';
+import { t } from '../i18n';
 
 const KINDS: { kind: EventKind; label: string; icon: IconName }[] = [
-  { kind: 'insulin', label: 'إنسولين', icon: 'insulin' },
-  { kind: 'carbs', label: 'كارب', icon: 'carbs' },
-  { kind: 'treatment', label: 'علاج انخفاض', icon: 'treatment' },
-  { kind: 'note', label: 'ملاحظة', icon: 'note' },
-  { kind: 'exercise', label: 'رياضة', icon: 'activity' },
-  { kind: 'sleep', label: 'نوم', icon: 'moon' },
+  { kind: 'insulin', label: 'إنسولين', icon: 'insulin' }, // i18n-ok
+  { kind: 'carbs', label: 'كارب', icon: 'carbs' }, // i18n-ok
+  { kind: 'treatment', label: 'علاج انخفاض', icon: 'treatment' }, // i18n-ok
+  { kind: 'note', label: 'ملاحظة', icon: 'note' }, // i18n-ok
+  { kind: 'exercise', label: 'رياضة', icon: 'activity' }, // i18n-ok
+  { kind: 'sleep', label: 'نوم', icon: 'moon' }, // i18n-ok
 ];
 const KW = 3 * 3600000;
 const hhmm = (t: number) => { const d = new Date(t + KW); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
@@ -32,7 +33,7 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
   const [type, setType] = useState<'rapid' | 'long'>('rapid');
   const [purpose, setPurpose] = useState<'meal' | 'correction' | 'both' | null>(null);
   const [grams, setGrams] = useState<number | null>(null);
-  const [treat, setTreat] = useState('عصير');
+  const [treat, setTreat] = useState('عصير'); // i18n-ok: stored value
   const [note, setNote] = useState('');
   const [mins, setMins] = useState<number | null>(null);
   const [level, setLevel] = useState<'light' | 'moderate' | 'hard'>('moderate');
@@ -44,7 +45,7 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
 
   const reset = () => {
     setKind(null); setClientId(crypto.randomUUID()); setUnits(null); setType('rapid'); setPurpose(null);
-    setGrams(null); setTreat('عصير'); setNote(''); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault());
+    setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault());
   };
   const close = () => { reset(); onClose(); };
 
@@ -80,71 +81,71 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
       await reload();
       const text = describeEvent(draft);
       close();
-      toast(`تم التسجيل: ${text}`, id ? { label: 'تراجع', run: async () => { await deleteEvent(id, me); await reload(); toast('أُلغي التسجيل', { label: 'إعادة', run: async () => { await restoreEvent(id); await reload(); } }); } } : undefined);
-    } catch (e) { toast('تعذّر الحفظ: ' + (e as Error).message); } finally { setBusy(false); }
+      toast(t('تم التسجيل: {x}', { x: text }), id ? { label: t('تراجع'), run: async () => { await deleteEvent(id, me); await reload(); toast(t('أُلغي التسجيل'), { label: t('إعادة'), run: async () => { await restoreEvent(id); await reload(); } }); } } : undefined);
+    } catch (e) { toast(t('تعذّر الحفظ: {e}', { e: (e as Error).message })); } finally { setBusy(false); }
   };
 
   return (
-    <Sheet open={open} onClose={close} title={kind ? KINDS.find((k) => k.kind === kind)!.label : 'سجّل'}>
+    <Sheet open={open} onClose={close} title={kind ? t(KINDS.find((k) => k.kind === kind)!.label) : t('سجّل')}>
       {!kind ? (
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
             {KINDS.map((k) => (
               <button key={k.kind} onClick={() => setKind(k.kind)} className="flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-2xl bg-brand-soft text-brand">
-                <Icon name={k.icon} size={30} /><span className="font-bold">{k.label}</span>
+                <Icon name={k.icon} size={30} /><span className="font-bold">{t(k.label)}</span>
               </button>
             ))}
           </div>
           <Link to="/meals" onClick={close} className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-white font-medium ring-1 ring-slate-200">
-            <Icon name="meals" size={22} /> وجبة من الوصفات
+            <Icon name="meals" size={22} /> {t('وجبة من الوصفات')}
           </Link>
         </div>
       ) : (
         <div className="space-y-4">
           {kind === 'insulin' && <>
-            <Field label="عدد الوحدات"><NumInput value={units} onChange={setUnits} className="!min-h-[60px] !text-center !text-3xl font-bold" autoFocus /></Field>
-            <Seg value={type} onChange={(v) => setType(v as 'rapid' | 'long')} options={[['rapid', 'سريع المفعول'], ['long', 'طويل المفعول']]} />
-            {type === 'rapid' && <Seg value={purpose ?? ''} onChange={(v) => setPurpose((v || null) as typeof purpose)} options={[['meal', 'لوجبة'], ['correction', 'تصحيح'], ['both', 'الاثنين']]} allowNone />}
-            {units !== null && units > 20 && <Alert tone="near">رقم كبير. تأكد أنه صحيح قبل الحفظ.</Alert>}
+            <Field label={t('عدد الوحدات')}><NumInput value={units} onChange={setUnits} className="!min-h-[60px] !text-center !text-3xl font-bold" autoFocus /></Field>
+            <Seg value={type} onChange={(v) => setType(v as 'rapid' | 'long')} options={[['rapid', t('سريع المفعول')], ['long', t('طويل المفعول')]]} />
+            {type === 'rapid' && <Seg value={purpose ?? ''} onChange={(v) => setPurpose((v || null) as typeof purpose)} options={[['meal', t('لوجبة')], ['correction', t('تصحيح')], ['both', t('الاثنين')]]} allowNone />}
+            {units !== null && units > 20 && <Alert tone="near">{t('رقم كبير. تأكد أنه صحيح قبل الحفظ.')}</Alert>}
           </>}
           {(kind === 'carbs' || kind === 'treatment') && <>
-            <Field label="الكارب (غرام)"><NumInput value={grams} onChange={setGrams} className="!min-h-[60px] !text-center !text-3xl font-bold" autoFocus /></Field>
-            {kind === 'treatment' && <Seg value={treat} onChange={setTreat} options={[['عصير', 'عصير'], ['أقراص جلوكوز', 'أقراص'], ['أخرى', 'أخرى']]} />}
+            <Field label={t('الكارب (غرام)')}><NumInput value={grams} onChange={setGrams} className="!min-h-[60px] !text-center !text-3xl font-bold" autoFocus /></Field>
+            {kind === 'treatment' && <Seg value={treat} onChange={setTreat} options={[['عصير', t('عصير')], ['أقراص جلوكوز', t('أقراص')], ['أخرى', t('أخرى')]]} /* i18n-ok: stored values */ />}
           </>}
           {kind === 'exercise' && <>
-            <Field label="المدة (دقائق)"><NumInput value={mins} onChange={setMins} className="!min-h-[60px] !text-center !text-3xl font-bold" autoFocus /></Field>
+            <Field label={t('المدة (دقائق)')}><NumInput value={mins} onChange={setMins} className="!min-h-[60px] !text-center !text-3xl font-bold" autoFocus /></Field>
             <Seg value={level} onChange={(v) => setLevel(v as typeof level)} options={(['light', 'moderate', 'hard'] as const).map((l) => [l, LEVEL_TEXT[l]])} />
           </>}
           {kind === 'sleep' && (
             <div className="grid grid-cols-2 gap-3">
-              <Field label="نامت"><input type="time" dir="ltr" className={inputCls} value={sleepFrom} onChange={(e) => setSleepFrom(e.target.value)} /></Field>
-              <Field label="صحت"><input type="time" dir="ltr" className={inputCls} value={sleepTo} onChange={(e) => setSleepTo(e.target.value)} /></Field>
+              <Field label={t('نامت')}><input type="time" dir="ltr" className={inputCls} value={sleepFrom} onChange={(e) => setSleepFrom(e.target.value)} /></Field>
+              <Field label={t('صحت')}><input type="time" dir="ltr" className={inputCls} value={sleepTo} onChange={(e) => setSleepTo(e.target.value)} /></Field>
             </div>
           )}
           {kind === 'sleep' && draft && (valid
             ? <p className="-mt-2 text-sm text-slate-600">{describeEvent(draft)}</p>
-            : <p className="-mt-2 text-sm text-near">أطول من 16 ساعة. تحقّق من الوقتين.</p>)}
-          <Field label={kind === 'note' ? 'الملاحظة' : 'ملاحظة (اختياري)'}>
-            <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={kind === 'note' ? 'مثلًا: مريضة، حفلة، تغيير الحساس' : ''} />
+            : <p className="-mt-2 text-sm text-near">{t('أطول من 16 ساعة. تحقّق من الوقتين.')}</p>)}
+          <Field label={kind === 'note' ? t('الملاحظة') : t('ملاحظة (اختياري)')}>
+            <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={kind === 'note' ? t('مثلًا: مريضة، حفلة، تغيير الحساس') : ''} />
           </Field>
           {kind !== 'sleep' && <div>
-            <div className="mb-1 text-sm font-medium text-slate-600">{kind === 'exercise' ? 'متى بدأت؟' : 'متى؟'}</div>
-            <Seg value={String(ago)} onChange={(v) => setAgo(Number(v))} options={AGO.map((m) => [String(m), m === 0 ? 'الآن' : m === 60 ? 'قبل ساعة' : `قبل ${m} د`])} />
+            <div className="mb-1 text-sm font-medium text-slate-600">{kind === 'exercise' ? t('متى بدأت؟') : t('متى؟')}</div>
+            <Seg value={String(ago)} onChange={(v) => setAgo(Number(v))} options={AGO.map((m) => [String(m), m === 0 ? t('الآن') : m === 60 ? t('قبل ساعة') : t('قبل {m} د', { m })])} />
           </div>}
           {dup && !dupAck && (
             <Alert tone="near">
               <div className="space-y-2">
-                <div><b>{nameOf(dup.created_by)}</b> سجّل {describeEvent(dup)} {sinceText(dup.occurred_at)}. هل هذا نفس التسجيل؟</div>
+                <div>{t('{who} سجّل {what} {when}. هل هذا نفس التسجيل؟', { who: nameOf(dup.created_by), what: describeEvent(dup), when: sinceText(dup.occurred_at) })}</div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Btn kind="ghost" onClick={close}>نعم، لا تسجّل</Btn>
-                  <Btn onClick={() => setDupAck(true)}>لا، تسجيل جديد</Btn>
+                  <Btn kind="ghost" onClick={close}>{t('نعم، لا تسجّل')}</Btn>
+                  <Btn onClick={() => setDupAck(true)}>{t('لا، تسجيل جديد')}</Btn>
                 </div>
               </div>
             </Alert>
           )}
           <div className="grid grid-cols-[1fr_2fr] gap-2">
-            <Btn kind="ghost" onClick={reset}>رجوع</Btn>
-            <Btn kind="primary" className="min-h-[52px]" disabled={!valid || busy || (!!dup && !dupAck)} onClick={save}>حفظ</Btn>
+            <Btn kind="ghost" onClick={reset}>{t('رجوع')}</Btn>
+            <Btn kind="primary" className="min-h-[52px]" disabled={!valid || busy || (!!dup && !dupAck)} onClick={save}>{t('حفظ')}</Btn>
           </div>
         </div>
       )}

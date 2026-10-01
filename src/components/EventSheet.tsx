@@ -4,21 +4,22 @@ import { describeEvent, unitsWord } from '../lib/events';
 import { mealResponse, OFFSETS, type Group, type Mark } from '../engine/events';
 import { nearest, type Series } from '../engine/series';
 import { Sheet } from './ui';
+import { dir, t, tr } from '../i18n';
 
 const KW = 3 * 3600000;
 const clock = (t: number) => { const d = new Date(t + KW); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
-const TITLE: Record<Mark['kind'], string> = { meal: 'وجبة', carbs: 'كارب', insulin: 'إنسولين سريع', basal: 'إنسولين طويل', treatment: 'علاج انخفاض', exercise: 'رياضة', note: 'ملاحظة', sleep: 'نوم' };
+const TITLE: Record<Mark['kind'], string> = tr({ meal: 'وجبة', carbs: 'كارب', insulin: 'إنسولين سريع', basal: 'إنسولين طويل', treatment: 'علاج انخفاض', exercise: 'رياضة', note: 'ملاحظة', sleep: 'نوم' }); // i18n-ok
 
 /** What was logged at this point of the graph, and — for a meal — what glucose did afterwards. Facts only. */
 export function EventSheet({ group, series, onClose }: { group: Group | null; series: Series; onClose: () => void }) {
   const { settings, events, nameOf } = useData();
   const unit = settings.glucose_unit;
   return (
-    <Sheet open={!!group} onClose={onClose} title={group ? (group.marks.length > 1 ? `${group.marks.length} تسجيلات · ${clock(group.t)}` : TITLE[group.marks[0].kind]) : ''}>
+    <Sheet open={!!group} onClose={onClose} title={group ? (group.marks.length > 1 ? t('{n} تسجيلات · {t}', { n: group.marks.length, t: clock(group.t) }) : TITLE[group.marks[0].kind]) : ''}>
       {group && (
         <div className="space-y-4">
           {group.marks.map((m) => <Item key={m.key} m={m} series={series} unit={unit} events={events} who={nameOf} />)}
-          <p className="text-xs text-slate-400">ملاحظات مما سُجّل والقراءات المحفوظة، وليست توصية.</p>
+          <p className="text-xs text-slate-400">{t('ملاحظات مما سُجّل والقراءات المحفوظة، وليست توصية.')}</p>
         </div>
       )}
     </Sheet>
@@ -42,19 +43,19 @@ function Item({ m, series, unit, events, who }: { m: Mark; series: Series; unit:
     return (
       <section>
         {head(m.meal.name)}
-        <Row label="الكارب" value={`${Math.round(m.meal.total_carbs)} غ`} />
-        <Row label="إنسولين الوجبة" value={r.bolus ? `${r.bolus.insulin_units} ${unitsWord(r.bolus.insulin_units ?? 0)}` : '—'} />
-        {r.prebolus !== null && <Row label={r.prebolus >= 0 ? 'قبل الأكل بـ' : 'بعد الأكل بـ'} value={`${Math.abs(r.prebolus)} د`} />}
-        <Row label="السكر عند الأكل" value={g(r.g0)} />
-        <h3 className="mt-3 text-sm font-bold text-slate-600">استجابة السكر <span className="font-normal">({unitLabel(unit)})</span></h3>
+        <Row label={t('الكارب')} value={t('{g} غ', { g: Math.round(m.meal.total_carbs) })} />
+        <Row label={t('إنسولين الوجبة')} value={r.bolus ? `${r.bolus.insulin_units} ${unitsWord(r.bolus.insulin_units ?? 0)}` : '—'} />
+        {r.prebolus !== null && <Row label={r.prebolus >= 0 ? t('قبل الأكل بـ') : t('بعد الأكل بـ')} value={t('{m} د', { m: Math.abs(r.prebolus) })} />}
+        <Row label={t('السكر عند الأكل')} value={g(r.g0)} />
+        <h3 className="mt-3 text-sm font-bold text-slate-600">{t('استجابة السكر')} <span className="font-normal">({unitLabel(unit)})</span></h3>
         <div className="mt-1 grid grid-cols-5 gap-1 text-center">
           {OFFSETS.map((o) => (
             <div key={o} className="flex flex-col items-center rounded-lg bg-slate-50 py-1.5"><span className="num block text-[11px] text-slate-500" dir="ltr">+{o}</span><span className="num block font-bold">{g(r.at[o])}</span></div>
           ))}
         </div>
-        <Row label="أعلى قراءة" value={r.peak !== null ? `${g(r.peak)}${r.ttp !== null ? ` · بعد ${r.ttp} د` : ''}` : '—'} />
-        <Row label="الارتفاع" value={r.rise !== null ? delta(r.rise) : '—'} />
-        {!r.complete && <p className="mt-1 text-xs text-near">{m.t + 4 * 3600000 > Date.now() ? 'لم تمر 4 ساعات بعد.' : 'البيانات ناقصة في هذه الفترة، فالأرقام جزئية.'}</p>}
+        <Row label={t('أعلى قراءة')} value={r.peak !== null ? g(r.peak) + (r.ttp !== null ? ' · ' + t('بعد {m} د', { m: r.ttp }) : '') : '—'} />
+        <Row label={t('الارتفاع')} value={r.rise !== null ? delta(r.rise) : '—'} />
+        {!r.complete && <p className="mt-1 text-xs text-near">{m.t + 4 * 3600000 > Date.now() ? t('لم تمر 4 ساعات بعد.') : t('البيانات ناقصة في هذه الفترة، فالأرقام جزئية.')}</p>}
       </section>
     );
   }
@@ -64,13 +65,13 @@ function Item({ m, series, unit, events, who }: { m: Mark; series: Series; unit:
   return (
     <section>
       {head(TITLE[m.kind], who(e.created_by))}
-      {m.kind !== 'note' && <Row label="التسجيل" value={<span dir="rtl">{describeEvent(e)}</span>} />}
-      {e.note && <Row label="ملاحظة" value={<span dir="rtl" className="font-normal">{e.note}</span>} />}
-      {m.kind === 'insulin' && e.bolus_purpose && <Row label="الغرض" value={<span dir="rtl">{{ meal: 'لوجبة', correction: 'تصحيح', both: 'الاثنين' }[e.bolus_purpose]}</span>} />}
-      <Row label="السكر وقتها" value={g(g0)} />
-      {m.kind === 'treatment' && [15, 30].map((o) => { const v = at(m.t + o * 60000); return <Row key={o} label={`بعد ${o} د`} value={v !== null && g0 !== null ? `${g(v)} (${delta(v - g0)})` : g(v)} />; })}
-      {m.kind === 'exercise' && m.end && <Row label="في نهايتها" value={g(at(m.end))} />}
-      {m.kind === 'sleep' && m.end && <Row label="عند الاستيقاظ" value={g(at(m.end))} />}
+      {m.kind !== 'note' && <Row label={t('التسجيل')} value={<span dir={dir()}>{describeEvent(e)}</span>} />}
+      {e.note && <Row label={t('ملاحظة')} value={<span dir="auto" className="font-normal">{e.note}</span>} />}
+      {m.kind === 'insulin' && e.bolus_purpose && <Row label={t('الغرض')} value={<span dir={dir()}>{{ meal: t('لوجبة'), correction: t('تصحيح'), both: t('الاثنين') }[e.bolus_purpose]}</span>} />}
+      <Row label={t('السكر وقتها')} value={g(g0)} />
+      {m.kind === 'treatment' && [15, 30].map((o) => { const v = at(m.t + o * 60000); return <Row key={o} label={t('بعد {m} د', { m: o })} value={v !== null && g0 !== null ? `${g(v)} (${delta(v - g0)})` : g(v)} />; })}
+      {m.kind === 'exercise' && m.end && <Row label={t('في نهايتها')} value={g(at(m.end))} />}
+      {m.kind === 'sleep' && m.end && <Row label={t('عند الاستيقاظ')} value={g(at(m.end))} />}
     </section>
   );
 }

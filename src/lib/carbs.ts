@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import type { Ingredient, Product, Role, Settings, Snack, State, Unit } from './types';
 
 /**
@@ -189,13 +190,18 @@ export function targetMiss(p: Pick<Product, 'category' | 'carbs_per_100' | 'serv
   return null;
 }
 
+// Arabic tables (the source text); show them through problemText / stateText / unitText, which translate.
 export const PROBLEM_TEXT: Record<Problem, string> = {
-  no_product: 'هذا المنتج غير مسجل. أدخل معلومات الملصق الغذائي أولًا.',
-  unapproved: 'المنتج موجود لكنه غير معتمد. راجع الملصق ثم اعتمده.',
-  no_serving: 'أدخل وزن الحصة للمنتج حتى تُحسب الكمية بالحبة.',
-  no_yield: 'أدخل معامل الطبخ للمنتج (كم غرام مطبوخ من كل 1غ في العبوة) حتى يُحسب الوزن بعد الطبخ.',
-  unit_mismatch: 'وحدة الكمية (غرام/مل) لا تطابق وحدة المنتج.',
+  no_product: 'هذا المنتج غير مسجل. أدخل معلومات الملصق الغذائي أولًا.', // i18n-ok
+  unapproved: 'المنتج موجود لكنه غير معتمد. راجع الملصق ثم اعتمده.', // i18n-ok
+  no_serving: 'أدخل وزن الحصة للمنتج حتى تُحسب الكمية بالحبة.', // i18n-ok
+  no_yield: 'أدخل معامل الطبخ للمنتج (كم غرام مطبوخ من كل 1غ في العبوة) حتى يُحسب الوزن بعد الطبخ.', // i18n-ok
+  unit_mismatch: 'وحدة الكمية (غرام/مل) لا تطابق وحدة المنتج.', // i18n-ok
 };
 
-export const STATE_TEXT: Record<State, string> = { raw: 'قبل الطبخ', cooked: 'بعد الطبخ', as_is: 'كما في العبوة' };
-export const UNIT_TEXT: Record<Unit, string> = { g: 'غ', ml: 'مل', serving: 'حبة/حصة', tbsp: 'ملعقة كبيرة' };
+export const STATE_TEXT: Record<State, string> = { raw: 'قبل الطبخ', cooked: 'بعد الطبخ', as_is: 'كما في العبوة' }; // i18n-ok
+export const UNIT_TEXT: Record<Unit, string> = { g: 'غ', ml: 'مل', serving: 'حبة/حصة', tbsp: 'ملعقة كبيرة' }; // i18n-ok
+
+export const problemText = (p: Problem) => t(PROBLEM_TEXT[p]);
+export const stateText = (s: State) => t(STATE_TEXT[s]);
+export const unitText = (u: Unit) => t(UNIT_TEXT[u]);

@@ -159,7 +159,7 @@ export const DEFAULT_SETTINGS: Settings = {
   alert_nodata_min: 20,
   alert_renotify_min: 10,
   alert_high_renotify_min: 60,
-  child_name: 'ليان',
+  child_name: 'ليان', // i18n-ok: stored name; shown through t() where it is the default
   alert_rapid_rate: null,
   night_start: null, night_end: null, night_low_mgdl: null, night_high_mgdl: null, night_high_silent: false, night_theme: true,
   school_days: [0, 1, 2, 3, 4], school_start: null, school_end: null, school_low_mgdl: null, school_high_mgdl: null,

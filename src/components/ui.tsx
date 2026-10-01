@@ -2,6 +2,7 @@ import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from '
 import { fmt, type Level } from '../lib/carbs';
 import { emojiFor } from '../lib/constants';
 import { photoUrl } from '../lib/supabase';
+import { isEn, t, tr } from '../i18n';
 
 export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(' ');
 
@@ -49,7 +50,7 @@ export function Page({ title, back, action, children }: { title: string; back?: 
   return (
     <main className="mx-auto max-w-2xl px-4 pb-28 pt-4">
       <header className="mb-4 flex items-center gap-3">
-        {back && <button onClick={back} aria-label="رجوع" className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl shadow-sm">→</button>}
+        {back && <button onClick={back} aria-label={t('رجوع')} className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl shadow-sm">{isEn() ? '←' : '→'}</button>}
         <h1 className="flex-1 text-[26px] font-bold tracking-tight">{title}</h1>
         {action}
       </header>
@@ -109,22 +110,22 @@ export function Photo({ path, category, className, art }: { path?: string | null
     </div>
   );
 }
-export const recipeArt = (category?: string | null) => (category === 'فطور' ? 'cereal' : 'meal') as 'cereal' | 'meal';
-export const snackArt = (name?: string | null) => (name && /عصير|juice/i.test(name) ? 'juice' : 'snack') as 'juice' | 'snack';
+export const recipeArt = (category?: string | null) => (category === 'فطور' ? 'cereal' : 'meal') as 'cereal' | 'meal'; // i18n-ok: stored category
+export const snackArt = (name?: string | null) => (name && /عصير|juice/i.test(name) ? 'juice' : 'snack') as 'juice' | 'snack'; // i18n-ok
 
 // ── carbs ───────────────────────────────────────────────────────────────────
 const LEVEL = {
-  normal: { cls: 'bg-ok-soft text-ok', text: 'ضمن المعدل' },
-  near: { cls: 'bg-near-soft text-near', text: 'قريبة من الحد' },
-  over: { cls: 'bg-over-soft text-over', text: 'تتجاوز الحد' },
+  normal: tr({ cls: 'bg-ok-soft text-ok', text: 'ضمن المعدل' }), // i18n-ok
+  near: tr({ cls: 'bg-near-soft text-near', text: 'قريبة من الحد' }), // i18n-ok
+  over: tr({ cls: 'bg-over-soft text-over', text: 'تتجاوز الحد' }), // i18n-ok
 } as const;
 
 export function CarbBadge({ carbs, level, size = 'md', unknown }: { carbs: number; level: Level; size?: 'sm' | 'md' | 'lg'; unknown?: boolean }) {
-  if (unknown) return <span className="rounded-xl bg-slate-100 px-3 py-1 text-sm text-slate-500">كارب غير مكتمل</span>;
+  if (unknown) return <span className="rounded-xl bg-slate-100 px-3 py-1 text-sm text-slate-500">{t('كارب غير مكتمل')}</span>;
   return (
     <span className={cx('inline-flex shrink-0 items-baseline gap-1 whitespace-nowrap rounded-xl font-bold', LEVEL[level].cls,
       size === 'lg' ? 'px-3 py-1 text-4xl' : size === 'sm' ? 'px-2 py-0.5 text-lg' : 'px-3 py-1 text-2xl')}>
-      <span className="num">{fmt(carbs)}</span><span className="whitespace-nowrap text-sm font-medium">غ كارب</span>
+      <span className="num">{fmt(carbs)}</span><span className="whitespace-nowrap text-sm font-medium">{t('غ كارب')}</span>
     </span>
   );
 }
@@ -151,7 +152,7 @@ export function NumInput({ value, onChange, ...p }: { value: number | null | und
   return (
     <input {...p} inputMode="decimal" dir="ltr" className={cx(inputCls, 'text-start num', p.className)} value={text}
       onChange={(e) => {
-        const t = e.target.value.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(',', '.');
+        const t = e.target.value.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(',', '.'); // i18n-ok: Arabic digits typed
         if (!/^\d*\.?\d*$/.test(t)) return;
         setText(t);
         onChange(t === '' || t === '.' ? null : Number(t));
@@ -167,9 +168,9 @@ export function Nutrition({ n, partial }: { n: { carbs: number; fat: number; fib
   return (
     <div>
       <div className="grid grid-cols-5 gap-1.5">
-        {cell('كارب', fmt(n.carbs), 'غ')}{cell('دهون', p(n.fat), 'غ')}{cell('ألياف', p(n.fiber), 'غ')}{cell('بروتين', p(n.protein), 'غ')}{cell('سعرات', partial ? '—' : String(Math.round(n.kcal)), '')}
+        {cell(t('كارب'), fmt(n.carbs), t('غ'))}{cell(t('دهون'), p(n.fat), t('غ'))}{cell(t('ألياف'), p(n.fiber), t('غ'))}{cell(t('بروتين'), p(n.protein), t('غ'))}{cell(t('سعرات'), partial ? '—' : String(Math.round(n.kcal)), '')}
       </div>
-      {partial && <p className="mt-1 text-xs text-slate-500">بعض المكونات ليس لها دهون/ألياف/بروتين/سعرات مسجلة، لذلك لا تُعرض هذه الأرقام حتى لا تكون ناقصة.</p>}
+      {partial && <p className="mt-1 text-xs text-slate-500">{t('بعض المكونات ليس لها دهون/ألياف/بروتين/سعرات مسجلة، لذلك لا تُعرض هذه الأرقام حتى لا تكون ناقصة.')}</p>}
     </div>
   );
 }

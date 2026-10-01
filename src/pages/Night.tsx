@@ -8,6 +8,7 @@ import { sinceText, statusSentence } from '../lib/now';
 import { Icon, TREND_ICON, TREND_WORDS } from '../components/Icon';
 import { AlertStrip } from '../components/AlertStrip';
 import { cx } from '../components/ui';
+import { t } from '../i18n';
 
 /** Night view: readable at arm's length (96 px), dark, nothing else. Tap anywhere outside an alert to leave. */
 export default function Night() {
@@ -41,10 +42,10 @@ export default function Night() {
             <span className={cx('num text-[96px] font-bold leading-none', tone)}>{formatGlucose(latest.mg_dl, unit)}</span>
             {latest.trend && <span className={tone}><Icon name={TREND_ICON[latest.trend]} size={56} label={TREND_WORDS[latest.trend]} /></span>}
           </div>
-        ) : <div className="text-2xl font-bold text-near">لا توجد قراءة حديثة</div>}
+        ) : <div className="text-2xl font-bold text-near">{t('لا توجد قراءة حديثة')}</div>}
         <div className="text-lg text-slate-500">{unitLabel(unit)}{latest ? ` · ${sinceText(latest.taken_at)}` : ''}</div>
       </div>
-      <p className="text-center text-sm text-slate-500">اضغط للخروج</p>
+      <p className="text-center text-sm text-slate-500">{t('اضغط للخروج')}</p>
     </div>
   );
 }

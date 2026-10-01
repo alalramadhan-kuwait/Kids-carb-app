@@ -166,30 +166,46 @@ export function evaluate(now: number, readings: Reading[], cfg: AlertCfg, open: 
 // ── wording ────────────────────────────────────────────────────────────────────
 const ARROW: Record<number, string> = { 1: '↓', 2: '↘', 3: '→', 4: '↗', 5: '↑' };
 const fmt = (mg: number, unit: 'mgdl' | 'mmol') => (unit === 'mmol' ? (Math.round((mg / 18.016) * 10) / 10).toFixed(1) : String(Math.round(mg)));
+export type Lang = 'ar' | 'en';
 export const ALERT_NAME: Record<AlertKind, string> = {
   urgent_low: 'منخفض جدًا', low: 'منخفض', high: 'مرتفع', no_data: 'لا توجد قراءة', rapid_fall: 'نزول سريع', rapid_rise: 'صعود سريع',
 };
+const ALERT_NAME_EN: Record<AlertKind, string> = {
+  urgent_low: 'Very low', low: 'Low', high: 'High', no_data: 'No reading', rapid_fall: 'Falling fast', rapid_rise: 'Rising fast',
+};
+/** The stored child name is Arabic; English alerts write her name in English. */
+const childName = (child: string, lang: Lang) => (lang === 'en' && child === 'ليان' ? 'Layan' : child);
 
+/** Push wording, in each parent's app language (carb.members.lang). */
 export function alertMessage(
-  kind: AlertKind, notify: Notify, o: { child: string; value: number | null; trend: number | null; unit: 'mgdl' | 'mmol'; minutes: number },
+  kind: AlertKind, notify: Notify, o: { child: string; value: number | null; trend: number | null; unit: 'mgdl' | 'mmol'; minutes: number }, lang: Lang = 'ar',
 ) {
+  const en = lang === 'en', child = childName(o.child, lang);
   const val = o.value !== null ? `${fmt(o.value, o.unit)}${o.trend ? ' ' + ARROW[o.trend] : ''}` : '';
-  const since = o.minutes < 1 ? 'الآن' : `منذ ${Math.round(o.minutes)} د`;
+  const since = o.minutes < 1 ? (en ? 'now' : 'الآن') : en ? `for ${Math.round(o.minutes)} min` : `منذ ${Math.round(o.minutes)} د`;
+  const plan = en ? "doctor's plan" : 'خطة الطبيب';
   if (notify === 'resolved') {
-    const title = kind === 'no_data' ? `${o.child}: رجعت القراءات` : `${o.child}: ارتفعت إلى ${val}`.trim();
-    return { title, body: 'انتهى التنبيه', urgency: 'normal' as const };
+    const title = kind === 'no_data' ? (en ? `${child}: readings are back` : `${child}: رجعت القراءات`) : (en ? `${child}: up to ${val}` : `${child}: ارتفعت إلى ${val}`).trim();
+    return { title, body: en ? 'Alert ended' : 'انتهى التنبيه', urgency: 'normal' as const };
   }
-  const head = notify === 'escalate' ? 'لم يرد أحد · ' : '';
-  const title = kind === 'no_data' ? `${head}${o.child}: لا توجد قراءة ${since}` : `${head}${o.child}: ${ALERT_NAME[kind]} ${val}`;
+  const head = notify === 'escalate' ? (en ? 'No one answered · ' : 'لم يرد أحد · ') : '';
+  const title = kind === 'no_data'
+    ? `${head}${child}: ${en ? `no reading ${since}` : `لا توجد قراءة ${since}`}`
+    : `${head}${child}: ${(en ? ALERT_NAME_EN : ALERT_NAME)[kind]} ${val}`;
   const body = kind === 'no_data'
-    ? 'تأكد من الحساس وجوال القراءة · خطة الطبيب'
-    : `${notify === 'repeat' ? 'ما زال · ' : ''}${since} · خطة الطبيب`;
+    ? (en ? `Check the sensor and the reading phone · ${plan}` : `تأكد من الحساس وجوال القراءة · ${plan}`)
+    : `${notify === 'repeat' ? (en ? 'Still · ' : 'ما زال · ') : ''}${since} · ${plan}`;
   return { title, body, urgency: kind === 'high' || kind === 'rapid_rise' ? ('normal' as const) : ('high' as const) };
 }
 
-export function ackMessage(kind: AlertKind, child: string, who: string, action: 'on_it' | 'treated') {
-  return { title: `${who} ${action === 'treated' ? 'عالجها' : 'عليها'} ✓`, body: `${child}: ${ALERT_NAME[kind]}`, urgency: 'normal' as const };
+export function ackMessage(kind: AlertKind, child: string, who: string | null, action: 'on_it' | 'treated', lang: Lang = 'ar') {
+  const en = lang === 'en', name = who || (en ? 'A parent' : 'أحد الوالدين');
+  const did = en ? (action === 'treated' ? 'treated it' : 'is on it') : action === 'treated' ? 'عالجها' : 'عليها';
+  return { title: `${name} ${did} ✓`, body: `${childName(child, lang)}: ${(en ? ALERT_NAME_EN : ALERT_NAME)[kind]}`, urgency: 'normal' as const };
 }
+
+export const testMessage = (lang: Lang = 'ar') =>
+  lang === 'en' ? { title: 'Test alert', body: 'Alerts work on this phone' } : { title: 'تنبيه تجربة', body: 'التنبيهات تعمل على هذا الجوال' };
 
 /** Who is told: first alerts and repeats go to the primary parents (everyone if none is primary); escalation adds the backups. */
 export function recipients(members: { user_id: string; alert_role: string }[], notify: Notify): string[] {

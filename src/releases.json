@@ -1,9 +1,26 @@
 [
   {
+    "version": "0.20.0",
+    "date": "2026-10-01",
+    "notes": [
+      "نسخة إنجليزية كاملة: اختاروا اللغة من المزيد أو من شاشة الدخول، لكل جوال على حدة",
+      "التنبيهات تصل بلغة كل والد",
+      "رابط المشاركة يمكن عرضه بالإنجليزية أيضًا"
+    ],
+    "notes_en": [
+      "Full English version: choose the language in More or on the sign-in screen, on each phone separately",
+      "Alerts arrive in each parent's language",
+      "Share links can be viewed in English too"
+    ]
+  },
+  {
     "version": "0.19.1",
     "date": "2026-10-01",
     "notes": [
       "اختيار المظهر من المزيد: تلقائي أو نهاري أو ليلي، لكل جوال على حدة"
+    ],
+    "notes_en": [
+      "Choose the look in More: automatic, day or night, on each phone separately"
     ]
   },
   {
@@ -13,6 +30,11 @@
       "ملاحظات من بياناتها في الأنماط: انخفاضات تتكرر في نفس الوقت، نزول أو ارتفاع خلال الليل، ارتفاع بعد وصفة معيّنة، ويوم مختلف عن المعتاد",
       "كل ملاحظة تذكر قاعدتها وعدد المرات، وتفتح أيامها، ويمكن إخفاؤها أسبوعًا",
       "في الأرقام قسم «تحليلي» للتقلّب والمخاطر (MAGE وMODD وCONGA وLBGI وHBGI وADRR)"
+    ],
+    "notes_en": [
+      "Observations from her data in Patterns: lows that repeat at the same time, falls or rises overnight, a rise after a particular recipe, and a day unlike the usual",
+      "Each observation states its rule and how many times it happened, opens its days, and can be hidden for a week",
+      "An “Analytical” section in Numbers for variability and risk (MAGE, MODD, CONGA, LBGI, HBGI, ADRR)"
     ]
   },
   {
@@ -22,6 +44,11 @@
       "الإنسولين النشط (IOB) والكارب النشط (COB) كخطّين اختياريين تحت رسم السكر، للعرض فقط",
       "يعملان فقط بعد كتابة أرقام الفريق الطبي في الإعدادات، وتشغيلهما من الطبقات",
       "شرح نطاق التلوين في الإعدادات صار يذكر النطاق المرجعي"
+    ],
+    "notes_en": [
+      "Insulin on board (IOB) and carbs on board (COB) as two optional lines under the glucose graph, for display only",
+      "They work only after the care team's numbers are entered in Settings, and are turned on from Layers",
+      "The colour range explanation in Settings now mentions the reference range"
     ]
   },
   {

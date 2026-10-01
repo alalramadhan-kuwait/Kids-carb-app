@@ -354,3 +354,14 @@ should not be committed. Make the repository private (or host from a private rep
 
 The live tokens are in `src/index.css` (as RGB triplets for Tailwind) and are the source of truth; §2–§4
 list the same values as HEX.
+
+## 16. Languages (Arabic and English)
+
+- Arabic is the source text and the default; English is chosen per phone (المزيد → اللغة, or the sign-in screen)
+  and saved to `carb.members.lang` so push alerts arrive in the same language.
+- The whole layout follows the language: `<html dir="rtl|ltr">`, logical Tailwind classes (`ms-`, `ps-`,
+  `start-`), back/forward arrows flip. Graphs keep time running left → right in both.
+- User data (recipe, product and member names, notes) is never translated. It is isolated with `<bdi>` inside
+  mixed lines, and truncated lines take their own direction (`unicode-bidi: plaintext`) so a name loses its end,
+  never its start. Known category names are shown through `tMaybe()`.
+- How to add text: `src/i18n/README.md`. `npm test` fails if any Arabic text has no English.

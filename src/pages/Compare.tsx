@@ -10,10 +10,12 @@ import { dayStartOf, dayTitle } from '../engine/day';
 import { daysFor, type Bin } from '../engine/profile';
 import type { View } from '../engine/series';
 import { ProfileChart } from './Patterns';
+import { t } from '../i18n';
 
 const H = 3600000, DAY = 24 * H, KW = 3 * H;
 type Preset = 'day' | 'week' | 'school' | 'custom';
-const PRESETS: [Preset, string][] = [['day', 'اليوم وأمس'], ['week', 'هذا الأسبوع والماضي'], ['school', 'المدرسة والعطلة'], ['custom', 'يومان تختارهما']];
+// labels stay Arabic here and are shown with t()
+const PRESETS: [Preset, string][] = [['day', 'اليوم وأمس'], ['week', 'هذا الأسبوع والماضي'], ['school', 'المدرسة والعطلة'], ['custom', 'يومان تختارهما']]; // i18n-ok
 const isoDay = (t: number) => new Date(t + KW).toISOString().slice(0, 10);
 const fromIso = (s: string) => Date.parse(s + 'T00:00:00Z') - KW;
 
@@ -27,10 +29,10 @@ export function Compare() {
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
 
   const p = useMemo(() => {
-    if (preset === 'week') return { a: today - 6 * DAY, b: today - 13 * DAY, len: 7 * DAY, la: 'هذا الأسبوع', lb: 'الأسبوع الماضي' };
+    if (preset === 'week') return { a: today - 6 * DAY, b: today - 13 * DAY, len: 7 * DAY, la: t('هذا الأسبوع'), lb: t('الأسبوع الماضي') };
     if (preset === 'custom') return { a: ca, b: cb, len: DAY, la: dayTitle(ca), lb: dayTitle(cb) };
-    if (preset === 'school') return { a: today - 27 * DAY, b: today - 27 * DAY, len: 28 * DAY, la: 'أيام المدرسة', lb: 'العطلة' };
-    return { a: today, b: today - DAY, len: DAY, la: 'اليوم', lb: 'أمس' };
+    if (preset === 'school') return { a: today - 27 * DAY, b: today - 27 * DAY, len: 28 * DAY, la: t('أيام المدرسة'), lb: t('العطلة') };
+    return { a: today, b: today - DAY, len: DAY, la: t('اليوم'), lb: t('أمس') };
   }, [preset, today, ca, cb]);
   const [view, setView] = useState<View>({ end: p.a + p.len, span: p.len });
   useEffect(() => setView({ end: p.a + p.len, span: p.len }), [p.a, p.len]);
@@ -56,7 +58,7 @@ export function Compare() {
   return (
     <div className="space-y-3 pb-4">
       <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4">
-        {PRESETS.map(([k, l]) => <Chip key={k} active={preset === k} onClick={() => setPreset(k)}>{l}</Chip>)}
+        {PRESETS.map(([k, l]) => <Chip key={k} active={preset === k} onClick={() => setPreset(k)}>{t(l)}</Chip>)}
       </div>
       {preset === 'custom' && (
         <div className="grid grid-cols-2 gap-2">
@@ -79,18 +81,18 @@ export function Compare() {
       ))}
       <Card className="!p-0 overflow-hidden">
         <table className="w-full text-sm">
-          <thead><tr className="bg-slate-50 text-xs text-slate-500"><th className="p-2 text-start font-medium" /><th className="p-2 font-medium">{p.la}</th><th className="p-2 font-medium">{p.lb}</th><th className="p-2 font-medium">الفرق</th></tr></thead>
+          <thead><tr className="bg-slate-50 text-xs text-slate-500"><th className="p-2 text-start font-medium" /><th className="p-2 font-medium">{p.la}</th><th className="p-2 font-medium">{p.lb}</th><th className="p-2 font-medium">{t('الفرق')}</th></tr></thead>
           <tbody className="divide-y divide-slate-100">
-            <Row label="ضمن النطاق" a={sA.n ? sA.pct_in : null} b={sB.n ? sB.pct_in : null} f={(x) => `${Math.round(x)}%`} />
-            <Row label="منخفض" a={sA.n ? sA.pct_vlow + sA.pct_low : null} b={sB.n ? sB.pct_vlow + sB.pct_low : null} f={(x) => `${Math.round(x)}%`} />
-            <Row label="مرتفع" a={sA.n ? sA.pct_high + sA.pct_vhigh : null} b={sB.n ? sB.pct_high + sB.pct_vhigh : null} f={(x) => `${Math.round(x)}%`} />
-            <Row label="المتوسط" a={sA.mean} b={sB.mean} f={(x) => formatGlucose(x, unit)} />
-            <Row label="التذبذب CV" a={sA.cv} b={sB.cv} f={(x) => `${Math.round(x)}%`} />
-            <Row label="التغطية" a={sA.n ? sA.coverage : null} b={sB.n ? sB.coverage : null} f={(x) => `${Math.round(x)}%`} />
+            <Row label={t('ضمن النطاق')} a={sA.n ? sA.pct_in : null} b={sB.n ? sB.pct_in : null} f={(x) => `${Math.round(x)}%`} />
+            <Row label={t('منخفض')} a={sA.n ? sA.pct_vlow + sA.pct_low : null} b={sB.n ? sB.pct_vlow + sB.pct_low : null} f={(x) => `${Math.round(x)}%`} />
+            <Row label={t('مرتفع')} a={sA.n ? sA.pct_high + sA.pct_vhigh : null} b={sB.n ? sB.pct_high + sB.pct_vhigh : null} f={(x) => `${Math.round(x)}%`} />
+            <Row label={t('المتوسط')} a={sA.mean} b={sB.mean} f={(x) => formatGlucose(x, unit)} />
+            <Row label={t('التذبذب CV')} a={sA.cv} b={sB.cv} f={(x) => `${Math.round(x)}%`} />
+            <Row label={t('التغطية')} a={sA.n ? sA.coverage : null} b={sB.n ? sB.coverage : null} f={(x) => `${Math.round(x)}%`} />
           </tbody>
         </table>
       </Card>
-      <p className="px-1 text-xs text-slate-400">فروق فقط، بدون حكم على أيهما أفضل.{school ? ' أيام المدرسة من إعدادات وضع المدرسة، آخر 28 يومًا.' : ''}</p>
+      <p className="px-1 text-xs text-slate-400">{t('فروق فقط، بدون حكم على أيهما أفضل.')}{school ? ' ' + t('أيام المدرسة من إعدادات وضع المدرسة، آخر 28 يومًا.') : ''}</p>
     </div>
   );
 }

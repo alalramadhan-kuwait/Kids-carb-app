@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { computeMeal } from './carbs';
 import type { Ingredient, PlanRow, Product, Recipe, Settings } from './types';
 
@@ -32,11 +33,11 @@ export function shoppingList(
     if (!recipes.some((r) => r.id === row.recipe_id)) continue;
     const meal = computeMeal(ingsByRecipe.get(row.recipe_id) ?? [], products, settings);
     for (const l of meal.lines) {
-      const label = l.ing.label ?? l.ing.slot_category ?? '؟';
+      const label = l.ing.label ?? l.ing.slot_category ?? t('؟');
       if (!l.product || l.amount === null || l.labelAmount === null) {
         const key = `?|${label}`;
         const cur = items.get(key) ?? {
-          key, name: label, brand: null, category: l.ing.slot_category ?? 'أخرى', unit: 'g' as const,
+          key, name: label, brand: null, category: l.ing.slot_category ?? 'أخرى', unit: 'g' as const, // i18n-ok (stored category name, shown with tMaybe)
           qty: 0, plated: null, available: false, natural: false, packs: null, unresolved: true,
         };
         items.set(key, cur);

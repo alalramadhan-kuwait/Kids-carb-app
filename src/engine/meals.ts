@@ -3,6 +3,7 @@
 import type { EventRow, HistoryEntry } from '../lib/types';
 import { mealResponse, type MealResponse } from './events';
 import { GAP_MS, emptySeries, mergeSeries, nearest, type Series } from './series';
+import { t } from '../i18n';
 
 const MIN = 60000;
 export const GRID = Array.from({ length: 61 }, (_, k) => -60 + k * 5); // −60 … +240 min, every 5 min
@@ -29,15 +30,15 @@ export function notClean(meal: HistoryEntry, history: HistoryEntry[], events: Ev
   const t0 = Date.parse(meal.eaten_at), end = t0 + 240 * MIN;
   const within = (iso: string, from = t0 + 1, to = end) => { const t = Date.parse(iso); return t >= from && t <= to; };
   const why: string[] = [];
-  if (history.some((h) => h.id !== meal.id && within(h.eaten_at))) why.push('أكل آخر خلال 4 ساعات');
+  if (history.some((h) => h.id !== meal.id && within(h.eaten_at))) why.push(t('أكل آخر خلال 4 ساعات'));
   for (const e of events) {
     if (e.deleted_at) continue;
-    if (e.kind === 'carbs' && within(e.occurred_at)) why.push('كارب إضافي');
-    if (e.kind === 'treatment' && within(e.occurred_at)) why.push('علاج انخفاض');
-    if (e.kind === 'exercise' && within(e.occurred_at, t0 - 60 * MIN)) why.push('رياضة');
-    if (e.kind === 'insulin' && e.insulin_type !== 'long' && e.bolus_purpose === 'correction' && within(e.occurred_at)) why.push('جرعة تصحيح');
+    if (e.kind === 'carbs' && within(e.occurred_at)) why.push(t('كارب إضافي'));
+    if (e.kind === 'treatment' && within(e.occurred_at)) why.push(t('علاج انخفاض'));
+    if (e.kind === 'exercise' && within(e.occurred_at, t0 - 60 * MIN)) why.push(t('رياضة'));
+    if (e.kind === 'insulin' && e.insulin_type !== 'long' && e.bolus_purpose === 'correction' && within(e.occurred_at)) why.push(t('جرعة تصحيح'));
   }
-  if (coverage(s, t0) < 0.9) why.push('قراءات ناقصة');
+  if (coverage(s, t0) < 0.9) why.push(t('قراءات ناقصة'));
   return [...new Set(why)];
 }
 

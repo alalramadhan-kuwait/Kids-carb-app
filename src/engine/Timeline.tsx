@@ -8,6 +8,7 @@ import {
 } from './series';
 import { groupLabel, groupMarks, type Group, type Layer, type Mark, type MarkKind } from './events';
 import { ICONS, type IconName } from '../icons/defs';
+import { dir, t } from '../i18n';
 
 const MARK_ICON: Record<MarkKind, IconName> = { meal: 'meals', carbs: 'carbs', insulin: 'insulin', basal: 'insulin', treatment: 'treatment', exercise: 'activity', note: 'note', sleep: 'moon' };
 const iconPaths = new Map<IconName, Path2D[]>();
@@ -74,12 +75,13 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
     // day parts (night, morning, afternoon, evening): alternate faint shading, one continuous timeline
     if (dayParts && span >= 8 * 3600000) {
       const KWO = 3 * 3600000, H6 = 6 * 3600000;
-      g.font = '500 10.5px Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.direction = 'rtl';
-      for (let t = Math.floor((start + KWO) / H6) * H6 - KWO; t < end; t += H6) {
-        const part = Math.round(((t + KWO) % 86400000) / H6); // 0 night, 1 morning, 2 afternoon, 3 evening
-        const a = Math.max(0, X(t)), b = Math.min(width, X(t + H6));
+      g.font = '500 10.5px Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.direction = dir();
+      const names = [t('ليل'), t('صباح'), t('ظهر'), t('مساء')];
+      for (let ts = Math.floor((start + KWO) / H6) * H6 - KWO; ts < end; ts += H6) {
+        const part = Math.round(((ts + KWO) % 86400000) / H6); // 0 night, 1 morning, 2 afternoon, 3 evening
+        const a = Math.max(0, X(ts)), b = Math.min(width, X(ts + H6));
         if (part % 2 === 0) { g.fillStyle = css('--surface-2', 0.6); g.fillRect(a, PAD_T, b - a, plotH); }
-        if (b - a > 40) { g.fillStyle = css('--text-3'); g.fillText(['ليل', 'صباح', 'ظهر', 'مساء'][part], (a + b) / 2, PAD_T + plotH - 3); }
+        if (b - a > 40) { g.fillStyle = css('--text-3'); g.fillText(names[part], (a + b) / 2, PAD_T + plotH - 3); }
       }
       g.direction = 'ltr';
     }
@@ -93,8 +95,8 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
       for (const v of [range.low, range.high]) if (v !== null) { g.beginPath(); g.moveTo(0, Y(v) + 0.5); g.lineTo(width, Y(v) + 0.5); g.stroke(); }
       g.setLineDash([]);
       if (!own) {
-        g.font = '500 10.5px Rubik, system-ui, sans-serif'; g.fillStyle = css('--st-in-text', 0.85); g.textAlign = 'left'; g.textBaseline = 'top'; g.direction = 'rtl';
-        g.fillText(`مرجعي ${formatGlucose(range.low!, unit)} إلى ${formatGlucose(range.high!, unit)}`, 6, top + 4);
+        g.font = '500 10.5px Rubik, system-ui, sans-serif'; g.fillStyle = css('--st-in-text', 0.85); g.textAlign = 'left'; g.textBaseline = 'top'; g.direction = dir();
+        g.fillText(t('مرجعي {low} إلى {high}', { low: formatGlucose(range.low!, unit), high: formatGlucose(range.high!, unit) }), 6, top + 4);
         g.direction = 'ltr';
       }
     }
@@ -116,14 +118,14 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
     for (const t of ticks) { const x = X(t); g.fillRect(Math.round(x), height - PAD_B, 1, 4); if (x > 16 && x < width - 16) g.fillText(tickLabel(t, step), x, height - 6); }
 
     // gaps: hatched, labelled with how long nothing came in
-    g.direction = 'rtl'; g.textAlign = 'center';
+    g.direction = dir(); g.textAlign = 'center';
     for (const gap of gapsIn(series, start, end, now)) {
       const a = Math.max(0, X(gap.from)), b = Math.min(width, X(gap.to));
       if (b - a < 2) continue;
       g.fillStyle = css('--text-3', 0.08); g.fillRect(a, PAD_T, b - a, plotH);
       g.fillStyle = css('--text-2'); g.font = '600 11px Rubik, system-ui, sans-serif';
-      if (b - a > 44) g.fillText(b - a > 110 ? `${gap.minutes} د بلا قراءة` : `${gap.minutes} د`, (a + b) / 2, PAD_T + 14);
-      else if (span <= 24 * 3600000) g.fillText(`${gap.minutes} د`, Math.min(width - 16, Math.max(16, (a + b) / 2)), PAD_T + 14); // narrow: a compact tag
+      if (b - a > 44) g.fillText(b - a > 110 ? t('{n} د بلا قراءة', { n: gap.minutes }) : t('{n} د', { n: gap.minutes }), (a + b) / 2, PAD_T + 14);
+      else if (span <= 24 * 3600000) g.fillText(t('{n} د', { n: gap.minutes }), Math.min(width - 16, Math.max(16, (a + b) / 2)), PAD_T + 14); // narrow: a compact tag
     }
     g.direction = 'ltr';
 
@@ -191,9 +193,8 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
         g.fillStyle = css(k === 'iob' ? '--primary' : '--primary-muted', k === 'iob' ? 0.22 : 0.5); g.fill();
         g.beginPath(); xs.forEach((x, j) => (j ? g.lineTo(x, ty(vs[j])) : g.moveTo(x, ty(vs[j])))); g.strokeStyle = css('--primary-strong', 0.8); g.lineWidth = 1.2; g.stroke();
       }
-      g.font = '600 10.5px Rubik, system-ui, sans-serif'; g.fillStyle = css('--text-2'); g.textAlign = 'left'; g.textBaseline = 'top'; g.direction = 'rtl';
-      const unitTxt = k === 'iob' ? 'وحدة' : 'غ';
-      g.fillText(`${k.toUpperCase()} · أعلى ${k === 'iob' ? peak.toFixed(1) : Math.round(peak)} ${unitTxt}`, 4, top);
+      g.font = '600 10.5px Rubik, system-ui, sans-serif'; g.fillStyle = css('--text-2'); g.textAlign = 'left'; g.textBaseline = 'top'; g.direction = dir();
+      g.fillText(k === 'iob' ? t('IOB · أعلى {v} وحدة', { v: peak.toFixed(1) }) : t('COB · أعلى {v} غ', { v: Math.round(peak) }), 4, top);
       g.direction = 'ltr';
     });
 
@@ -203,7 +204,7 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
       if (layers!.has('exercise')) for (const m of marks) if (m.kind === 'exercise' && m.end! > start && m.t < end) {
         g.fillStyle = css('--primary', 0.35); g.fillRect(X(m.t), railY + 13, Math.max(3, X(m.end!) - X(m.t)), 3);
       }
-      g.font = '600 10.5px "Noto Sans Arabic", Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.direction = 'rtl'; g.textBaseline = 'alphabetic';
+      g.font = '600 10.5px "Noto Sans Arabic", Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.direction = dir(); g.textBaseline = 'alphabetic';
       groups.forEach((gr, k) => {
         const x = Math.min(width - 14, Math.max(14, gr.x));
         const kind = gr.marks[0].kind;
@@ -216,7 +217,7 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
         g.restore();
         if (gr.marks.length > 1) {
           g.fillStyle = css('--primary-strong'); g.beginPath(); g.arc(x + 10, railY - 10, 7, 0, 7); g.fill();
-          g.fillStyle = css('--surface'); g.direction = 'ltr'; g.fillText(String(gr.marks.length), x + 10, railY - 6.5); g.direction = 'rtl';
+          g.fillStyle = css('--surface'); g.direction = 'ltr'; g.fillText(String(gr.marks.length), x + 10, railY - 6.5); g.direction = dir();
         }
         const label = span <= 12 * 3600000 ? groupLabel(gr) : '';
         if (label) {
@@ -376,20 +377,20 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
       <canvas
         ref={canvas} style={{ width: '100%', height, touchAction: 'pan-y' }}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel}
-        role="img" aria-label={`رسم السكر ${clock(view.end - view.span)}–${clock(view.end)}، ${freshness(lastT, now) === 'live' ? 'مباشر' : 'غير محدّث'}`}
+        role="img" aria-label={t('رسم السكر {from}–{to}، {state}', { from: clock(view.end - view.span), to: clock(view.end), state: freshness(lastT, now) === 'live' ? t('مباشر') : t('غير محدّث') })}
       />
       {inspect && (
-        <div className="pointer-events-none absolute top-1 w-40 rounded-xl bg-white/95 p-2 text-xs shadow-card ring-1 ring-slate-200" style={{ left }} dir="rtl">
+        <div className="pointer-events-none absolute top-1 w-40 rounded-xl bg-white/95 p-2 text-xs shadow-card ring-1 ring-slate-200" style={{ left }} dir={dir()}>
           <div className="num font-bold text-slate-500">{clock(i !== null ? series.t[i] : inspect.t)}</div>
           {i !== null ? (
             <>
               <div><span className="num text-lg font-bold">{formatGlucose(series.v[i], unit)}</span> <span className="text-slate-500">{unitLabel(unit)}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">خلال 15 د</span><b className="num" dir="ltr">{d15 !== null ? fmtDelta(d15) : '—'}</b></div>
-              <div className="flex justify-between"><span className="text-slate-500">لكل دقيقة</span><b className="num" dir="ltr">{rate !== null ? fmtRate(rate) : '—'}</b></div>
+              <div className="flex justify-between"><span className="text-slate-500">{t('خلال 15 د')}</span><b className="num" dir="ltr">{d15 !== null ? fmtDelta(d15) : '—'}</b></div>
+              <div className="flex justify-between"><span className="text-slate-500">{t('لكل دقيقة')}</span><b className="num" dir="ltr">{rate !== null ? fmtRate(rate) : '—'}</b></div>
             </>
-          ) : <div className="text-slate-500">لا توجد قراءة هنا</div>}
+          ) : <div className="text-slate-500">{t('لا توجد قراءة هنا')}</div>}
           {trackList.map((k) => { const at = i !== null ? series.t[i] : inspect.t; return at <= now && (
-            <div key={k} className="flex justify-between"><span className="text-slate-500">{k === 'iob' ? 'إنسولين نشط' : 'كارب نشط'}</span><b className="num">{k === 'iob' ? `${tracks![k]!(at).toFixed(1)} و` : `${Math.round(tracks![k]!(at))} غ`}</b></div>
+            <div key={k} className="flex justify-between"><span className="text-slate-500">{k === 'iob' ? t('إنسولين نشط') : t('كارب نشط')}</span><b className="num">{k === 'iob' ? t('{v} و', { v: tracks![k]!(at).toFixed(1) }) : t('{v} غ', { v: Math.round(tracks![k]!(at)) })}</b></div>
           ); })}
         </div>
       )}

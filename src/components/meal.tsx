@@ -4,9 +4,10 @@ import { fmt, type Line, type MealResult } from '../lib/carbs';
 import { logMeal } from '../lib/api';
 import { useData } from '../lib/data';
 import type { Recipe } from '../lib/types';
+import { t, tMaybe } from '../i18n';
 import { Btn, CarbBadge, Card, Photo, recipeArt, toast } from './ui';
 
-export const lineName = (l: Line) => l.ing.label ?? l.product?.name ?? l.ing.slot_category ?? '؟';
+export const lineName = (l: Line) => l.ing.label ?? l.product?.name ?? (l.ing.slot_category ? tMaybe(l.ing.slot_category) : t('؟'));
 
 export const mainNames = (meal: MealResult, n = 4) =>
   [...meal.lines].filter((l) => l.ing.role === 'main').sort((a, b) => (b.carbs ?? 0) - (a.carbs ?? 0)).slice(0, n).map(lineName).join(' • ');
@@ -18,17 +19,17 @@ export function useChoose() {
   return {
     busy,
     async choose(input: { kind: 'meal' | 'snack'; recipe_id: string | null; name: string; category: string | null; meal: MealResult; modified: boolean }) {
-      if (!input.meal.complete) { toast('لا يمكن التسجيل: الكارب غير مكتمل'); return false; }
+      if (!input.meal.complete) { toast(t('لا يمكن التسجيل: الكارب غير مكتمل')); return false; }
       if (input.meal.total.carbs > settings.max_meal_carbs &&
-        !confirm(`هذه الوجبة ${fmt(input.meal.total.carbs)}غ كارب وتتجاوز الحد (${settings.max_meal_carbs}غ). هل تريدون تسجيلها رغم ذلك؟`)) return false;
+        !confirm(t('هذه الوجبة {carbs}غ كارب وتتجاوز الحد ({max}غ). هل تريدون تسجيلها رغم ذلك؟', { carbs: fmt(input.meal.total.carbs), max: settings.max_meal_carbs }))) return false;
       setBusy(true);
       try {
         await logMeal(input);
         await reload();
-        toast('تم التسجيل في السجل ✓');
+        toast(t('تم التسجيل في السجل ✓'));
         return true;
       } catch (e) {
-        toast('تعذّر التسجيل: ' + (e as Error).message);
+        toast(t('تعذّر التسجيل: {err}', { err: (e as Error).message }));
         return false;
       } finally { setBusy(false); }
     },
@@ -49,7 +50,7 @@ export function MealCard({ recipe, meal, chosenToday }: { recipe: Recipe; meal: 
       </Link>
       <Btn kind={chosenToday ? 'soft' : 'primary'} className="shrink-0 !px-3" disabled={busy || chosenToday}
         onClick={() => choose({ kind: 'meal', recipe_id: recipe.id, name: recipe.name, category: recipe.category, meal, modified: false })}>
-        {chosenToday ? '✓ اخترناها' : 'اخترناها'}
+        {chosenToday ? t('✓ اخترناها') : t('اخترناها')}
       </Btn>
     </Card>
   );

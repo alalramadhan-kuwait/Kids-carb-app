@@ -1,3 +1,4 @@
+import { t, tr } from '../i18n';
 export type GlucoseUnit = 'mmol' | 'mgdl';
 export interface Reading { taken_at: string; mg_dl: number; trend: number | null }
 export interface GlucoseState {
@@ -13,7 +14,7 @@ export interface GlucoseState {
 const MMOL = 18.016;
 export const formatGlucose = (mgdl: number, unit: GlucoseUnit) => (unit === 'mmol' ? (Math.round((mgdl / MMOL) * 10) / 10).toFixed(1) : String(Math.round(mgdl)));
 export const toMgdl = (v: number, unit: GlucoseUnit) => Math.round(unit === 'mmol' ? v * MMOL : v);
-export const unitLabel = (u: GlucoseUnit) => (u === 'mmol' ? 'مليمول/ل' : 'ملغ/دل');
+export const unitLabel = (u: GlucoseUnit) => (u === 'mmol' ? t('مليمول/ل') : t('ملغ/دل'));
 
 
 /** A number on screen must say how old it is: a stale reading looks exactly like a live one. */
@@ -58,15 +59,15 @@ export function mergeReading(g: GlucoseState, r: Reading, now = Date.now()): Glu
   return { ...g, readings, latest: readings[readings.length - 1] ?? g.latest };
 }
 
-export const GLUCOSE_ERRORS: Record<string, string> = {
-  bad_credentials: 'البريد أو كلمة المرور غير صحيحين. استخدم حساب LibreLinkUp (المتابع)، وليس حساب Libre الرئيسي.',
-  terms_required: 'افتح تطبيق LibreLinkUp على الجوال مرة واحدة ووافق على الشروط، ثم أعد المحاولة.',
-  version_rejected: 'Abbott رفضت إصدار الاتصال. يلزم تحديث التطبيق، أخبر المطوّر.',
-  rate_limited: 'Abbott تحدّ من عدد الطلبات الآن. ستُحدَّث القراءة تلقائيًا بعد قليل.',
-  no_data: 'خدمة LibreLinkUp لم ترسل قراءات. تحقق أن تطبيق Libre على جوال ليان يعمل ومتصل بالإنترنت.',
-  no_connection: 'لا توجد مشاركة. من تطبيق Libre الرئيسي شارك القراءات مع حساب LibreLinkUp هذا.',
-  upstream: 'تعذّر الوصول إلى خدمة LibreLinkUp. حاول بعد قليل.',
-  not_allowed: 'غير مسموح.',
-  server: 'خطأ في الخادم.',
-  bad_input: 'اكتب البريد وكلمة المرور.',
-};
+export const GLUCOSE_ERRORS: Record<string, string> = tr({ // i18n-ok: values translated when read
+  bad_credentials: 'البريد أو كلمة المرور غير صحيحين. استخدم حساب LibreLinkUp (المتابع)، وليس حساب Libre الرئيسي.', // i18n-ok
+  terms_required: 'افتح تطبيق LibreLinkUp على الجوال مرة واحدة ووافق على الشروط، ثم أعد المحاولة.', // i18n-ok
+  version_rejected: 'Abbott رفضت إصدار الاتصال. يلزم تحديث التطبيق، أخبر المطوّر.', // i18n-ok
+  rate_limited: 'Abbott تحدّ من عدد الطلبات الآن. ستُحدَّث القراءة تلقائيًا بعد قليل.', // i18n-ok
+  no_data: 'خدمة LibreLinkUp لم ترسل قراءات. تحقق أن تطبيق Libre على جوال ليان يعمل ومتصل بالإنترنت.', // i18n-ok
+  no_connection: 'لا توجد مشاركة. من تطبيق Libre الرئيسي شارك القراءات مع حساب LibreLinkUp هذا.', // i18n-ok
+  upstream: 'تعذّر الوصول إلى خدمة LibreLinkUp. حاول بعد قليل.', // i18n-ok
+  not_allowed: 'غير مسموح.', // i18n-ok
+  server: 'خطأ في الخادم.', // i18n-ok
+  bad_input: 'اكتب البريد وكلمة المرور.', // i18n-ok
+});

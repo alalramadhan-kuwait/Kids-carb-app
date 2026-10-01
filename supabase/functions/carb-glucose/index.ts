@@ -3,7 +3,7 @@
 // them. The login is kept in Supabase Vault; the browser can save it but never read it back.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { hostFor, LLU_PRODUCT, LLU_VERSION, LluError, loginProblem, maskEmail, readingsFromGraph, redirectRegion, sha256Hex, tooSoon } from './lib.ts';
-import { ackMessage, alertMessage, evaluate, recipients, type AlertCfg, type AlertKind, type OpenAlert } from './alerts.ts';
+import { ackMessage, alertMessage, evaluate, recipients, testMessage, type AlertCfg, type AlertKind, type Lang, type OpenAlert } from './alerts.ts';
 import { newVapid, sendPush, type Vapid } from './push.ts';
 
 const cors = {
@@ -77,8 +77,10 @@ async function vapid(db: Db): Promise<Vapid> {
   return v;
 }
 
-/** Sends to every phone of the family (or only/except one person) and logs each delivery. */
-async function pushAll(db: Db, payload: Record<string, unknown>, o: { kind: string; alertId?: string; urgency: 'normal' | 'high'; only?: string; except?: string; users?: string[] }) {
+type Payload = Record<string, unknown>;
+/** Sends to every phone of the family (or only/except one person) and logs each delivery. The payload may depend
+ *  on the language of the phone's owner (carb.members.lang). */
+async function pushAll(db: Db, payload: Payload | ((lang: Lang) => Payload), o: { kind: string; alertId?: string; urgency: 'normal' | 'high'; only?: string; except?: string; users?: string[] }) {
   let q = db.from('push_subscriptions').select('*');
   if (o.users) { if (!o.users.length) return []; q = q.in('user_id', o.users); }
   if (o.only) q = q.eq('user_id', o.only);
@@ -86,9 +88,16 @@ async function pushAll(db: Db, payload: Record<string, unknown>, o: { kind: stri
   const { data: subs } = await q;
   if (!subs?.length) return [];
   const v = await vapid(db);
+  const langs = new Map<string, Lang>();
+  if (typeof payload === 'function') {
+    const { data: mem } = await db.from('members').select('user_id,lang');
+    for (const m of (mem ?? []) as { user_id: string; lang: string }[]) langs.set(m.user_id, m.lang === 'en' ? 'en' : 'ar');
+  }
   return Promise.all(subs.map(async (s: any) => {
     let status = 0, error = '';
-    try { ({ status, error } = await sendPush(s, payload, v, { urgency: o.urgency, ttl: o.urgency === 'high' ? 900 : 3600, topic: String(payload.tag ?? '') })); }
+    const lang: Lang = langs.get(s.user_id) ?? 'ar';
+    const body = typeof payload === 'function' ? { ...payload(lang), lang } : payload;
+    try { ({ status, error } = await sendPush(s, body, v, { urgency: o.urgency, ttl: o.urgency === 'high' ? 900 : 3600, topic: String(body.tag ?? '') })); }
     catch (e) { error = e instanceof Error ? e.message : String(e); }
     const ok = status >= 200 && status < 300;
     if (status === 404 || status === 410) await db.from('push_subscriptions').delete().eq('id', s.id); // phone unsubscribed
@@ -137,9 +146,9 @@ async function runAlerts(db: Db, now: number) {
       ? (latest ? (now - Date.parse(latest.taken_at)) / 60000 : 0)
       : (now - Date.parse(startedAt)) / 60000;
     const value = step.kind === 'no_data' ? null : (latest?.mg_dl ?? null);
-    const m = alertMessage(step.kind, step.notify, { child: s.child_name, value, trend: latest?.trend ?? null, unit: s.glucose_unit === 'mmol' ? 'mmol' : 'mgdl', minutes });
-    await pushAll(db, { title: m.title, body: m.body, tag: `alert-${step.kind}`, url: './#/', kind: step.kind, sticky: step.kind === 'urgent_low' && step.notify !== 'resolved' },
-      { kind: step.notify, alertId: id, urgency: m.urgency, users: recipients(members, step.notify) });
+    const msg = (lang: Lang) => alertMessage(step.kind, step.notify!, { child: s.child_name, value, trend: latest?.trend ?? null, unit: s.glucose_unit === 'mmol' ? 'mmol' : 'mgdl', minutes }, lang);
+    await pushAll(db, (lang) => { const m = msg(lang); return { title: m.title, body: m.body, tag: `alert-${step.kind}`, url: './#/', kind: step.kind, sticky: step.kind === 'urgent_low' && step.notify !== 'resolved' }; },
+      { kind: step.notify, alertId: id, urgency: msg('ar').urgency, users: recipients(members, step.notify) });
   }
 }
 
@@ -199,7 +208,7 @@ Deno.serve(async (req) => {
     // ── alerts and push, for family members ──
     if (body.action === 'push_key') return json({ publicKey: (await vapid(db)).publicKey });
     if (body.action === 'test_push' && userId) {
-      const sent = await pushAll(db, { title: 'تنبيه تجربة', body: 'التنبيهات تعمل على هذا الجوال', tag: 'test', url: './#/' }, { kind: 'test', urgency: 'high', only: userId });
+      const sent = await pushAll(db, (lang) => ({ ...testMessage(lang), tag: 'test', url: './#/' }), { kind: 'test', urgency: 'high', only: userId });
       return json({ sent: sent.length, ok: sent.filter((r) => r.ok).length });
     }
     if (body.action === 'ack' && userId) {
@@ -214,8 +223,8 @@ Deno.serve(async (req) => {
         db.from('members').select('display_name').eq('user_id', userId).maybeSingle(),
         db.from('settings').select('child_name').eq('id', true).single(),
       ]);
-      const m = ackMessage((a as any).kind as AlertKind, (set as any)?.child_name ?? 'ليان', (me as any)?.display_name || 'أحد الوالدين', act);
-      await pushAll(db, { title: m.title, body: m.body, tag: `alert-${(a as any).kind}`, url: './#/' }, { kind: 'ack', alertId: (a as any).id, urgency: 'normal', except: userId });
+      const ack = (lang: Lang) => ackMessage((a as any).kind as AlertKind, (set as any)?.child_name ?? 'ليان', (me as any)?.display_name || null, act, lang);
+      await pushAll(db, (lang) => ({ title: ack(lang).title, body: ack(lang).body, tag: `alert-${(a as any).kind}`, url: './#/' }), { kind: 'ack', alertId: (a as any).id, urgency: 'normal', except: userId });
       return json({ ok: true, snoozed_min: mins });
     }
 

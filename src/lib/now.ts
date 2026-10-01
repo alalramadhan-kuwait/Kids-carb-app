@@ -1,10 +1,11 @@
 import type { EventRow } from './types';
 import type { GlucoseStatus } from './glucose';
+import { isEn, t, tr } from '../i18n';
 
 /** What the parent reads first: one short sentence. Masculine because the subject is "السكر". */
 export type Tone = 'ok' | 'low' | 'urgent' | 'high' | 'warn' | 'plain';
-const TREND_TAIL: Record<number, string> = { 1: ' ونازل بسرعة', 2: ' ونازل', 3: '', 4: ' وصاعد', 5: ' وصاعد بسرعة' };
-const TREND_ALONE: Record<number, string> = { 1: 'نازل بسرعة', 2: 'نازل', 3: 'ثابت', 4: 'صاعد', 5: 'صاعد بسرعة' };
+const TREND_TAIL: Record<number, string> = tr({ 1: ' ونازل بسرعة', 2: ' ونازل', 3: '', 4: ' وصاعد', 5: ' وصاعد بسرعة' }); // i18n-ok
+const TREND_ALONE: Record<number, string> = tr({ 1: 'نازل بسرعة', 2: 'نازل', 3: 'ثابت', 4: 'صاعد', 5: 'صاعد بسرعة' }); // i18n-ok
 
 export function statusSentence(args: {
   hasReading: boolean;
@@ -13,27 +14,27 @@ export function statusSentence(args: {
   trend: number | null;
 }): { text: string; tone: Tone } {
   const { hasReading, age, status, trend } = args;
-  if (!hasReading || age === 'stale') return { text: 'لا توجد قراءة حديثة', tone: 'warn' };
-  if (age === 'old') return { text: 'القراءة ليست حديثة', tone: 'warn' };
+  if (!hasReading || age === 'stale') return { text: t('لا توجد قراءة حديثة'), tone: 'warn' };
+  if (age === 'old') return { text: t('القراءة ليست حديثة'), tone: 'warn' };
   const tail = trend ? TREND_TAIL[trend] ?? '' : '';
-  if (!status) return { text: trend ? `السكر ${TREND_ALONE[trend]}` : 'السكر', tone: 'plain' };
+  if (!status) return { text: trend ? t('السكر {x}', { x: isEn() ? TREND_ALONE[trend].toLowerCase() : TREND_ALONE[trend] }) : t('السكر'), tone: 'plain' };
   switch (status) {
-    case 'urgent_low': return { text: `منخفض جدًا${tail}`, tone: 'urgent' };
-    case 'low': return { text: `منخفض${tail}`, tone: 'low' };
-    case 'in_range': return { text: trend === 3 || !trend ? 'مستقر ضمن النطاق' : `ضمن النطاق${tail}`, tone: 'ok' };
-    case 'high': return { text: `مرتفع${tail}`, tone: 'high' };
-    case 'very_high': return { text: `مرتفع جدًا${tail}`, tone: 'high' };
+    case 'urgent_low': return { text: t('منخفض جدًا') + tail, tone: 'urgent' };
+    case 'low': return { text: t('منخفض') + tail, tone: 'low' };
+    case 'in_range': return { text: trend === 3 || !trend ? t('مستقر ضمن النطاق') : t('ضمن النطاق') + tail, tone: 'ok' };
+    case 'high': return { text: t('مرتفع') + tail, tone: 'high' };
+    case 'very_high': return { text: t('مرتفع جدًا') + tail, tone: 'high' };
   }
 }
 
 /** "قبل 25 د" / "قبل 1:20" — short enough for one line. */
 export function sinceText(iso: string, now = Date.now()): string {
   const min = Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000));
-  if (min < 1) return 'الآن';
-  if (min < 60) return `قبل ${min} د`;
+  if (min < 1) return t('الآن');
+  if (min < 60) return t('قبل {m} د', { m: min });
   const h = Math.floor(min / 60), m = min % 60;
-  if (h < 24) return `قبل ${h}:${String(m).padStart(2, '0')}`;
-  return `قبل ${Math.floor(h / 24)} يوم`;
+  if (h < 24) return t('قبل {hm}', { hm: `${h}:${String(m).padStart(2, '0')}` });
+  return t('قبل {n} يوم', { n: Math.floor(h / 24) });
 }
 
 /**
@@ -59,7 +60,7 @@ export function kuwaitDayStart(now = new Date()): Date {
 
 export const hoursOfDay = (pct: number) => {
   const mins = Math.round((pct / 100) * 24 * 60);
-  return `${Math.floor(mins / 60)} س ${mins % 60} د`;
+  return t('{h} س {m} د', { h: Math.floor(mins / 60), m: mins % 60 });
 };
 
 /** GMI (%) = 3.31 + 0.02392 × mean glucose (mg/dL). Only meaningful with ≥ 14 days and ≥ 70% data. */

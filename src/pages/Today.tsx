@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { blocker, suggest } from '../lib/suggest';
-import { computeSnack, fmt, PROBLEM_TEXT } from '../lib/carbs';
-import { dayName, fmtDate, fmtTime, relDay, sameDay } from '../lib/constants';
+import { computeSnack, problemText, type Problem } from '../lib/carbs';
+import { sameDay } from '../lib/constants';
 import { Alert, Btn, Card, Page, Photo, CarbBadge, snackArt } from '../components/ui';
 import { MealCard, useChoose } from '../components/meal';
+import { isEn, t, tMaybe } from '../i18n';
 
 const SHUFFLE_KEY = 'kc-shuffle';
 const readShuffle = () => { try { const v = JSON.parse(localStorage.getItem(SHUFFLE_KEY) ?? 'null'); return v?.day === new Date().toDateString() ? Number(v.n) : 0; } catch { return 0; } };
@@ -42,41 +43,41 @@ export default function Today() {
   const eligible = candidates.filter((c) => blocker(c, settings) === null).length;
 
   return (
-    <Page title="الوجبات">
+    <Page title={t('الوجبات')}>
       <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
-        {[['/recipes', 'الوصفات'], ['/products', 'المنتجات'], ['/plan', 'خطة الأيام'], ['/snacks', 'السناكات']].map(([to, l]) => (
+        {[['/recipes', t('الوصفات')], ['/products', t('المنتجات')], ['/plan', t('خطة الأيام')], ['/snacks', t('السناكات')]].map(([to, l]) => (
           <Link key={to} to={to} className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-medium ring-1 ring-slate-200">{l}</Link>
         ))}
       </div>
 
-      <h2 className="mb-2 text-lg font-bold">اقتراحات اليوم</h2>
+      <h2 className="mb-2 text-lg font-bold">{t('اقتراحات اليوم')}</h2>
       <div className="space-y-2.5">
         {picks.map((c) => <MealCard key={c.recipe.id} recipe={c.recipe} meal={c.meal} chosenToday={chosenToday.has(c.recipe.id)} />)}
       </div>
-      {eligible > 3 && <Btn block kind="ghost" className="mt-3" onClick={more}>اقتراحات أخرى</Btn>}
+      {eligible > 3 && <Btn block kind="ghost" className="mt-3" onClick={more}>{t('اقتراحات أخرى')}</Btn>}
 
       {picks.length < 3 && (missing.items.length > 0 || missing.pending.length > 0) && (
         <details className="mt-3 rounded-2xl border border-slate-100 bg-white px-4 py-3">
           <summary className="flex min-h-[32px] cursor-pointer list-none items-center justify-between text-sm font-medium text-near">
-            <span>{missing.items.length + missing.pending.length} وصفات تنقصها بيانات</span><span className="text-slate-400">‹</span>
+            <span>{t('{n} وصفات تنقصها بيانات', { n: missing.items.length + missing.pending.length })}</span><span className="text-slate-400">{isEn() ? '›' : '‹'}</span>
           </summary>
           <ul className="mt-2 space-y-1.5 text-sm">
             {missing.items.slice(0, 8).map(([key, n]) => {
               const [what, problem] = key.split('|');
               return (
                 <li key={key} className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2">
-                  <span><b>{what}</b> · {PROBLEM_TEXT[problem as keyof typeof PROBLEM_TEXT]}</span>
-                  {problem === 'no_product' ? <Link className="shrink-0 text-brand underline" to={`/products/new?category=${encodeURIComponent(what)}`}>إضافة</Link>
+                  <span><b>{tMaybe(what)}</b> · {problemText(problem as Problem)}</span>
+                  {problem === 'no_product' ? <Link className="shrink-0 text-brand underline" to={`/products/new?category=${encodeURIComponent(what)}`}>{t('إضافة')}</Link>
                     : <span className="shrink-0 text-xs text-slate-400">{n}</span>}
                 </li>
               );
             })}
-            {missing.pending.map((name) => <li key={name} className="rounded-xl bg-slate-50 px-3 py-2"><b>{name}</b> · الكارب غير مكتمل</li>)}
+            {missing.pending.map((name) => <li key={name} className="rounded-xl bg-slate-50 px-3 py-2"><b>{name}</b> · {t('الكارب غير مكتمل')}</li>)}
           </ul>
         </details>
       )}
 
-      <h2 className="mb-2 mt-8 text-lg font-bold">السناكات</h2>
+      <h2 className="mb-2 mt-8 text-lg font-bold">{t('السناكات')}</h2>
       <div className="grid grid-cols-2 gap-3">
         {snacks.map((s) => {
           const meal = computeSnack(s, products, settings);
@@ -86,12 +87,14 @@ export default function Today() {
               <div className="truncate font-bold">{s.name}</div>
               <CarbBadge carbs={meal.total.carbs} level="normal" size="sm" unknown={!meal.complete} />
               <Btn block disabled={busy || !meal.complete}
-                onClick={() => choose({ kind: 'snack', recipe_id: null, name: s.name, category: 'سناك', meal, modified: false })}>اخترناه</Btn>
+                onClick={() => choose({ kind: 'snack', recipe_id: null, name: s.name,
+                  category: 'سناك', // i18n-ok: stored category name
+                  meal, modified: false })}>{t('اخترناه')}</Btn>
             </Card>
           );
         })}
       </div>
-      {recipes.length === 0 && <div className="mt-4"><Alert tone="info">لا توجد وصفات بعد.</Alert></div>}
+      {recipes.length === 0 && <div className="mt-4"><Alert tone="info">{t('لا توجد وصفات بعد.')}</Alert></div>}
     </Page>
   );
 }

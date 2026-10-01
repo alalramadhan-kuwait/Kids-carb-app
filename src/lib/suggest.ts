@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { computeMeal, type MealResult } from './carbs';
 import type { HistoryEntry, Ingredient, Product, Recipe, Settings } from './types';
 
@@ -9,10 +10,10 @@ export interface Candidate {
 
 /** Why a recipe is not suggestable, or null if it is. */
 export function blocker(c: Candidate, s: Settings): string | null {
-  if (!c.recipe.approved) return 'تحت المراجعة';
-  if (c.recipe.carb_pending) return 'الكارب غير مكتمل';
-  if (!c.meal.complete) return 'ينقصها منتجات';
-  if (c.meal.total.carbs > s.max_meal_carbs) return 'تتجاوز الحد';
+  if (!c.recipe.approved) return t('تحت المراجعة');
+  if (c.recipe.carb_pending) return t('الكارب غير مكتمل');
+  if (!c.meal.complete) return t('ينقصها منتجات');
+  if (c.meal.total.carbs > s.max_meal_carbs) return t('تتجاوز الحد');
   return null;
 }
 

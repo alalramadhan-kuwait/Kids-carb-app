@@ -10,10 +10,12 @@ import { dayStartOf, dayTitle } from '../engine/day';
 import { useNavigate } from 'react-router-dom';
 import { fetchSeries } from '../engine/useSeries';
 import { DISMISS_MS, findPatterns, visible, type PatternCard } from '../engine/patterns';
+import { isEn, t } from '../i18n';
 
 const PERIODS = [7, 14, 30, 90];
-const WEEK = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
-const FILTERS: [DayFilter, string][] = [['all', 'كل الأيام'], ['school', 'أيام المدرسة'], ['weekend', 'العطلة'], ['custom', 'أيام محددة']];
+// labels stay Arabic here and are shown with t()
+const WEEK = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']; // i18n-ok
+const FILTERS: [DayFilter, string][] = [['all', 'كل الأيام'], ['school', 'أيام المدرسة'], ['weekend', 'العطلة'], ['custom', 'أيام محددة']]; // i18n-ok
 
 /** الأنماط: her typical day — median and 25–75 / 10–90 % bands over a 24-hour clock (AGP at 14+ days). */
 export function Patterns() {
@@ -42,43 +44,43 @@ export function Patterns() {
     <div className="space-y-3 pb-4">
       <PatternCards />
       <div className="flex gap-1.5" dir="ltr">
-        {PERIODS.map((d) => <Chip key={d} active={days === d} onClick={() => setDays(d)}>{d} يوم</Chip>)}
+        {PERIODS.map((d) => <Chip key={d} active={days === d} onClick={() => setDays(d)}>{t('{n} يوم', { n: d })}</Chip>)}
       </div>
       <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4">
-        {FILTERS.map(([f, l]) => <Chip key={f} active={filter === f} onClick={() => setFilter(f)}>{l}</Chip>)}
+        {FILTERS.map(([f, l]) => <Chip key={f} active={filter === f} onClick={() => setFilter(f)}>{t(l)}</Chip>)}
       </div>
       {filter === 'custom' && (
         <div className="flex flex-wrap gap-1.5">
-          {WEEK.map((w, d) => <Chip key={d} active={custom.includes(d)} onClick={() => setCustom(custom.includes(d) ? custom.filter((x) => x !== d) : [...custom, d])}>{w}</Chip>)}
+          {WEEK.map((w, d) => <Chip key={d} active={custom.includes(d)} onClick={() => setCustom(custom.includes(d) ? custom.filter((x) => x !== d) : [...custom, d])}>{t(w)}</Chip>)}
         </div>
       )}
 
       <Card className="!px-2">
         <div className="mb-1 flex items-center justify-between px-2">
-          <h2 className="font-bold">{days >= 14 ? 'ملف السكر اليومي (AGP)' : 'يومها المعتاد'}</h2>
-          <Badge>منشور</Badge>
+          <h2 className="font-bold">{days >= 14 ? t('ملف السكر اليومي (AGP)') : t('يومها المعتاد')}</h2>
+          <Badge>{t('منشور')}</Badge>
         </div>
         {err ? <p className="px-2 text-sm text-over">{err}</p> : !bins ? <p className="px-2 text-slate-500">…</p> : bins.length === 0 ? (
-          <p className="px-2 py-6 text-center text-sm text-slate-500">لا توجد قراءات في هذه الفترة.</p>
+          <p className="px-2 py-6 text-center text-sm text-slate-500">{t('لا توجد قراءات في هذه الفترة.')}</p>
         ) : <ProfileChart bins={bins} unit={unit} range={effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl)} />}
         <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 px-2 text-xs text-slate-500">
-          <span className="inline-flex items-center gap-1"><i className="h-0.5 w-4 rounded bg-brand" /> الوسيط</span>
+          <span className="inline-flex items-center gap-1"><i className="h-0.5 w-4 rounded bg-brand" /> {t('الوسيط')}</span>
           <span className="inline-flex items-center gap-1"><i className="h-3 w-4 rounded-sm bg-brand-light/40" /> 25–75%</span>
           <span className="inline-flex items-center gap-1"><i className="h-3 w-4 rounded-sm bg-brand-light/15" /> 10–90%</span>
-          <span className="inline-flex items-center gap-1"><i className="h-0 w-4 border-t-2 border-dashed border-slate-300" /> أقل من {MIN_DAYS} أيام</span>
+          <span className="inline-flex items-center gap-1"><i className="h-0 w-4 border-t-2 border-dashed border-slate-300" /> {t('أقل من {n} أيام', { n: MIN_DAYS })}</span>
         </div>
-        {bins && bins.length > 0 && enoughBins < 48 && <p className="mt-2 px-2 text-xs text-near">البيانات قليلة بعد: النمط يصير أوضح مع المزيد من الأيام.</p>}
+        {bins && bins.length > 0 && enoughBins < 48 && <p className="mt-2 px-2 text-xs text-near">{t('البيانات قليلة بعد: النمط يصير أوضح مع المزيد من الأيام.')}</p>}
       </Card>
 
       {stats && stats.n > 0 && (
         <Card className="grid grid-cols-3 gap-2 !py-3 text-center">
-          <Stat label="ضمن النطاق" value={`${Math.round(stats.pct_in)}%`} tone="text-ok" />
-          <Stat label="التذبذب CV" value={cv !== null ? `${cv.toFixed(0)}%` : '—'} />
+          <Stat label={t('ضمن النطاق')} value={`${Math.round(stats.pct_in)}%`} tone="text-ok" />
+          <Stat label={t('التذبذب CV')} value={cv !== null ? `${cv.toFixed(0)}%` : '—'} />
           <Stat label="GMI" value={days >= 14 && stats.coverage >= 70 && stats.mean !== null ? `${gmi(stats.mean).toFixed(1)}%` : '—'} />
-          <Stat label="المتوسط" value={stats.mean !== null ? formatGlucose(stats.mean, unit) : '—'} />
-          <Stat label="التغطية" value={`${Math.round(stats.coverage)}%`} />
-          <Stat label="منخفض" value={`${Math.round(stats.pct_vlow + stats.pct_low)}%`} tone="text-over" />
-          <p className="col-span-3 text-[11px] text-slate-400">الأرقام للفترة كاملة{filter !== 'all' ? ' (كل الأيام)' : ''}. GMI يحتاج 14 يومًا و70% بيانات، وهو تقدير وليس HbA1c.</p>
+          <Stat label={t('المتوسط')} value={stats.mean !== null ? formatGlucose(stats.mean, unit) : '—'} />
+          <Stat label={t('التغطية')} value={`${Math.round(stats.coverage)}%`} />
+          <Stat label={t('منخفض')} value={`${Math.round(stats.pct_vlow + stats.pct_low)}%`} tone="text-over" />
+          <p className="col-span-3 text-[11px] text-slate-400">{t('الأرقام للفترة كاملة')}{filter !== 'all' ? ' ' + t('(كل الأيام)') : ''}. {t('GMI يحتاج 14 يومًا و70% بيانات، وهو تقدير وليس HbA1c.')}</p>
         </Card>
       )}
     </div>
@@ -108,13 +110,13 @@ function PatternCards() {
   if (!shown.length) return null;
   const fill = (c: PatternCard) => c.facts.text.replace(/\{(\d)\}/g, (_, k) => `${formatGlucose(c.facts.mg![+k], unit)} ${unitLabel(unit)}`);
   return (
-    <section className="space-y-2" aria-label="ملاحظات">
-      <h2 className="px-1 font-bold">ملاحظات من بياناتها</h2>
+    <section className="space-y-2" aria-label={t('ملاحظات من بياناتها')}>
+      <h2 className="px-1 font-bold">{t('ملاحظات من بياناتها')}</h2>
       {shown.map((c) => (
         <Card key={c.id} className="space-y-2 !py-3">
           <div className="flex items-start gap-2">
             <h3 className="flex-1 font-bold">{c.title}</h3>
-            <Badge>{c.kind === 'overnight_drift' ? `${c.days.length} من ${c.n} ليالٍ` : `n = ${c.n}`}</Badge>
+            <Badge>{c.kind === 'overnight_drift' ? t('{a} من {b} ليالٍ', { a: c.days.length, b: c.n }) : `n = ${c.n}`}</Badge>
           </div>
           <p className="text-sm text-slate-600">{fill(c)}</p>
           {open === c.id && <p className="text-xs text-slate-500">{c.rule}</p>}
@@ -124,12 +126,12 @@ function PatternCards() {
             ))}
           </div>
           <div className="flex gap-4 text-xs font-bold text-slate-500">
-            <button className="min-h-[36px]" onClick={() => setOpen(open === c.id ? null : c.id)}>{open === c.id ? 'إخفاء القاعدة' : 'كيف عرفنا؟'}</button>
-            <button className="min-h-[36px]" onClick={() => dismiss(c.id)}>إخفاء أسبوعًا</button>
+            <button className="min-h-[36px]" onClick={() => setOpen(open === c.id ? null : c.id)}>{open === c.id ? t('إخفاء القاعدة') : t('كيف عرفنا؟')}</button>
+            <button className="min-h-[36px]" onClick={() => dismiss(c.id)}>{t('إخفاء أسبوعًا')}</button>
           </div>
         </Card>
       ))}
-      <p className="px-1 text-[11px] text-slate-400">ملاحظات وصفية من القراءات، ليست نصيحة علاجية. ناقشوها مع الفريق الطبي.</p>
+      <p className="px-1 text-[11px] text-slate-400">{t('ملاحظات وصفية من القراءات، ليست نصيحة علاجية. ناقشوها مع الفريق الطبي.')}</p>
     </section>
   );
 }
@@ -150,7 +152,7 @@ export function ProfileChart({ bins, unit, range }: { bins: Bin[]; unit: 'mmol' 
   const thin = bins.filter((b) => b.days < MIN_DAYS);
   const ticks = unit === 'mmol' ? [4, 10, 16].map((m) => m * 18.016) : [70, 180, 300];
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="ملف السكر على مدار 24 ساعة" direction="ltr">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={t('ملف السكر على مدار 24 ساعة')} direction="ltr">
       <rect x={PL} y={PT} width={W - PL - PR} height={PH} rx="8" fill="rgb(var(--surface-2))" />
       {range.low !== null && range.high !== null && (
         <rect x={PL} y={y(range.high)} width={W - PL - PR} height={y(range.low) - y(range.high)} fill="rgb(var(--st-in))" opacity={range.reference ? 0.08 : 0.13} />
@@ -167,7 +169,7 @@ export function ProfileChart({ bins, unit, range }: { bins: Bin[]; unit: 'mmol' 
       {runs.map((r, i) => r.length > 1
         ? <path key={'m' + i} d={line(r)} fill="none" stroke="rgb(var(--primary-strong))" strokeWidth="2.4" strokeLinejoin="round" strokeLinecap="round" />
         : <circle key={'m' + i} cx={x(r[0].bin)} cy={y(r[0].p50)} r="2" fill="rgb(var(--primary-strong))" />)}
-      <text x={PL + 4} y={PT + 12} fontSize="10" fill="rgb(var(--text-3))" fontFamily="Rubik, system-ui" direction="rtl" textAnchor="end">{unitLabel(unit)}</text>
+      <text x={PL + 4} y={PT + 12} fontSize="10" fill="rgb(var(--text-3))" fontFamily="Rubik, system-ui" direction={isEn() ? 'ltr' : 'rtl'} textAnchor={isEn() ? 'start' : 'end'}>{unitLabel(unit)}</text>
     </svg>
   );
 }

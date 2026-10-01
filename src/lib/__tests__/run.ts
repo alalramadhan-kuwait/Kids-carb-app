@@ -18,7 +18,7 @@ import { adrrBand, grid, hbgiBand, lbgiBand, riskF, variability } from '../../en
 import { findPatterns, visible } from '../../engine/patterns';
 import { cobAt, dosesFrom, iobAt, iobFraction, iobParamsOk } from '../../engine/iob';
 import { GRID, alignCurve, buildOccurrence, coverage, medianCurve, notClean, summary, windowSeries } from '../../engine/meals';
-import { alertMessage, evaluate, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
+import { ackMessage, alertMessage, evaluate, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
 import { PERIODS, delta15, freshness, gapsIn, mergeSeries, emptySeries, nearest, rateAt, runsFor, timeTicks, tickLabel, zoomAt } from '../../engine/series';
 import { findDuplicate, gmi, hoursOfDay, kuwaitDayStart, sinceText, statusSentence } from '../now';
@@ -498,6 +498,17 @@ test('alert wording is facts only, in her unit', () => {
   }
 });
 
+test('English push alerts: her name in English, same facts, no dose or grams', () => {
+  const m = alertMessage('low', 'alert', { child: 'ليان', value: 63, trend: 2, unit: 'mmol', minutes: 4 }, 'en');
+  assert.equal(m.title, 'Layan: Low 3.5 ↘'); assert.equal(m.body, "for 4 min · doctor's plan");
+  assert.equal(alertMessage('no_data', 'escalate', { child: 'ليان', value: null, trend: null, unit: 'mgdl', minutes: 21 }, 'en').title, 'No one answered · Layan: no reading for 21 min');
+  assert.equal(ackMessage('urgent_low', 'ليان', null, 'treated', 'en').title, 'A parent treated it ✓');
+  for (const k of ['urgent_low', 'low', 'high', 'no_data', 'rapid_fall', 'rapid_rise'] as const) for (const n of ['alert', 'repeat', 'resolved', 'escalate'] as const) {
+    const t = Object.values(alertMessage(k, n, { child: 'ليان', value: 60, trend: 1, unit: 'mgdl', minutes: 3 }, 'en')).join(' ');
+    assert.ok(!/[\u0600-\u06FF]|unit|gram|give|dose|take /i.test(t), t);
+  }
+});
+
 test('push payload encryption matches RFC 8291 appendix A', async () => {
   const out = await encryptPayload(new TextEncoder().encode('When I grow up, I want to be a watermelon'),
     b64u.dec('BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4'), b64u.dec('BTBZMqHH6r4Tts7J_aSIgg'),
@@ -829,6 +840,24 @@ test('pattern cards follow plan 5.7: recurring lows, overnight drift, rise after
   assert.equal(visible(cards, { [id]: now - 1000 }, now).some((c) => c.id === id), true);
 });
 
+console.log('languages');
+
+test('English: every t() text has a translation with the same placeholders, and no Arabic is left outside t()', async () => {
+  const { checkI18n } = await import('../../i18n/check');
+  const r = checkI18n(new URL('../../', import.meta.url).pathname);
+  const show = (name: string, a: string[]) => (a.length ? `\n${name} (${a.length}):\n  ` + a.slice(0, 40).join('\n  ') : '');
+  assert.ok(!r.missing.length && !r.params.length && !r.bare.length && !r.templ.length,
+    show('missing English', r.missing) + show('placeholders differ', r.params) + show('Arabic outside t()', r.bare) + show('template literal in t()', r.templ));
+});
+
+test('t(): placeholders, English plurals, fallback to Arabic', async () => {
+  const i = await import('../../i18n');
+  i.__setLangForTest('ar'); assert.equal(i.t('ليان'), 'ليان');
+  i.__setLangForTest('en'); assert.equal(i.t('ليان'), 'Layan'); assert.equal(i.t('نص غير مترجم'), 'نص غير مترجم');
+  assert.equal(i.t('{n} يوم', { n: 1 }), '1 day'); assert.equal(i.t('{n} يوم', { n: 3 }), '3 days');
+  i.__setLangForTest('ar');
+});
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {
@@ -836,6 +865,7 @@ test('the newest release notes are for the version being built', () => {
   const rel = JSON.parse(readFileSync(new URL('../../releases.json', import.meta.url), 'utf8'));
   assert.equal(rel[0].version, pkg.version, 'add an entry at the top of src/releases.json');
   assert.ok(rel[0].notes.length > 0);
+  assert.ok(rel[0].notes_en?.length > 0, 'add notes_en (English) to the newest release');
 });
 
 await Promise.all(pending);

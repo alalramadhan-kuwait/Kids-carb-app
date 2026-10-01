@@ -3,6 +3,7 @@
 // readings and 15-minute history weigh the same, and never joined across a gap.
 import { dayStartOf } from './day';
 import type { Series } from './series';
+import { t } from '../i18n';
 
 const MIN = 60000, STEP = 15 * MIN, DAY = 24 * 60 * MIN;
 
@@ -116,6 +117,6 @@ export function variability(s: Series, start: number, end: number): Variability 
 }
 
 /** Published risk bands (Kovatchev): words only, no colour of their own. */
-export const lbgiBand = (x: number) => (x < 1.1 ? 'ضئيل' : x <= 2.5 ? 'منخفض' : x <= 5 ? 'متوسط' : 'مرتفع');
-export const hbgiBand = (x: number) => (x < 5 ? 'منخفض' : x <= 10 ? 'متوسط' : 'مرتفع');
-export const adrrBand = (x: number) => (x < 20 ? 'منخفض' : x <= 40 ? 'متوسط' : 'مرتفع');
+export const lbgiBand = (x: number) => (x < 1.1 ? t('ضئيل') : x <= 2.5 ? t('منخفض') : x <= 5 ? t('متوسط') : t('مرتفع'));
+export const hbgiBand = (x: number) => (x < 5 ? t('منخفض') : x <= 10 ? t('متوسط') : t('مرتفع'));
+export const adrrBand = (x: number) => (x < 20 ? t('منخفض') : x <= 40 ? t('متوسط') : t('مرتفع'));
