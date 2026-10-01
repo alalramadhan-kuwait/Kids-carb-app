@@ -20,7 +20,7 @@ export default {
           50: v('surface-2'), 100: v('border'), 200: v('border'), 300: v('border-strong'), 400: v('text-3'),
           500: v('text-2'), 600: v('text-2'), 700: v('text'), 800: v('text'), 900: v('toast'),
         },
-        brand: { DEFAULT: v('primary-strong'), soft: v('primary-soft'), light: v('primary') },
+        brand: { DEFAULT: v('primary-strong'), soft: v('primary-soft'), light: v('primary'), muted: v('primary-muted'), num: v('num') },
         warm: { soft: v('accent-soft') },
         // medical colours: DEFAULT is the readable text colour, soft is the chip background
         ok: { DEFAULT: v('st-in-text'), soft: v('st-in-soft'), fill: v('st-in') },

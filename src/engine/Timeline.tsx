@@ -122,7 +122,7 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
     const wide = span > 3 * 86400000;
     g.lineJoin = 'round'; g.lineCap = 'round'; g.lineWidth = span <= 6 * 3600000 ? 2.6 : wide ? 1 : 2;
     g.globalAlpha = wide ? 0.55 : 1;
-    g.strokeStyle = css('--primary-strong'); g.stroke(path);
+    g.strokeStyle = css('--primary'); g.stroke(path);
     const hasRange = range.low !== null || range.high !== null;
     const band = (top: number, bottom: number, color: string) => { g.save(); g.beginPath(); g.rect(0, top, width, bottom - top); g.clip(); g.strokeStyle = color; g.stroke(path); g.restore(); };
     if (hasRange) {
@@ -142,7 +142,7 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
 
     // dots for every reading when zoomed in
     if (span <= 3 * 3600000) {
-      const cIn = css('--primary-strong'), cLow = css('--st-low'), cVLow = css('--st-low-text'), cHigh = css('--st-high'), cVHigh = css('--st-high-text');
+      const cIn = css('--primary'), cLow = css('--st-low'), cVLow = css('--st-low-text'), cHigh = css('--st-high'), cVHigh = css('--st-high-text');
       const dot = (v: number) => !hasRange ? cIn : v < 54 ? cVLow : range.low !== null && v < range.low ? cLow : v > 250 ? cVHigh : range.high !== null && v > range.high ? cHigh : cIn;
       for (const r of runs) if (r.raw) for (let k = 0; k < r.x.length; k++) { g.fillStyle = dot(r.v[k]); g.beginPath(); g.arc(r.x[k], Y(r.v[k]), 1.9, 0, 7); g.fill(); }
     }
