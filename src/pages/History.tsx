@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react';
 import { useData } from '../lib/data';
 import { fmt, STATE_TEXT, UNIT_TEXT } from '../lib/carbs';
-import { deleteHistory } from '../lib/api';
+import { deleteEvent, deleteHistory, restoreEvent } from '../lib/api';
+import { describeEvent } from '../lib/events';
+import type { EventRow, HistoryEntry } from '../lib/types';
+import type { IconName } from '../icons/defs';
 import { formatGlucose, unitLabel } from '../lib/glucose';
 import { Icon, TREND_ICON, TREND_WORDS } from '../components/Icon';
 import { dayName, fmtDate, fmtTime } from '../lib/constants';
 import { Badge, Btn, Card, Chip, Page, toast } from '../components/ui';
 
 export default function History() {
-  const { history, reload, settings } = useData();
+  const { history, events, reload, settings, nameOf, me } = useData();
   const [range, setRange] = useState<7 | 30 | 0>(7);
   const [cat, setCat] = useState('');
   const [open, setOpen] = useState<string | null>(null);
@@ -18,7 +21,16 @@ export default function History() {
 
   const since = range ? Date.now() - range * 86400000 : 0;
   const rows = history.filter((h) => new Date(h.eaten_at).getTime() >= since && (!cat || (cat === 'سناك' ? h.kind === 'snack' : h.category === cat)));
-  const cats = [...new Set(history.map((h) => (h.kind === 'snack' ? 'سناك' : h.category)).filter(Boolean))] as string[];
+  const evRows = events.filter((e) => new Date(e.occurred_at).getTime() >= since && (!cat || cat === 'التسجيلات'));
+  const mealRows = cat === 'التسجيلات' ? [] : rows;
+  const items: { t: string; h?: HistoryEntry; e?: EventRow }[] = [
+    ...mealRows.map((h) => ({ t: h.eaten_at, h })), ...evRows.map((e) => ({ t: e.occurred_at, e })),
+  ].sort((a, b) => b.t.localeCompare(a.t));
+  const cats = ['التسجيلات', ...new Set(history.map((h) => (h.kind === 'snack' ? 'سناك' : h.category)).filter(Boolean))] as string[];
+  const removeEvent = async (e: EventRow) => {
+    await deleteEvent(e.id, me); await reload();
+    toast('حُذف التسجيل', { label: 'تراجع', run: async () => { await restoreEvent(e.id); await reload(); } });
+  };
 
   const top = useMemo(() => {
     const m = new Map<string, { name: string; n: number }>();
@@ -27,7 +39,7 @@ export default function History() {
   }, [rows]);
 
   return (
-    <Page title="سجل الوجبات">
+    <Page title="السجل">
       <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4">
         <Chip active={range === 7} onClick={() => setRange(7)}>آخر 7 أيام</Chip>
         <Chip active={range === 30} onClick={() => setRange(30)}>آخر 30 يوم</Chip>
@@ -46,7 +58,9 @@ export default function History() {
       )}
 
       <div className="space-y-3">
-        {rows.map((h) => {
+        {items.map((it) => {
+          if (it.e) return <EventItem key={it.e.id} e={it.e} who={nameOf(it.e.created_by)} onDelete={() => removeEvent(it.e!)} />;
+          const h = it.h!;
           const d = new Date(h.eaten_at);
           return (
             <Card key={h.id} className="!p-3">
@@ -74,8 +88,25 @@ export default function History() {
             </Card>
           );
         })}
-        {rows.length === 0 && <Card><p className="text-slate-500">لا توجد وجبات في هذه الفترة.</p></Card>}
+        {items.length === 0 && <Card><p className="text-slate-500">لا يوجد شيء في هذه الفترة.</p></Card>}
       </div>
     </Page>
+  );
+}
+
+const EVENT_ICON: Record<EventRow['kind'], IconName> = { insulin: 'insulin', carbs: 'carbs', treatment: 'treatment', note: 'note' };
+
+function EventItem({ e, who, onDelete }: { e: EventRow; who: string; onDelete: () => void }) {
+  const d = new Date(e.occurred_at);
+  return (
+    <Card className="flex items-center gap-3 !p-3">
+      <div className="w-16 shrink-0 text-center text-sm text-slate-500"><div className="font-bold text-slate-700">{dayName(d)}</div><div className="num">{fmtTime(d)}</div></div>
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name={EVENT_ICON[e.kind]} size={20} /></span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-bold">{e.kind === 'note' ? 'ملاحظة' : describeEvent(e)}</div>
+        <div className="truncate text-xs text-slate-500">{[e.kind === 'note' ? e.note : e.note, who].filter(Boolean).join(' · ')}</div>
+      </div>
+      <button aria-label="حذف" className="min-h-[44px] shrink-0 px-2 text-sm text-over" onClick={onDelete}>حذف</button>
+    </Card>
   );
 }

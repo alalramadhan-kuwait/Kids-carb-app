@@ -6,7 +6,6 @@ import { computeSnack, fmt, PROBLEM_TEXT } from '../lib/carbs';
 import { dayName, fmtDate, fmtTime, relDay, sameDay } from '../lib/constants';
 import { Alert, Btn, Card, Page, Photo, CarbBadge, snackArt } from '../components/ui';
 import { MealCard, useChoose } from '../components/meal';
-import GlucoseCard from '../components/GlucoseCard';
 
 const SHUFFLE_KEY = 'kc-shuffle';
 const readShuffle = () => { try { const v = JSON.parse(localStorage.getItem(SHUFFLE_KEY) ?? 'null'); return v?.day === new Date().toDateString() ? Number(v.n) : 0; } catch { return 0; } };
@@ -43,10 +42,13 @@ export default function Today() {
   const eligible = candidates.filter((c) => blocker(c, settings) === null).length;
 
   return (
-    <Page title="اليوم">
-      <p className="-mt-2 mb-4 text-slate-500">{dayName(today)} {fmtDate(today)}</p>
-
-      <GlucoseCard />
+    <Page title="الوجبات">
+      <p className="-mt-2 mb-3 text-slate-500">{dayName(today)} {fmtDate(today)}</p>
+      <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
+        {[['/recipes', 'الوصفات'], ['/products', 'المنتجات'], ['/plan', 'خطة الأيام'], ['/snacks', 'السناكات']].map(([to, l]) => (
+          <Link key={to} to={to} className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-medium ring-1 ring-slate-200">{l}</Link>
+        ))}
+      </div>
 
       <h2 className="mb-2 text-lg font-bold">وجبات اليوم</h2>
       <div className="space-y-4">

@@ -5,18 +5,43 @@ import { photoUrl } from '../lib/supabase';
 
 export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(' ');
 
-// ── toast ───────────────────────────────────────────────────────────────────
-export const toast = (msg: string) => window.dispatchEvent(new CustomEvent('kc-toast', { detail: msg }));
+// ── toast (optionally with one action, e.g. "تراجع") ────────────────────────
+type ToastMsg = { text: string; action?: { label: string; run: () => void } };
+export const toast = (text: string, action?: ToastMsg['action']) =>
+  window.dispatchEvent(new CustomEvent<ToastMsg>('kc-toast', { detail: { text, action } }));
 export function Toaster() {
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<ToastMsg | null>(null);
   useEffect(() => {
     let t: number;
-    const on = (e: Event) => { setMsg((e as CustomEvent).detail); window.clearTimeout(t); t = window.setTimeout(() => setMsg(null), 2600); };
+    const on = (e: Event) => {
+      const m = (e as CustomEvent<ToastMsg>).detail;
+      setMsg(m); window.clearTimeout(t);
+      t = window.setTimeout(() => setMsg(null), m.action ? 8000 : 2600);
+    };
     window.addEventListener('kc-toast', on);
     return () => window.removeEventListener('kc-toast', on);
   }, []);
   if (!msg) return null;
-  return <div role="status" className="fixed inset-x-4 bottom-24 z-50 mx-auto max-w-sm rounded-2xl bg-slate-900 px-4 py-3 text-center text-white shadow-lg">{msg}</div>;
+  return (
+    <div role="status" className="fixed inset-x-4 bottom-40 z-[60] mx-auto flex max-w-sm items-center gap-3 rounded-2xl bg-slate-900 px-4 py-3 text-white shadow-lg">
+      <span className="flex-1 text-center">{msg.text}</span>
+      {msg.action && <button className="rounded-xl bg-white/15 px-3 py-1.5 font-bold" onClick={() => { msg.action!.run(); setMsg(null); }}>{msg.action.label}</button>}
+    </div>
+  );
+}
+
+/** Bottom sheet: one task at a time, closes on the backdrop. */
+export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+      <div role="dialog" aria-label={title} className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-t-[24px] bg-white p-4 pb-[calc(16px+env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
+        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-200" />
+        <h2 className="mb-3 text-xl font-bold">{title}</h2>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 // ── basics ──────────────────────────────────────────────────────────────────

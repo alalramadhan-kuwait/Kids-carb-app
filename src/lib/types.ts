@@ -133,3 +133,20 @@ export const DEFAULT_SETTINGS: Settings = {
   glucose_low_mgdl: null,
   glucose_high_mgdl: null,
 };
+
+export type EventKind = 'insulin' | 'carbs' | 'treatment' | 'note';
+export interface EventRow {
+  id: string;
+  client_id: string;
+  kind: EventKind;
+  occurred_at: string;
+  insulin_units: number | null;
+  insulin_type: 'rapid' | 'long' | null;
+  bolus_purpose: 'meal' | 'correction' | 'both' | null;
+  carbs_g: number | null;
+  treatment: string | null;
+  note: string | null;
+  created_by: string;
+  deleted_at: string | null;
+}
+export interface Member { user_id: string; display_name: string | null }

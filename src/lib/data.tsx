@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 import { computeMeal } from './carbs';
 import { candidatesOf, type Candidate } from './suggest';
 import {
-  DEFAULT_SETTINGS, type HistoryEntry, type Ingredient, type PlanRow, type Product, type Recipe, type Settings, type Snack,
+  DEFAULT_SETTINGS, type EventRow, type HistoryEntry, type Ingredient, type Member, type PlanRow, type Product, type Recipe, type Settings, type Snack,
 } from './types';
 
 interface Data {
@@ -15,6 +15,10 @@ interface Data {
   snacks: Snack[];
   history: HistoryEntry[];
   plan: PlanRow[];
+  events: EventRow[];
+  members: Member[];
+  me: string | null;
+  nameOf: (userId: string | null | undefined) => string;
   ingsByRecipe: Map<string, Ingredient[]>;
   candidates: Candidate[];
   reload: () => Promise<void>;
@@ -43,19 +47,24 @@ const fixHist = (h: any): HistoryEntry => ({
 });
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<Omit<Data, 'reload' | 'ingsByRecipe' | 'candidates'>>({
+  const [state, setState] = useState<Omit<Data, 'reload' | 'ingsByRecipe' | 'candidates' | 'nameOf'>>({
     loading: true, error: null, settings: DEFAULT_SETTINGS, products: [], recipes: [], snacks: [], history: [], plan: [],
+    events: [], members: [], me: null,
   });
   const [ings, setIngs] = useState<Ingredient[]>([]);
 
   const reload = useCallback(async () => {
     const q = (t: string) => supabase.from(t).select('*');
-    const [s, p, r, i, sn, h, pl] = await Promise.all([
+    const since = new Date(Date.now() - 60 * 86400000).toISOString();
+    const [s, p, r, i, sn, h, pl, ev, mem, au] = await Promise.all([
       q('settings').maybeSingle(), q('products').order('name'), q('recipes').order('created_at'),
       q('recipe_ingredients').order('sort'), q('snacks').order('created_at'),
       q('meal_history').order('eaten_at', { ascending: false }).limit(1000), q('meal_plan').order('plan_date'),
+      supabase.from('events').select('*').is('deleted_at', null).gte('occurred_at', since).order('occurred_at', { ascending: false }).limit(1000),
+      supabase.from('members').select('user_id,display_name'),
+      supabase.auth.getUser(),
     ]);
-    const err = [s, p, r, i, sn, h, pl].find((x) => x.error)?.error;
+    const err = [s, p, r, i, sn, h, pl, ev, mem].find((x) => x.error)?.error;
     if (err) { setState((x) => ({ ...x, loading: false, error: err.message })); return; }
     setIngs((i.data ?? []).map(fixIng));
     setState({
@@ -69,10 +78,29 @@ export function DataProvider({ children }: { children: ReactNode }) {
       snacks: (sn.data ?? []).map((x: any) => ({ ...x, quantity: Number(x.quantity) })),
       history: (h.data ?? []).map(fixHist),
       plan: pl.data ?? [],
+      events: (ev.data ?? []).map((e: any) => ({ ...e, insulin_units: num(e.insulin_units), carbs_g: num(e.carbs_g) })),
+      members: (mem.data ?? []) as Member[],
+      me: au.data.user?.id ?? null,
     });
   }, []);
 
   useEffect(() => { void reload(); }, [reload]);
+
+  // the other parent's entries appear without refreshing
+  useEffect(() => {
+    let t: number | undefined;
+    const ch = supabase.channel('events-live')
+      .on('postgres_changes', { event: '*', schema: 'carb', table: 'events' }, () => { window.clearTimeout(t); t = window.setTimeout(() => void reload(), 400); })
+      .on('postgres_changes', { event: '*', schema: 'carb', table: 'meal_history' }, () => { window.clearTimeout(t); t = window.setTimeout(() => void reload(), 400); })
+      .subscribe();
+    return () => { window.clearTimeout(t); void supabase.removeChannel(ch); };
+  }, [reload]);
+
+  const nameOf = useCallback((id: string | null | undefined) => {
+    if (!id) return '';
+    if (id === state.me) return 'أنت';
+    return state.members.find((m) => m.user_id === id)?.display_name || 'أحد الوالدين';
+  }, [state.members, state.me]);
 
   const ingsByRecipe = useMemo(() => {
     const m = new Map<string, Ingredient[]>();
@@ -84,7 +112,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     [state.recipes, ingsByRecipe, state.products, state.settings],
   );
 
-  return <Ctx.Provider value={{ ...state, ingsByRecipe, candidates, reload }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ ...state, ingsByRecipe, candidates, reload, nameOf }}>{children}</Ctx.Provider>;
 }
 
 /** Look at one recipe with today's products. */

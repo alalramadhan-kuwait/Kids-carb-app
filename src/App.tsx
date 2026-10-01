@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import { openedFromRecovery, supabase } from './lib/supabase';
 import { DataProvider, useData } from './lib/data';
 import { Alert, Btn, Card, Field, Toaster, cx, inputCls } from './components/ui';
 import Today from './pages/Today';
+import Now from './pages/Now';
+import Advanced from './pages/Advanced';
 import { RecipeList, RecipeView } from './pages/Recipes';
 import RecipeEdit from './pages/RecipeEdit';
 import { ProductList } from './pages/Products';
@@ -129,22 +131,28 @@ function Claim({ onDone }: { onDone: () => void }) {
   );
 }
 
-const TABS: { to: string; label: string; icon: IconName }[] = [
-  { to: '/', label: 'اليوم', icon: 'home' },
-  { to: '/recipes', label: 'الوصفات', icon: 'meals' },
-  { to: '/products', label: 'المنتجات', icon: 'products' },
-  { to: '/history', label: 'السجل', icon: 'history' },
-  { to: '/more', label: 'المزيد', icon: 'more' },
+/** Five tabs (Hick's Law). "match" lists the pages that belong to each tab. */
+const TABS: { to: string; label: string; icon: IconName; match: string[] }[] = [
+  { to: '/', label: 'الآن', icon: 'home', match: ['/'] },
+  { to: '/timeline', label: 'السجل', icon: 'history', match: ['/timeline'] },
+  { to: '/meals', label: 'الوجبات', icon: 'meals', match: ['/meals', '/recipes', '/products', '/plan', '/snacks'] },
+  { to: '/advanced', label: 'متقدم', icon: 'advanced', match: ['/advanced'] },
+  { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm'] },
 ];
 
 function Shell() {
   const { loading, error } = useData();
+  const { pathname } = useLocation();
   if (loading) return <Centered><p className="text-center text-slate-500">جاري التحميل…</p></Centered>;
   if (error) return <Centered><Alert tone="over">تعذّر تحميل البيانات: {error}</Alert></Centered>;
   return (
     <>
       <Routes>
-        <Route path="/" element={<Today />} />
+        <Route path="/" element={<Now />} />
+        <Route path="/meals" element={<Today />} />
+        <Route path="/timeline" element={<History />} />
+        <Route path="/history" element={<Navigate to="/timeline" replace />} />
+        <Route path="/advanced" element={<Advanced />} />
         <Route path="/recipes" element={<RecipeList />} />
         <Route path="/recipes/new" element={<RecipeEdit />} />
         <Route path="/recipes/:id" element={<RecipeView />} />
@@ -152,7 +160,6 @@ function Shell() {
         <Route path="/products" element={<ProductList />} />
         <Route path="/products/new" element={<ProductEdit />} />
         <Route path="/products/:id" element={<ProductEdit />} />
-        <Route path="/history" element={<History />} />
         <Route path="/plan" element={<Plan />} />
         <Route path="/cgm" element={<Cgm />} />
         <Route path="/snacks" element={<SnacksPage />} />
@@ -162,13 +169,16 @@ function Shell() {
       </Routes>
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         <ul className="mx-auto grid max-w-2xl grid-cols-5">
-          {TABS.map((t) => (
-            <li key={t.to}>
-              <NavLink to={t.to} end={t.to === '/'} className={({ isActive }) => cx('flex flex-col items-center gap-0.5 py-2 text-xs', isActive ? 'font-bold text-brand' : 'text-slate-500')}>
-                {({ isActive }) => <><Icon name={t.icon} active={isActive} />{t.label}</>}
-              </NavLink>
-            </li>
-          ))}
+          {TABS.map((t) => {
+            const on = t.to === '/' ? pathname === '/' : t.match.some((m) => pathname === m || pathname.startsWith(m + '/'));
+            return (
+              <li key={t.to}>
+                <NavLink to={t.to} aria-current={on ? 'page' : undefined} className={cx('flex min-h-[56px] flex-col items-center justify-center gap-0.5 py-1.5 text-xs', on ? 'font-bold text-brand' : 'text-slate-500')}>
+                  <Icon name={t.icon} active={on} />{t.label}
+                </NavLink>
+              </li>
+            );
+          })}
         </ul>
       </nav>
     </>

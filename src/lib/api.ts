@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { HistoryLine, Ingredient, Product, Recipe, Settings, Snack } from './types';
+import type { EventRow, HistoryLine, Ingredient, Product, Recipe, Settings, Snack } from './types';
 import type { MealResult } from './carbs';
 import type { GlucoseState } from './glucose';
 
@@ -101,3 +101,34 @@ export async function callGlucose(body: Record<string, unknown>): Promise<Glucos
   if (error && !data) throw new Error(error.message);
   return data as GlucoseState;
 }
+
+// ── events (insulin, carbs, treatment, note) ──────────────────────────────────
+export type NewEvent = Pick<EventRow, 'client_id' | 'kind' | 'occurred_at' | 'insulin_units' | 'insulin_type' | 'bolus_purpose' | 'carbs_g' | 'treatment' | 'note'>;
+
+/** Returns the new id, or null if this exact submission was already saved (double tap). */
+export async function saveEvent(e: NewEvent): Promise<string | null> {
+  const r = await supabase.from('events').insert(e).select('id').single();
+  if (r.error) {
+    if (r.error.code === '23505') return null;
+    throw new Error(r.error.message);
+  }
+  return (r.data as { id: string }).id;
+}
+export const deleteEvent = async (id: string, by: string | null) =>
+  ok(await supabase.from('events').update({ deleted_at: new Date().toISOString(), deleted_by: by }).eq('id', id));
+export const restoreEvent = async (id: string) =>
+  ok(await supabase.from('events').update({ deleted_at: null, deleted_by: null }).eq('id', id));
+
+export async function glucoseStats(from: Date, to: Date, low: number | null, high: number | null) {
+  const r = await supabase.rpc('glucose_stats', { p_from: from.toISOString(), p_to: to.toISOString(), p_low: low, p_high: high });
+  if (r.error) throw new Error(r.error.message);
+  const row = (r.data as any[])?.[0];
+  if (!row) return null;
+  const n = (v: any) => (v === null || v === undefined ? null : Number(v));
+  return {
+    n: Number(row.n), coverage: n(row.coverage) ?? 0, covered_min: n(row.covered_min) ?? 0,
+    pct_vlow: n(row.pct_vlow) ?? 0, pct_low: n(row.pct_low) ?? 0, pct_in: n(row.pct_in) ?? 0, pct_high: n(row.pct_high) ?? 0, pct_vhigh: n(row.pct_vhigh) ?? 0,
+    pct_target: n(row.pct_target), mean: n(row.mean_mgdl), sd: n(row.sd_mgdl), min: n(row.min_mgdl), max: n(row.max_mgdl),
+  };
+}
+export type GlucoseStats = NonNullable<Awaited<ReturnType<typeof glucoseStats>>>;
