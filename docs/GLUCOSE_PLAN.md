@@ -1005,7 +1005,11 @@ fewer than 5 days drawn hollow. Completed: 68 %.
 Stage 7 shipped in 0.15.0: `carb.glucose_windows` (−60…+240 min around up to 200 meals in one call), curves
 aligned at T0 on a 5-minute grid (nearest reading ±5 min, never across a gap), clean-meal rules from 10.7 with
 the reason shown, median curve and 25–75 % band and the medians summary from ≥ 3 clean meals, Analysis →
-الوجبات and a link from every recipe. Pre-bolus comparison is left for later. Completed: 78 %. The app loads the last 60 days of
+الوجبات and a link from every recipe. Pre-bolus comparison is left for later. Completed: 78 %.
+Stage 8 shipped in 0.16.0: Compare (today/yesterday, week/last week, school/weekend profiles over 28 days,
+custom two days) with synchronized timelines and an A/B/difference table from `engine/stats.ts`, the same
+time-weighted method as `carb.glucose_stats` plus a weekday filter; landscape full screen for Live and Day.
+Completed: 85 %. The app loads the last 60 days of
 events, so markers older than that do not show yet.
 
 

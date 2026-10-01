@@ -85,7 +85,7 @@ const Stat = ({ label, value, tone }: { label: string; value: string; tone?: str
   <div><div className={cx('num text-lg font-bold', tone ?? 'text-brand-num')}>{value}</div><div className="text-[11px] text-slate-500">{label}</div></div>
 );
 
-function ProfileChart({ bins, unit, range }: { bins: Bin[]; unit: 'mmol' | 'mgdl'; range: { low: number | null; high: number | null; reference: boolean } }) {
+export function ProfileChart({ bins, unit, range }: { bins: Bin[]; unit: 'mmol' | 'mgdl'; range: { low: number | null; high: number | null; reference: boolean } }) {
   const W = 340, PL = 4, PR = 28, PT = 8, PH = 190, H = PT + PH + 22;
   const top = Math.max(...bins.map((b) => b.p90)) > 280 ? 400 : 300, bottom = 40;
   const x = (bin: number) => PL + ((bin + 0.5) / 96) * (W - PL - PR);

@@ -9,6 +9,7 @@ import { Icon } from '../components/Icon';
 import { EventSheet } from '../components/EventSheet';
 import { Card, cx } from '../components/ui';
 import { Timeline } from '../engine/Timeline';
+import { useLandscape } from '../hooks/useLandscape';
 import { useSeries } from '../engine/useSeries';
 import { buildMarks, defaultLayers, type Group, type Mark, type MarkKind } from '../engine/events';
 import { dayStartOf, dayTitle, dayTotals, lowEpisodes, type Episode } from '../engine/day';
@@ -24,6 +25,7 @@ type Row = { t: number; key: string; mark?: Mark; low?: Episode };
 export function DayView() {
   const { settings, history, events } = useData();
   const { g } = useGlucose();
+  const land = useLandscape();
   const unit = settings.glucose_unit;
   const today = dayStartOf(Date.now());
   const [day, setDay] = useState(today);
@@ -77,6 +79,21 @@ export function DayView() {
   const low = stats ? stats.pct_vlow + stats.pct_low : null, high = stats ? stats.pct_high + stats.pct_vhigh : null;
   const cv = stats?.mean && stats.sd !== null ? (stats.sd / stats.mean) * 100 : null;
   const zoomed = view.span < DAY - 60000;
+
+  if (land.landscape) return (
+    <div className="fixed inset-0 z-[46] flex flex-col bg-[rgb(var(--bg))] pe-[env(safe-area-inset-right)] ps-[env(safe-area-inset-left)]">
+      <div className="flex h-12 items-center gap-3 px-3">
+        <span className="font-bold">{dayTitle(day)}</span>
+        <span className="text-sm text-slate-500">ضمن النطاق <b className="num text-ok">{pct(stats?.pct_in)}</b></span>
+        {zoomed && <button onClick={() => { setFocus(null); animateTo({ end: day + DAY, span: DAY }); }} className="ms-auto min-h-[36px] rounded-full bg-brand-soft px-3 text-sm font-bold text-brand">اليوم كاملًا</button>}
+      </div>
+      <div className="flex-1 bg-white">
+        <Timeline series={series} view={view} now={Date.now()} onView={onView} unit={unit} height={Math.max(160, land.height - 48)} range={rng}
+          marks={marks} layers={defaultLayers()} onSelect={setPicked} dayParts highlight={focus} />
+      </div>
+      <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
+    </div>
+  );
 
   return (
     <div className="space-y-3 pb-4">

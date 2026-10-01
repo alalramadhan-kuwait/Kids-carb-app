@@ -6,12 +6,14 @@ import { effectiveRange, formatGlucose, glucoseStatus, unitLabel } from '../lib/
 import { Icon, TREND_ICON, TREND_WORDS } from '../components/Icon';
 import { Chip, Page, cx } from '../components/ui';
 import { Timeline } from '../engine/Timeline';
+import { useLandscape } from '../hooks/useLandscape';
 import { useSeries } from '../engine/useSeries';
 import { PERIODS, delta15, freshness, limitEnd, rateAt, type View } from '../engine/series';
 import StatsPanel from './Advanced';
 import { DayView } from './Day';
 import { Patterns } from './Patterns';
 import { MealResponse } from './MealResponse';
+import { Compare } from './Compare';
 import { EventSheet } from '../components/EventSheet';
 import { Sheet, Toggle } from '../components/ui';
 import { LAYERS, buildMarks, defaultLayers, type Group, type Layer } from '../engine/events';
@@ -21,13 +23,13 @@ const loadLayers = (): Set<Layer> => {
   return defaultLayers();
 };
 
-const MODES = [{ id: 'live', label: 'مباشر' }, { id: 'day', label: 'اليوم' }, { id: 'patterns', label: 'الأنماط' }, { id: 'meals', label: 'الوجبات' }, { id: 'stats', label: 'الأرقام' }] as const;
+const MODES = [{ id: 'live', label: 'مباشر' }, { id: 'day', label: 'اليوم' }, { id: 'patterns', label: 'الأنماط' }, { id: 'meals', label: 'الوجبات' }, { id: 'compare', label: 'مقارنة' }, { id: 'stats', label: 'الأرقام' }] as const;
 const FRESH = { live: { text: 'مباشر', cls: 'bg-ok-soft text-ok' }, delayed: { text: 'متأخر', cls: 'bg-near-soft text-near' }, missing: { text: 'منقطع', cls: 'bg-over-soft text-over' } };
 
 /** التحليل: Live (the timeline engine) and the numbers. More modes arrive stage by stage (GLUCOSE_PLAN 11.2). */
 export default function Analysis() {
   const [params, setParams] = useSearchParams();
-  const mode = (['day', 'patterns', 'meals', 'stats'] as const).find((m) => m === params.get('mode')) ?? 'live';
+  const mode = (['day', 'patterns', 'meals', 'compare', 'stats'] as const).find((m) => m === params.get('mode')) ?? 'live';
   return (
     <Page title="التحليل">
       <div className="-mx-4 mb-3 flex gap-1.5 overflow-x-auto px-4 pb-1" role="tablist">
@@ -36,7 +38,7 @@ export default function Analysis() {
             className={cx('min-h-[40px] shrink-0 rounded-full px-4 text-sm font-bold', mode === m.id ? 'bg-brand text-white' : 'bg-slate-50 text-slate-600')}>{m.label}</button>
         ))}
       </div>
-      {mode === 'live' ? <Live /> : mode === 'day' ? <DayView /> : mode === 'patterns' ? <Patterns /> : mode === 'meals' ? <MealResponse /> : <StatsPanel />}
+      {mode === 'live' ? <Live /> : mode === 'day' ? <DayView /> : mode === 'patterns' ? <Patterns /> : mode === 'meals' ? <MealResponse /> : mode === 'compare' ? <Compare /> : <StatsPanel />}
     </Page>
   );
 }
@@ -44,6 +46,7 @@ export default function Analysis() {
 function Live() {
   const { settings, history, events } = useData();
   const { g } = useGlucose();
+  const land = useLandscape();
   const [layers, setLayers] = useState<Set<Layer>>(loadLayers);
   const [layersOpen, setLayersOpen] = useState(false);
   const [picked, setPicked] = useState<Group | null>(null);
@@ -90,6 +93,24 @@ function Live() {
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
   const status = latest && fresh !== 'missing' ? glucoseStatus(latest.mg_dl, rng.low, rng.high) : null;
   const period = PERIODS.find((p) => Math.abs(p.ms - view.span) / p.ms < 0.03)?.id;
+
+  if (land.landscape) return (
+    <div className="fixed inset-0 z-[46] flex flex-col bg-[rgb(var(--bg))] pe-[env(safe-area-inset-right)] ps-[env(safe-area-inset-left)]">
+      <div className="flex h-12 items-center gap-3 px-3">
+        {latest && <span className="num text-2xl font-bold text-brand-num">{formatGlucose(latest.mg_dl, unit)}</span>}
+        <span className={cx('rounded-full px-2 py-0.5 text-xs font-bold', FRESH[fresh].cls)}>{FRESH[fresh].text}</span>
+        <div className="ms-auto flex gap-1.5" dir="ltr">
+          {PERIODS.slice(0, 6).map((pp) => <Chip key={pp.id} active={period === pp.id} onClick={() => onView({ span: pp.ms, end: live ? Infinity : view.end }, { animate: true })}>{pp.id}</Chip>)}
+          {!live && <button onClick={() => onView({ span: view.span, end: Infinity }, { animate: true })} className="min-h-[36px] rounded-full bg-brand px-3 text-sm font-bold text-white">الآن</button>}
+        </div>
+      </div>
+      <div className="flex-1 bg-white">
+        <Timeline series={series} view={view} now={now} onView={onView} unit={unit} height={Math.max(160, land.height - 48)}
+          range={rng} marks={marks} layers={layers} onSelect={setPicked} />
+      </div>
+      <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
+    </div>
+  );
 
   return (
     <div className="space-y-3 pb-4">

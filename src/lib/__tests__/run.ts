@@ -12,6 +12,7 @@ import { buildMarks, defaultLayers, groupLabel, groupMarks, mealResponse } from 
 import { dayStartOf, dayTitle, dayTotals, lowEpisodes } from '../../engine/day';
 import { inWindow, isNight, schoolWindow } from '../schedule';
 import { daysFor, solidRuns } from '../../engine/profile';
+import { seriesStats } from '../../engine/stats';
 import { GRID, alignCurve, buildOccurrence, coverage, medianCurve, notClean, summary, windowSeries } from '../../engine/meals';
 import { alertMessage, evaluate, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
@@ -716,6 +717,20 @@ test('meal response per recipe: clean meals, aligned curves and medians', () => 
   const snack = { id: 'y', eaten_at: new Date(t0 + 90 * 60000).toISOString() } as any;
   const treat = evr({ id: 't', kind: 'treatment', carbs_g: 15, occurred_at: new Date(t0 + 120 * 60000).toISOString() });
   assert.deepEqual(notClean(meal, [meal, snack], [treat as any], windowSeries(t0, [0, 30], [100, 120])), ['أكل آخر خلال 4 ساعات', 'علاج انخفاض', 'قراءات ناقصة']);
+});
+
+test('period stats on the phone follow carb.glucose_stats (time-weighted, 15-minute cap, weekday filter)', () => {
+  const from = Date.parse('2026-09-30T21:00:00Z'); // Thursday 1 Oct, Kuwait midnight
+  // one reading every 10 minutes for 2 hours: 60 min at 60, 30 min at 120, 30 min at 200; then a 40-minute gap
+  const vals = [60, 60, 60, 60, 60, 60, 120, 120, 120, 200, 200, 200];
+  const t = vals.map((_, k) => from + k * 10 * M);
+  const ser = mergeSeries(emptySeries(), [...t, from + 160 * M], [...vals, 100]);
+  const st = seriesStats(ser, from, from + 180 * M, from + 180 * M);
+  // weights: 11 readings × 10 min, the 200 at +110 counts 15 min (gap after), the 100 at +160 counts 15 min (cap) → 140 of 180 min
+  assert.equal(st.coverage, 77.8); assert.equal(st.pct_low, 42.9); assert.equal(st.pct_in, 32.1); assert.equal(st.pct_high, 25);
+  assert.equal(st.min, 60); assert.equal(st.max, 200);
+  assert.equal(seriesStats(ser, from, from + 180 * M, from + 180 * M, [5, 6]).n, 0); // Thursday is not weekend
+  assert.equal(seriesStats(ser, from, from + 180 * M, from + 180 * M, [4]).n, 13);
 });
 
 console.log('releases');
