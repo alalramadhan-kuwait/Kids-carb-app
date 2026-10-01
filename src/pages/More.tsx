@@ -5,6 +5,7 @@ import { useData } from '../lib/data';
 import { computeSnack, fmt, PROBLEM_TEXT } from '../lib/carbs';
 import { deleteSnack, saveSettings, saveSnack } from '../lib/api';
 import { PRODUCT_CATEGORIES } from '../lib/constants';
+import { formatGlucose, toMgdl, unitLabel } from '../lib/glucose';
 import type { CategoryTarget, Settings, Snack, Unit } from '../lib/types';
 import { Alert, Badge, Btn, Card, CarbBadge, Field, NumInput, Page, Photo, inputCls, toast } from '../components/ui';
 
@@ -18,6 +19,7 @@ export function More() {
     <Page title="المزيد">
       <div className="space-y-3">
         {link('/plan', '🗓️', 'خطة الأيام وقائمة الشراء', 'وجبات لعدة أيام وعدد الأشخاص')}
+        {link('/cgm', '🩸', 'قراءات السكر', 'ربط LibreLinkUp لعرض السكر الحي')}
         {link('/snacks', '🍎', 'السناكات', 'قاعدة بيانات السناكات')}
         {link('/settings', '⚙️', 'الإعدادات', 'الحد الأقصى للكارب وأهداف المنتجات')}
         <Card className="space-y-2">
@@ -149,6 +151,20 @@ export function SettingsPage() {
           ))}
           <datalist id="tcats">{PRODUCT_CATEGORIES.map((c) => <option key={c} value={c} />)}</datalist>
           <Btn kind="ghost" block onClick={() => setS({ ...s, category_targets: [...s.category_targets, { category: '', basis: 'per100', max: 15 }] })}>+ هدف</Btn>
+        </Card>
+
+        <Card className="space-y-3">
+          <h2 className="font-bold">عرض السكر</h2>
+          <Field label="الوحدة">
+            <select className={inputCls} value={s.glucose_unit} onChange={(e) => setS({ ...s, glucose_unit: e.target.value as Settings['glucose_unit'] })}>
+              <option value="mmol">mmol/L</option><option value="mgdl">mg/dL</option>
+            </select>
+          </Field>
+          <p className="text-sm text-slate-600">نطاق تلوين الرقم ({unitLabel(s.glucose_unit)}). يكتبه الوالدان من توصية الطبيب، والتطبيق لا يفترض نطاقًا. اتركه فارغًا لعدم التلوين.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="أقل من (أحمر)"><NumInput value={s.glucose_low_mgdl === null ? null : Number(formatGlucose(s.glucose_low_mgdl, s.glucose_unit))} onChange={(v) => setS({ ...s, glucose_low_mgdl: v === null ? null : toMgdl(v, s.glucose_unit) })} /></Field>
+            <Field label="أعلى من (أصفر)"><NumInput value={s.glucose_high_mgdl === null ? null : Number(formatGlucose(s.glucose_high_mgdl, s.glucose_unit))} onChange={(v) => setS({ ...s, glucose_high_mgdl: v === null ? null : toMgdl(v, s.glucose_unit) })} /></Field>
+          </div>
         </Card>
 
         <Btn kind="primary" block disabled={bad} onClick={async () => {

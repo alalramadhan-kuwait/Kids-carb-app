@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { computeLine, computeMeal, deriveLabel, labelMismatch, levelFor, targetMiss } from '../carbs';
 import { blocker, candidatesOf, suggest } from '../suggest';
 import { shoppingList } from '../shopping';
+import { hostFor, loginProblem, maskEmail, parseLluTimestamp, readingsFromGraph, sha256Hex, toReading, tooSoon } from '../../../supabase/functions/carb-glucose/lib';
+import { formatGlucose, glucoseAge, glucoseLevel, toMgdl, trendArrow } from '../glucose';
 import { DEFAULT_SETTINGS, type HistoryEntry, type Ingredient, type Product, type Recipe, type Settings } from '../types';
 
 let n = 0;
@@ -139,7 +141,7 @@ const today = new Date(2026, 8, 30, 12);
 const hist = (recipe_id: string, daysAgo: number): HistoryEntry => ({
   id: `h${recipe_id}${daysAgo}`, kind: 'meal', recipe_id, name: recipe_id, category: null,
   eaten_at: new Date(2026, 8, 30 - daysAgo, 19).toISOString(), total_carbs: 50, total_fat: null, total_fiber: null,
-  total_protein: null, total_kcal: null, modified: false, lines: [], notes: null,
+  total_protein: null, total_kcal: null, modified: false, glucose_mgdl: null, glucose_trend: null, glucose_at: null, lines: [], notes: null,
 });
 
 test('only approved, complete, non-pending recipes within 60 g are eligible', () => {
@@ -212,6 +214,77 @@ test('scales by people, converts cooked back to dry, rounds up packs, keeps unre
   assert.equal(pastaItem.packs, 1);
   assert.equal(list.find((i) => i.name === 'nuggets')!.qty, 200);
   assert.ok(list.find((i) => i.unresolved && i.name === 'جبن'));
+});
+
+
+console.log('glucose');
+
+test('LibreLinkUp timestamps are US-order 12-hour UTC', () => {
+  assert.equal(parseLluTimestamp('10/1/2026 8:05:09 AM'), '2026-10-01T08:05:09.000Z');
+  assert.equal(parseLluTimestamp('10/1/2026 12:05:09 AM'), '2026-10-01T00:05:09.000Z');
+  assert.equal(parseLluTimestamp('10/1/2026 12:30:00 PM'), '2026-10-01T12:30:00.000Z');
+  assert.equal(parseLluTimestamp('10/1/2026 11:59:59 PM'), '2026-10-01T23:59:59.000Z');
+  assert.equal(parseLluTimestamp('garbage'), null);
+  assert.equal(parseLluTimestamp(undefined), null);
+});
+
+test('readings use mg/dL from the service, never guess, and drop what cannot be trusted', () => {
+  const ok = toReading({ FactoryTimestamp: '10/1/2026 8:05:09 AM', ValueInMgPerDl: 112.4, TrendArrow: 3 });
+  assert.deepEqual(ok, { taken_at: '2026-10-01T08:05:09.000Z', mg_dl: 112, trend: 3 });
+  assert.equal(toReading({ FactoryTimestamp: '10/1/2026 8:05:09 AM', Value: 6.2 })?.mg_dl, 112); // mmol/L fallback
+  assert.equal(toReading({ Timestamp: '10/1/2026 11:05:09 AM', ValueInMgPerDl: 100 }), null);     // local time only: refuse
+  assert.equal(toReading({ FactoryTimestamp: '10/1/2026 8:05:09 AM', ValueInMgPerDl: 0 }), null);
+  assert.equal(toReading({ FactoryTimestamp: '10/1/2026 8:05:09 AM', ValueInMgPerDl: 5000 }), null);
+  assert.equal(toReading({ FactoryTimestamp: '10/1/2026 8:05:09 AM', ValueInMgPerDl: 100, TrendArrow: 9 })?.trend, null);
+});
+
+test('graph: sorted, de-duplicated, current reading wins and carries the trend', () => {
+  const r = readingsFromGraph({
+    graphData: [
+      { FactoryTimestamp: '10/1/2026 8:10:00 AM', ValueInMgPerDl: 120 },
+      { FactoryTimestamp: '10/1/2026 8:00:00 AM', ValueInMgPerDl: 110 },
+    ],
+    connection: { glucoseMeasurement: { FactoryTimestamp: '10/1/2026 8:10:00 AM', ValueInMgPerDl: 121, TrendArrow: 4 } },
+  });
+  assert.deepEqual(r.map((x) => [x.mg_dl, x.trend]), [[110, null], [121, 4]]);
+});
+
+test('login problems are told apart', () => {
+  assert.equal(loginProblem(200, { status: 0, data: { authTicket: { token: 't' } } }), null);
+  assert.equal(loginProblem(200, { status: 0, data: { redirect: true, region: 'eu' } }), null);
+  assert.equal(loginProblem(200, { status: 2 }), 'bad_credentials');
+  assert.equal(loginProblem(200, { status: 4, data: { step: { type: 'tou' } } }), 'terms_required');
+  assert.equal(loginProblem(403, { status: 920 }), 'version_rejected');
+  assert.equal(loginProblem(429, null), 'rate_limited');
+  assert.equal(loginProblem(500, null), 'upstream');
+});
+
+test('hosts, hashing, masking, throttle', async () => {
+  assert.equal(hostFor(null), 'https://api.libreview.io');
+  assert.equal(hostFor('EU'), 'https://api-eu.libreview.io');
+  assert.throws(() => hostFor('evil.com/x'));
+  assert.equal(await sha256Hex('abc'), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+  assert.equal(maskEmail('mama@gmail.com'), 'm***@gmail.com');
+  assert.equal(tooSoon(new Date(1000).toISOString(), 30_000), true);
+  assert.equal(tooSoon(new Date(1000).toISOString(), 80_000), false);
+  assert.equal(tooSoon(null, 80_000), false);
+});
+
+test('showing glucose: units, trend, age and colouring come from parent-entered settings', () => {
+  assert.equal(formatGlucose(112, 'mmol'), '6.2');
+  assert.equal(formatGlucose(112, 'mgdl'), '112');
+  assert.equal(toMgdl(6.2, 'mmol'), 112);
+  assert.equal(toMgdl(112, 'mgdl'), 112);
+  assert.equal(trendArrow(1), '⇊'); assert.equal(trendArrow(3), '→'); assert.equal(trendArrow(5), '⇈'); assert.equal(trendArrow(null), '');
+  const now = Date.parse('2026-10-01T10:00:00Z');
+  assert.deepEqual(glucoseAge('2026-10-01T09:57:00Z', now), { minutes: 3, state: 'fresh' });
+  assert.equal(glucoseAge('2026-10-01T09:40:00Z', now).state, 'old');
+  assert.equal(glucoseAge('2026-10-01T09:00:00Z', now).state, 'stale');
+  // no range entered -> no colouring, never a default medical range
+  assert.equal(glucoseLevel(50, null, null), 'none');
+  assert.equal(glucoseLevel(50, 70, 180), 'low');
+  assert.equal(glucoseLevel(100, 70, 180), 'in');
+  assert.equal(glucoseLevel(250, 70, 180), 'high');
 });
 
 console.log(`\n${n} tests passed`);

@@ -80,6 +80,10 @@ export interface Settings {
   preferred_max: number;
   tbsp_size: number;
   category_targets: CategoryTarget[];
+  glucose_unit: 'mmol' | 'mgdl';
+  /** parent-entered, only used to colour the reading; null = no colouring */
+  glucose_low_mgdl: number | null;
+  glucose_high_mgdl: number | null;
 }
 
 export interface HistoryLine {
@@ -105,6 +109,9 @@ export interface HistoryEntry {
   total_protein: number | null;
   total_kcal: number | null;
   modified: boolean;
+  glucose_mgdl: number | null;
+  glucose_trend: number | null;
+  glucose_at: string | null;
   lines: HistoryLine[];
   notes: string | null;
 }
@@ -122,4 +129,7 @@ export const DEFAULT_SETTINGS: Settings = {
   preferred_max: 55,
   tbsp_size: 15,
   category_targets: [],
+  glucose_unit: 'mmol',
+  glucose_low_mgdl: null,
+  glucose_high_mgdl: null,
 };

@@ -11,6 +11,7 @@ import { ProductList } from './pages/Products';
 import ProductEdit from './pages/ProductEdit';
 import History from './pages/History';
 import Plan from './pages/Plan';
+import Cgm from './pages/Cgm';
 import { More, SnacksPage, SettingsPage } from './pages/More';
 
 function Centered({ children }: { children: React.ReactNode }) {
@@ -94,6 +95,7 @@ function Shell() {
         <Route path="/products/:id" element={<ProductEdit />} />
         <Route path="/history" element={<History />} />
         <Route path="/plan" element={<Plan />} />
+        <Route path="/cgm" element={<Cgm />} />
         <Route path="/snacks" element={<SnacksPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/more" element={<More />} />

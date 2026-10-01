@@ -39,6 +39,7 @@ const fixIng = (i: any): Ingredient => ({ ...i, quantity: Number(i.quantity) });
 const fixHist = (h: any): HistoryEntry => ({
   ...h, total_carbs: Number(h.total_carbs), total_fat: num(h.total_fat), total_fiber: num(h.total_fiber),
   total_protein: num(h.total_protein), total_kcal: num(h.total_kcal),
+  glucose_mgdl: num(h.glucose_mgdl), glucose_trend: num(h.glucose_trend),
 });
 
 export function DataProvider({ children }: { children: ReactNode }) {
@@ -61,7 +62,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       loading: false, error: null,
       settings: s.data ? { ...DEFAULT_SETTINGS, ...(s.data as any),
         max_meal_carbs: Number((s.data as any).max_meal_carbs), preferred_min: Number((s.data as any).preferred_min),
-        preferred_max: Number((s.data as any).preferred_max), tbsp_size: Number((s.data as any).tbsp_size) } : DEFAULT_SETTINGS,
+        preferred_max: Number((s.data as any).preferred_max), tbsp_size: Number((s.data as any).tbsp_size),
+        glucose_low_mgdl: num((s.data as any).glucose_low_mgdl), glucose_high_mgdl: num((s.data as any).glucose_high_mgdl) } : DEFAULT_SETTINGS,
       products: (p.data ?? []).map(fixProduct),
       recipes: (r.data ?? []).map((x: any) => ({ ...x, saved_total_carbs: num(x.saved_total_carbs) })),
       snacks: (sn.data ?? []).map((x: any) => ({ ...x, quantity: Number(x.quantity) })),
