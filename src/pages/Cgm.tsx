@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { callGlucose } from '../lib/api';
 import { GLUCOSE_ERRORS, type GlucoseState } from '../lib/glucose';
-import { Alert, Btn, Card, Field, Page, inputCls, toast } from '../components/ui';
+import { Alert, Btn, Card, Field, Page, asset, inputCls, toast } from '../components/ui';
 
 export default function Cgm() {
   const nav = useNavigate();
@@ -36,6 +36,7 @@ export default function Cgm() {
         ) : (
           <>
             <Card className="space-y-2">
+              <img src={asset('04_objects/obj_cgm.svg')} alt="" className="mx-auto h-20 w-20" />
               <h2 className="font-bold">كيف يعمل</h2>
               <p className="text-sm leading-relaxed text-slate-600">يقرأ التطبيق من خدمة <b>LibreLinkUp</b> من Abbott، وهي نفس الخدمة التي يستخدمها Gluroo. يلزم حساب LibreLinkUp (متابع) تتم مشاركة قراءات الطفلة معه:</p>
               <ol className="list-decimal space-y-1 ps-5 text-sm text-slate-700">

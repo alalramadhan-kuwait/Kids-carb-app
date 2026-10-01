@@ -248,6 +248,21 @@ glucose card on an image.
 - Splash: 1290 × 2796 portrait, illustration centred in the top 60%.
 - Logo: icon mark + wordmark version for onboarding.
 
+### Asset pack 04–09 (received 2026-10-01) — what is used
+
+| Pack folder | Stored in | Used for |
+|---|---|---|
+| 04_Brand | `09_brand/` | `brand_heart_bow.svg` as a small mark; the raster app icon is the main brand image |
+| 05_Navigation | `06_navigation/pack/` | Reference only. The app uses its own `ic_*` set (currentColor, day/night). The pack's glucose drop is pink, which breaks the pink rule |
+| 06_Diabetes_Objects | `04_objects/` | CGM connection card and setup page; later the Log sheet |
+| 07_Food | `05_food/` | Placeholder art for recipes (`food_meal`, `food_cereal` for breakfast) and snacks (`food_snack`, `food_juice`) |
+| 08_Status | `07_status/pack/` | **Not used.** High/low carry ↑/↓, the same arrows that mean "rising/falling fast"; a "High" chip next to a "falling" arrow would contradict itself. The faceless drops (`st_*`) stay |
+| 09_Decorations | `08_decorations/` | Sign-in, onboarding and celebration screens only |
+
+App icon: `public/icons/` — full-bleed 180 px Apple icon and 192/512 px icons (corners filled with the icon's own pink so
+iOS shows no black corners), a maskable 512 px with the whole artwork inside the safe zone, and the original rounded art
+as `layan-logo-256/512.webp` for the sign-in screen. The icon keeps the name «ليان» by the family's choice.
+
 ---
 
 ## 11. Components

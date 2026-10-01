@@ -4,7 +4,7 @@ import { useData } from '../lib/data';
 import { blocker, suggest } from '../lib/suggest';
 import { computeSnack, fmt, PROBLEM_TEXT } from '../lib/carbs';
 import { dayName, fmtDate, fmtTime, relDay, sameDay } from '../lib/constants';
-import { Alert, Btn, Card, Page, Photo, CarbBadge } from '../components/ui';
+import { Alert, Btn, Card, Page, Photo, CarbBadge, snackArt } from '../components/ui';
 import { MealCard, useChoose } from '../components/meal';
 import GlucoseCard from '../components/GlucoseCard';
 
@@ -86,7 +86,7 @@ export default function Today() {
           const meal = computeSnack(s, products, settings);
           return (
             <Card key={s.id} className="space-y-2 !p-3">
-              <Photo path={s.image_path} category={s.name} className="h-20 w-full rounded-xl" />
+              <Photo path={s.image_path} category={s.name} art={snackArt(s.name)} className="h-20 w-full rounded-xl" />
               <div className="font-bold">{s.name}</div>
               <div className="text-xs text-slate-500"><span className="num">{fmt(s.quantity)}</span> {s.unit === 'g' ? 'غ' : s.unit === 'ml' ? 'مل' : s.unit === 'tbsp' ? 'ملعقة' : 'حبة'}</div>
               {meal.complete ? <CarbBadge carbs={meal.total.carbs} level="normal" /> : <span className="text-xs text-slate-500">{PROBLEM_TEXT[meal.lines[0].problem ?? 'no_product']}</span>}

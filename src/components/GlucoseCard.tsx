@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { callGlucose } from '../lib/api';
 import { formatGlucose, glucoseAge, glucoseStatus, GLUCOSE_ERRORS, unitLabel, type GlucoseState, type Reading } from '../lib/glucose';
 import { useData } from '../lib/data';
-import { Card, cx } from './ui';
+import { Card, asset, cx } from './ui';
 import { Icon, StatusIcon, TREND_ICON, TREND_WORDS } from './Icon';
 import { STATUS } from '../icons/defs';
 
@@ -48,7 +48,7 @@ export default function GlucoseCard() {
 
   if (!g && !failed) return null;
   if (g && !g.connected) {
-    return <Link to="/cgm"><Card className="mb-4 flex items-center gap-3 !p-3"><span className="text-2xl">🩸</span><span className="flex-1 font-medium">اربط قراءات السكر الحية (LibreLinkUp)</span><span className="text-slate-300">‹</span></Card></Link>;
+    return <Link to="/cgm"><Card className="mb-4 flex items-center gap-3 !p-3"><img src={asset('04_objects/obj_cgm.svg')} alt="" className="h-9 w-9" /><span className="flex-1 font-medium">اربط قراءات السكر الحية (LibreLinkUp)</span><span className="text-slate-300">‹</span></Card></Link>;
   }
   if (!g) return <Card className="mb-4"><p className="text-sm text-slate-500">تعذّر تحميل قراءة السكر. <button className="text-brand underline" onClick={load}>إعادة المحاولة</button></p></Card>;
 

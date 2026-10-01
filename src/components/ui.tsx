@@ -69,12 +69,23 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boo
   );
 }
 
-export function Photo({ path, category, className }: { path?: string | null; category?: string | null; className?: string }) {
+/** Layan asset pack (public/assets). Relative to the page, so it works under any sub-path. */
+export const asset = (path: string) => `${import.meta.env.BASE_URL}assets/${path}`;
+
+const FOOD_ART: Record<string, string> = { meal: '05_food/food_meal.svg', cereal: '05_food/food_cereal.svg', snack: '05_food/food_snack.svg', juice: '05_food/food_juice.svg' };
+
+/** The user's photo if there is one; otherwise Layan food art (recipes, snacks) or the category emoji (products). */
+export function Photo({ path, category, className, art }: { path?: string | null; category?: string | null; className?: string; art?: keyof typeof FOOD_ART }) {
   const url = photoUrl(path);
-  return url
-    ? <img src={url} alt="" loading="lazy" className={cx('object-cover', className)} />
-    : <div aria-hidden className={cx('grid place-items-center bg-gradient-to-br from-brand-soft to-slate-100 text-4xl', className)}>{emojiFor(category)}</div>;
+  if (url) return <img src={url} alt="" loading="lazy" className={cx('object-cover', className)} />;
+  return (
+    <div aria-hidden className={cx('grid place-items-center bg-brand-soft/60 text-4xl', className)}>
+      {art ? <img src={asset(FOOD_ART[art])} alt="" className="h-3/5 max-h-28 w-auto" /> : emojiFor(category)}
+    </div>
+  );
 }
+export const recipeArt = (category?: string | null) => (category === 'فطور' ? 'cereal' : 'meal') as 'cereal' | 'meal';
+export const snackArt = (name?: string | null) => (name && /عصير|juice/i.test(name) ? 'juice' : 'snack') as 'juice' | 'snack';
 
 // ── carbs ───────────────────────────────────────────────────────────────────
 const LEVEL = {

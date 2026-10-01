@@ -6,7 +6,7 @@ import { blocker } from '../lib/suggest';
 import { acceptTotal, setFavorite, setRecipeImage } from '../lib/api';
 import { uploadPhoto } from '../lib/supabase';
 import type { Ingredient } from '../lib/types';
-import { Alert, Badge, Btn, CarbBadge, Card, Chip, Nutrition, NumInput, Page, Photo, toast } from '../components/ui';
+import { Alert, Badge, Btn, CarbBadge, Card, Chip, Nutrition, NumInput, Page, Photo, recipeArt, toast } from '../components/ui';
 import { lineName, useChoose } from '../components/meal';
 
 export function RecipeList() {
@@ -28,7 +28,7 @@ export function RecipeList() {
           return (
             <Link key={recipe.id} to={`/recipes/${recipe.id}`}>
               <Card className="flex items-center gap-3 !p-3">
-                <Photo path={recipe.image_path} category={recipe.category} className="h-20 w-20 shrink-0 rounded-xl" />
+                <Photo path={recipe.image_path} category={recipe.category} art={recipeArt(recipe.category)} className="h-20 w-20 shrink-0 rounded-xl" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1 font-bold">{recipe.favorite && <span aria-label="مفضلة">❤️</span>}<span className="truncate">{recipe.name}</span></div>
                   <div className="mt-1 flex flex-wrap gap-1">
@@ -71,7 +71,7 @@ export function RecipeView() {
       action={<button aria-label="مفضلة" className="grid h-10 w-10 place-items-center rounded-full bg-white text-xl shadow-sm"
         onClick={async () => { await setFavorite(recipe.id, !recipe.favorite); await reload(); }}>{recipe.favorite ? '❤️' : '🤍'}</button>}>
       <div className="relative mb-4">
-        <Photo path={recipe.image_path} category={recipe.category} className="h-52 w-full rounded-2xl" />
+        <Photo path={recipe.image_path} category={recipe.category} art={recipeArt(recipe.category)} className="h-52 w-full rounded-2xl" />
         <label className="absolute bottom-3 end-3 cursor-pointer rounded-xl bg-white/90 px-3 py-2 text-sm font-medium shadow">
           📷 {recipe.image_path ? 'تغيير الصورة' : 'إضافة صورة'}
           <input type="file" accept="image/*" className="hidden" onChange={async (e) => {

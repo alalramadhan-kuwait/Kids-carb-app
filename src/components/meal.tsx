@@ -4,7 +4,7 @@ import { fmt, type Line, type MealResult } from '../lib/carbs';
 import { logMeal } from '../lib/api';
 import { useData } from '../lib/data';
 import type { Recipe } from '../lib/types';
-import { Btn, CarbBadge, Card, Photo, toast } from './ui';
+import { Btn, CarbBadge, Card, Photo, recipeArt, toast } from './ui';
 
 export const lineName = (l: Line) => l.ing.label ?? l.product?.name ?? l.ing.slot_category ?? '؟';
 
@@ -40,7 +40,7 @@ export function MealCard({ recipe, meal, chosenToday }: { recipe: Recipe; meal: 
   return (
     <Card className="overflow-hidden !p-0">
       <Link to={`/recipes/${recipe.id}`}>
-        <Photo path={recipe.image_path} category={recipe.category} className="h-40 w-full" />
+        <Photo path={recipe.image_path} category={recipe.category} art={recipeArt(recipe.category)} className="h-40 w-full" />
       </Link>
       <div className="space-y-3 p-4">
         <div className="flex items-start justify-between gap-3">

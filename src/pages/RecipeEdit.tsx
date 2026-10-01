@@ -6,7 +6,7 @@ import { deleteRecipe, saveRecipe } from '../lib/api';
 import { uploadPhoto } from '../lib/supabase';
 import { PRODUCT_CATEGORIES, RECIPE_CATEGORIES } from '../lib/constants';
 import type { Ingredient, Role, State, Unit } from '../lib/types';
-import { Alert, Btn, CarbBadge, Card, Field, NumInput, Page, Photo, inputCls, toast } from '../components/ui';
+import { Alert, Btn, CarbBadge, Card, Field, NumInput, Page, Photo, inputCls, recipeArt, toast } from '../components/ui';
 
 interface Row { key: string; role: Role; pick: string; label: string; quantity: number | null; unit: Unit; state: State; qty_confirmed: boolean; note: string }
 let k = 0;
@@ -79,7 +79,7 @@ export default function RecipeEdit() {
             <datalist id="rcats">{RECIPE_CATEGORIES.map((c) => <option key={c} value={c} />)}</datalist>
           </Field>
           <div className="flex items-center gap-3">
-            <Photo path={image} category={category} className="h-20 w-20 rounded-xl" />
+            <Photo path={image} category={category} art={recipeArt(category)} className="h-20 w-20 rounded-xl" />
             <label className="min-h-[44px] cursor-pointer rounded-xl bg-brand-soft px-4 py-2.5 font-medium text-brand">
               {image ? 'تغيير الصورة' : 'إضافة صورة'}
               <input type="file" accept="image/*" className="hidden" onChange={async (e) => {

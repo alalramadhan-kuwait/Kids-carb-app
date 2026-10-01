@@ -8,7 +8,7 @@ import { PRODUCT_CATEGORIES } from '../lib/constants';
 import { VersionTag } from '../components/Version';
 import { formatGlucose, toMgdl, unitLabel } from '../lib/glucose';
 import type { CategoryTarget, Settings, Snack, Unit } from '../lib/types';
-import { Alert, Badge, Btn, Card, CarbBadge, Field, NumInput, Page, Photo, inputCls, toast } from '../components/ui';
+import { Alert, Badge, Btn, Card, CarbBadge, Field, NumInput, Page, Photo, asset, inputCls, snackArt, toast } from '../components/ui';
 
 export function More() {
   const nav = useNavigate();
@@ -24,7 +24,7 @@ export function More() {
     const { error } = await supabase.auth.updateUser({ password: pw });
     if (error) toast(error.message.includes('different') ? 'اختر كلمة مختلفة عن الحالية' : error.message); else { toast('تم تغيير كلمة المرور ✓'); setPw(''); setPw2(''); }
   };
-  const link = (to: string, icon: string, label: string, hint: string) => (
+  const link = (to: string, icon: React.ReactNode, label: string, hint: string) => (
     <Link to={to}><Card className="flex items-center gap-3 !p-4"><span className="text-2xl">{icon}</span><div className="flex-1"><div className="font-bold">{label}</div><div className="text-sm text-slate-500">{hint}</div></div><span className="text-slate-300">‹</span></Card></Link>
   );
   return (
@@ -37,7 +37,7 @@ export function More() {
       </Card>
       <div className="space-y-3">
         {link('/plan', '🗓️', 'خطة الأيام وقائمة الشراء', 'وجبات لعدة أيام وعدد الأشخاص')}
-        {link('/cgm', '🩸', 'قراءات السكر', 'ربط LibreLinkUp لعرض السكر الحي')}
+        {link('/cgm', <img src={asset('04_objects/obj_cgm.svg')} alt="" className="h-8 w-8" />, 'قراءات السكر', 'ربط LibreLinkUp لعرض السكر الحي')}
         {link('/snacks', '🍎', 'السناكات', 'قاعدة بيانات السناكات')}
         {link('/settings', '⚙️', 'الإعدادات', 'الحد الأقصى للكارب وأهداف المنتجات')}
         <Card className="space-y-2">
@@ -102,7 +102,7 @@ export function SnacksPage() {
             </Field>
           </div>
           <div className="flex items-center gap-3">
-            <Photo path={edit.image_path} category={edit.name} className="h-16 w-16 rounded-xl" />
+            <Photo path={edit.image_path} category={edit.name} art={snackArt(edit.name)} className="h-16 w-16 rounded-xl" />
             <label className="cursor-pointer rounded-xl bg-brand-soft px-4 py-2.5 font-medium text-brand">صورة
               <input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) try { setEdit({ ...edit, image_path: await uploadPhoto(f, 'snacks') }); } catch (er) { toast((er as Error).message); } }} />
             </label>
@@ -115,7 +115,7 @@ export function SnacksPage() {
           const m = computeSnack(s, products, settings);
           return (
             <Card key={s.id} className="flex items-center gap-3 !p-3">
-              <Photo path={s.image_path} category={s.name} className="h-16 w-16 shrink-0 rounded-xl" />
+              <Photo path={s.image_path} category={s.name} art={snackArt(s.name)} className="h-16 w-16 shrink-0 rounded-xl" />
               <div className="min-w-0 flex-1">
                 <div className="font-bold">{s.name}</div>
                 <div className="truncate text-xs text-slate-500">{m.lines[0].product?.name ?? s.slot_category} • <span className="num">{fmt(s.quantity)}</span> {s.unit === 'g' ? 'غ' : s.unit === 'ml' ? 'مل' : s.unit === 'tbsp' ? 'ملعقة' : 'حبة'}</div>

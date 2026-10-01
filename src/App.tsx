@@ -43,6 +43,7 @@ function Login() {
   };
   return (
     <Centered>
+      <img src={`${import.meta.env.BASE_URL}icons/layan-logo-256.webp`} alt="ليان" width={128} height={128} className="mx-auto h-32 w-32" />
       <h1 className="text-center text-3xl font-bold">ليان</h1>
       <div className="text-center"><VersionTag /></div>
       <Card>
@@ -111,6 +112,7 @@ function Claim({ onDone }: { onDone: () => void }) {
   };
   return (
     <Centered>
+      <img src={`${import.meta.env.BASE_URL}icons/layan-logo-256.webp`} alt="" width={96} height={96} className="mx-auto h-24 w-24" />
       <h1 className="text-center text-2xl font-bold">تفعيل التطبيق</h1>
       <Card>
         <form onSubmit={go} className="space-y-3">
