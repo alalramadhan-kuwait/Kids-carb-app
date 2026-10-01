@@ -17,7 +17,7 @@ developer can build from it directly.
 4. **Never hide uncertainty.** Old readings, gaps, warm-up, and insufficient data are always shown as such,
    never smoothed over or interpolated.
 5. **Little text on everyday screens.** Numbers, arrows and short labels. All calculations, analysis and
-   engineering detail live in the **متقدم (Advanced)** tab (section 10).
+   engineering detail live in the **التحليل (Analysis, formerly متقدم)** tab (sections 10 and 11).
 
 ---
 
@@ -220,7 +220,7 @@ Phases are defined in section 7.
 
 Bottom navigation (5 tabs, parent-first):
 
-**الآن (Now)** · **السجل (Timeline)** · **الوجبات (Meals)** · **متقدم (Advanced)** · **المزيد (More)**
+**الآن (Now)** · **السجل (Timeline)** · **الوجبات (Meals)** · **التحليل (Analysis — formerly متقدم)** · **المزيد (More)**
 
 Recipes, Products and the meal planner move under *Meals*; the current *History* becomes part of *Timeline*.
 
@@ -264,7 +264,8 @@ profile (Day / Night / School) and per person.
 ### 4.6 Advanced (متقدم) — trends, patterns, reports and calculations
 One tab for everything analytical, so the other tabs stay short. Top screen: six summary groups; tap any
 number for its full analysis. Reports (day / week / month, CSV, clinic PDF) and the AGP chart live here too.
-Full specification in section 10.
+Full specification in section 10; the interactive graph experience (Live · Day · Patterns · Meals ·
+Compare) in section 11. The tab is renamed **التحليل**.
 
 ### 4.7 Reports
 Inside Advanced: Day / Week / Month / custom; metrics from 3.18 and section 10; export CSV; PDF for the clinic
@@ -773,6 +774,191 @@ to its meal; a "today's insulin is complete" tick at bedtime makes TDD trustwort
 |---|---|
 | 2 | Control and TIR (incl. hours/day), median, data-quality dots, meal response (G(t), ΔG, peak, iAUC, recovery, undershoot), hypo/hyper/meal events, per-recipe comparison |
 | 3 | Insulin engineering, prescribed vs observed ICR/ISF, correction analysis, IOB (after care-team agreement), MAGE/MODD/CONGA/LBGI/HBGI/ADRR, correlations, factors, correction and exercise events |
+
+---
+
+## 11. Analysis (التحليل) — the CGM timeline engine
+
+A dedicated glucose-investigation experience. It answers three questions, in this order, and shows
+complexity only when asked: **What is happening now? What caused it? Does this keep happening?**
+It borrows real-time awareness from Gluroo, the glucose–insulin–carbs relationship from Tidepool, Overlay /
+Compare / Patterns from Dexcom Clarity, and the AGP statistical view — simplified for a phone. Every rule in
+the ground rules and in 10.2 applies here unchanged.
+
+### 11.1 Decisions where this chapter adapts the original brief
+
+| Brief | Decision | Why |
+|---|---|---|
+| New main tab "التحليل" | The **متقدم** tab becomes **التحليل**; still 5 tabs | A sixth tab breaks Hick/Miller (DESIGN_SYSTEM 12b); Advanced content moves inside it |
+| Live mode | Tapping the graph on الآن opens Analysis → Live at "now" | الآن stays the 5-second screen; Live is its full-depth version |
+| Haptics when scrubbing | Android: short vibration. **iPhone: not available to web apps** (Safari has no vibration API) — the marker snaps, enlarges and the inspector updates instead | Honest platform limit |
+| COB | Same rule as IOB (10.9): off by default, model and parameters printed under every value, Phase 3 after the care team agrees the absorption time | COB is a model, not a measurement |
+| Basal layer | Long-acting injections shown as markers (no basal rate unless a pump is used later) | Matches what is logged today |
+| Exercise, Sleep | New event kinds: exercise (minutes, light/moderate/hard), sleep (start/end) | Not logged yet |
+| Emoji markers | Layan SVG icons (DESIGN_SYSTEM 6) | One icon system |
+| mmol/L in examples | Shown in the parents' chosen unit (mg/dL or mmol/L) | Existing setting |
+| "The CGM app is responsible for alerts" | Kept: our alerts are a second line (ground rule 3) | Already the rule |
+
+### 11.2 Navigation
+
+Inside التحليل, a segmented control: **Live · Day · Patterns · Meals · Compare**. One job per mode — never
+all functions on one screen. The current Advanced KPI and engineering content (section 10) lives under
+Day → "More metrics" and in each mode's "How this is calculated" sheet.
+
+Information priority on every mode (visual weight in this order): 1 current glucose · 2 direction · 3 curve ·
+4 target range · 5 meals/insulin · 6 IOB/COB · 7 analysis · 8 statistics.
+
+### 11.3 Live
+
+- Header, no card around it: big number + trend icon + unit; under it `Δ15 min · rate per min`; then
+  "updated 2 min ago" (freshness rules 5.1). Low/high shows as a compact status line above the graph
+  ("3.2 ↓ — منخفض"), never a banner that covers the chart.
+- Graph takes **45–55 % of the screen height**, default 3 h, "Now" button returns to live with a short pan
+  animation; a new reading slides in (no pulsing, no bouncing numbers).
+- Event rail and layers as 11.5.
+
+### 11.4 Glucose trace, target band, data quality
+
+- **Target band**: the parents' range as a subtle filled horizontal region (not just lines). With no range
+  set: no band, a one-line prompt to set it.
+- **State colour per segment**: very low / low / in range / high / very high, using the restrained medical
+  tokens; the line is neutral in range and coloured only outside it. Colour is never the only signal: the
+  band position, the y-axis labels and the inspector text carry the same state.
+- **Raw points** (dots) appear at ≤ 3 h zoom; wider zooms draw a line. Readings since server polling began
+  are 1-minute; older backfill is 15-minute — the dot density shows this honestly.
+- **Gaps**: any interval > 20 min is a visible break with a label ("27 min missing"); never joined, never
+  interpolated. The last reading's state is shown as **Live** (≤ 5 min), **Delayed** (5–15 min) or
+  **Missing** (> 15 min).
+- **Smoothing / downsampling is display-only**: per pixel column draw the min and max of the readings in it
+  (min–max decimation), so a real low can never disappear and no peak can be invented. Zooming in or
+  inspecting always shows the stored readings.
+
+### 11.5 Event rail, grouping, layers, secondary tracks
+
+- **Event rail** under the trace, on the same time axis: meal (carbs g), insulin (U, rapid/long), hypo
+  treatment (g), exercise (min), note. Compact markers by default — not four permanent rows.
+- **Grouping**: events within 20 min (at the current zoom, within 24 px) merge into one chip, e.g.
+  "Meal · 45 g + 3 U"; tap to expand.
+- **Layers** button beside the period selector. Default on: Glucose, Meals, Insulin, Hypo treatments.
+  Default off: IOB, COB, Basal (long-acting), Exercise, Notes, Sleep. Choice remembered per device.
+- **IOB / COB** never share the glucose y-axis: each is a thin synchronized track under the rail with its own
+  scale and its model line ("model: exponential, DIA 4 h, peak 75 min — from care team").
+
+### 11.6 Zoom behaviour (one engine, different renderers)
+
+| Window | Renderer | Shows |
+|---|---|---|
+| 3 h | Detail | dots, line, all events with labels, inspector values |
+| 6–12 h | Line | line, major events, grouped chips |
+| 24 h | Day | line, icons without labels, day-part shading (Night 00–06 · Morning 06–12 · Afternoon 12–18 · Evening 18–24) |
+| 3–14 d | Daily strips | one compact row per day (colour by state per 15 min) + daily TIR |
+| 30–90 d | AGP | median, 25–75 %, 10–90 % over a standard 24 h |
+
+Period selector: **3H 6H 12H 24H 7D 14D 30D 90D**; on narrow phones the last ones go under "More".
+
+### 11.7 Gestures, crosshair, inspectors
+
+| Gesture | Action |
+|---|---|
+| Swipe horizontally | travel in time |
+| Pinch | zoom (snaps to the nearest period above after release) |
+| Double tap | zoom in around that point |
+| Tap reading / event | reading inspector / event inspector |
+| Long press | crosshair; drag to scrub |
+| "Now" | back to live |
+
+No +/− buttons. Touch targets ≥ 44 px; the crosshair hit area is the whole graph height.
+
+**Crosshair inspector** (floating, follows the finger): time · glucose · Δ15 min · rate · and — only when that
+layer is on — IOB and COB. Crossing a meal, insulin or low snaps and (Android) vibrates.
+
+**Event inspector** (bottom sheet, never navigates away), e.g. a meal: name, time, carbs, linked bolus,
+pre-bolus minutes, starting glucose, IOB (if on); glucose response at +30/60/90/120/180 min, peak, rise,
+time to peak (definitions 10.7; values only where there is no gap); "Full meal analysis →" opens Meals mode
+on that recipe.
+
+### 11.8 Day
+
+- Title "Today · Thursday 1 Oct"; swipe or date picker for other days.
+- One row of four KPIs: **Avg · TIR · Low · High**. "More metrics": SD, CV, GMI (14 d only), min, max,
+  coverage, total carbs, total insulin.
+- 24 h chart (one continuous timeline with subtle day-part shading).
+- **Today's events** list below. Tap a row → the graph centres on that moment; tap a graph event → the
+  event inspector. Two-way navigation is required.
+
+### 11.9 Patterns & AGP
+
+- 24-hour clock (00–24), all selected days overlaid as statistics: **median line, 25–75 % dark band,
+  10–90 % light band**, target band behind. Bins of 15 min; each bin needs ≥ 5 days of data or it is drawn
+  hollow ("not enough data").
+- Filters: **All · School days · Weekend · Custom** and weekday chips (Sun–Sat; Kuwait week). School days
+  come from the School schedule (3.14).
+- 14 / 30 / 90 d is the AGP view, with the published AGP KPIs alongside.
+- **Observed pattern cards** (rules from 5.7, descriptive only): "Overnight decline · 5 of 7 nights ·
+  00:30–04:00". Tap → highlight the contributing nights on the chart. Cards show n and can be dismissed;
+  they never suggest a change.
+
+### 11.10 Meals (signature feature)
+
+- Search a recipe → "Eaten 8 times". All occurrences aligned at **T0 = meal time**, window −60 to +240 min,
+  thin lines per meal, median line and 25–75 % band on top.
+- Summary (medians): occurrences, typical carbs, typical insulin, starting glucose, peak, excursion, time to
+  peak, glucose at 3 h. Rules and "clean meal" definition: 10.7. Minimum 3 clean meals.
+- Later: filter by pre-bolus band (< 5 min vs 10–20 min) and overlay the two medians — labelled
+  "historical observation", never advice.
+
+### 11.11 Compare
+
+- Presets: **Today vs Yesterday · This week vs Last week · School vs Weekend · Custom A vs B**.
+- Two stacked charts with the same x and y axes; pan/zoom on one moves the other. Not overlaid by default.
+- Table of A vs B (TIR, CV, low, mean, coverage) — differences only, no "better/worse", no winner.
+
+### 11.12 Landscape, RTL, accessibility, motion
+
+- Rotating to landscape on any graph enters **full-screen analysis**: date, period, Layers, the chart, the
+  rail and the period selector — nothing else.
+- RTL: page chrome is right-to-left; **the time axis always runs left → right**; numbers and units are
+  isolated (`6.2 mmol/L` never reorders).
+- Accessibility: state by position + label + icon, not colour alone; works at 200 % text size (chart keeps its
+  height, labels wrap below); every chart has a text summary for screen readers.
+- Motion only for data changes: new reading, back to Now, zoom, opening an event, changing date or layers.
+  `prefers-reduced-motion` turns them into instant changes.
+
+### 11.13 Performance & architecture
+
+Performance is part of the UX:
+- Pan and zoom at 60 fps on a mid-range phone with 90 days loaded; Analysis opens in < 1 s from cache.
+- Rendering on **Canvas 2D** (not SVG) from typed arrays; min–max decimation per pixel; raw readings kept
+  underneath.
+- Readings fetched in day chunks and cached (IndexedDB) so a scroll never waits on the network.
+- Percentile profiles, daily strips and meal responses computed **in the database** (SQL functions, cached
+  per day) or in a Web Worker — never in the render loop.
+
+Structure (a reusable engine, not one component):
+
+```
+CGM Timeline Engine
+├── Scale & viewport (time ↔ x, glucose ↔ y, zoom level → renderer)
+├── Layers: glucose · target · events (meal, insulin, treatment, exercise, note, sleep) · derived (IOB, COB, rate)
+├── Interaction: pan · pinch · double-tap · crosshair · selection · haptics (where available)
+└── Analysis: day stats · patterns/AGP · meal response · compare
+```
+
+### 11.14 Build order & acceptance criteria
+
+| Stage | Content | Accept |
+|---|---|---|
+| A1 | Engine: canvas trace, target band, gaps, freshness state, pan, pinch, Now, crosshair | 60 fps pan on fixture of 90 days; a 27-min gap is drawn and labelled; a single 2.9 mmol/L reading inside 90 days is visible at every zoom |
+| A2 | Event rail, grouping, inspectors, Layers | every event sits at its exact minute; grouped chips expand; inspector values match 10.7 on a fixture meal |
+| A3 | Day mode + two-way list ↔ graph | KPIs match `glucose_stats` to 0.5 pp; tapping a row centres the graph within 300 ms |
+| A4 | IOB / COB tracks | only after the care team agrees the parameters; model line under every value |
+| A5 | Patterns / AGP + filters | percentiles match a hand calculation on a fixture; bins with < 5 days drawn hollow |
+| A6 | Meals response | ≥ 3 clean meals required; median curve and summary match a fixture |
+| A7 | Compare | both charts scroll together; table shows differences only |
+| A8 | Observed pattern cards | each card names its rule and n, drills down to its nights, can be dismissed |
+
+A1–A2 deliver the must-have 24-hour Timeline (section 8) right after Phase 1 alerts and care plan; A3 is
+Phase 2 step 6 (Daily view); A5–A6 are part of Phase 2 step 9; A4, A7, A8 are Phase 3.
 
 
 ## Sources
