@@ -1,4 +1,4 @@
-import { useEffect, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
 import { fmt, type Level } from '../lib/carbs';
 import { emojiFor } from '../lib/constants';
 import { photoUrl } from '../lib/supabase';
@@ -49,13 +49,41 @@ export function useVisibleArea() {
   return area;
 }
 
+/** Dragging the sheet down (from its handle, or anywhere once its content is scrolled to the top) closes it. */
+function useSwipeDown(onClose: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    let y0 = 0, dy = 0, active = false;
+    const start = (e: TouchEvent) => { y0 = e.touches[0].clientY; dy = 0; active = el.scrollTop <= 0; el.style.transition = 'none'; };
+    const move = (e: TouchEvent) => {
+      if (!active) return;
+      dy = e.touches[0].clientY - y0;
+      if (dy > 0) { e.preventDefault(); el.style.transform = `translateY(${dy}px)`; }
+      else { active = el.scrollTop <= 0 && dy >= 0; el.style.transform = ''; }
+    };
+    const end = () => {
+      el.style.transition = 'transform 180ms ease-out';
+      if (active && dy > 90) { el.style.transform = 'translateY(100%)'; window.setTimeout(onClose, 160); }
+      else el.style.transform = '';
+      active = false;
+    };
+    el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('touchmove', move, { passive: false });
+    el.addEventListener('touchend', end); el.addEventListener('touchcancel', end);
+    return () => { el.removeEventListener('touchstart', start); el.removeEventListener('touchmove', move); el.removeEventListener('touchend', end); el.removeEventListener('touchcancel', end); };
+  });
+  return ref;
+}
+
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
   const area = useVisibleArea();
+  const panel = useSwipeDown(onClose);
   if (!open) return null;
   return (
     <div className="fixed inset-x-0 z-50 flex items-end justify-center bg-black/40" style={{ top: area.top, height: area.height }} onClick={onClose}>
-      <div role="dialog" aria-label={title} className="w-full max-w-2xl overflow-y-auto overscroll-contain rounded-t-[22px] bg-white px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-2" style={{ maxHeight: area.height - 24 }} onClick={(e) => e.stopPropagation()}>
-        <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-slate-200" />
+      <div ref={panel} role="dialog" aria-label={title} className="w-full max-w-2xl overflow-y-auto overscroll-contain rounded-t-[22px] bg-white px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-2" style={{ maxHeight: area.height - 24, touchAction: 'pan-y' }} onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} aria-label={t('إغلاق')} className="mx-auto mb-1 flex h-6 w-16 items-center justify-center"><span className="h-1.5 w-10 rounded-full bg-slate-200" /></button>
         <h2 className="mb-2 text-lg font-bold">{title}</h2>
         {children}
       </div>
