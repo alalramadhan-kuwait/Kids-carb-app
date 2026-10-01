@@ -7,7 +7,7 @@ export function VersionTag() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button onClick={() => setOpen(true)} className="text-xs text-slate-400 underline">الإصدار <span className="num">{__APP_VERSION__}</span> · ما الجديد</button>
+      <button onClick={() => setOpen(true)} className="text-xs text-slate-400 underline">الإصدار <span className="num mx-1">{__APP_VERSION__}</span> · ما الجديد</button>
       {open && (
         <div className="fixed inset-0 z-50 grid place-items-end bg-black/40 sm:place-items-center" onClick={() => setOpen(false)}>
           <Card className="max-h-[80vh] w-full max-w-lg overflow-y-auto !rounded-b-none sm:!rounded-2xl">

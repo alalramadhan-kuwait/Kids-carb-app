@@ -10,6 +10,10 @@ import { ICONS, STATUS, type IconName } from '../icons/defs';
 import { Icon, StatusIcon, TREND_ICON, TREND_WORDS } from '../components/Icon';
 import { LogSheet } from '../components/LogSheet';
 import { AlertStrip } from '../components/AlertStrip';
+import { VersionTag } from '../components/Version';
+// imported (not from /public) so every new artwork gets a new hashed file name and phones never keep an old copy
+import layanWebp from '../assets/layan_peek.webp';
+import layanPng from '../assets/layan_peek.png';
 import { useAlerts } from '../hooks/useAlerts';
 import { describeEvent } from '../lib/events';
 import { Card, Page, asset, cx } from '../components/ui';
@@ -120,6 +124,7 @@ export default function Now() {
         )}
 
         <p className="px-1 text-[11px] leading-relaxed text-slate-400">للعرض فقط وقد تتأخر عن الجهاز. القرارات والإنذارات من Libre أو Gluroo، وليس من هذا التطبيق.</p>
+        <div className="px-1 text-center"><VersionTag /></div>
       </div>
 
       {/* Fitts: the main action is big and sits in the thumb zone, above the tab bar */}
@@ -156,9 +161,9 @@ function LayanHeader({ alertCount }: { alertCount: number }) {
           </svg>
         ))}
         <picture>
-          <source srcSet={asset('09_brand/layan_peek.webp')} type="image/webp" />
+          <source srcSet={layanWebp} type="image/webp" />
           {/* the artwork's card edge sits at 95.5% of its height: her fingers hang over the card's top border */}
-          <img src={asset('09_brand/layan_peek.png')} alt="" className="absolute left-0 w-full select-none" style={{ bottom: 'calc(-0.0454 * 156px * 388 / 480)' }} draggable={false} />
+          <img src={layanPng} alt="" className="absolute left-0 w-full select-none" style={{ bottom: 'calc(-0.0454 * 156px * 388 / 480)' }} draggable={false} />
         </picture>
       </div>
       <Link to="/more" aria-label="الحساب والمزيد" className="grid h-12 w-12 place-items-center rounded-full text-slate-600">
