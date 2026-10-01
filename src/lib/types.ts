@@ -1,4 +1,6 @@
 import type { Ratio } from '../engine/status';
+
+export interface DoseCalc { suggested: number; carbs: number; glucose: number; iob: number; cr: number; isf: number; target: [number, number]; food: number; correction: number }
 export type Unit = 'g' | 'ml' | 'serving' | 'tbsp';
 export type State = 'raw' | 'cooked' | 'as_is';
 export type Role = 'main' | 'drink' | 'snack';
@@ -107,6 +109,9 @@ export interface Settings {
   /** the doctor's carb ratio and correction factor by time of day; empty = no estimate */
   ratios: Ratio[];
   sensor_days: 14 | 15;
+  /** dose calculator: the doctor's correction target range (mg/dL), pen step, minimum minutes between rapid doses */
+  target_mgdl: number | null; target_high_mgdl: number | null;
+  pen_step: number; dose_gap_min: number;
 }
 
 export interface HistoryLine {
@@ -170,6 +175,7 @@ export const DEFAULT_SETTINGS: Settings = {
   escalate_min: 10,
   iob_dia_min: null, iob_peak_min: null, cob_absorb_min: null,
   ratios: [], sensor_days: 14,
+  target_mgdl: null, target_high_mgdl: null, pen_step: 1, dose_gap_min: 120,
 };
 
 export type AlertKind = 'urgent_low' | 'low' | 'high' | 'no_data' | 'rapid_fall' | 'rapid_rise';
@@ -204,6 +210,8 @@ export interface EventRow {
   note: string | null;
   activity_min?: number | null;
   activity_level?: 'light' | 'moderate' | 'hard' | null;
+  /** what the dose calculator showed when this dose was logged from it */
+  dose_calc?: DoseCalc | null;
   ends_at?: string | null;
   created_by: string;
   deleted_at: string | null;

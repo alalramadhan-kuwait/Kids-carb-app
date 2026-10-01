@@ -210,7 +210,7 @@ export const core: Record<string, string> = {
   'م': 'pm',
   'لا توجد وجبة مسجّلة': 'No meal logged',
   'لا يوجد إنسولين مسجّل': 'No insulin logged',
-  'للعرض فقط وقد تتأخر عن الجهاز. القرارات والإنذارات من Libre أو Gluroo، وليس من هذا التطبيق.': 'For viewing only and may lag behind the device. Decisions and alarms come from Libre or Gluroo, not this app.',
+  "القراءات قد تتأخر عن الجهاز. راجعوا كل جرعة قبل إعطائها.": "Readings may lag behind the device. Check every dose before giving it.",
   'مرجعي {a} إلى {b}': 'Reference {a} to {b}',
   'يوم المدرسة': 'School day',
   'التنبيهات': 'Alerts',

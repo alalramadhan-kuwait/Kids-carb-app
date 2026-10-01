@@ -80,7 +80,7 @@ export default function Status() {
           </div>
           <EstimateNote s={s} o={o} fresh={age?.state === 'fresh'} />
           <p className="!mt-3 rounded-xl bg-slate-50 p-2.5 text-xs leading-relaxed text-slate-600">
-            {t('تقدير تقريبي من المسجّل فقط، ولا يعرف الرياضة ولا المرض ولا الأكل غير المسجّل. لا تُبنى عليه جرعة ولا علاج: القرار حسب خطة الطبيب.')}
+            {t('تقدير تقريبي من المسجّل فقط، ولا يعرف الرياضة ولا المرض ولا الأكل غير المسجّل. للجرعة استخدموا الحاسبة في «سجّل ← إنسولين».')}
           </p>
         </Card>
 

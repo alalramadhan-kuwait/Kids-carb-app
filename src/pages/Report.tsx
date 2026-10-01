@@ -73,7 +73,7 @@ export default function Report() {
           <div key={l} className="rounded-xl border border-slate-200 p-2"><div className="num font-bold">{v}</div><div className="text-xs text-slate-600">{l}</div></div>
         ))}
       </section>
-      <p className="text-[11px] text-slate-500">{t('مما سجّله الأهل في التطبيق؛ قد لا يشمل كل شيء. التطبيق لا يحسب ولا يقترح جرعات. الأرقام للنقاش مع الفريق الطبي.')}</p>
+      <p className="text-[11px] text-slate-500">{t('مما سجّله الأهل في التطبيق؛ قد لا يشمل كل شيء. الأرقام للنقاش مع الفريق الطبي.')}</p>
     </main>
   );
 }

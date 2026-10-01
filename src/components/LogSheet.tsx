@@ -10,6 +10,8 @@ import type { IconName } from '../icons/defs';
 import { Alert, Btn, Field, NumInput, Sheet, cx, inputCls, toast } from './ui';
 import { t } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
+import { DoseCalculator } from './DoseCalculator';
+import type { DoseCalc } from '../lib/types';
 
 const KINDS: { kind: EventKind; label: string; icon: IconName }[] = [
   { kind: 'insulin', label: 'إنسولين', icon: 'insulin' }, // i18n-ok
@@ -25,9 +27,9 @@ const hhmm = (t: number) => { const d = new Date(t + KW); return `${String(d.get
 const wakeDefault = () => (new Date(Date.now() + KW).getUTCHours() < 12 ? hhmm(Date.now()) : '06:30');
 const AGO = [0, 15, 30, 60];
 
-/** "سجّل": insulin, carbs, hypo treatment or a note — logging only, never a suggestion. */
+/** "سجّل": insulin, carbs, hypo treatment or a note. Rapid insulin shows the dose calculator (doctor's plan); the parent confirms. */
 export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { events, me, nameOf, reload } = useData();
+  const { events, me, nameOf, reload, settings } = useData();
   const [kind, setKind] = useState<EventKind | null>(null);
   const [clientId, setClientId] = useState(() => crypto.randomUUID());
   const [units, setUnits] = useState<number | null>(null);
@@ -43,10 +45,11 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
   const [ago, setAgo] = useState(0);
   const [busy, setBusy] = useState(false);
   const [dupAck, setDupAck] = useState(false);
+  const [calc, setCalc] = useState<DoseCalc | null>(null);
 
   const reset = () => {
     setKind(null); setClientId(crypto.randomUUID()); setUnits(null); setType('rapid'); setPurpose(null);
-    setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault());
+    setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault()); setCalc(null);
   };
   const close = () => { reset(); onClose(); };
 
@@ -62,8 +65,9 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
       bolus_purpose: kind === 'insulin' && type === 'rapid' ? purpose : null,
       carbs_g: kind === 'carbs' || kind === 'treatment' ? grams : null,
       treatment: kind === 'treatment' ? treat : null, note: note.trim() || null,
+      dose_calc: kind === 'insulin' && type === 'rapid' ? calc : null,
     };
-  }, [kind, clientId, units, type, purpose, grams, treat, note, ago, mins, level, sleepFrom, sleepTo]);
+  }, [kind, clientId, units, type, purpose, grams, treat, note, ago, mins, level, sleepFrom, sleepTo, calc]);
 
   const valid = !!draft && (
     (kind === 'insulin' && !!units && units > 0 && units < 100) ||
@@ -122,12 +126,13 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
             </div>
           )}
           {kind !== 'sleep' && kind !== 'note' && (
-            <Steps tone={KIND_STYLE[kind].soft} steps={kind === 'insulin' ? [1, 0.5] : kind === 'exercise' ? [15, 5] : [5, 1]}
+            <Steps tone={KIND_STYLE[kind].soft} steps={kind === 'insulin' ? (settings.pen_step === 1 ? [2, 1] : [1, 0.5]) : kind === 'exercise' ? [15, 5] : [5, 1]}
               value={kind === 'insulin' ? units : kind === 'exercise' ? mins : grams} onChange={kind === 'insulin' ? setUnits : kind === 'exercise' ? setMins : setGrams} />
           )}
           {kind === 'insulin' && <>
             <Seg on={KIND_STYLE[kind!].solid} value={type} onChange={(v) => setType(v as 'rapid' | 'long')} options={[['rapid', t('سريع المفعول')], ['long', t('طويل المفعول')]]} />
             {type === 'rapid' && <Seg on={KIND_STYLE[kind!].solid} value={purpose ?? ''} onChange={(v) => setPurpose((v || null) as typeof purpose)} options={[['meal', t('لوجبة')], ['correction', t('تصحيح')], ['both', t('الاثنين')]]} allowNone />}
+            {type === 'rapid' && ago === 0 && <DoseCalculator onUse={(u, p, c) => { setUnits(u); setPurpose(p); setCalc(c); }} />}
             {units !== null && units > 20 && <Alert tone="near">{t('رقم كبير. تأكد أنه صحيح قبل الحفظ.')}</Alert>}
           </>}
           {kind === 'treatment' && <Seg on={KIND_STYLE[kind!].solid} value={treat} onChange={setTreat} options={[['عصير', t('عصير')], ['أقراص جلوكوز', t('أقراص')], ['أخرى', t('أخرى')]]} /* i18n-ok: stored values */ />}

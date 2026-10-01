@@ -60,7 +60,7 @@ export default function Cgm() {
             </Card>
           </>
         )}
-        <Card><p className="text-sm leading-relaxed text-slate-600">{t('القراءات للعرض فقط، وقد تتأخر بضع دقائق عن الجهاز. لا يحسب التطبيق جرعات ولا يصدر إنذارات. اعتمد على Libre وGluroo في القرارات.')}</p></Card>
+        <Card><p className="text-sm leading-relaxed text-slate-600">{t('القراءات قد تتأخر بضع دقائق عن الجهاز. حاسبة الجرعة لا تعطي رقمًا من قراءة أقدم من 15 دقيقة.')}</p></Card>
       </div>
     </Page>
   );

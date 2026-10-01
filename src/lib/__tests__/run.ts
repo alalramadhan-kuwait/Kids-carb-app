@@ -936,6 +936,42 @@ console.log('status page');
   });
 }
 
+console.log('dose calculator');
+
+{
+  const { suggestDose } = await import('../../engine/dose');
+  const T = Date.UTC(2026, 9, 1, 9, 0), M = 60000;
+  const base = { now: T, carbs: 45, ratio: { from: '00:00', cr: 15, isf: 54 }, target: { low: 99, high: 117 }, lowMg: 70,
+    glucose: { mg: 171, at: T - 2 * M, trend: 3 }, sensorStartedAt: T - 5 * 86400000, iob: 0, lastRapidAt: null, gapMin: 120, step: 1 };
+  test('food plus correction to the top of the range, rounded down to the pen', () => {
+    const r = suggestDose(base);
+    assert.equal(r.block, null); assert.equal(r.food, 3); assert.equal(r.correction, 1); assert.equal(r.dose, 4);
+    assert.equal(suggestDose({ ...base, carbs: 40 }).dose, 3, '2.67 + 1 = 3.67 → 3');
+    assert.equal(suggestDose({ ...base, carbs: 40, step: 0.5 }).dose, 3.5);
+  });
+  test('inside the range there is no correction; below it the food dose is lowered', () => {
+    assert.equal(suggestDose({ ...base, glucose: { mg: 110, at: T, trend: 3 } }).correction, 0);
+    const r = suggestDose({ ...base, glucose: { mg: 72, at: T, trend: 3 } });
+    assert.equal(r.correction, -0.5); assert.equal(r.dose, 2, '3 − 0.5 = 2.5 → 2');
+  });
+  test('insulin still working covers the correction, never the food', () => {
+    const r = suggestDose({ ...base, iob: 0.6 });
+    assert.ok(Math.abs(r.correction - 0.4) < 1e-9); assert.equal(r.iobUsed, 0.6); assert.equal(r.dose, 3);
+    assert.equal(suggestDose({ ...base, iob: 5 }).dose, 3);
+  });
+  test('refuses, with the reason, when the inputs cannot be trusted', () => {
+    assert.equal(suggestDose({ ...base, lastRapidAt: T - 90 * M }).block, 'recent_dose');
+    assert.equal(suggestDose({ ...base, lastRapidAt: T - 90 * M }).until, T + 30 * M);
+    assert.equal(suggestDose({ ...base, lastRapidAt: T - 121 * M }).block, null);
+    assert.equal(suggestDose({ ...base, glucose: { mg: 171, at: T - 16 * M, trend: 3 } }).block, 'no_reading');
+    assert.equal(suggestDose({ ...base, glucose: { mg: 65, at: T, trend: 3 } }).block, 'low');
+    assert.equal(suggestDose({ ...base, glucose: { mg: 171, at: T, trend: 1 } }).block, 'falling');
+    assert.equal(suggestDose({ ...base, sensorStartedAt: T - 30 * M }).block, 'warmup');
+    assert.equal(suggestDose({ ...base, ratio: null }).block, 'no_plan');
+    assert.equal(suggestDose({ ...base, iob: null }).block, 'no_plan');
+  });
+}
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {

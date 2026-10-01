@@ -148,7 +148,7 @@ export default function Now() {
         )}
 
         <footer className="space-y-1 px-1 text-center text-[11px] leading-relaxed text-slate-400">
-          <p>{t('للعرض فقط وقد تتأخر عن الجهاز. القرارات والإنذارات من Libre أو Gluroo، وليس من هذا التطبيق.')}</p>
+          <p>{t('القراءات قد تتأخر عن الجهاز. راجعوا كل جرعة قبل إعطائها.')}</p>
           <VersionTag />
         </footer>
       </div>

@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.7.0",
+    "date": "2026-10-01",
+    "notes": [
+      "حاسبة الجرعة في «سجّل ← إنسولين سريع»: الأكل والتصحيح والإنسولين النشط حسب خطة الطبيب، مع كل خطوة ظاهرة",
+      "لا تقترح جرعة خلال ساعتين من آخر جرعة، أو والسكر منخفض أو ينزل بسرعة، أو بدون قراءة حديثة",
+      "خطة الجرعات في الإعدادات: نسبة الكارب، معامل التصحيح، هدف التصحيح، خطوة القلم"
+    ],
+    "notes_en": [
+      "Dose calculator in Log → Rapid insulin: food, correction and active insulin from the doctor's plan, with every step shown",
+      "No suggestion within 2 hours of the last dose, when glucose is low or falling fast, or without a recent reading",
+      "The dose plan in Settings: carb ratio, correction factor, correction target and pen step"
+    ]
+  },
+  {
     "version": "1.6.0",
     "date": "2026-10-01",
     "notes": [

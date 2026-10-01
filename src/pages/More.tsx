@@ -115,7 +115,7 @@ export function More() {
           <li><button className="flex min-h-[52px] w-full items-center px-4 text-start font-medium text-slate-600" onClick={async () => { await supabase.auth.signOut(); nav('/'); }}>{t('تسجيل الخروج')}</button></li>
         </>)}
         <footer className="space-y-1 pt-1 text-center text-xs text-slate-400">
-          <p>{t('هذا التطبيق لا يحسب ولا يقترح جرعات الإنسولين. الجرعة قرار الأهل مع الطبيب.')}</p>
+          <p>{t('حاسبة الجرعة تتبع خطة الطبيب المكتوبة في الإعدادات. راجعوا الرقم دائمًا قبل الإعطاء.')}</p>
           <VersionTag />
         </footer>
       </div>
@@ -244,7 +244,10 @@ export function SettingsPage() {
   const setR = (i: number, patch: Partial<Ratio>) => setS({ ...s, ratios: ratios.map((r, n) => (n === i ? { ...r, ...patch } : r)) });
   const ratioBad = ratios.some((r) => !ratioOk(r)) ? t('نسبة الكارب بين 3 و100 غ، والتصحيح بين {lo} و{hi} {unit}.', { lo: formatGlucose(10, s.glucose_unit), hi: formatGlucose(500, s.glucose_unit), unit: unitLabel(s.glucose_unit) })
     : new Set(ratios.map((r) => r.from)).size < ratios.length ? t('لكل فترة وقت بداية مختلف.') : null;
-  const bad = s.preferred_min > s.preferred_max || s.preferred_max > s.max_meal_carbs || !!iobBad || !!ratioBad;
+  const targetBad = (s.target_mgdl === null) !== (s.target_high_mgdl === null) ? t('اكتبوا بداية الهدف ونهايته معًا.')
+    : out(s.target_mgdl, 70, 200) || out(s.target_high_mgdl, 70, 220) ? t('الهدف بين {lo} و{hi} {unit}.', { lo: formatGlucose(70, s.glucose_unit), hi: formatGlucose(200, s.glucose_unit), unit: unitLabel(s.glucose_unit) })
+    : s.target_mgdl !== null && s.target_high_mgdl! < s.target_mgdl ? t('نهاية الهدف يجب أن تكون أعلى من بدايته.') : null;
+  const bad = s.preferred_min > s.preferred_max || s.preferred_max > s.max_meal_carbs || !!iobBad || !!ratioBad || !!targetBad;
 
   return (
     <Page title={t('الإعدادات')} back={() => nav(-1)}>
@@ -296,7 +299,7 @@ export function SettingsPage() {
 
         <Card className="space-y-3">
           <h2 className="font-bold">{t('الإنسولين والكارب النشط (IOB / COB)')}</h2>
-          <Alert tone="info">{t('للعرض فقط على الرسم وصفحة الحالة. اكتبوا الأرقام كما أعطاكم إياها الفريق الطبي. التطبيق لا يقترح جرعات ولا كميات علاج.')}</Alert>
+          <Alert tone="info">{t('تُستخدم للرسم وصفحة الحالة وحاسبة الجرعة. اكتبوا الأرقام كما أعطاكم إياها الفريق الطبي.')}</Alert>
           <p className="text-sm text-slate-600">{t('مدة عمل الإنسولين السريع وذروته، ومدة امتصاص الكارب، بالدقائق. اتركوها فارغة ليبقى العرض مطفأً.')}</p>
           <div className="grid grid-cols-3 items-end gap-3">
             <Field label={t('مدة العمل (د)')}><NumInput value={s.iob_dia_min} onChange={(v) => setS({ ...s, iob_dia_min: v })} /></Field>
@@ -307,8 +310,8 @@ export function SettingsPage() {
         </Card>
 
         <Card className="space-y-3">
-          <h2 className="font-bold">{t('نسبة الكارب ومعامل التصحيح')}</h2>
-          <Alert tone="info">{t('من الطبيب، لصفحة الحالة فقط: تقدير تقريبي لما سيصل إليه السكر بعد انتهاء الكارب والإنسولين المسجّلين. التطبيق لا يحسب جرعات.')}</Alert>
+          <h2 className="font-bold">{t('خطة الجرعات من الطبيب')}</h2>
+          <Alert tone="info">{t('تُستخدم لحاسبة الجرعة في «سجّل ← إنسولين» ولتقدير صفحة الحالة. اكتبوها كما في خطة الطبيب بالضبط.')}</Alert>
           {ratios.length > 0 && (
             <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.5rem] gap-2 text-xs text-slate-500">
               <span>{t('من الساعة')}</span><span>{t('غ لكل وحدة')}</span><span>{t('{unit} لكل وحدة', { unit: unitLabel(s.glucose_unit) })}</span><span />
@@ -325,6 +328,29 @@ export function SettingsPage() {
           <p className="text-sm text-slate-600">{ratios.length ? t('كل فترة تبدأ من ساعتها حتى الفترة التالية. فترة واحدة تكفي لليوم كله.') : t('اتركوها فارغة ليبقى التقدير مطفأً.')}</p>
           {ratios.length < 8 && <Btn kind="ghost" block onClick={() => setS({ ...s, ratios: [...ratios, { from: ratios.length ? '12:00' : '00:00', cr: ratios[ratios.length - 1]?.cr ?? 0, isf: ratios[ratios.length - 1]?.isf ?? 0 }] })}>{t('+ فترة')}</Btn>}
           {ratioBad && <p className="text-sm font-bold text-brand">{ratioBad}</p>}
+
+          <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
+            <Field label={t('هدف التصحيح: من ({unit})', { unit: unitLabel(s.glucose_unit) })}>
+              <NumInput value={s.target_mgdl === null ? null : Number(formatGlucose(s.target_mgdl, s.glucose_unit))} onChange={(v) => setS({ ...s, target_mgdl: v === null ? null : toMgdl(v, s.glucose_unit) })} />
+            </Field>
+            <Field label={t('إلى')}>
+              <NumInput value={s.target_high_mgdl === null ? null : Number(formatGlucose(s.target_high_mgdl, s.glucose_unit))} onChange={(v) => setS({ ...s, target_high_mgdl: v === null ? null : toMgdl(v, s.glucose_unit) })} />
+            </Field>
+          </div>
+          <p className="text-sm text-slate-600">{t('داخل الهدف لا تصحيح. فوقه يُصحَّح إلى أعلاه، وتحته تقل جرعة الأكل. اتركوه فارغًا لتبقى الحاسبة مطفأة.')}</p>
+          {targetBad && <p className="text-sm font-bold text-brand">{targetBad}</p>}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t('خطوة القلم')}>
+              <select className={inputCls} value={s.pen_step} onChange={(e) => setS({ ...s, pen_step: Number(e.target.value) })}>
+                <option value={1}>{t('وحدة كاملة')}</option><option value={0.5}>{t('نصف وحدة')}</option>
+              </select>
+            </Field>
+            <Field label={t('أقل وقت بين جرعتين')}>
+              <select className={inputCls} value={s.dose_gap_min} onChange={(e) => setS({ ...s, dose_gap_min: Number(e.target.value) })}>
+                {[0, 60, 90, 120, 180].map((m) => <option key={m} value={m}>{m ? t('{h} س', { h: m / 60 }) : t('بدون')}</option>)}
+              </select>
+            </Field>
+          </div>
         </Card>
 
         <Card className="space-y-3">
