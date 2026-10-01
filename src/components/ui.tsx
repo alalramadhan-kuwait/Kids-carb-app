@@ -32,13 +32,31 @@ export function Toaster() {
 }
 
 /** Bottom sheet: one task at a time, closes on the backdrop. */
+/**
+ * The part of the screen the keyboard leaves free. iOS draws the keyboard over a fixed layer, so a sheet sized to the
+ * visual viewport stays fully above it (its main action never hides under the keyboard).
+ */
+export function useVisibleArea() {
+  const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+  const read = () => ({ top: vv?.offsetTop ?? 0, height: vv?.height ?? (typeof window !== 'undefined' ? window.innerHeight : 800) });
+  const [area, setArea] = useState(read);
+  useEffect(() => {
+    if (!vv) return;
+    const f = () => setArea(read());
+    vv.addEventListener('resize', f); vv.addEventListener('scroll', f);
+    return () => { vv.removeEventListener('resize', f); vv.removeEventListener('scroll', f); };
+  }, []);
+  return area;
+}
+
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+  const area = useVisibleArea();
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
-      <div role="dialog" aria-label={title} className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-t-[24px] bg-white p-4 pb-[calc(16px+env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
-        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-200" />
-        <h2 className="mb-3 text-xl font-bold">{title}</h2>
+    <div className="fixed inset-x-0 z-50 flex items-end justify-center bg-black/40" style={{ top: area.top, height: area.height }} onClick={onClose}>
+      <div role="dialog" aria-label={title} className="w-full max-w-2xl overflow-y-auto overscroll-contain rounded-t-[22px] bg-white px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-2" style={{ maxHeight: area.height - 24 }} onClick={(e) => e.stopPropagation()}>
+        <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-slate-200" />
+        <h2 className="mb-2 text-lg font-bold">{title}</h2>
         {children}
       </div>
     </div>

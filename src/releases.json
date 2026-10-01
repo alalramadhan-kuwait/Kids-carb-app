@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.4.0",
+    "date": "2026-10-01",
+    "notes": [
+      "شاشة التسجيل فوق لوحة المفاتيح دائمًا، وزر «حفظ» بجانب الرقم فلا يختفي",
+      "أزرار سريعة للتعديل: ±1 و±0.5 وحدة للإنسولين، ±1 و±5 غ للكارب، ±5 و±15 دقيقة للرياضة"
+    ],
+    "notes_en": [
+      "The log sheet always sits above the keyboard, with Save next to the number so it never hides",
+      "Quick adjust buttons: ±1 and ±0.5 units for insulin, ±1 and ±5 g for carbs, ±5 and ±15 minutes for exercise"
+    ]
+  },
+  {
     "version": "1.3.1",
     "date": "2026-10-01",
     "notes": [

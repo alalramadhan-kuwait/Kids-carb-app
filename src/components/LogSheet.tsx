@@ -106,21 +106,31 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
           </div>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
+          {/* the value and its save button share one row, so saving never hides under the keyboard */}
+          {kind !== 'sleep' && (
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="mb-1 text-sm font-medium text-slate-600">{kind === 'insulin' ? t('عدد الوحدات') : kind === 'exercise' ? t('المدة (دقائق)') : kind === 'note' ? t('الملاحظة') : t('الكارب (غرام)')}</div>
+                {kind === 'note'
+                  ? <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('مثلًا: مريضة، حفلة، تغيير الحساس')} autoFocus />
+                  : <NumInput value={kind === 'insulin' ? units : kind === 'exercise' ? mins : grams} onChange={kind === 'insulin' ? setUnits : kind === 'exercise' ? setMins : setGrams}
+                      className="!min-h-[56px] !text-center !text-3xl font-bold" autoFocus />}
+              </div>
+              <Btn kind="primary" className="min-h-[56px] shrink-0 !px-5" disabled={!valid || busy || (!!dup && !dupAck)} onClick={save}>{t('حفظ')}</Btn>
+            </div>
+          )}
+          {kind !== 'sleep' && kind !== 'note' && (
+            <Steps steps={kind === 'insulin' ? [1, 0.5] : kind === 'exercise' ? [15, 5] : [5, 1]}
+              value={kind === 'insulin' ? units : kind === 'exercise' ? mins : grams} onChange={kind === 'insulin' ? setUnits : kind === 'exercise' ? setMins : setGrams} />
+          )}
           {kind === 'insulin' && <>
-            <Field label={t('عدد الوحدات')}><NumInput value={units} onChange={setUnits} className="!min-h-[60px] !text-center !text-3xl font-bold" autoFocus /></Field>
             <Seg value={type} onChange={(v) => setType(v as 'rapid' | 'long')} options={[['rapid', t('سريع المفعول')], ['long', t('طويل المفعول')]]} />
             {type === 'rapid' && <Seg value={purpose ?? ''} onChange={(v) => setPurpose((v || null) as typeof purpose)} options={[['meal', t('لوجبة')], ['correction', t('تصحيح')], ['both', t('الاثنين')]]} allowNone />}
             {units !== null && units > 20 && <Alert tone="near">{t('رقم كبير. تأكد أنه صحيح قبل الحفظ.')}</Alert>}
           </>}
-          {(kind === 'carbs' || kind === 'treatment') && <>
-            <Field label={t('الكارب (غرام)')}><NumInput value={grams} onChange={setGrams} className="!min-h-[60px] !text-center !text-3xl font-bold" autoFocus /></Field>
-            {kind === 'treatment' && <Seg value={treat} onChange={setTreat} options={[['عصير', t('عصير')], ['أقراص جلوكوز', t('أقراص')], ['أخرى', t('أخرى')]]} /* i18n-ok: stored values */ />}
-          </>}
-          {kind === 'exercise' && <>
-            <Field label={t('المدة (دقائق)')}><NumInput value={mins} onChange={setMins} className="!min-h-[60px] !text-center !text-3xl font-bold" autoFocus /></Field>
-            <Seg value={level} onChange={(v) => setLevel(v as typeof level)} options={(['light', 'moderate', 'hard'] as const).map((l) => [l, LEVEL_TEXT[l]])} />
-          </>}
+          {kind === 'treatment' && <Seg value={treat} onChange={setTreat} options={[['عصير', t('عصير')], ['أقراص جلوكوز', t('أقراص')], ['أخرى', t('أخرى')]]} /* i18n-ok: stored values */ />}
+          {kind === 'exercise' && <Seg value={level} onChange={(v) => setLevel(v as typeof level)} options={(['light', 'moderate', 'hard'] as const).map((l) => [l, LEVEL_TEXT[l]])} />}
           {kind === 'sleep' && (
             <div className="grid grid-cols-2 gap-3">
               <Field label={t('نامت')}><input type="time" dir="ltr" className={inputCls} value={sleepFrom} onChange={(e) => setSleepFrom(e.target.value)} /></Field>
@@ -128,11 +138,9 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
             </div>
           )}
           {kind === 'sleep' && draft && (valid
-            ? <p className="-mt-2 text-sm text-slate-600">{describeEvent(draft)}</p>
-            : <p className="-mt-2 text-sm font-medium text-brand">{t('أطول من 16 ساعة. تحقّق من الوقتين.')}</p>)}
-          <Field label={kind === 'note' ? t('الملاحظة') : t('ملاحظة (اختياري)')}>
-            <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={kind === 'note' ? t('مثلًا: مريضة، حفلة، تغيير الحساس') : ''} />
-          </Field>
+            ? <p className="text-sm text-slate-600">{describeEvent(draft)}</p>
+            : <p className="text-sm font-medium text-brand">{t('أطول من 16 ساعة. تحقّق من الوقتين.')}</p>)}
+          {kind !== 'note' && <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('ملاحظة (اختياري)')} />}
           {kind !== 'sleep' && <div>
             <div className="mb-1 text-sm font-medium text-slate-600">{kind === 'exercise' ? t('متى بدأت؟') : t('متى؟')}</div>
             <Seg value={String(ago)} onChange={(v) => setAgo(Number(v))} options={AGO.map((m) => [String(m), m === 0 ? t('الآن') : m === 60 ? t('قبل ساعة') : t('قبل {m} د', { m })])} />
@@ -148,14 +156,25 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
               </div>
             </Alert>
           )}
-          <div className="grid grid-cols-[1fr_2fr] gap-2">
-            <Btn kind="ghost" onClick={reset}>{t('رجوع')}</Btn>
-            <Btn kind="primary" className="min-h-[52px]" disabled={!valid || busy || (!!dup && !dupAck)} onClick={save}>{t('حفظ')}</Btn>
-          </div>
+          {kind === 'sleep'
+            ? <div className="grid grid-cols-[1fr_2fr] gap-2"><Btn kind="ghost" onClick={reset}>{t('رجوع')}</Btn><Btn kind="primary" className="min-h-[52px]" disabled={!valid || busy} onClick={save}>{t('حفظ')}</Btn></div>
+            : <button onClick={reset} className="min-h-[44px] text-sm font-medium text-slate-500">{t('رجوع')}</button>}
         </div>
       )}
     </Sheet>
   );
+}
+
+/** Quick adjustments, as in other diabetes apps: − big, − small | + small, + big. Never below zero. */
+function Steps({ steps, value, onChange }: { steps: [number, number]; value: number | null; onChange: (v: number | null) => void }) {
+  const [big, small] = steps;
+  const add = (d: number) => onChange(Math.max(0, Math.round(((value ?? 0) + d) * 100) / 100));
+  const b = (d: number) => (
+    <button key={d} onPointerDown={(e) => e.preventDefault()} onClick={() => add(d)} className="min-h-[44px] flex-1 rounded-xl bg-brand-soft text-sm font-bold text-brand active:opacity-80" dir="ltr">
+      <span className="num">{d > 0 ? '+' : '−'}{Math.abs(d)}</span>
+    </button>
+  );
+  return <div className="flex gap-1.5" dir="ltr">{b(-big)}{b(-small)}{b(small)}{b(big)}</div>;
 }
 
 function Seg({ value, onChange, options, allowNone }: { value: string; onChange: (v: string) => void; options: [string, string][]; allowNone?: boolean }) {
