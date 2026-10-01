@@ -91,12 +91,13 @@ export function loginProblem(http: number, json: any): LluErrorCode | null {
   return null;
 }
 
-/** The active sensor from a graph or connections reply: serial and activation time (LibreLinkUp's "a", Unix seconds). */
+/** The active sensor from a graph or connections reply: activation time (LibreLinkUp's "a", Unix seconds) and an
+ *  identity for reminders, the serial when Abbott sends one (Libre 2 often does not), else the start time. */
 export function sensorFrom(data: any): { sn: string; started_at: string } | null {
   const s = data?.activeSensors?.[0]?.sensor ?? data?.connection?.sensor ?? data?.[0]?.sensor;
   const a = Number(s?.a);
-  if (!s?.sn || !Number.isFinite(a) || a < 1.5e9 || a > 4e9) return null;
-  return { sn: String(s.sn), started_at: new Date(a * 1000).toISOString() };
+  if (!s || !Number.isFinite(a) || a < 1.5e9 || a > 4e9) return null;
+  return { sn: s.sn ? String(s.sn) : `a${a}`, started_at: new Date(a * 1000).toISOString() };
 }
 
 /** Which expiry reminder is due now, if one has not gone out for this sensor: 24 hours, then 2 hours before. */

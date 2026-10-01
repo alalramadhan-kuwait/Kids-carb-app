@@ -932,6 +932,7 @@ console.log('status page');
   test('sensor serial and start from a LibreLinkUp reply', () => {
     assert.deepEqual(sensorFrom({ activeSensors: [{ sensor: { sn: '0ABC', a: 1790000000 } }] }), { sn: '0ABC', started_at: new Date(1790000000000).toISOString() });
     assert.equal(sensorFrom({ connection: { sensor: { sn: 'X', a: 0 } } }), null);
+    assert.deepEqual(sensorFrom({ activeSensors: [{ sensor: { a: 1790507358, pt: 3 } }] }), { sn: 'a1790507358', started_at: '2026-09-27T11:09:18.000Z' }, 'Libre 2 sends no serial');
   });
 }
 
