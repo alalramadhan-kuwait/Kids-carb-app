@@ -11,6 +11,7 @@ import { describeEvent, sleepWindow, unitsWord } from '../events';
 import { buildMarks, defaultLayers, groupLabel, groupMarks, mealResponse } from '../../engine/events';
 import { dayStartOf, dayTitle, dayTotals, lowEpisodes } from '../../engine/day';
 import { inWindow, isNight, schoolWindow } from '../schedule';
+import { daysFor, solidRuns } from '../../engine/profile';
 import { alertMessage, evaluate, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
 import { PERIODS, delta15, freshness, gapsIn, mergeSeries, emptySeries, nearest, rateAt, runsFor, timeTicks, tickLabel, zoomAt } from '../../engine/series';
@@ -682,6 +683,16 @@ test('night and school windows on the phone match the server (Kuwait time, overn
   const w = schoolWindow({ school_days: [0, 1, 2, 3, 4], school_start: '07:00:00', school_end: '14:00:00' }, Date.parse('2026-10-01T10:00:00Z'))!;
   assert.equal(new Date(w.from).toISOString(), '2026-10-01T04:00:00.000Z'); assert.equal(new Date(w.to).toISOString(), '2026-10-01T11:00:00.000Z');
   assert.equal(schoolWindow({ school_days: [0, 1, 2, 3, 4], school_start: '07:00', school_end: '14:00' }, Date.parse('2026-10-02T10:00:00Z')), null); // Friday
+});
+
+test('patterns: day filters and bins with too few days', () => {
+  assert.equal(daysFor('all', [0, 1, 2, 3, 4], []), null);
+  assert.deepEqual(daysFor('weekend', [0, 1, 2, 3, 4], []), [5, 6]);
+  assert.deepEqual(daysFor('school', [], []), [0, 1, 2, 3, 4]);
+  assert.deepEqual(daysFor('custom', [], [2, 4]), [2, 4]);
+  const b = (bin: number, days: number) => ({ bin, days, n: days, p10: 0, p25: 0, p50: 0, p75: 0, p90: 0 });
+  const runs = solidRuns([b(0, 6), b(1, 6), b(2, 3), b(3, 7), b(5, 7)]);
+  assert.deepEqual(runs.map((r) => r.map((x) => x.bin)), [[0, 1], [3], [5]]);
 });
 
 console.log('releases');

@@ -997,7 +997,11 @@ the event sheet. Completed: 48 %.
 Stage 5 shipped in 0.13.0: night and school profiles (own thresholds, silent highs at night, night colours),
 rapid fall/rise alerts from a 15-minute least-squares slope (≥ 3 points, no gap, 2-minute delay), escalation to
 the backup parent after the set minutes without «أنا عليها» (urgent low after 5 at most), alert roles per
-parent, the night screen (96 px, screen kept on) and the after-school summary. Completed: 58 %. The app loads the last 60 days of
+parent, the night screen (96 px, screen kept on) and the after-school summary. Completed: 58 %.
+Stage 6 shipped in 0.14.0: `carb.glucose_profile` (15-minute bins of the Kuwait clock, 10/25/50/75/90th
+percentiles, distinct days per bin; checked against a hand calculation on a rolled-back fixture, weekday
+filter included), Patterns mode with 7/14/30/90 days and all/school/weekend/custom day filters, bins with
+fewer than 5 days drawn hollow. Completed: 68 %. The app loads the last 60 days of
 events, so markers older than that do not show yet.
 
 
