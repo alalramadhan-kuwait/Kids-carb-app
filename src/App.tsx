@@ -112,7 +112,8 @@ function Claim({ onDone }: { onDone: () => void }) {
       <h1 className="text-center text-2xl font-bold">تفعيل التطبيق</h1>
       <Card>
         <form onSubmit={go} className="space-y-3">
-          <p className="text-sm text-slate-600">أدخل رمز التفعيل الذي استلمته مرة واحدة. بعدها يمكنك إضافة الأب من صفحة "المزيد".</p>
+          <Alert tone="info">هذا الحساب غير مضاف إلى التطبيق بعد. إن كان التطبيق مفعّلًا، اطلب من الأم أو الأب إضافة بريدك من المزيد ← إضافة أحد الوالدين، ثم ادخل من جديد.</Alert>
+          <p className="text-sm text-slate-600">رمز التفعيل لأول مرة فقط، عند تفعيل التطبيق لأول مستخدم.</p>
           <Field label="اسمك"><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
           <Field label="رمز التفعيل"><input className={inputCls} dir="ltr" value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
           {err && <Alert tone="over">{err}</Alert>}
