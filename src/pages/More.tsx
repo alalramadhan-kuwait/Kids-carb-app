@@ -5,6 +5,7 @@ import { useData } from '../lib/data';
 import { computeSnack, fmt, PROBLEM_TEXT } from '../lib/carbs';
 import { deleteSnack, saveSettings, saveSnack } from '../lib/api';
 import { PRODUCT_CATEGORIES } from '../lib/constants';
+import { VersionTag } from '../components/Version';
 import { formatGlucose, toMgdl, unitLabel } from '../lib/glucose';
 import type { CategoryTarget, Settings, Snack, Unit } from '../lib/types';
 import { Alert, Badge, Btn, Card, CarbBadge, Field, NumInput, Page, Photo, inputCls, toast } from '../components/ui';
@@ -28,14 +29,19 @@ export function More() {
   );
   return (
     <Page title="المزيد">
+      <div className="-mt-3 mb-3"><VersionTag /></div>
+      <Card className="mb-3 flex items-center gap-3 !p-3">
+        <span className="text-2xl">👤</span>
+        <span dir="ltr" className="min-w-0 flex-1 truncate text-start text-sm">{me || '…'}</span>
+        <Btn kind="ghost" onClick={async () => { await supabase.auth.signOut(); nav('/'); }}>تسجيل الخروج</Btn>
+      </Card>
       <div className="space-y-3">
         {link('/plan', '🗓️', 'خطة الأيام وقائمة الشراء', 'وجبات لعدة أيام وعدد الأشخاص')}
         {link('/cgm', '🩸', 'قراءات السكر', 'ربط LibreLinkUp لعرض السكر الحي')}
         {link('/snacks', '🍎', 'السناكات', 'قاعدة بيانات السناكات')}
         {link('/settings', '⚙️', 'الإعدادات', 'الحد الأقصى للكارب وأهداف المنتجات')}
         <Card className="space-y-2">
-          <h2 className="font-bold">حسابي</h2>
-          <p className="text-sm text-slate-600">الدخول بالبريد: <span dir="ltr" className="font-medium">{me || '…'}</span></p>
+          <h2 className="font-bold">تغيير كلمة المرور</h2>
           {shared && <Alert tone="near">هذا الحساب مشترك مع تطبيق المناوبات: تغيير كلمة المرور هنا يغيّرها هناك أيضًا، ولن تعمل "نسيت كلمة المرور" لأن البريد غير حقيقي. الأفضل حساب مستقل ببريد حقيقي.</Alert>}
           <input className={inputCls} dir="ltr" type="password" autoComplete="new-password" placeholder="كلمة مرور جديدة" value={pw} onChange={(e) => setPw(e.target.value)} />
           <input className={inputCls} dir="ltr" type="password" autoComplete="new-password" placeholder="أعد كتابتها" value={pw2} onChange={(e) => setPw2(e.target.value)} />
@@ -50,7 +56,6 @@ export function More() {
             if (error) toast(error.message.includes('no account') ? 'لا يوجد حساب بهذا البريد بعد' : error.message); else { toast('تمت الإضافة ✓'); setEmail(''); }
           }}>إضافة</Btn>
         </Card>
-        <Btn kind="ghost" block onClick={async () => { await supabase.auth.signOut(); nav('/'); }}>تسجيل الخروج</Btn>
         <p className="pt-2 text-center text-xs text-slate-400">هذا التطبيق لا يحسب ولا يقترح جرعات الإنسولين. الجرعة قرار الأهل مع الطبيب.</p>
       </div>
     </Page>

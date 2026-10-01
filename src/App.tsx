@@ -12,6 +12,7 @@ import ProductEdit from './pages/ProductEdit';
 import History from './pages/History';
 import Plan from './pages/Plan';
 import Cgm from './pages/Cgm';
+import { UpdateBanner, VersionTag } from './components/Version';
 import { More, SnacksPage, SettingsPage } from './pages/More';
 
 function Centered({ children }: { children: React.ReactNode }) {
@@ -41,6 +42,7 @@ function Login() {
   return (
     <Centered>
       <h1 className="text-center text-3xl font-bold">وجباتنا</h1>
+      <div className="text-center"><VersionTag /></div>
       <Card>
         {forgot ? (
           <form onSubmit={reset} className="space-y-3">
@@ -201,5 +203,5 @@ export default function App() {
   else if (member === null) body = null;
   else if (!member) body = <Claim onDone={check} />;
   else body = <DataProvider><Shell /></DataProvider>;
-  return <>{body}<Toaster /></>;
+  return <>{body}<UpdateBanner /><Toaster /></>;
 }

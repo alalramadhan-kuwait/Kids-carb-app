@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { computeLine, computeMeal, deriveLabel, labelMismatch, levelFor, targetMiss } from '../carbs';
 import { blocker, candidatesOf, suggest } from '../suggest';
 import { shoppingList } from '../shopping';
@@ -285,6 +286,15 @@ test('showing glucose: units, trend, age and colouring come from parent-entered 
   assert.equal(glucoseLevel(50, 70, 180), 'low');
   assert.equal(glucoseLevel(100, 70, 180), 'in');
   assert.equal(glucoseLevel(250, 70, 180), 'high');
+});
+
+console.log('releases');
+
+test('the newest release notes are for the version being built', () => {
+  const pkg = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'));
+  const rel = JSON.parse(readFileSync(new URL('../../releases.json', import.meta.url), 'utf8'));
+  assert.equal(rel[0].version, pkg.version, 'add an entry at the top of src/releases.json');
+  assert.ok(rel[0].notes.length > 0);
 });
 
 console.log(`\n${n} tests passed`);
