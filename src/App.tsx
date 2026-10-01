@@ -25,6 +25,7 @@ import { UpdateBanner, VersionTag } from './components/Version';
 import { Icon } from './components/Icon';
 import type { IconName } from './icons/defs';
 import { More, SnacksPage, SettingsPage } from './pages/More';
+import { themePref } from './lib/theme';
 
 function Centered({ children }: { children: React.ReactNode }) {
   return <main className="mx-auto grid min-h-screen max-w-md place-items-center px-4"><div className="w-full space-y-4">{children}</div></main>;
@@ -147,18 +148,21 @@ const TABS: { to: string; label: string; icon: IconName; match: string[] }[] = [
   { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm', '/alerts', '/care-plan', '/share', '/report'] },
 ];
 
-/** Night colours during the parents' night window (if they turned it on); the phone's dark mode still applies otherwise. */
+/** Appearance: a fixed day or night choice on this phone, or automatic (night colours in the parents' night window
+ *  if they turned it on, else the phone's dark mode). The full-screen night view always uses night colours. */
 function NightTheme() {
   const { settings } = useData();
   useEffect(() => {
     const apply = () => {
-      const root = document.documentElement, on = settings.night_theme && isNight(settings);
-      if (on) root.dataset.theme = 'night';
-      else if (root.dataset.theme === 'night' && !location.hash.startsWith('#/night')) delete root.dataset.theme;
+      const root = document.documentElement, pref = themePref();
+      if (location.hash.startsWith('#/night')) return;
+      const want = pref !== 'auto' ? pref : settings.night_theme && isNight(settings) ? 'night' : null;
+      if (want) root.dataset.theme = want; else delete root.dataset.theme;
     };
     apply();
     const t = setInterval(apply, 60000);
-    return () => clearInterval(t);
+    window.addEventListener('themepref', apply);
+    return () => { clearInterval(t); window.removeEventListener('themepref', apply); };
   }, [settings]);
   return null;
 }

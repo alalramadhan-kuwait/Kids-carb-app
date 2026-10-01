@@ -10,7 +10,27 @@ import { Icon } from '../components/Icon';
 import type { IconName } from '../icons/defs';
 import { formatGlucose, toMgdl, unitLabel } from '../lib/glucose';
 import type { CategoryTarget, Settings, Snack, Unit } from '../lib/types';
-import { Alert, Badge, Btn, Card, CarbBadge, Field, NumInput, Page, Photo, asset, inputCls, snackArt, toast } from '../components/ui';
+import { Alert, Badge, Btn, Card, CarbBadge, Field, NumInput, Page, Photo, asset, cx, inputCls, snackArt, toast } from '../components/ui';
+import { setThemePref, themePref, type ThemePref } from '../lib/theme';
+
+/** المظهر: per phone. Automatic follows the phone's dark mode and the night window. */
+function Appearance() {
+  const [p, setP] = useState<ThemePref>(themePref);
+  const pick = (v: ThemePref) => { setP(v); setThemePref(v); };
+  const opts: [ThemePref, string][] = [['auto', 'تلقائي'], ['day', 'نهاري'], ['night', 'ليلي']];
+  return (
+    <Card className="space-y-2">
+      <h2 className="font-bold">المظهر</h2>
+      <div className="grid grid-cols-3 gap-1 rounded-full bg-slate-50 p-1" role="radiogroup" aria-label="المظهر">
+        {opts.map(([v, l]) => (
+          <button key={v} role="radio" aria-checked={p === v} onClick={() => pick(v)}
+            className={cx('min-h-[44px] rounded-full text-sm font-bold', p === v ? 'bg-brand text-white' : 'text-slate-600')}>{l}</button>
+        ))}
+      </div>
+      <p className="text-xs text-slate-500">{p === 'auto' ? 'يتبع الوضع الداكن في الجوال، وألوان الليل في وقت النوم إن كانت مفعّلة في التنبيهات.' : 'على هذا الجوال فقط.'}</p>
+    </Card>
+  );
+}
 
 export function More() {
   const nav = useNavigate();
@@ -49,6 +69,7 @@ export function More() {
             {link('/cgm', 'sensor', 'قراءات السكر', 'ربط LibreLinkUp لعرض السكر الحي')}
           </ul>
         </Card>
+        <Appearance />
         <Card className="!p-0 overflow-hidden">
           <ul className="divide-y divide-slate-100">
             {link('/plan', 'meals', 'خطة الأيام وقائمة الشراء', 'وجبات لعدة أيام وعدد الأشخاص')}
