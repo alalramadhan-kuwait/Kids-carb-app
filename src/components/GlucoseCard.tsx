@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { callGlucose } from '../lib/api';
-import { formatGlucose, glucoseAge, glucoseLevel, GLUCOSE_ERRORS, trendArrow, unitLabel, type GlucoseState, type Reading } from '../lib/glucose';
+import { formatGlucose, glucoseAge, glucoseLevel, GLUCOSE_ERRORS, unitLabel, type GlucoseState, type Reading } from '../lib/glucose';
 import { useData } from '../lib/data';
 import { Card, cx } from './ui';
+import { Icon, TREND_ICON, TREND_WORDS } from './Icon';
 
 const TONE = { none: 'text-slate-800', in: 'text-ok', low: 'text-over', high: 'text-near' } as const;
 
@@ -64,7 +65,7 @@ export default function GlucoseCard() {
           {latest && age?.state !== 'stale' ? (
             <div className={cx('flex items-baseline gap-2', age?.state === 'old' ? 'opacity-60' : TONE[level])}>
               <span className="num text-5xl font-bold">{formatGlucose(latest.mg_dl, unit)}</span>
-              <span className="text-3xl" aria-label="الاتجاه">{trendArrow(latest.trend)}</span>
+              {latest.trend && <span className="flex items-center gap-1 self-center"><Icon name={TREND_ICON[latest.trend]} size={30} label={TREND_WORDS[latest.trend]} /><span className="text-sm font-medium">{TREND_WORDS[latest.trend]}</span></span>}
               <span className="text-sm font-medium text-slate-500">{unitLabel(unit)}</span>
             </div>
           ) : (

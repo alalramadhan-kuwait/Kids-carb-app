@@ -13,6 +13,8 @@ import History from './pages/History';
 import Plan from './pages/Plan';
 import Cgm from './pages/Cgm';
 import { UpdateBanner, VersionTag } from './components/Version';
+import { Icon } from './components/Icon';
+import type { IconName } from './icons/defs';
 import { More, SnacksPage, SettingsPage } from './pages/More';
 
 function Centered({ children }: { children: React.ReactNode }) {
@@ -41,7 +43,7 @@ function Login() {
   };
   return (
     <Centered>
-      <h1 className="text-center text-3xl font-bold">وجباتنا</h1>
+      <h1 className="text-center text-3xl font-bold">ليان</h1>
       <div className="text-center"><VersionTag /></div>
       <Card>
         {forgot ? (
@@ -125,12 +127,12 @@ function Claim({ onDone }: { onDone: () => void }) {
   );
 }
 
-const TABS = [
-  { to: '/', label: 'اليوم', icon: '🏠' },
-  { to: '/recipes', label: 'الوصفات', icon: '🍽️' },
-  { to: '/products', label: 'المنتجات', icon: '🛒' },
-  { to: '/history', label: 'السجل', icon: '📖' },
-  { to: '/more', label: 'المزيد', icon: '☰' },
+const TABS: { to: string; label: string; icon: IconName }[] = [
+  { to: '/', label: 'اليوم', icon: 'home' },
+  { to: '/recipes', label: 'الوصفات', icon: 'meals' },
+  { to: '/products', label: 'المنتجات', icon: 'products' },
+  { to: '/history', label: 'السجل', icon: 'history' },
+  { to: '/more', label: 'المزيد', icon: 'more' },
 ];
 
 function Shell() {
@@ -161,7 +163,7 @@ function Shell() {
           {TABS.map((t) => (
             <li key={t.to}>
               <NavLink to={t.to} end={t.to === '/'} className={({ isActive }) => cx('flex flex-col items-center gap-0.5 py-2 text-xs', isActive ? 'font-bold text-brand' : 'text-slate-500')}>
-                <span className="text-xl" aria-hidden>{t.icon}</span>{t.label}
+                {({ isActive }) => <><Icon name={t.icon} active={isActive} />{t.label}</>}
               </NavLink>
             </li>
           ))}

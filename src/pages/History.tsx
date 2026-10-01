@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { useData } from '../lib/data';
 import { fmt, STATE_TEXT, UNIT_TEXT } from '../lib/carbs';
 import { deleteHistory } from '../lib/api';
-import { formatGlucose, trendArrow, unitLabel } from '../lib/glucose';
+import { formatGlucose, unitLabel } from '../lib/glucose';
+import { Icon, TREND_ICON, TREND_WORDS } from '../components/Icon';
 import { dayName, fmtDate, fmtTime } from '../lib/constants';
 import { Badge, Btn, Card, Chip, Page, toast } from '../components/ui';
 
@@ -54,13 +55,13 @@ export default function History() {
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-bold">{h.name}</div>
                   <div className="mt-0.5 flex flex-wrap gap-1 text-xs text-slate-500"><span>{fmtTime(d)}</span>
-                    {h.kind === 'snack' && <Badge>سناك</Badge>}{h.modified && <Badge tone="near">معدّلة</Badge>}{h.glucose_mgdl !== null && <Badge tone="brand">🩸 <span className="num">{formatGlucose(h.glucose_mgdl, settings.glucose_unit)}</span> {trendArrow(h.glucose_trend)}</Badge>}<span>اختيرت <span className="num">{times.get(keyOf(h))}</span> مرة</span></div>
+                    {h.kind === 'snack' && <Badge>سناك</Badge>}{h.modified && <Badge tone="near">معدّلة</Badge>}{h.glucose_mgdl !== null && <Badge tone="brand"><span className="inline-flex items-center gap-1"><Icon name="glucose" size={12} /><span className="num">{formatGlucose(h.glucose_mgdl, settings.glucose_unit)}</span>{h.glucose_trend ? <Icon name={TREND_ICON[h.glucose_trend]} size={12} label={TREND_WORDS[h.glucose_trend]} /> : null}</span></Badge>}<span>اختيرت <span className="num">{times.get(keyOf(h))}</span> مرة</span></div>
                 </div>
                 <div className="num text-2xl font-bold text-brand">{fmt(h.total_carbs)}<span className="text-xs font-medium">g</span></div>
               </button>
               {open === h.id && (
                 <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 text-sm">
-                  {h.glucose_mgdl !== null && <div className="text-slate-600">السكر عند التسجيل: <b className="num">{formatGlucose(h.glucose_mgdl, settings.glucose_unit)}</b> {unitLabel(settings.glucose_unit)} {trendArrow(h.glucose_trend)}</div>}
+                  {h.glucose_mgdl !== null && <div className="text-slate-600">السكر عند التسجيل: <b className="num">{formatGlucose(h.glucose_mgdl, settings.glucose_unit)}</b> {unitLabel(settings.glucose_unit)} {h.glucose_trend ? TREND_WORDS[h.glucose_trend] : ''}</div>}
                   {h.total_kcal !== null && <div className="num text-slate-600">دهون {fmt(h.total_fat)}غ • ألياف {fmt(h.total_fiber)}غ • بروتين {fmt(h.total_protein)}غ • {h.total_kcal} سعرة</div>}
                   <ul className="space-y-1">
                     {h.lines.map((l, i) => (

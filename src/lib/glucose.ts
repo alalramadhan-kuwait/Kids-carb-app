@@ -15,8 +15,6 @@ export const formatGlucose = (mgdl: number, unit: GlucoseUnit) => (unit === 'mmo
 export const toMgdl = (v: number, unit: GlucoseUnit) => Math.round(unit === 'mmol' ? v * MMOL : v);
 export const unitLabel = (u: GlucoseUnit) => (u === 'mmol' ? 'mmol/L' : 'mg/dL');
 
-/** LibreLinkUp: 1 falling fast … 3 steady … 5 rising fast. */
-export const trendArrow = (t: number | null | undefined) => (t ? ['', '⇊', '↘', '→', '↗', '⇈'][t] ?? '' : '');
 
 /** A number on screen must say how old it is: a stale reading looks exactly like a live one. */
 export function glucoseAge(takenAt: string, now = Date.now()) {

@@ -4,7 +4,9 @@ import { computeLine, computeMeal, deriveLabel, labelMismatch, levelFor, targetM
 import { blocker, candidatesOf, suggest } from '../suggest';
 import { shoppingList } from '../shopping';
 import { hostFor, loginProblem, maskEmail, parseLluTimestamp, readingsFromGraph, sha256Hex, toReading, tooSoon } from '../../../supabase/functions/carb-glucose/lib';
-import { formatGlucose, glucoseAge, glucoseLevel, toMgdl, trendArrow } from '../glucose';
+import { formatGlucose, glucoseAge, glucoseLevel, toMgdl } from '../glucose';
+import { TREND_ICON, TREND_WORDS } from '../../components/Icon';
+import { ICONS } from '../../icons/defs';
 import { DEFAULT_SETTINGS, type HistoryEntry, type Ingredient, type Product, type Recipe, type Settings } from '../types';
 
 let n = 0;
@@ -276,7 +278,6 @@ test('showing glucose: units, trend, age and colouring come from parent-entered 
   assert.equal(formatGlucose(112, 'mgdl'), '112');
   assert.equal(toMgdl(6.2, 'mmol'), 112);
   assert.equal(toMgdl(112, 'mgdl'), 112);
-  assert.equal(trendArrow(1), '⇊'); assert.equal(trendArrow(3), '→'); assert.equal(trendArrow(5), '⇈'); assert.equal(trendArrow(null), '');
   const now = Date.parse('2026-10-01T10:00:00Z');
   assert.deepEqual(glucoseAge('2026-10-01T09:57:00Z', now), { minutes: 3, state: 'fresh' });
   assert.equal(glucoseAge('2026-10-01T09:40:00Z', now).state, 'old');
@@ -286,6 +287,15 @@ test('showing glucose: units, trend, age and colouring come from parent-entered 
   assert.equal(glucoseLevel(50, 70, 180), 'low');
   assert.equal(glucoseLevel(100, 70, 180), 'in');
   assert.equal(glucoseLevel(250, 70, 180), 'high');
+});
+
+test('trend arrows follow Libre: straight up/down are the fast ones, diagonals are moderate', () => {
+  assert.equal(TREND_ICON[5], 'trend_rising_fast'); assert.equal(TREND_WORDS[5], 'صاعد بسرعة');
+  assert.equal(TREND_ICON[1], 'trend_falling_fast'); assert.equal(TREND_WORDS[1], 'نازل بسرعة');
+  assert.ok(ICONS.trend_rising_fast.d[0].startsWith('M12 20V'), 'fast rise is a vertical arrow');
+  assert.ok(ICONS.trend_falling_fast.d[0].startsWith('M12 4v'), 'fast fall is a vertical arrow');
+  assert.ok(ICONS.trend_rising.d[0] === 'M6 18L18 6', 'moderate rise is diagonal');
+  assert.ok(ICONS.trend_falling.d[0] === 'M6 6l12 12', 'moderate fall is diagonal');
 });
 
 console.log('releases');
