@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.10.0",
+    "date": "2026-10-01",
+    "notes": [
+      "صفحة الحالة: «أي سهم أدق؟» تقارن سهم Libre وسهم التطبيق بما حدث فعلًا في الـ15 دقيقة التالية",
+      "الشاشات تعرض السهم الأدق (سهم Libre حتى يتفوق سهم التطبيق بوضوح)، والسهم الآخر بجانبه إذا اختلف",
+      "حاسبة الجرعة تمنع الجرعة إذا قال أيّ من السهمين «ينزل بسرعة»",
+      "السهم يتجاهل نقاط السجل كل 15 دقيقة التي تختلف قليلًا عن القراءات الدقيقة"
+    ],
+    "notes_en": [
+      "Status: \"Which arrow is more accurate?\" compares Libre's arrow and the app's with what the next 15 minutes actually did",
+      "Screens show the more accurate arrow (Libre's until the app's is clearly better), with the other beside it when they differ",
+      "The dose calculator blocks a dose if either arrow says \"falling fast\"",
+      "The arrow ignores the 15-minute history points that sit slightly off the minute readings"
+    ]
+  },
+  {
     "version": "1.9.0",
     "date": "2026-10-01",
     "notes": [

@@ -15,6 +15,8 @@ import { locale, t } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
 
 const MIN = 60000;
+/** Of the app's arrow and Libre's, the one pointing lower: no dose if either says falling fast. */
+const cautious = (a: number | null, b: number | null) => (a === null ? b : b === null ? a : Math.min(a, b));
 const n1 = (x: number) => (Math.round(x * 10) / 10).toFixed(1);
 const clock = (ms: number) => new Date(ms).toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit', hour12: true, numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
 
@@ -52,7 +54,7 @@ export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'mea
   const latest = g?.latest ?? null;
   const r = suggestDose({
     now, carbs: carbs ?? 0, ratio, target, lowMg: s.alert_low_mgdl ?? s.glucose_low_mgdl,
-    glucose: latest ? { mg: latest.mg_dl, at: Date.parse(latest.taken_at), level: (g ? trendFrom(g.readings, now) : null)?.level ?? levelFromLibre(latest.trend) } : null,
+    glucose: latest ? { mg: latest.mg_dl, at: Date.parse(latest.taken_at), level: cautious((g ? trendFrom(g.readings, now) : null)?.level ?? null, levelFromLibre(latest.trend)) } : null,
     sensorStartedAt: g?.sensor?.started_at ? Date.parse(g.sensor.started_at) : null,
     iob, lastRapidAt, gapMin: s.dose_gap_min ?? 120, step: s.pen_step ?? 1,
   });

@@ -13,6 +13,7 @@ import { isEn, locale, t } from '../i18n';
 import type { Settings } from '../lib/types';
 import { usePredictions } from '../lib/predictions';
 import { PredictionAccuracy } from '../components/PredictionAccuracy';
+import { ArrowAccuracy } from '../components/ArrowAccuracy';
 import { trendFrom } from '../engine/trend';
 import { TrendArrow, TrendLine } from '../components/Trend';
 
@@ -92,6 +93,8 @@ export default function Status() {
         </Card>
 
         <PredictionAccuracy rows={predictions} unit={unit} />
+
+        <ArrowAccuracy />
 
         <SensorCard startedAt={g?.sensor?.started_at ?? null} days={s.sensor_days ?? 14} connected={!!g?.connected} />
 

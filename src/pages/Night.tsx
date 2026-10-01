@@ -11,6 +11,7 @@ import { cx } from '../components/ui';
 import { t } from '../i18n';
 import { trendFrom, libreOf } from '../engine/trend';
 import { TrendArrow, TrendLine } from '../components/Trend';
+import { arrowSource, shownLevel } from '../lib/arrowChoice';
 
 /** Night view: readable at arm's length (96 px), dark, nothing else. Tap anywhere outside an alert to leave. */
 export default function Night() {
@@ -33,7 +34,7 @@ export default function Night() {
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
   const status = latest ? glucoseStatus(latest.mg_dl, rng.low, rng.high) : null;
   const trend = g ? trendFrom(g.readings, Date.now()) : null;
-  const sentence = statusSentence({ hasReading: !!latest, age: age?.state ?? null, status, trend: trend ? libreOf(trend.level) : latest?.trend ?? null });
+  const sentence = statusSentence({ hasReading: !!latest, age: age?.state ?? null, status, trend: (() => { const l = shownLevel(trend, latest?.trend ?? null, arrowSource()).level; return l === null ? null : libreOf(l); })() });
   const tone = status === 'low' || status === 'urgent_low' ? 'text-over' : status === 'high' || status === 'very_high' ? 'text-near' : 'text-brand-num';
   return (
     <div className="fixed inset-0 z-[45] flex flex-col bg-[rgb(var(--bg))] px-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-[max(20px,env(safe-area-inset-top))]" onClick={() => nav(-1)}>

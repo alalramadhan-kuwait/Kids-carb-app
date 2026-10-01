@@ -1048,6 +1048,33 @@ console.log('trend');
   });
 }
 
+console.log('arrow comparison');
+
+{
+  const { compareArrows, arrowWinner, rateBetween, trendFrom } = await import('../../engine/trend');
+  const M = 60000, T = Date.UTC(2026, 9, 1, 0, 0);
+  test('rate over a window never crosses a gap', () => {
+    const t = [0, 3, 6, 30, 33, 36].map((m) => T + m * M), v = [100, 100, 100, 160, 166, 172];
+    assert.ok(Math.abs(rateBetween(t, v, T, T + 36 * M)! - 2) < 1e-9, 'only the run after the gap');
+    assert.equal(rateBetween(t, v, T + 31 * M, T + 36 * M), null, 'under 5 minutes');
+  });
+  test('scores both arrows against what the next 15 minutes did', () => {
+    // steady for an hour, then rising 2.5 mg/dL a minute for an hour; a reading every minute
+    const t: number[] = [], v: number[] = [], a: (number | null)[] = [];
+    for (let m = 0; m <= 120; m++) { t.push(T + m * M); v.push(m <= 60 ? 120 : 120 + 2.5 * (m - 60)); a.push(m <= 60 ? 3 : 4); }
+    const c = compareArrows(t, v, a, T + 200 * M);
+    assert.ok(c.n > 15); assert.ok(c.fastN > 0);
+    assert.ok(c.ours.exact > c.libre.exact, 'Libre said only "rising" during the fast rise');
+    assert.equal(c.libre.fastCaught, 0);
+    assert.equal(arrowWinner({ ...c, n: 10 }), null, 'too few moments for a verdict');
+  });
+  test('a 15-minute history point beside minute readings is left out of the trend', () => {
+    const R = (m: number, mg: number, trend: number | null) => ({ taken_at: new Date(T + m * M).toISOString(), mg_dl: mg, trend });
+    const rows = [R(-15, 100, 3), R(-12, 100, 3), R(-9, 100, 3), R(-6, 100, 3), R(-3, 100, 3), R(-1, 112, null), R(0, 100, 3)];
+    assert.ok(Math.abs(trendFrom(rows as never, T)!.rate) < 1e-9);
+  });
+}
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {

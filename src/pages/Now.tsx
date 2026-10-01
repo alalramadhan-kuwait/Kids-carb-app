@@ -30,6 +30,7 @@ import { sensorLife } from '../engine/status';
 import { syncPredictions } from '../lib/predictions';
 import { trendFrom, libreOf } from '../engine/trend';
 import { TrendArrow, TrendLine } from '../components/Trend';
+import { arrowSource, shownLevel } from '../lib/arrowChoice';
 
 const TONE_DOT: Record<Tone, string> = { ok: 'bg-ok-fill', low: 'bg-over-fill', urgent: 'bg-over', high: 'bg-near-fill', warn: 'bg-near-fill', plain: 'bg-slate-300' };
 const TONE_TEXT: Record<Tone, string> = { ok: 'text-ok', low: 'text-over', urgent: 'text-over', high: 'text-near', warn: 'text-near', plain: 'text-slate-700' };
@@ -51,7 +52,7 @@ export default function Now() {
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
   const status = latest ? glucoseStatus(latest.mg_dl, rng.low, rng.high) : null;
   const trend = useMemo(() => (g ? trendFrom(g.readings, Date.now()) : null), [g]);
-  const sentence = statusSentence({ hasReading: !!latest, age: age?.state ?? null, status, trend: trend ? libreOf(trend.level) : latest?.trend ?? null });
+  const sentence = statusSentence({ hasReading: !!latest, age: age?.state ?? null, status, trend: (() => { const l = shownLevel(trend, latest?.trend ?? null, arrowSource()).level; return l === null ? null : libreOf(l); })() });
   const notConnected = !!g && !g.connected;
   const ob = useOnBoard(latest);
   // keep prediction tracking up to date in the background (at most every 5 minutes)
