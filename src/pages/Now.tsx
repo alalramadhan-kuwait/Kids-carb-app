@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { useGlucose } from '../hooks/useGlucose';
 import { glucoseStats, type GlucoseStats } from '../lib/api';
-import { formatGlucose, glucoseAge, glucoseStatus, GLUCOSE_ERRORS, unitLabel, type GlucoseUnit, type Reading } from '../lib/glucose';
+import { effectiveRange, formatGlucose, glucoseAge, glucoseStatus, GLUCOSE_ERRORS, unitLabel, type GlucoseUnit, type Reading } from '../lib/glucose';
 import { kuwaitDayStart, sinceText, statusSentence, type Tone } from '../lib/now';
 import { fmt } from '../lib/carbs';
 import { ICONS, STATUS, type IconName } from '../icons/defs';
@@ -32,7 +32,8 @@ export default function Now() {
   const unit = settings.glucose_unit;
   const latest = g?.latest ?? null;
   const age = latest ? glucoseAge(latest.taken_at) : null;
-  const status = latest ? glucoseStatus(latest.mg_dl, settings.glucose_low_mgdl, settings.glucose_high_mgdl) : null;
+  const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
+  const status = latest ? glucoseStatus(latest.mg_dl, rng.low, rng.high) : null;
   const sentence = statusSentence({ hasReading: !!latest, age: age?.state ?? null, status, trend: latest?.trend ?? null });
 
   const lastMeal = history.find((h) => h.kind === 'meal');
@@ -77,7 +78,7 @@ export default function Now() {
                 <StatusIcon name={status} size={18} />{STATUS[status].label}
               </span>
             )}
-            {g && <Link to="/analysis" aria-label="افتح الرسم الكامل" className="block"><Graph readings={g.readings} low={settings.glucose_low_mgdl} high={settings.glucose_high_mgdl}
+            {g && <Link to="/analysis" aria-label="افتح الرسم الكامل" className="block"><Graph readings={g.readings} low={rng.low} high={rng.high} reference={rng.reference}
               meals={history.filter((h) => h.kind === 'meal').map((h) => h.eaten_at)}
               insulin={events.filter((e) => e.kind === 'insulin').map((e) => e.occurred_at)}
               carbs={events.filter((e) => e.kind === 'carbs' || e.kind === 'treatment').map((e) => e.occurred_at)} unit={unit} /></Link>}
@@ -179,7 +180,7 @@ function Line({ icon, text, when, who }: { icon: IconName; text: string; when?: 
 }
 
 /** 3 hours, fixed window ending now. Gaps (> 20 min) are breaks, never joined. Markers show what happened. */
-function Graph({ readings, low, high, meals, insulin, carbs, unit }: { readings: Reading[]; low: number | null; high: number | null; meals: string[]; insulin: string[]; carbs: string[]; unit: GlucoseUnit }) {
+function Graph({ readings, low, high, reference, meals, insulin, carbs, unit }: { readings: Reading[]; low: number | null; high: number | null; reference: boolean; meals: string[]; insulin: string[]; carbs: string[]; unit: GlucoseUnit }) {
   const W = 320, PW = 292, TOP = 6, PH = 62, AX = TOP + PH + 14, H = AX + 24; // plot width leaves a column for glucose labels
   const t1 = Date.now(), t0 = t1 - 3 * 3600000;
   const pts = readings.map((r) => ({ t: new Date(r.taken_at).getTime(), v: r.mg_dl })).filter((p) => p.t >= t0);
@@ -209,15 +210,15 @@ function Graph({ readings, low, high, meals, insulin, carbs, unit }: { readings:
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full" role="img" aria-label="آخر 3 ساعات" direction="ltr">
       <rect x="0" y={TOP - 4} width={PW} height={PH + 8} rx="10" fill="rgb(var(--surface-2))" />
-      {low !== null || high !== null ? (
+      {!reference ? (
         <rect x="0" y={y(high ?? hi)} width={PW} height={Math.max(0, y(low ?? lo) - y(high ?? hi))} fill="rgb(var(--st-in))" opacity="0.14" />
       ) : (
-        // no range set yet: the international reporting range, dashed and labelled as a reference only
+        // the reference range in use until the parents set hers: dashed and labelled so it is never taken for her own
         <g>
-          <rect x="0" y={y(180)} width={PW} height={y(70) - y(180)} fill="rgb(var(--st-in))" opacity="0.08" />
-          <line x1="0" x2={PW} y1={y(180)} y2={y(180)} stroke="rgb(var(--st-in))" strokeOpacity="0.55" strokeDasharray="4 4" />
-          <line x1="0" x2={PW} y1={y(70)} y2={y(70)} stroke="rgb(var(--st-in))" strokeOpacity="0.55" strokeDasharray="4 4" />
-          <text x="4" y={y(180) - 3} fontSize="9.5" fill="rgb(var(--st-in-text))" fillOpacity="0.85" fontFamily="Rubik, system-ui" direction="rtl" textAnchor="end">{`مرجعي ${formatGlucose(70, unit)} إلى ${formatGlucose(180, unit)}`}</text>
+          <rect x="0" y={y(high!)} width={PW} height={y(low!) - y(high!)} fill="rgb(var(--st-in))" opacity="0.08" />
+          <line x1="0" x2={PW} y1={y(high!)} y2={y(high!)} stroke="rgb(var(--st-in))" strokeOpacity="0.55" strokeDasharray="4 4" />
+          <line x1="0" x2={PW} y1={y(low!)} y2={y(low!)} stroke="rgb(var(--st-in))" strokeOpacity="0.55" strokeDasharray="4 4" />
+          <text x="4" y={y(high!) - 3} fontSize="9.5" fill="rgb(var(--st-in-text))" fillOpacity="0.85" fontFamily="Rubik, system-ui" direction="rtl" textAnchor="end">{`مرجعي ${formatGlucose(low!, unit)} إلى ${formatGlucose(high!, unit)}`}</text>
         </g>
       )}
       {ticks.map((v) => (

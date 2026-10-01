@@ -13,10 +13,9 @@ const MARK_ICON: Record<MarkKind, IconName> = { meal: 'meals', carbs: 'carbs', i
 const iconPaths = new Map<IconName, Path2D[]>();
 const pathsOf = (n: IconName) => { let p = iconPaths.get(n); if (!p) { p = (ICONS[n] as { d: string[] }).d.map((d) => new Path2D(d)); iconPaths.set(n, p); } return p; };
 
-export interface Range { low: number | null; high: number | null } // the parents' range, mg/dL
+export interface Range { low: number | null; high: number | null; reference?: boolean } // mg/dL; reference = the international range in use until the parents set hers
 export interface Inspect { t: number; i: number | null; x: number }
 
-const REF_LOW = 70, REF_HIGH = 180; // international reporting range (mg/dL), shown only until the parents set hers
 const LONG_PRESS = 350, TAP_SLOP = 8, DOUBLE_TAP = 300;
 const css = (name: string, a = 1) => {
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -67,19 +66,17 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
     const Y = (v: number) => PAD_T + plotH - ((Math.min(Math.max(v, y0), y1) - y0) / (y1 - y0)) * plotH;
     const X = (t: number) => ((t - start) / span) * width;
 
-    // target band: the parents' range when they set one; until then the international reporting range
-    // (70–180 mg/dL), dashed and labelled «مرجعي» so it is never mistaken for her own target
-    {
-      const own = range.low !== null || range.high !== null;
-      const lo = own ? range.low : REF_LOW, hi = own ? range.high : REF_HIGH;
-      const top = Y(hi ?? y1), bot = Y(lo ?? y0);
-      g.fillStyle = css('--st-in', own ? 0.13 : 0.07); g.fillRect(0, top, width, bot - top);
-      g.strokeStyle = css('--st-in', own ? 0.45 : 0.5); g.lineWidth = 1; g.setLineDash(own ? [] : [4, 4]);
-      for (const v of [lo, hi]) if (v !== null) { g.beginPath(); g.moveTo(0, Y(v) + 0.5); g.lineTo(width, Y(v) + 0.5); g.stroke(); }
+    // target band: the parents' range; while it is the reference range it is dashed and labelled «مرجعي»
+    if (range.low !== null || range.high !== null) {
+      const own = !range.reference;
+      const top = Y(range.high ?? y1), bot = Y(range.low ?? y0);
+      g.fillStyle = css('--st-in', own ? 0.13 : 0.08); g.fillRect(0, top, width, bot - top);
+      g.strokeStyle = css('--st-in', own ? 0.45 : 0.55); g.lineWidth = 1; g.setLineDash(own ? [] : [4, 4]);
+      for (const v of [range.low, range.high]) if (v !== null) { g.beginPath(); g.moveTo(0, Y(v) + 0.5); g.lineTo(width, Y(v) + 0.5); g.stroke(); }
       g.setLineDash([]);
       if (!own) {
         g.font = '500 10.5px Rubik, system-ui, sans-serif'; g.fillStyle = css('--st-in-text', 0.85); g.textAlign = 'left'; g.textBaseline = 'top'; g.direction = 'rtl';
-        g.fillText(`مرجعي ${formatGlucose(REF_LOW, unit)} إلى ${formatGlucose(REF_HIGH, unit)}`, 6, top + 4);
+        g.fillText(`مرجعي ${formatGlucose(range.low!, unit)} إلى ${formatGlucose(range.high!, unit)}`, 6, top + 4);
         g.direction = 'ltr';
       }
     }
@@ -207,7 +204,7 @@ export function Timeline({ series, view, now, onView, range, unit, height, marks
         g.strokeStyle = css('--text'); g.lineWidth = 2; g.beginPath(); g.arc(x, y, 5, 0, 7); g.stroke();
       }
     }
-  }, [series, view, now, range.low, range.high, unit, width, height, inspect, marks, layers, hasRail, RAIL]);
+  }, [series, view, now, range.low, range.high, range.reference, unit, width, height, inspect, marks, layers, hasRail, RAIL]);
 
   useEffect(() => { const id = requestAnimationFrame(draw); return () => cancelAnimationFrame(id); }, [draw]);
   useEffect(() => { // redraw on light/dark change

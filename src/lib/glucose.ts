@@ -30,6 +30,15 @@ export function glucoseLevel(mgdl: number, low: number | null, high: number | nu
   return 'in';
 }
 
+/**
+ * The range used on screen: the parents' (from the doctor) when set; until then, at the parents' request, the
+ * international reporting range 70–180 mg/dL (3.9–10.0), always labelled «مرجعي». Alerts never use it.
+ */
+export const REF_RANGE = { low: 70, high: 180 } as const;
+export function effectiveRange(low: number | null, high: number | null) {
+  return low !== null || high !== null ? { low, high, reference: false } : { low: REF_RANGE.low as number, high: REF_RANGE.high as number, reference: true };
+}
+
 /** Status for the chip next to the number. Needs the parents' range; urgent low / very high use the reporting bands. */
 export type GlucoseStatus = 'urgent_low' | 'low' | 'in_range' | 'high' | 'very_high';
 export function glucoseStatus(mgdl: number, low: number | null, high: number | null): GlucoseStatus | null {

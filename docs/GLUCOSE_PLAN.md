@@ -9,8 +9,9 @@ developer can build from it directly.
    never tells anyone how many grams to treat with. Where action may be needed it says so and shows the
    family's own written care plan (entered by the parents from the clinic).
 2. **Every medical number is entered by the parents** (target range, alert thresholds, care plan). The only
-   built-in numbers are the international *reporting* bands used for Time in Range, and they are labelled as
-   reporting bands, not as her targets.
+   built-in numbers are the international *reporting* bands used for Time in Range. At the parents' request
+   (1 Oct 2026) the reporting range 3.9–10.0 colours the screens until they enter hers, always labelled
+   «مرجعي»; alerts never use it.
 3. **Our alerts are a second line.** A web app cannot guarantee a sound at 3 a.m. The Libre app (and Gluroo,
    if used) stay the primary alarm. We add what they miss: context, coordination between parents, and the
    "no data" alert that Libre followers do not get.

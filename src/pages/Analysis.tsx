@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { useGlucose } from '../hooks/useGlucose';
-import { formatGlucose, glucoseStatus, unitLabel } from '../lib/glucose';
+import { effectiveRange, formatGlucose, glucoseStatus, unitLabel } from '../lib/glucose';
 import { Icon, TREND_ICON, TREND_WORDS } from '../components/Icon';
 import { Chip, Page, cx } from '../components/ui';
 import { Timeline } from '../engine/Timeline';
@@ -84,7 +84,8 @@ function Live() {
   const d15 = n ? delta15(series, n - 1) : null;
   const rate = n ? rateAt(series, n - 1) : null;
   const latest = g?.latest;
-  const status = latest && fresh !== 'missing' ? glucoseStatus(latest.mg_dl, settings.glucose_low_mgdl, settings.glucose_high_mgdl) : null;
+  const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
+  const status = latest && fresh !== 'missing' ? glucoseStatus(latest.mg_dl, rng.low, rng.high) : null;
   const period = PERIODS.find((p) => Math.abs(p.ms - view.span) / p.ms < 0.03)?.id;
 
   return (
@@ -107,7 +108,7 @@ function Live() {
 
       <div className="relative -mx-4 bg-white py-2 shadow-card">
         <Timeline series={series} view={view} now={now} onView={onView} unit={unit} height={height}
-          range={{ low: settings.glucose_low_mgdl, high: settings.glucose_high_mgdl }}
+          range={rng}
           marks={marks} layers={layers} onSelect={setPicked} />
         {loading && <div className="absolute start-3 top-3 text-xs text-slate-400">…</div>}
       </div>

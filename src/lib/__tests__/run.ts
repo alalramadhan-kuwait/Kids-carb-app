@@ -4,7 +4,7 @@ import { computeLine, computeMeal, deriveLabel, labelMismatch, levelFor, targetM
 import { blocker, candidatesOf, suggest } from '../suggest';
 import { shoppingList } from '../shopping';
 import { hostFor, loginProblem, redirectRegion, maskEmail, parseLluTimestamp, readingsFromGraph, sha256Hex, toReading, tooSoon } from '../../../supabase/functions/carb-glucose/lib';
-import { formatGlucose, glucoseAge, glucoseLevel, glucoseStatus, mergeReading, toMgdl } from '../glucose';
+import { effectiveRange, formatGlucose, glucoseAge, glucoseLevel, glucoseStatus, mergeReading, toMgdl } from '../glucose';
 import { TREND_ICON, TREND_WORDS } from '../../components/Icon';
 import { ICONS } from '../../icons/defs';
 import { describeEvent, sleepWindow, unitsWord } from '../events';
@@ -593,6 +593,14 @@ test('sleep from two clock times crosses midnight; exercise and sleep read natur
   assert.equal(sleepWindow('13:00', '15:00', nowK).ends_at, '2026-10-01T12:00:00.000Z'); // 15:00 today is later than now → yesterday
   assert.equal(describeEvent({ kind: 'exercise', activity_min: 35, activity_level: 'hard' } as any), 'رياضة 35 د · شديد');
   assert.equal(describeEvent({ kind: 'sleep', occurred_at: w.occurred_at, ends_at: w.ends_at } as any), 'نوم 9:15 س');
+});
+
+test('the reference range stands in until the parents set hers, and is marked as reference', () => {
+  assert.deepEqual(effectiveRange(null, null), { low: 70, high: 180, reference: true });
+  assert.deepEqual(effectiveRange(72, 160), { low: 72, high: 160, reference: false });
+  assert.deepEqual(effectiveRange(80, null), { low: 80, high: null, reference: false });
+  const r = effectiveRange(null, null);
+  assert.equal(glucoseStatus(65, r.low, r.high), 'low'); assert.equal(glucoseStatus(120, r.low, r.high), 'in_range');
 });
 
 console.log('releases');

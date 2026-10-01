@@ -78,7 +78,8 @@ These colours mean something. They are never used for decoration, branding or il
 
 The ranges above are the international *reporting* bands used for Time in Range. Her personal target and
 every alert threshold are set by the parents in Settings; status colours follow those parent values on the
-live screen.
+live screen. Until the parents enter her range, the reporting range 70–180 (3.9–10.0) is used for colours and
+status, drawn dashed and labelled «مرجعي» (parents' decision, 1 Oct 2026). Alerts never fall back to it.
 
 **Fill vs text.** The fill colours (`#46B98A`, `#F2A541`, `#E95F68`) are too light for text on white
 (2.5:1, 2.1:1, 3.3:1). Use them for dots, bars, graph bands and chip backgrounds. Any *word* in a medical
