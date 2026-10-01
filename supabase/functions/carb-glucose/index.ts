@@ -2,7 +2,7 @@
 // service, the same route Gluroo uses) with a follower account, stores the readings, and returns
 // them. The login is kept in Supabase Vault; the browser can save it but never read it back.
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { hostFor, LLU_PRODUCT, LLU_VERSION, LluError, loginProblem, maskEmail, readingsFromGraph, sha256Hex, tooSoon } from './lib.ts';
+import { hostFor, LLU_PRODUCT, LLU_VERSION, LluError, loginProblem, maskEmail, readingsFromGraph, redirectRegion, sha256Hex, tooSoon } from './lib.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -42,9 +42,15 @@ async function login(s: Secret): Promise<Secret> {
   throw new LluError('upstream', 'too many redirects');
 }
 
-async function findPatient(s: Secret): Promise<Secret> {
+async function findPatient(s: Secret, hops = 0): Promise<Secret> {
   const r = await llu(hostFor(s.region), '/llu/connections', { token: s.token, userId: s.userId });
   if (r.http === 429) throw new LluError('rate_limited');
+  const moved = redirectRegion(r.json);
+  if (moved) {
+    // the account lives on a regional server: sign in there and ask again
+    if (hops > 1 || moved === s.region) throw new LluError('upstream', 'redirect loop');
+    return findPatient(await login({ ...s, region: moved, token: undefined }), hops + 1);
+  }
   const first = r.json?.data?.[0];
   if (!first?.patientId) throw new LluError('no_connection');
   return { ...s, patientId: String(first.patientId) };
@@ -77,7 +83,7 @@ Deno.serve(async (req) => {
   }
 
   const body = await req.json().catch(() => ({}));
-  if (fromCron) body.action = 'read';
+  if (fromCron && body.action !== 'debug') body.action = 'read';
   const now = Date.now();
   if (fromCron) await db.from('cgm_state').update({ last_cron_at: new Date(now).toISOString() }).eq('id', true);
 
@@ -102,6 +108,27 @@ Deno.serve(async (req) => {
 
   try {
     if (body.action === 'status') return await reply();
+
+    // Diagnostic for the database job only: what Abbott returns, timestamps and counts, no credentials.
+    if (fromCron && body.action === 'debug') {
+      const { data: secret } = await db.rpc('cgm_secret_get');
+      let s = secret as Secret | null;
+      if (!s) return json({ error: 'no_connection' });
+      if (!s.token || !s.userId || !s.patientId) s = await findPatient(await login(s));
+      const pick = (m: any) => m && { ts: m.Timestamp, fts: m.FactoryTimestamp, mg: m.ValueInMgPerDl, arrow: m.TrendArrow };
+      const g = await graph(s);
+      const c = await llu(hostFor(s.region), '/llu/connections', { token: s.token, userId: s.userId });
+      const gd = g.json?.data?.graphData ?? [];
+      return json({
+        graph_http: g.http, graph_current: pick(g.json?.data?.connection?.glucoseMeasurement), graph_item: pick(g.json?.data?.connection?.glucoseItem),
+        graph_len: gd.length, graph_last: gd.slice(-3).map(pick),
+        conn_http: c.http, conn_current: pick(c.json?.data?.[0]?.glucoseMeasurement), conn_item: pick(c.json?.data?.[0]?.glucoseItem),
+        sensor: c.json?.data?.[0]?.sensor ? { a: c.json.data[0].sensor.a, pt: c.json.data[0].sensor.pt } : null,
+        token_exp: s.tokenExp ?? null, region: s.region ?? null,
+        graph_raw: { status: g.json?.status, keys: g.json ? Object.keys(g.json) : null, data_keys: g.json?.data && typeof g.json.data === 'object' ? Object.keys(g.json.data) : null, msg: g.json?.message ?? g.json?.error ?? null },
+        conn_raw: { status: c.json?.status, keys: c.json ? Object.keys(c.json) : null, data_len: Array.isArray(c.json?.data) ? c.json.data.length : typeof c.json?.data, msg: c.json?.message ?? c.json?.error ?? null, ticket: Boolean(c.json?.ticket) },
+      });
+    }
 
     if (body.action === 'clear') {
       await db.rpc('cgm_secret_clear');
@@ -138,9 +165,17 @@ Deno.serve(async (req) => {
           await db.rpc('cgm_secret_put', { p: s });
           r = await graph(s);
         }
+        const moved = redirectRegion(r.json);
+        if (moved) { // regional server: sign in there once and retry
+          s = await findPatient(await login({ ...s, region: moved, token: undefined }));
+          await db.rpc('cgm_secret_put', { p: s });
+          r = await graph(s);
+        }
         if (r.http === 429) throw new LluError('rate_limited');
         if (r.http >= 400) throw new LluError('upstream', `graph http ${r.http}`);
         const readings = readingsFromGraph(r.json?.data);
+        // a 200 with nothing in it is not success: say so instead of pretending all is well
+        if (!readings.length) throw new LluError('no_data', 'graph returned no readings');
         if (readings.length) await db.from('glucose_readings').upsert(readings, { onConflict: 'taken_at' });
         await db.from('cgm_state').update({ last_ok_at: new Date().toISOString(), last_error: null, updated_at: new Date().toISOString() }).eq('id', true);
         return await reply();

@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { computeLine, computeMeal, deriveLabel, labelMismatch, levelFor, targetMiss } from '../carbs';
 import { blocker, candidatesOf, suggest } from '../suggest';
 import { shoppingList } from '../shopping';
-import { hostFor, loginProblem, maskEmail, parseLluTimestamp, readingsFromGraph, sha256Hex, toReading, tooSoon } from '../../../supabase/functions/carb-glucose/lib';
+import { hostFor, loginProblem, redirectRegion, maskEmail, parseLluTimestamp, readingsFromGraph, sha256Hex, toReading, tooSoon } from '../../../supabase/functions/carb-glucose/lib';
 import { formatGlucose, glucoseAge, glucoseLevel, glucoseStatus, toMgdl } from '../glucose';
 import { TREND_ICON, TREND_WORDS } from '../../components/Icon';
 import { ICONS } from '../../icons/defs';
@@ -260,6 +260,13 @@ test('login problems are told apart', () => {
   assert.equal(loginProblem(403, { status: 920 }), 'version_rejected');
   assert.equal(loginProblem(429, null), 'rate_limited');
   assert.equal(loginProblem(500, null), 'upstream');
+});
+
+test('a regional redirect is recognised on any endpoint, not only login', () => {
+  assert.equal(redirectRegion({ status: 0, data: { redirect: true, region: 'eu2' } }), 'eu2');
+  assert.equal(redirectRegion({ status: 0, data: { connection: {}, graphData: [] } }), null);
+  assert.equal(redirectRegion({ status: 0, data: [] }), null);
+  assert.equal(redirectRegion(null), null);
 });
 
 test('hosts, hashing, masking, throttle', async () => {

@@ -70,7 +70,12 @@ export function tooSoon(lastFetchIso: string | null | undefined, now: number, se
   return now - new Date(lastFetchIso).getTime() < seconds * 1000;
 }
 
-export type LluErrorCode = 'bad_credentials' | 'terms_required' | 'version_rejected' | 'rate_limited' | 'no_connection' | 'upstream';
+/** Abbott may answer any call, not only login, with "use your regional server": {status:0, data:{redirect:true, region}}. */
+export function redirectRegion(json: any): string | null {
+  return json?.data?.redirect && json?.data?.region ? String(json.data.region) : null;
+}
+
+export type LluErrorCode = 'bad_credentials' | 'terms_required' | 'version_rejected' | 'rate_limited' | 'no_connection' | 'no_data' | 'upstream';
 
 export class LluError extends Error {
   constructor(public code: LluErrorCode, detail = '') { super(detail || code); }

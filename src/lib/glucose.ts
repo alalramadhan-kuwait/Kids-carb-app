@@ -45,6 +45,7 @@ export const GLUCOSE_ERRORS: Record<string, string> = {
   terms_required: 'افتح تطبيق LibreLinkUp على الجوال مرة واحدة ووافق على الشروط، ثم أعد المحاولة.',
   version_rejected: 'Abbott رفضت إصدار الاتصال. يلزم تحديث التطبيق، أخبر المطوّر.',
   rate_limited: 'Abbott تحدّ من عدد الطلبات الآن. ستُحدَّث القراءة تلقائيًا بعد قليل.',
+  no_data: 'خدمة LibreLinkUp لم ترسل قراءات. تحقق أن تطبيق Libre على جوال ليان يعمل ومتصل بالإنترنت.',
   no_connection: 'لا توجد مشاركة. من تطبيق Libre الرئيسي شارك القراءات مع حساب LibreLinkUp هذا.',
   upstream: 'تعذّر الوصول إلى خدمة LibreLinkUp. حاول بعد قليل.',
   not_allowed: 'غير مسموح.',
