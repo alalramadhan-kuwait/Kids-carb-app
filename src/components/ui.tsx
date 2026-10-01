@@ -119,14 +119,16 @@ const LEVEL = {
   over: { cls: 'bg-over-soft text-over', text: 'تتجاوز الحد' },
 } as const;
 
-export function CarbBadge({ carbs, level, size = 'md', unknown }: { carbs: number; level: Level; size?: 'md' | 'lg'; unknown?: boolean }) {
+export function CarbBadge({ carbs, level, size = 'md', unknown }: { carbs: number; level: Level; size?: 'sm' | 'md' | 'lg'; unknown?: boolean }) {
   if (unknown) return <span className="rounded-xl bg-slate-100 px-3 py-1 text-sm text-slate-500">كارب غير مكتمل</span>;
   return (
-    <span className={cx('inline-flex shrink-0 items-baseline gap-1 whitespace-nowrap rounded-xl px-3 py-1 font-bold', LEVEL[level].cls, size === 'lg' ? 'text-4xl' : 'text-2xl')}>
+    <span className={cx('inline-flex shrink-0 items-baseline gap-1 whitespace-nowrap rounded-xl font-bold', LEVEL[level].cls,
+      size === 'lg' ? 'px-3 py-1 text-4xl' : size === 'sm' ? 'px-2 py-0.5 text-lg' : 'px-3 py-1 text-2xl')}>
       <span className="num">{fmt(carbs)}</span><span className="whitespace-nowrap text-sm font-medium">غ كارب</span>
     </span>
   );
 }
+
 export const levelText = (l: Level) => LEVEL[l].text;
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {

@@ -35,27 +35,22 @@ export function useChoose() {
   };
 }
 
+/** One row per suggestion: photo, name, carbs, and the one action. Tapping the row opens the recipe. */
 export function MealCard({ recipe, meal, chosenToday }: { recipe: Recipe; meal: MealResult; chosenToday?: boolean }) {
   const { choose, busy } = useChoose();
   return (
-    <Card className="overflow-hidden !p-0">
-      <Link to={`/recipes/${recipe.id}`}>
-        <Photo path={recipe.image_path} category={recipe.category} art={recipeArt(recipe.category)} className="h-40 w-full" />
+    <Card className="flex items-center gap-3 !p-3">
+      <Link to={`/recipes/${recipe.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+        <Photo path={recipe.image_path} category={recipe.category} art={recipeArt(recipe.category)} className="h-16 w-16 shrink-0 rounded-xl" />
+        <span className="min-w-0">
+          <span className="block truncate font-bold">{recipe.name}</span>
+          <span className="mt-1 block"><CarbBadge carbs={meal.total.carbs} level={meal.level} unknown={!meal.complete} size="sm" /></span>
+        </span>
       </Link>
-      <div className="space-y-3 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="text-xl font-bold leading-snug">{recipe.name}</h3>
-          <CarbBadge carbs={meal.total.carbs} level={meal.level} unknown={!meal.complete} />
-        </div>
-        <p className="text-sm text-slate-500">{mainNames(meal)}</p>
-        <div className="grid grid-cols-2 gap-2">
-          <Link to={`/recipes/${recipe.id}`} className="grid min-h-[44px] place-items-center rounded-xl bg-white text-base font-medium text-slate-700 ring-1 ring-slate-200">عرض الوصفة</Link>
-          <Btn kind="primary" disabled={busy || chosenToday}
-            onClick={() => choose({ kind: 'meal', recipe_id: recipe.id, name: recipe.name, category: recipe.category, meal, modified: false })}>
-            {chosenToday ? 'اخترناها ✓' : 'اخترناها اليوم'}
-          </Btn>
-        </div>
-      </div>
+      <Btn kind={chosenToday ? 'soft' : 'primary'} className="shrink-0 !px-3" disabled={busy || chosenToday}
+        onClick={() => choose({ kind: 'meal', recipe_id: recipe.id, name: recipe.name, category: recipe.category, meal, modified: false })}>
+        {chosenToday ? '✓ اخترناها' : 'اخترناها'}
+      </Btn>
     </Card>
   );
 }

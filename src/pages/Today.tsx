@@ -43,43 +43,37 @@ export default function Today() {
 
   return (
     <Page title="الوجبات">
-      <p className="-mt-2 mb-3 text-slate-500">{dayName(today)} {fmtDate(today)}</p>
       <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
         {[['/recipes', 'الوصفات'], ['/products', 'المنتجات'], ['/plan', 'خطة الأيام'], ['/snacks', 'السناكات']].map(([to, l]) => (
           <Link key={to} to={to} className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-medium ring-1 ring-slate-200">{l}</Link>
         ))}
       </div>
 
-      <h2 className="mb-2 text-lg font-bold">وجبات اليوم</h2>
-      <div className="space-y-4">
+      <h2 className="mb-2 text-lg font-bold">اقتراحات اليوم</h2>
+      <div className="space-y-2.5">
         {picks.map((c) => <MealCard key={c.recipe.id} recipe={c.recipe} meal={c.meal} chosenToday={chosenToday.has(c.recipe.id)} />)}
       </div>
       {eligible > 3 && <Btn block kind="ghost" className="mt-3" onClick={more}>اقتراحات أخرى</Btn>}
 
-      {picks.length < 3 && (
-        <Card className="mt-4 space-y-3">
-          <h3 className="font-bold">{picks.length === 0 ? 'لا توجد وجبات جاهزة للاقتراح بعد' : 'وجبات ناقصة'}</h3>
-          <p className="text-sm text-slate-600">التطبيق لا يخمّن الكارب. أي وصفة تنقصها بيانات لا تُقترح حتى تُستكمل:</p>
-          {missing.items.length > 0 && (
-            <ul className="space-y-1.5 text-sm">
-              {missing.items.slice(0, 8).map(([key, n]) => {
-                const [what, problem] = key.split('|');
-                return (
-                  <li key={key} className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2">
-                    <span><b>{what}</b> — {PROBLEM_TEXT[problem as keyof typeof PROBLEM_TEXT]}</span>
-                    {(problem === 'no_product') && <Link className="shrink-0 text-brand underline" to={`/products/new?category=${encodeURIComponent(what)}`}>إضافة</Link>}
-                    <span className="shrink-0 text-xs text-slate-400">{n} وصفة</span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {missing.pending.length > 0 && (
-            <Alert tone="near">
-              الكارب غير مكتمل في: {missing.pending.join('، ')}. افتح الوصفة، أكمل حساب القدر، ثم أزل علامة "الكارب غير مكتمل".
-            </Alert>
-          )}
-        </Card>
+      {picks.length < 3 && (missing.items.length > 0 || missing.pending.length > 0) && (
+        <details className="mt-3 rounded-2xl border border-slate-100 bg-white px-4 py-3">
+          <summary className="flex min-h-[32px] cursor-pointer list-none items-center justify-between text-sm font-medium text-near">
+            <span>{missing.items.length + missing.pending.length} وصفات تنقصها بيانات</span><span className="text-slate-400">‹</span>
+          </summary>
+          <ul className="mt-2 space-y-1.5 text-sm">
+            {missing.items.slice(0, 8).map(([key, n]) => {
+              const [what, problem] = key.split('|');
+              return (
+                <li key={key} className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2">
+                  <span><b>{what}</b> · {PROBLEM_TEXT[problem as keyof typeof PROBLEM_TEXT]}</span>
+                  {problem === 'no_product' ? <Link className="shrink-0 text-brand underline" to={`/products/new?category=${encodeURIComponent(what)}`}>إضافة</Link>
+                    : <span className="shrink-0 text-xs text-slate-400">{n}</span>}
+                </li>
+              );
+            })}
+            {missing.pending.map((name) => <li key={name} className="rounded-xl bg-slate-50 px-3 py-2"><b>{name}</b> · الكارب غير مكتمل</li>)}
+          </ul>
+        </details>
       )}
 
       <h2 className="mb-2 mt-8 text-lg font-bold">السناكات</h2>
@@ -89,28 +83,15 @@ export default function Today() {
           return (
             <Card key={s.id} className="space-y-2 !p-3">
               <Photo path={s.image_path} category={s.name} art={snackArt(s.name)} className="h-20 w-full rounded-xl" />
-              <div className="font-bold">{s.name}</div>
-              <div className="text-xs text-slate-500"><span className="num">{fmt(s.quantity)}</span> {s.unit === 'g' ? 'غ' : s.unit === 'ml' ? 'مل' : s.unit === 'tbsp' ? 'ملعقة' : 'حبة'}</div>
-              {meal.complete ? <CarbBadge carbs={meal.total.carbs} level="normal" /> : <span className="text-xs text-slate-500">{PROBLEM_TEXT[meal.lines[0].problem ?? 'no_product']}</span>}
+              <div className="truncate font-bold">{s.name}</div>
+              <CarbBadge carbs={meal.total.carbs} level="normal" size="sm" unknown={!meal.complete} />
               <Btn block disabled={busy || !meal.complete}
                 onClick={() => choose({ kind: 'snack', recipe_id: null, name: s.name, category: 'سناك', meal, modified: false })}>اخترناه</Btn>
             </Card>
           );
         })}
       </div>
-      <Link to="/snacks" className="mt-2 block text-center text-sm text-brand underline">إدارة السناكات</Link>
-
-      <h2 className="mb-2 mt-8 text-lg font-bold">آخر وجبة اخترناها</h2>
-      {last ? (
-        <Card>
-          <div className="text-sm text-slate-500">{relDay(new Date(last.eaten_at))} {fmtTime(new Date(last.eaten_at))}</div>
-          <div className="text-lg font-bold">{last.name}</div>
-          <div className="text-xl font-bold text-brand"><span className="num">{fmt(last.total_carbs)}</span> غ كارب</div>
-        </Card>
-      ) : <Card><p className="text-slate-500">لم تُسجَّل وجبات بعد.</p></Card>}
-
-      <Link to="/plan" className="mt-6 grid min-h-[48px] place-items-center rounded-xl bg-brand-soft font-medium text-brand">تخطيط عدة أيام وقائمة الشراء</Link>
-      {recipes.length === 0 && <Alert tone="info">لا توجد وصفات بعد. ابدأ من تبويب الوصفات.</Alert>}
+      {recipes.length === 0 && <div className="mt-4"><Alert tone="info">لا توجد وصفات بعد.</Alert></div>}
     </Page>
   );
 }

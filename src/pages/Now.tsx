@@ -142,7 +142,7 @@ function LayanHeader({ alertCount }: { alertCount: number }) {
   const heart = 'M12 20.5s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.9c0 5.4-7.5 10-7.5 10z';
   const hearts: [number, number, number, number][] = [[-100, 30, 15, -12], [-90, 72, 12, 10], [80, 14, 14, 14], [94, 56, 17, -8]]; // dx from centre, y, size, rotation
   return (
-    <header className="relative z-10 -mb-1 flex h-[120px] items-start justify-between">
+    <header className="relative z-10 flex h-[120px] items-start justify-between">
       <Link to="/alerts" aria-label={alertCount ? `التنبيهات: ${alertCount} مفتوح` : 'التنبيهات'} className="relative grid h-12 w-12 place-items-center rounded-full text-slate-600">
         <Icon name="bell" size={30} />
         {alertCount > 0 && <span className="absolute end-2.5 top-2 h-2.5 w-2.5 rounded-full bg-over-fill ring-2 ring-[rgb(var(--bg))]" />}
@@ -156,7 +156,8 @@ function LayanHeader({ alertCount }: { alertCount: number }) {
         ))}
         <picture>
           <source srcSet={asset('09_brand/layan_peek.webp')} type="image/webp" />
-          <img src={asset('09_brand/layan_peek.png')} alt="" className="absolute bottom-0 left-0 w-full select-none" draggable={false} />
+          {/* the artwork's card edge sits at 95.5% of its height: her fingers hang over the card's top border */}
+          <img src={asset('09_brand/layan_peek.png')} alt="" className="absolute left-0 w-full select-none" style={{ bottom: 'calc(-0.0454 * 156px * 388 / 480)' }} draggable={false} />
         </picture>
       </div>
       <Link to="/more" aria-label="الحساب والمزيد" className="grid h-12 w-12 place-items-center rounded-full text-slate-600">
@@ -208,8 +209,16 @@ function Graph({ readings, low, high, meals, insulin, carbs, unit }: { readings:
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full" role="img" aria-label="آخر 3 ساعات" direction="ltr">
       <rect x="0" y={TOP - 4} width={PW} height={PH + 8} rx="10" fill="rgb(var(--surface-2))" />
-      {(low !== null || high !== null) && (
+      {low !== null || high !== null ? (
         <rect x="0" y={y(high ?? hi)} width={PW} height={Math.max(0, y(low ?? lo) - y(high ?? hi))} fill="rgb(var(--st-in))" opacity="0.14" />
+      ) : (
+        // no range set yet: the international reporting range, dashed and labelled as a reference only
+        <g>
+          <rect x="0" y={y(180)} width={PW} height={y(70) - y(180)} fill="rgb(var(--st-in))" opacity="0.08" />
+          <line x1="0" x2={PW} y1={y(180)} y2={y(180)} stroke="rgb(var(--st-in))" strokeOpacity="0.55" strokeDasharray="4 4" />
+          <line x1="0" x2={PW} y1={y(70)} y2={y(70)} stroke="rgb(var(--st-in))" strokeOpacity="0.55" strokeDasharray="4 4" />
+          <text x="4" y={y(180) - 3} fontSize="9.5" fill="rgb(var(--st-in-text))" fillOpacity="0.85" fontFamily="Rubik, system-ui" direction="rtl" textAnchor="end">{`مرجعي ${formatGlucose(70, unit)} إلى ${formatGlucose(180, unit)}`}</text>
+        </g>
       )}
       {ticks.map((v) => (
         <text key={v} x={W - 2} y={y(v) + 4} textAnchor="end" fontSize="10.5" fill="rgb(var(--text-3))" fontFamily="Rubik, system-ui">{formatGlucose(v, unit).replace(/\.0$/, '')}</text>
