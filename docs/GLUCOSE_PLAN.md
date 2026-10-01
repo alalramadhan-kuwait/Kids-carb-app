@@ -960,6 +960,26 @@ CGM Timeline Engine
 A1–A2 deliver the must-have 24-hour Timeline (section 8) right after Phase 1 alerts and care plan; A3 is
 Phase 2 step 6 (Daily view); A5–A6 are part of Phase 2 step 9; A4, A7, A8 are Phase 3.
 
+---
+
+## 12. Implementation stages (remaining work = 100 %)
+
+| # | Stage | Share | Contents |
+|---|---|---|---|
+| 1 | Alerts & care plan | 14 % | Low, urgent low, high, no data; Web Push; "I'm on it"; repeat; care plan (9 / Phase 1 steps 4–5) |
+| 2 | Timeline engine | 16 % | 11.14 A1: canvas trace, target band, gaps, pan/pinch, crosshair, Now |
+| 3 | Event rail | 10 % | A2: markers, grouping, inspectors, Layers; exercise and sleep logging |
+| 4 | Day view | 8 % | A3: KPIs, More metrics, list ↔ graph |
+| 5 | Profiles & modes | 10 % | Night / School profiles, escalation to the other parent, rapid rise/fall, Night and School screens |
+| 6 | Patterns & AGP | 10 % | A5: percentiles, School/Weekend filters |
+| 7 | Meal response | 10 % | A6: recipe curves at T0, medians, clean meals |
+| 8 | Compare & landscape | 7 % | A7 and full-screen landscape |
+| 9 | Sharing & reports | 7 % | Roles, share links, CSV/PDF |
+| 10 | IOB / COB | 5 % | A4, only after the care team agrees the parameters |
+| 11 | Pattern cards & variability | 3 % | A8, section 10.10–10.12 |
+
+Each stage ships as its own app version and is accepted against the criteria in sections 9 and 11.14.
+
 
 ## Sources
 

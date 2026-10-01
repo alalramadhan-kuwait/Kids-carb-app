@@ -38,6 +38,8 @@ export function More() {
       <div className="space-y-3">
         {link('/plan', '🗓️', 'خطة الأيام وقائمة الشراء', 'وجبات لعدة أيام وعدد الأشخاص')}
         {link('/cgm', <img src={asset('04_objects/obj_cgm.svg')} alt="" className="h-8 w-8" />, 'قراءات السكر', 'ربط LibreLinkUp لعرض السكر الحي')}
+        {link('/alerts', '🔔', 'التنبيهات', 'المنخفض والمرتفع وانقطاع القراءة')}
+        {link('/care-plan', '📋', 'خطة الطبيب', 'تظهر مع كل تنبيه')}
         {link('/snacks', '🍎', 'السناكات', 'قاعدة بيانات السناكات')}
         {link('/settings', '⚙️', 'الإعدادات', 'الحد الأقصى للكارب وأهداف المنتجات')}
         <Card className="space-y-2">

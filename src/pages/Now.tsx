@@ -9,6 +9,8 @@ import { fmt } from '../lib/carbs';
 import { ICONS, STATUS, type IconName } from '../icons/defs';
 import { Icon, StatusIcon, TREND_ICON, TREND_WORDS } from '../components/Icon';
 import { LogSheet } from '../components/LogSheet';
+import { AlertStrip } from '../components/AlertStrip';
+import { useAlerts } from '../hooks/useAlerts';
 import { describeEvent } from '../lib/events';
 import { Card, Page, asset, cx } from '../components/ui';
 
@@ -20,6 +22,7 @@ export default function Now() {
   const { settings, history, events, nameOf, members, products } = useData();
   const { g, failed, reload } = useGlucose();
   const [logOpen, setLogOpen] = useState(false);
+  const alerts = useAlerts();
   const [today, setToday] = useState<GlucoseStats | null>(null);
 
   useEffect(() => {
@@ -40,6 +43,7 @@ export default function Now() {
   const setup = [
     { done: !!g?.connected, label: 'ربط قراءات السكر', to: '/cgm' },
     { done: settings.glucose_low_mgdl !== null || settings.glucose_high_mgdl !== null, label: 'تحديد نطاق السكر من الطبيب', to: '/settings' },
+    { done: settings.alert_low_mgdl !== null || settings.alert_urgent_low_mgdl !== null, label: 'حدود التنبيهات وتفعيلها', to: '/alerts' },
     { done: members.length >= 2, label: 'إضافة الأب أو الأم', to: '/more' },
     { done: products.some((p) => p.kind === 'commercial' && p.approved), label: 'أول منتج من الملصق', to: '/products/new' },
   ];
@@ -48,6 +52,7 @@ export default function Now() {
   return (
     <Page title="الآن">
       <div className="space-y-3 pb-24">
+        <AlertStrip alerts={alerts.open} onChange={alerts.reload} />
         {g && !g.connected ? (
           <Link to="/cgm"><Card className="flex items-center gap-3 !p-3"><img src={asset('04_objects/obj_cgm.svg')} alt="" className="h-10 w-10" /><span className="flex-1 font-medium">اربط قراءات السكر الحية</span><span className="text-slate-300">‹</span></Card></Link>
         ) : (

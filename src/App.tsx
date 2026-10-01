@@ -14,6 +14,8 @@ import ProductEdit from './pages/ProductEdit';
 import History from './pages/History';
 import Plan from './pages/Plan';
 import Cgm from './pages/Cgm';
+import AlertsPage from './pages/Alerts';
+import CarePlanPage from './pages/CarePlan';
 import { UpdateBanner, VersionTag } from './components/Version';
 import { Icon } from './components/Icon';
 import type { IconName } from './icons/defs';
@@ -137,7 +139,7 @@ const TABS: { to: string; label: string; icon: IconName; match: string[] }[] = [
   { to: '/timeline', label: 'السجل', icon: 'history', match: ['/timeline'] },
   { to: '/meals', label: 'الوجبات', icon: 'meals', match: ['/meals', '/recipes', '/products', '/plan', '/snacks'] },
   { to: '/advanced', label: 'متقدم', icon: 'advanced', match: ['/advanced'] },
-  { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm'] },
+  { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm', '/alerts', '/care-plan'] },
 ];
 
 function Shell() {
@@ -162,6 +164,8 @@ function Shell() {
         <Route path="/products/:id" element={<ProductEdit />} />
         <Route path="/plan" element={<Plan />} />
         <Route path="/cgm" element={<Cgm />} />
+        <Route path="/alerts" element={<AlertsPage />} />
+        <Route path="/care-plan" element={<CarePlanPage />} />
         <Route path="/snacks" element={<SnacksPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/more" element={<More />} />

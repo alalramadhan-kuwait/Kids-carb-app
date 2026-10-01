@@ -8,11 +8,18 @@ import { formatGlucose, glucoseAge, glucoseLevel, glucoseStatus, mergeReading, t
 import { TREND_ICON, TREND_WORDS } from '../../components/Icon';
 import { ICONS } from '../../icons/defs';
 import { unitsWord } from '../events';
+import { alertMessage, evaluate, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
+import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
 import { findDuplicate, gmi, hoursOfDay, kuwaitDayStart, sinceText, statusSentence } from '../now';
 import { DEFAULT_SETTINGS, type HistoryEntry, type Ingredient, type Product, type Recipe, type Settings } from '../types';
 
 let n = 0;
-const test = (name: string, fn: () => void) => { fn(); n++; console.log('  ok', name); };
+const pending: Promise<void>[] = [];
+const test = (name: string, fn: () => void | Promise<void>) => {
+  const r = fn();
+  if (r instanceof Promise) pending.push(r.then(() => { n++; console.log('  ok', name); }));
+  else { n++; console.log('  ok', name); }
+};
 const close = (a: number | null, b: number, eps = 0.05) => assert.ok(a !== null && Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
 
 const S: Settings = { ...DEFAULT_SETTINGS, category_targets: [
@@ -369,6 +376,87 @@ test('insulin units read correctly in Arabic', () => {
   assert.equal(unitsWord(10), 'وحدات'); assert.equal(unitsWord(12), 'وحدة'); assert.equal(unitsWord(2.5), 'وحدة');
 });
 
+console.log('alerts');
+
+const CFG: AlertCfg = { urgentLow: 55, low: 70, high: 250, lowDelay: 5, highDelay: 30, noDataMin: 20, renotify: 10, highRenotify: 60 };
+const T0 = Date.parse('2026-10-01T12:00:00Z');
+const at = (min: number) => T0 + min * 60000;
+const rd = (min: number, mg: number) => ({ taken_at: new Date(at(min)).toISOString(), mg_dl: mg, trend: 2 });
+const open = (o: Partial<OpenAlert>): OpenAlert => ({ id: 'a', kind: 'low', state: 'active', started_at: new Date(T0).toISOString(), active_at: new Date(T0).toISOString(),
+  last_notified_at: new Date(T0).toISOString(), snoozed_until: null, clear_since: null, value_mgdl: 65, worst_mgdl: 65, ...o });
+
+test('low waits its delay, then notifies once; a brief dip that recovers never notifies', () => {
+  let s = evaluate(at(0), rd(0, 66), CFG, [], true);
+  assert.deepEqual(s.map((x) => [x.kind, x.op, x.patch.state, x.notify]), [['low', 'create', 'pending', undefined]]);
+  s = evaluate(at(3), rd(3, 64), CFG, [open({ state: 'pending', active_at: null, last_notified_at: null })], true);
+  assert.equal(s[0].op, 'update'); assert.equal(s[0].notify, undefined); assert.equal(s[0].patch.worst_mgdl, 64);
+  s = evaluate(at(5), rd(5, 64), CFG, [open({ state: 'pending', active_at: null, last_notified_at: null })], true);
+  assert.equal(s[0].patch.state, 'active'); assert.equal(s[0].notify, 'alert');
+  s = evaluate(at(3), rd(3, 75), CFG, [open({ state: 'pending' })], true);
+  assert.equal(s[0].op, 'delete');
+});
+
+test('urgent low notifies at once; the plain low stays quiet while it sounds', () => {
+  const s = evaluate(at(0), rd(0, 50), CFG, [], true);
+  assert.deepEqual(s.map((x) => [x.kind, x.patch.state, x.notify]), [['urgent_low', 'active', 'alert'], ['low', 'pending', undefined]]);
+  const s2 = evaluate(at(10), rd(10, 50), CFG, [open({ kind: 'urgent_low', id: 'u', last_notified_at: new Date(at(9)).toISOString() }), open({ id: 'l', last_notified_at: null, active_at: null, state: 'pending' })], true);
+  assert.equal(s2.find((x) => x.kind === 'low')!.patch.state, 'active');
+  assert.equal(s2.find((x) => x.kind === 'low')!.notify, undefined);
+});
+
+test('repeats only while the condition holds, and resolves only after holding clear (hysteresis)', () => {
+  assert.equal(evaluate(at(10), rd(10, 66), CFG, [open({})], true)[0].notify, 'repeat');
+  assert.equal(evaluate(at(10), rd(10, 75), CFG, [open({})], true)[0].notify, undefined); // between 70 and 80: no repeat, not resolved
+  let s = evaluate(at(20), rd(20, 85), CFG, [open({})], true);
+  assert.equal(s[0].op, 'update'); assert.equal(s[0].patch.clear_since, new Date(at(20)).toISOString());
+  s = evaluate(at(35), rd(35, 90), CFG, [open({ clear_since: new Date(at(20)).toISOString() })], true);
+  assert.equal(s[0].op, 'resolve'); assert.equal(s[0].notify, 'resolved');
+  s = evaluate(at(30), rd(30, 72), CFG, [open({ clear_since: new Date(at(20)).toISOString() })], true);
+  assert.equal(s[0].patch.clear_since, null); // dipped back: the clock restarts
+});
+
+test('"I am on it" silences until the snooze ends, then repeats if still low', () => {
+  const ack = open({ state: 'acknowledged', snoozed_until: new Date(at(15)).toISOString() });
+  assert.equal(evaluate(at(12), rd(12, 62), CFG, [ack], true)[0].notify, undefined);
+  const s = evaluate(at(15), rd(15, 62), CFG, [ack], true)[0];
+  assert.equal(s.notify, 'repeat'); assert.equal(s.patch.state, 'active');
+});
+
+test('a stale reading neither raises nor clears; no data alerts after the set minutes and only with a CGM', () => {
+  assert.equal(evaluate(at(30), rd(10, 60), CFG, [], true).filter((x) => x.kind !== 'no_data').length, 0);
+  const held = evaluate(at(25), rd(5, 90), CFG, [open({})], true).find((x) => x.kind === 'low')!;
+  assert.equal(held.op, 'update'); assert.equal(held.patch.clear_since, null);
+  assert.equal(evaluate(at(25), rd(4, 100), CFG, [], true)[0].kind, 'no_data');
+  assert.equal(evaluate(at(19), rd(0, 100), CFG, [], true).length, 0);
+  assert.equal(evaluate(at(25), rd(4, 100), CFG, [], false).length, 0);
+  const back = evaluate(at(26), rd(26, 100), CFG, [open({ kind: 'no_data' })], true);
+  assert.equal(back[0].op, 'resolve'); assert.equal(back[0].notify, 'resolved');
+});
+
+test('an alert with no threshold is off, and an open one closes silently', () => {
+  const off = { ...CFG, low: null, urgentLow: null };
+  assert.equal(evaluate(at(0), rd(0, 40), off, [], true).length, 0);
+  const s = evaluate(at(0), rd(0, 40), off, [open({})], true);
+  assert.equal(s[0].op, 'resolve'); assert.equal(s[0].notify, undefined);
+});
+
+test('alert wording is facts only, in her unit', () => {
+  const m = alertMessage('low', 'alert', { child: 'ليان', value: 63, trend: 2, unit: 'mmol', minutes: 4 });
+  assert.equal(m.title, 'ليان: منخفض 3.5 ↘'); assert.equal(m.body, 'منذ 4 د · خطة الطبيب');
+  assert.equal(alertMessage('no_data', 'alert', { child: 'ليان', value: null, trend: null, unit: 'mgdl', minutes: 21 }).title, 'ليان: لا توجد قراءة منذ 21 د');
+  for (const k of ['urgent_low', 'low', 'high', 'no_data'] as const) for (const n of ['alert', 'repeat', 'resolved'] as const) {
+    const t = Object.values(alertMessage(k, n, { child: 'ليان', value: 60, trend: 1, unit: 'mgdl', minutes: 3 })).join(' ');
+    assert.ok(!/وحد|غرام|جرام|أعط|اعط|جرعة/.test(t), t);
+  }
+});
+
+test('push payload encryption matches RFC 8291 appendix A', async () => {
+  const out = await encryptPayload(new TextEncoder().encode('When I grow up, I want to be a watermelon'),
+    b64u.dec('BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4'), b64u.dec('BTBZMqHH6r4Tts7J_aSIgg'),
+    { salt: b64u.dec('DGv6ra1nlYgDCS1FRnbzlw'), asPublic: b64u.dec('BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8'), asPrivate: b64u.dec('yfWPiYE-n46HLnH0KqZOF1fJJU3MYrct3AELtAQ-oRw') });
+  assert.equal(b64u.enc(out), 'DGv6ra1nlYgDCS1FRnbzlwAAEABBBP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A_yl95bQpu6cVPTpK4Mqgkf1CXztLVBSt2Ks3oZwbuwXPXLWyouBWLVWGNWQexSgSxsj_Qulcy4a-fN');
+});
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {
@@ -378,4 +466,5 @@ test('the newest release notes are for the version being built', () => {
   assert.ok(rel[0].notes.length > 0);
 });
 
+await Promise.all(pending);
 console.log(`\n${n} tests passed`);

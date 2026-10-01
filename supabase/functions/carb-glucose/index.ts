@@ -3,6 +3,8 @@
 // them. The login is kept in Supabase Vault; the browser can save it but never read it back.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { hostFor, LLU_PRODUCT, LLU_VERSION, LluError, loginProblem, maskEmail, readingsFromGraph, redirectRegion, sha256Hex, tooSoon } from './lib.ts';
+import { ackMessage, alertMessage, evaluate, type AlertKind, type OpenAlert } from './alerts.ts';
+import { newVapid, sendPush, type Vapid } from './push.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -61,6 +63,75 @@ async function graph(s: Secret) {
   return r;
 }
 
+// ── Web Push ──────────────────────────────────────────────────────────────────
+type Db = ReturnType<typeof createClient>;
+
+async function vapid(db: Db): Promise<Vapid> {
+  const cfg = (await db.from('push_config').select('*').eq('id', true).single()).data as { vapid_public: string | null; subject: string };
+  const { data: priv } = await db.rpc('vapid_get');
+  if (priv && cfg.vapid_public) return { publicKey: cfg.vapid_public, privateJwk: priv as JsonWebKey, subject: cfg.subject };
+  const v = await newVapid(cfg.subject);
+  const { error } = await db.rpc('vapid_put', { p: v.privateJwk });
+  if (error) return vapid(db); // another call created it first
+  await db.from('push_config').update({ vapid_public: v.publicKey }).eq('id', true);
+  return v;
+}
+
+/** Sends to every phone of the family (or only/except one person) and logs each delivery. */
+async function pushAll(db: Db, payload: Record<string, unknown>, o: { kind: string; alertId?: string; urgency: 'normal' | 'high'; only?: string; except?: string }) {
+  let q = db.from('push_subscriptions').select('*');
+  if (o.only) q = q.eq('user_id', o.only);
+  if (o.except) q = q.neq('user_id', o.except);
+  const { data: subs } = await q;
+  if (!subs?.length) return [];
+  const v = await vapid(db);
+  return Promise.all(subs.map(async (s: any) => {
+    let status = 0, error = '';
+    try { ({ status, error } = await sendPush(s, payload, v, { urgency: o.urgency, ttl: o.urgency === 'high' ? 900 : 3600, topic: String(payload.tag ?? '') })); }
+    catch (e) { error = e instanceof Error ? e.message : String(e); }
+    const ok = status >= 200 && status < 300;
+    if (status === 404 || status === 410) await db.from('push_subscriptions').delete().eq('id', s.id); // phone unsubscribed
+    else await db.from('push_subscriptions').update(ok ? { last_ok_at: new Date().toISOString(), last_error: null } : { last_error: `${status} ${error}`.trim() }).eq('id', s.id);
+    await db.from('notifications').insert({ alert_id: o.alertId ?? null, subscription_id: status === 404 || status === 410 ? null : s.id, user_id: s.user_id, kind: o.kind, status, error: error || null });
+    return { status, ok };
+  }));
+}
+
+// ── Alerts: evaluated after every server poll ─────────────────────────────────
+async function runAlerts(db: Db, now: number) {
+  const [st, set, last, open] = await Promise.all([
+    db.from('cgm_state').select('connected').eq('id', true).single(),
+    db.from('settings').select('*').eq('id', true).single(),
+    db.from('glucose_readings').select('taken_at,mg_dl,trend').order('taken_at', { ascending: false }).limit(1),
+    db.from('alerts').select('*').neq('state', 'resolved'),
+  ]);
+  const s: any = set.data;
+  if (!s) { console.error('alerts: settings', set.error?.message); return; }
+  const latest = (last.data as any[])?.[0] ?? null;
+  const cfg = { urgentLow: s.alert_urgent_low_mgdl, low: s.alert_low_mgdl, high: s.alert_high_mgdl, lowDelay: s.alert_low_delay_min,
+    highDelay: s.alert_high_delay_min, noDataMin: s.alert_nodata_min, renotify: s.alert_renotify_min, highRenotify: s.alert_high_renotify_min };
+  const openRows = (open.data ?? []) as (OpenAlert & Record<string, unknown>)[];
+  const steps = evaluate(now, latest, cfg, openRows, Boolean((st.data as any)?.connected));
+  for (const step of steps) {
+    let id = step.id, startedAt = openRows.find((a) => a.id === id)?.started_at ?? new Date(now).toISOString();
+    if (step.op === 'create') {
+      const { data, error } = await db.from('alerts').insert({ kind: step.kind, ...step.patch }).select('id,started_at').single();
+      if (error) { if (error.code !== '23505') console.error('alerts: insert', error.message); continue; } // 23505: another run created it
+      id = (data as any).id; startedAt = (data as any).started_at;
+    } else if (step.op === 'delete') { await db.from('alerts').delete().eq('id', id!); continue; }
+    else if (step.op === 'resolve') await db.from('alerts').update({ state: 'resolved', ...step.patch }).eq('id', id!);
+    else await db.from('alerts').update(step.patch).eq('id', id!);
+    if (!step.notify) continue;
+    const minutes = step.kind === 'no_data'
+      ? (latest ? (now - Date.parse(latest.taken_at)) / 60000 : 0)
+      : (now - Date.parse(startedAt)) / 60000;
+    const value = step.kind === 'no_data' ? null : (latest?.mg_dl ?? null);
+    const m = alertMessage(step.kind, step.notify, { child: s.child_name, value, trend: latest?.trend ?? null, unit: s.glucose_unit === 'mmol' ? 'mmol' : 'mgdl', minutes });
+    await pushAll(db, { title: m.title, body: m.body, tag: `alert-${step.kind}`, url: './#/', kind: step.kind, sticky: step.kind === 'urgent_low' && step.notify !== 'resolved' },
+      { kind: step.notify, alertId: id, urgency: m.urgency });
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   const url = Deno.env.get('SUPABASE_URL')!;
@@ -70,6 +141,7 @@ Deno.serve(async (req) => {
   // itself with a secret that lives only in Vault. The job may only "read"; nothing else.
   const cronSecret = req.headers.get('x-cron-secret');
   let fromCron = false;
+  let userId: string | null = null;
   if (cronSecret) {
     const { data: ok } = await db.rpc('cron_secret_matches', { p: cronSecret });
     if (!ok) return json({ error: 'not_allowed' }, 403);
@@ -80,6 +152,7 @@ Deno.serve(async (req) => {
     });
     const { data: member } = await asUser.rpc('is_member');
     if (!member) return json({ error: 'not_allowed' }, 403);
+    userId = (await asUser.auth.getUser()).data.user?.id ?? null;
   }
 
   const body = await req.json().catch(() => ({}));
@@ -94,7 +167,10 @@ Deno.serve(async (req) => {
   };
   const state = async () => (await db.from('cgm_state').select('*').eq('id', true).single()).data;
   const reply = async (extra: Record<string, unknown> = {}) => {
-    if (fromCron) return json({ ok: !extra.error, ...extra });
+    if (fromCron) {
+      try { await runAlerts(db, Date.now()); } catch (e) { console.error('alerts', e instanceof Error ? e.message : e); }
+      return json({ ok: !extra.error, ...extra });
+    }
     const st = await state();
     const readings = await recent();
     return json({ connected: Boolean(st?.connected), account_hint: st?.account_hint ?? null, last_ok_at: st?.last_ok_at ?? null,
@@ -108,6 +184,29 @@ Deno.serve(async (req) => {
 
   try {
     if (body.action === 'status') return await reply();
+
+    // ── alerts and push, for family members ──
+    if (body.action === 'push_key') return json({ publicKey: (await vapid(db)).publicKey });
+    if (body.action === 'test_push' && userId) {
+      const sent = await pushAll(db, { title: 'تنبيه تجربة', body: 'التنبيهات تعمل على هذا الجوال', tag: 'test', url: './#/' }, { kind: 'test', urgency: 'high', only: userId });
+      return json({ sent: sent.length, ok: sent.filter((r) => r.ok).length });
+    }
+    if (body.action === 'ack' && userId) {
+      const act = body.ack === 'treated' ? 'treated' : 'on_it';
+      const { data: a } = await db.from('alerts').select('*').eq('id', String(body.id ?? '')).in('state', ['active', 'acknowledged']).maybeSingle();
+      if (!a) return json({ error: 'not_open' }, 404);
+      const max = (a as any).kind === 'urgent_low' ? 15 : 60;
+      const mins = Math.min(max, Math.max(5, Number(body.snooze_min) || 15));
+      await db.from('alerts').update({ state: 'acknowledged', acknowledged_by: userId, acknowledged_at: new Date().toISOString(), ack_action: act,
+        snoozed_until: new Date(Date.now() + mins * 60000).toISOString() }).eq('id', (a as any).id);
+      const [{ data: me }, { data: set }] = await Promise.all([
+        db.from('members').select('display_name').eq('user_id', userId).maybeSingle(),
+        db.from('settings').select('child_name').eq('id', true).single(),
+      ]);
+      const m = ackMessage((a as any).kind as AlertKind, (set as any)?.child_name ?? 'ليان', (me as any)?.display_name || 'أحد الوالدين', act);
+      await pushAll(db, { title: m.title, body: m.body, tag: `alert-${(a as any).kind}`, url: './#/' }, { kind: 'ack', alertId: (a as any).id, urgency: 'normal', except: userId });
+      return json({ ok: true, snoozed_min: mins });
+    }
 
     // Diagnostic for the database job only: what Abbott returns, timestamps and counts, no credentials.
     if (fromCron && body.action === 'debug') {

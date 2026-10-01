@@ -84,6 +84,16 @@ export interface Settings {
   /** parent-entered, only used to colour the reading; null = no colouring */
   glucose_low_mgdl: number | null;
   glucose_high_mgdl: number | null;
+  /** alert thresholds, parent-entered (mg/dL); null = that alert is off */
+  alert_urgent_low_mgdl: number | null;
+  alert_low_mgdl: number | null;
+  alert_high_mgdl: number | null;
+  alert_low_delay_min: number;
+  alert_high_delay_min: number;
+  alert_nodata_min: number;
+  alert_renotify_min: number;
+  alert_high_renotify_min: number;
+  child_name: string;
 }
 
 export interface HistoryLine {
@@ -132,7 +142,34 @@ export const DEFAULT_SETTINGS: Settings = {
   glucose_unit: 'mmol',
   glucose_low_mgdl: null,
   glucose_high_mgdl: null,
+  alert_urgent_low_mgdl: null,
+  alert_low_mgdl: null,
+  alert_high_mgdl: null,
+  alert_low_delay_min: 5,
+  alert_high_delay_min: 30,
+  alert_nodata_min: 20,
+  alert_renotify_min: 10,
+  alert_high_renotify_min: 60,
+  child_name: 'ليان',
 };
+
+export type AlertKind = 'urgent_low' | 'low' | 'high' | 'no_data';
+export interface AlertRow {
+  id: string;
+  kind: AlertKind;
+  state: 'pending' | 'active' | 'acknowledged' | 'resolved';
+  started_at: string;
+  active_at: string | null;
+  value_mgdl: number | null;
+  worst_mgdl: number | null;
+  acknowledged_by: string | null;
+  acknowledged_at: string | null;
+  ack_action: 'on_it' | 'treated' | null;
+  snoozed_until: string | null;
+  resolved_at: string | null;
+}
+
+export interface CarePlan { hypo: string | null; hyper: string | null; sick_day: string | null; contacts: string | null; updated_by: string | null; updated_at: string }
 
 export type EventKind = 'insulin' | 'carbs' | 'treatment' | 'note';
 export interface EventRow {
