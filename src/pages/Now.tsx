@@ -122,10 +122,12 @@ export default function Now() {
       </div>
 
       {/* Fitts: the main action is big and sits in the thumb zone, above the tab bar */}
-      <div className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-30 px-4 pb-3">
-        <button onClick={() => setLogOpen(true)} className="mx-auto flex min-h-[56px] w-full max-w-2xl items-center justify-center gap-2 rounded-2xl bg-brand text-lg font-bold text-white shadow-[0_8px_24px_rgba(91,72,214,0.28)]">
-          <Icon name="plus" size={24} /> سجّل
-        </button>
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(72px+env(safe-area-inset-bottom))] z-30 px-4">
+        <div className="mx-auto flex max-w-2xl justify-start">
+          <button onClick={() => setLogOpen(true)} className="pointer-events-auto flex min-h-[52px] items-center gap-2 rounded-full bg-brand pe-6 ps-5 text-lg font-bold text-white shadow-[0_8px_24px_rgba(91,72,214,0.30)] active:scale-[0.98]">
+            <Icon name="plus" size={22} /> سجّل
+          </button>
+        </div>
       </div>
       <LogSheet open={logOpen} onClose={() => setLogOpen(false)} />
     </main>

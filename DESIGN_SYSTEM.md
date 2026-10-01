@@ -18,47 +18,48 @@ thin text · cartoon fonts for data · Layan's face used to signal a medical sta
 
 ---
 
-## 2. Brand colours (light) — "warm family" (v0.10, replaces the periwinkle palette)
+## 2. Brand colours (light) — "Option 1, lavender" (approved; replaces the plum palette of v0.10)
 
-The parents asked for a warmer, more family feel. Layan's illustrations stay; the interface colours move
-from cool lavender to warm plum, cream and cocoa. Medical colours (§4) are unchanged.
+Approved mockup: warm off-white background, white cards with a very thin soft-purple border, lavender brand
+colour, deep indigo text. Layan peeks from behind the glucose card on الآن and gives the personality; the rest
+of the interface stays clean. Medical colours (§4) are unchanged and reserved.
 
-| Token | Name | HEX | Use |
-|---|---|---|---|
-| `--primary` | Soft Plum | `#A06896` | Large shapes, illustrations |
-| `--primary-strong` | Layan Plum | `#7A4270` | **Buttons, links, selected tab, text in primary** (white on it 7.4:1) |
-| `--primary-soft` | Blush Plum | `#F5E9F0` | Selected tab pill, chips, secondary buttons (plum on it 6.3:1) |
-| `--accent-soft` | Warm Peach | `#FDECDE` | Celebration and onboarding backgrounds only |
-| `--accent` | Layan Pink | `#F49AB6` | Decoration only (pink rule below) |
-| `--highlight` | Butter Yellow | `#F6D982` | Stars, tips |
-| `--bg` | Warm Cream | `#FBF5EE` | App background |
-| `--surface` | Warm White | `#FFFDFA` | Cards — no border, a soft warm shadow instead |
-| `--surface-2` | Oat | `#F6EEE5` | Inputs on cards, inactive chips, ghost buttons |
-| `--text` | Cocoa | `#3A2E2B` | Main text (12:1 on cream) |
-| `--text-2` | Warm Taupe | `#75665F` | Secondary text (5.1:1 on cream) |
-| `--text-3` | Sand | `#A0928A` | Axis labels and hints only, never essential information |
-| `--border` | Linen | `#EEE4DA` | Inputs and dividers |
+| Token | HEX | Use |
+|---|---|---|
+| `--bg` | `#FCF7F8` | App background (warm off-white) |
+| `--surface` | `#FFFDFD` | Cards, sheets, tab bar |
+| `--surface-2` | `#F4EFFD` | Graph plot area, inputs, inactive chips, ghost buttons |
+| `--border` | `#E4DCF9` | The thin soft-purple card border, dividers, inputs |
+| `--primary` | `#8A6DF2` | Glucose line, progress fill — graphics only, not text (3.4:1 on the plot area) |
+| `--primary-strong` | `#5B48D6` | **Buttons, links, selected tab, any text in brand colour** (white on it 6.2:1) |
+| `--primary-soft` | `#E9E0FD` | Selected tab pill, soft buttons, chips |
+| `--primary-muted` | `#D6CBFD` | Icon circles in lists, checklist circles |
+| `--num` | `#302286` | The glucose number and key figures |
+| `--text` | `#261E5C` | Main text (deep indigo) |
+| `--text-2` | `#625A87` | Secondary text |
+| `--text-3` | `#9084A9` | Axis labels and hints only |
+| `--accent` | `#F49AB6` | The few hearts around Layan only (pink rule) |
 
-**Pink rule.** Layan Pink is close to Low red. It never appears on, next to, or behind a glucose value, a
+**Pink rule.** Pink is close to Low red: only the faint hearts beside Layan, never near a glucose value, a
 status chip, a graph or an alert.
 
-**Plum rule.** Plum is the brand colour and the glucose line colour when in range. It is never used for a
-status: in-range is shown by the green band and the green chip, not by the line colour.
+**Layan rule.** One illustration layer (`public/assets/09_brand/layan_peek.webp`, transparent), peeking over
+the glucose card on الآن only, with at most four faint hearts around her. No decoration anywhere else.
 
-## 3. Night colours (dark) — warm cocoa
+## 3. Night colours (dark) — same lavender identity
 
 | Token | HEX |
 |---|---|
-| `--bg` | `#1D1615` |
-| `--surface` | `#291F1F` |
-| `--surface-2` | `#342927` |
-| `--text` | `#F7EFE9` |
-| `--text-2` | `#CCBCB2` |
-| `--border` | `#463835` |
-| `--primary` / `--primary-strong` | `#E2B2D8` (text on it: `#291F1F`, 9.8:1) |
-| `--primary-soft` | `#462F40` |
-
-Night mode removes shadows, uses borders instead, and hides decorations entirely.
+| `--bg` | `#2D2637` |
+| `--surface` | `#352E43` |
+| `--surface-2` | `#423A5A` |
+| `--border` | `#4E446C` |
+| `--primary` | `#C1A6F3` |
+| `--primary-strong` | `#C4B0FA` (text on it: `#352E43`) |
+| `--primary-soft` | `#4A3E6D` |
+| `--primary-muted` | `#7C67A8` |
+| `--num` | `#DBCDFA` |
+| `--text` / `--text-2` / `--text-3` | `#F5F2FB` / `#C8BEDE` / `#968CB2` |
 
 ---
 
