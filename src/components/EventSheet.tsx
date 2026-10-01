@@ -42,9 +42,9 @@ function Item({ m, series, unit, events, who }: { m: Mark; series: Series; unit:
     return (
       <section>
         {head(m.meal.name)}
-        <Row label="الكارب" value={`${Math.round(m.meal.total_carbs)} g`} />
+        <Row label="الكارب" value={`${Math.round(m.meal.total_carbs)} غ`} />
         <Row label="إنسولين الوجبة" value={r.bolus ? `${r.bolus.insulin_units} ${unitsWord(r.bolus.insulin_units ?? 0)}` : '—'} />
-        {r.prebolus !== null && <Row label={r.prebolus >= 0 ? 'قبل الأكل بـ' : 'بعد الأكل بـ'} value={`${Math.abs(r.prebolus)} min`} />}
+        {r.prebolus !== null && <Row label={r.prebolus >= 0 ? 'قبل الأكل بـ' : 'بعد الأكل بـ'} value={`${Math.abs(r.prebolus)} د`} />}
         <Row label="السكر عند الأكل" value={g(r.g0)} />
         <h3 className="mt-3 text-sm font-bold text-slate-600">استجابة السكر <span className="font-normal">({unitLabel(unit)})</span></h3>
         <div className="mt-1 grid grid-cols-5 gap-1 text-center">
@@ -52,7 +52,7 @@ function Item({ m, series, unit, events, who }: { m: Mark; series: Series; unit:
             <div key={o} className="flex flex-col items-center rounded-lg bg-slate-50 py-1.5"><span className="num block text-[11px] text-slate-500" dir="ltr">+{o}</span><span className="num block font-bold">{g(r.at[o])}</span></div>
           ))}
         </div>
-        <Row label="أعلى قراءة" value={r.peak !== null ? `${g(r.peak)}${r.ttp !== null ? ` · ${r.ttp} min` : ''}` : '—'} />
+        <Row label="أعلى قراءة" value={r.peak !== null ? `${g(r.peak)}${r.ttp !== null ? ` · بعد ${r.ttp} د` : ''}` : '—'} />
         <Row label="الارتفاع" value={r.rise !== null ? delta(r.rise) : '—'} />
         {!r.complete && <p className="mt-1 text-xs text-near">{m.t + 4 * 3600000 > Date.now() ? 'لم تمر 4 ساعات بعد.' : 'البيانات ناقصة في هذه الفترة، فالأرقام جزئية.'}</p>}
       </section>

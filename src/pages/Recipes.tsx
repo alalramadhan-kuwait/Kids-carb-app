@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useData } from '../lib/data';
+import { Icon } from '../components/Icon';
 import { computeMeal, fmt, PROBLEM_TEXT, STATE_TEXT, UNIT_TEXT } from '../lib/carbs';
 import { blocker } from '../lib/suggest';
 import { acceptTotal, setFavorite, setRecipeImage } from '../lib/api';
@@ -30,7 +31,7 @@ export function RecipeList() {
               <Card className="flex items-center gap-3 !p-3">
                 <Photo path={recipe.image_path} category={recipe.category} art={recipeArt(recipe.category)} className="h-20 w-20 shrink-0 rounded-xl" />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1 font-bold">{recipe.favorite && <span aria-label="مفضلة">❤️</span>}<span className="truncate">{recipe.name}</span></div>
+                  <div className="flex items-center gap-1 font-bold">{recipe.favorite && <span aria-label="مفضلة" className="text-brand"><Icon name="heart" size={16} active /></span>}<span className="truncate">{recipe.name}</span></div>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {!recipe.approved ? <Badge tone="near">تحت المراجعة</Badge> : why ? <Badge tone="near">{why}</Badge> : <Badge tone="ok">جاهزة</Badge>}
                     {recipe.category && <Badge>{recipe.category}</Badge>}
@@ -69,11 +70,11 @@ export function RecipeView() {
   return (
     <Page title={recipe.name} back={() => nav(-1)}
       action={<button aria-label="مفضلة" className="grid h-10 w-10 place-items-center rounded-full bg-white text-xl shadow-sm"
-        onClick={async () => { await setFavorite(recipe.id, !recipe.favorite); await reload(); }}>{recipe.favorite ? '❤️' : '🤍'}</button>}>
+        onClick={async () => { await setFavorite(recipe.id, !recipe.favorite); await reload(); }}><span className="text-brand"><Icon name="heart" size={24} active={recipe.favorite} label={recipe.favorite ? 'إزالة من المفضلة' : 'إضافة للمفضلة'} /></span></button>}>
       <div className="relative mb-4">
         <Photo path={recipe.image_path} category={recipe.category} art={recipeArt(recipe.category)} className="h-52 w-full rounded-2xl" />
-        <label className="absolute bottom-3 end-3 cursor-pointer rounded-xl bg-white/90 px-3 py-2 text-sm font-medium shadow">
-          📷 {recipe.image_path ? 'تغيير الصورة' : 'إضافة صورة'}
+        <label className="absolute bottom-3 end-3 inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-white/90 px-3 py-2 text-sm font-medium shadow">
+          <Icon name="camera" size={20} /> {recipe.image_path ? 'تغيير الصورة' : 'إضافة صورة'}
           <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
             const f = e.target.files?.[0]; if (!f) return;
             try { await setRecipeImage(recipe.id, await uploadPhoto(f, 'recipes')); await reload(); toast('تم حفظ الصورة ✓'); }
@@ -90,11 +91,11 @@ export function RecipeView() {
         {meal.complete && <Nutrition n={meal.total} partial={meal.nutritionPartial} />}
         {meal.complete && meal.level === 'near' && <Alert tone="near">قريبة من الحد الأقصى ({settings.max_meal_carbs}غ).</Alert>}
         {meal.complete && meal.level === 'over' && <Alert tone="over">تحذير: الكارب {fmt(meal.total.carbs)}غ يتجاوز الحد ({settings.max_meal_carbs}غ). يمكن تسجيلها بعد تأكيد.</Alert>}
-        {recipe.carb_pending && <Alert tone="near">⚠ {recipe.pending_note ?? 'الكارب غير مكتمل.'}</Alert>}
+        {recipe.carb_pending && <Alert tone="near">{recipe.pending_note ?? 'الكارب غير مكتمل.'}</Alert>}
         {drift && (
           <Alert tone="info">
             <div className="flex items-center justify-between gap-2">
-              <span>تغيّر الحساب بعد تغيير منتج أو كمية.<br />Previous: <span className="num font-bold">{fmt(recipe.saved_total_carbs)}g</span> carbs → New: <span className="num font-bold">{fmt(meal.total.carbs)}g</span> carbs</span>
+              <span>تغيّر الحساب بعد تغيير منتج أو كمية.<br />السابق: <span className="num font-bold">{fmt(recipe.saved_total_carbs)}</span> غ ← الجديد: <span className="num font-bold">{fmt(meal.total.carbs)}</span> غ</span>
               <Btn onClick={async () => { await acceptTotal(recipe.id, meal.total.carbs); await reload(); toast('تم اعتماد الحساب الجديد'); }}>اعتماد</Btn>
             </div>
           </Alert>
@@ -115,7 +116,7 @@ export function RecipeView() {
           if (!ls.length) return null;
           return (
             <div key={role} className="mb-3 last:mb-0">
-              <div className="mb-1 flex justify-between text-sm font-medium text-slate-500"><span>{roles[role]}</span><span className="num">{fmt(meal.byRole[role])}g</span></div>
+              <div className="mb-1 flex justify-between text-sm font-medium text-slate-500"><span>{roles[role]}</span><span><span className="num">{fmt(meal.byRole[role])}</span> غ</span></div>
               <ul className="divide-y divide-slate-100">
                 {ls.map((l) => (
                   <li key={l.ing.id} className="flex items-center gap-2 py-2">

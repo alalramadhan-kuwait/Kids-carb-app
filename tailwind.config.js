@@ -9,10 +9,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Noto Sans Arabic"', '"Nunito Sans"', 'system-ui', '-apple-system', '"Segoe UI"', 'sans-serif'],
-        num: ['"Nunito Sans"', 'system-ui', 'sans-serif'],
+        sans: ['Rubik', 'system-ui', '-apple-system', '"Segoe UI"', 'sans-serif'],
+        num: ['Rubik', 'system-ui', 'sans-serif'],
       },
-      borderRadius: { xl: '16px', '2xl': '22px' },
+      borderRadius: { xl: '16px', '2xl': '24px' },
       boxShadow: { sm: 'var(--shadow-card)' },
       colors: {
         white: v('surface'),
@@ -21,6 +21,7 @@ export default {
           500: v('text-2'), 600: v('text-2'), 700: v('text'), 800: v('text'), 900: v('toast'),
         },
         brand: { DEFAULT: v('primary-strong'), soft: v('primary-soft'), light: v('primary') },
+        warm: { soft: v('accent-soft') },
         // medical colours: DEFAULT is the readable text colour, soft is the chip background
         ok: { DEFAULT: v('st-in-text'), soft: v('st-in-soft'), fill: v('st-in') },
         near: { DEFAULT: v('st-high-text'), soft: v('st-high-soft'), fill: v('st-high') },

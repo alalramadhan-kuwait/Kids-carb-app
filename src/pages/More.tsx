@@ -6,6 +6,8 @@ import { computeSnack, fmt, PROBLEM_TEXT } from '../lib/carbs';
 import { deleteSnack, saveSettings, saveSnack } from '../lib/api';
 import { PRODUCT_CATEGORIES } from '../lib/constants';
 import { VersionTag } from '../components/Version';
+import { Icon } from '../components/Icon';
+import type { IconName } from '../icons/defs';
 import { formatGlucose, toMgdl, unitLabel } from '../lib/glucose';
 import type { CategoryTarget, Settings, Snack, Unit } from '../lib/types';
 import { Alert, Badge, Btn, Card, CarbBadge, Field, NumInput, Page, Photo, asset, inputCls, snackArt, toast } from '../components/ui';
@@ -24,24 +26,36 @@ export function More() {
     const { error } = await supabase.auth.updateUser({ password: pw });
     if (error) toast(error.message.includes('different') ? 'اختر كلمة مختلفة عن الحالية' : error.message); else { toast('تم تغيير كلمة المرور ✓'); setPw(''); setPw2(''); }
   };
-  const link = (to: string, icon: React.ReactNode, label: string, hint: string) => (
-    <Link to={to}><Card className="flex items-center gap-3 !p-4"><span className="text-2xl">{icon}</span><div className="flex-1"><div className="font-bold">{label}</div><div className="text-sm text-slate-500">{hint}</div></div><span className="text-slate-300">‹</span></Card></Link>
+  const link = (to: string, icon: IconName, label: string, hint: string) => (
+    <li><Link to={to} className="flex min-h-[64px] items-center gap-3 px-4 py-3 active:bg-slate-50">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name={icon} size={22} /></span>
+      <span className="min-w-0 flex-1"><span className="block font-semibold">{label}</span><span className="block truncate text-sm text-slate-500">{hint}</span></span>
+      <span className="text-slate-300">‹</span>
+    </Link></li>
   );
   return (
     <Page title="المزيد">
       <div className="-mt-3 mb-3"><VersionTag /></div>
       <Card className="mb-3 flex items-center gap-3 !p-3">
-        <span className="text-2xl">👤</span>
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="family" size={22} /></span>
         <span dir="ltr" className="min-w-0 flex-1 truncate text-start text-sm">{me || '…'}</span>
         <Btn kind="ghost" onClick={async () => { await supabase.auth.signOut(); nav('/'); }}>تسجيل الخروج</Btn>
       </Card>
       <div className="space-y-3">
-        {link('/plan', '🗓️', 'خطة الأيام وقائمة الشراء', 'وجبات لعدة أيام وعدد الأشخاص')}
-        {link('/cgm', <img src={asset('04_objects/obj_cgm.svg')} alt="" className="h-8 w-8" />, 'قراءات السكر', 'ربط LibreLinkUp لعرض السكر الحي')}
-        {link('/alerts', '🔔', 'التنبيهات', 'المنخفض والمرتفع وانقطاع القراءة')}
-        {link('/care-plan', '📋', 'خطة الطبيب', 'تظهر مع كل تنبيه')}
-        {link('/snacks', '🍎', 'السناكات', 'قاعدة بيانات السناكات')}
-        {link('/settings', '⚙️', 'الإعدادات', 'الحد الأقصى للكارب وأهداف المنتجات')}
+        <Card className="!p-0 overflow-hidden">
+          <ul className="divide-y divide-slate-100">
+            {link('/alerts', 'bell', 'التنبيهات', 'المنخفض والمرتفع وانقطاع القراءة')}
+            {link('/care-plan', 'heart', 'خطة الطبيب', 'تظهر مع كل تنبيه')}
+            {link('/cgm', 'sensor', 'قراءات السكر', 'ربط LibreLinkUp لعرض السكر الحي')}
+          </ul>
+        </Card>
+        <Card className="!p-0 overflow-hidden">
+          <ul className="divide-y divide-slate-100">
+            {link('/plan', 'meals', 'خطة الأيام وقائمة الشراء', 'وجبات لعدة أيام وعدد الأشخاص')}
+            {link('/snacks', 'carbs', 'السناكات', 'قاعدة بيانات السناكات')}
+            {link('/settings', 'settings', 'الإعدادات', 'الحد الأقصى للكارب ونطاق السكر')}
+          </ul>
+        </Card>
         <Card className="space-y-2">
           <h2 className="font-bold">تغيير كلمة المرور</h2>
           {shared && <Alert tone="near">هذا الحساب مشترك مع تطبيق المناوبات: تغيير كلمة المرور هنا يغيّرها هناك أيضًا، ولن تعمل "نسيت كلمة المرور" لأن البريد غير حقيقي. الأفضل حساب مستقل ببريد حقيقي.</Alert>}

@@ -5,8 +5,8 @@
   "dir": "rtl",
   "display": "standalone",
   "start_url": "./",
-  "background_color": "#FFF9F3",
-  "theme_color": "#FFF9F3",
+  "background_color": "#FBF5EE",
+  "theme_color": "#FBF5EE",
   "icons": [
     {
       "src": "icons/icon-192.png",

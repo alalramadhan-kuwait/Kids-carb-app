@@ -18,44 +18,45 @@ thin text · cartoon fonts for data · Layan's face used to signal a medical sta
 
 ---
 
-## 2. Brand colours (light)
+## 2. Brand colours (light) — "warm family" (v0.10, replaces the periwinkle palette)
+
+The parents asked for a warmer, more family feel. Layan's illustrations stay; the interface colours move
+from cool lavender to warm plum, cream and cocoa. Medical colours (§4) are unchanged.
 
 | Token | Name | HEX | Use |
 |---|---|---|---|
-| `--primary` | Layan Periwinkle | `#7776D8` | Large shapes, selected tab icon, illustrations |
-| `--primary-strong` | Deep Periwinkle | `#5E5CC4` | **Buttons, links, any text in primary** (5.5:1 on white) |
-| `--primary-soft` | Soft Lavender | `#E8E7FA` | Selected chips, secondary buttons |
-| `--secondary` | Powder Blue | `#B9D7EE` | Decoration, info backgrounds |
-| `--accent` | Layan Pink | `#F49AB6` | Decoration only (see rule below) |
-| `--accent-soft` | Blush Pink | `#FCE5ED` | Celebration backgrounds, onboarding |
-| `--highlight` | Butter Yellow | `#F6D982` | Stars, tips, small highlights |
-| `--bg` | Warm Cream | `#FFF9F3` | App background |
-| `--surface` | White | `#FFFFFF` | Cards |
-| `--text` | Deep Brown | `#302B2B` | Main text |
-| `--text-2` | Warm Gray | `#6F6A6C` | Secondary text (darkened from #777274 to pass 4.5:1 on cream) |
-| `--border` | Soft Gray | `#E9E5E3` | Card and input borders |
+| `--primary` | Soft Plum | `#A06896` | Large shapes, illustrations |
+| `--primary-strong` | Layan Plum | `#7A4270` | **Buttons, links, selected tab, text in primary** (white on it 7.4:1) |
+| `--primary-soft` | Blush Plum | `#F5E9F0` | Selected tab pill, chips, secondary buttons (plum on it 6.3:1) |
+| `--accent-soft` | Warm Peach | `#FDECDE` | Celebration and onboarding backgrounds only |
+| `--accent` | Layan Pink | `#F49AB6` | Decoration only (pink rule below) |
+| `--highlight` | Butter Yellow | `#F6D982` | Stars, tips |
+| `--bg` | Warm Cream | `#FBF5EE` | App background |
+| `--surface` | Warm White | `#FFFDFA` | Cards — no border, a soft warm shadow instead |
+| `--surface-2` | Oat | `#F6EEE5` | Inputs on cards, inactive chips, ghost buttons |
+| `--text` | Cocoa | `#3A2E2B` | Main text (12:1 on cream) |
+| `--text-2` | Warm Taupe | `#75665F` | Secondary text (5.1:1 on cream) |
+| `--text-3` | Sand | `#A0928A` | Axis labels and hints only, never essential information |
+| `--border` | Linen | `#EEE4DA` | Inputs and dividers |
 
 **Pink rule.** Layan Pink is close to Low red. It never appears on, next to, or behind a glucose value, a
-status chip, a graph or an alert. Use it for decoration and non-medical moments only.
+status chip, a graph or an alert.
 
-**Primary rule.** White text on `#7776D8` is 3.9:1, which is too weak for buttons. Buttons and links use
-`--primary-strong`.
+**Plum rule.** Plum is the brand colour and the glucose line colour when in range. It is never used for a
+status: in-range is shown by the green band and the green chip, not by the line colour.
 
-## 3. Night colours (dark)
-
-Used automatically by the Night schedule and when the phone is in dark mode.
+## 3. Night colours (dark) — warm cocoa
 
 | Token | HEX |
 |---|---|
-| `--bg` | `#17162B` |
-| `--surface` | `#222140` |
-| `--surface-2` | `#2C2B52` |
-| `--text` | `#F1EEF7` |
-| `--text-2` | `#B4AFC6` |
-| `--border` | `#37355E` |
-| `--primary` / `--primary-strong` | `#A9A8F2` (text on it: `#17162B`) |
-| `--primary-soft` | `#33316A` |
-| `--accent` | `#E58AA6` (decoration only) |
+| `--bg` | `#1D1615` |
+| `--surface` | `#291F1F` |
+| `--surface-2` | `#342927` |
+| `--text` | `#F7EFE9` |
+| `--text-2` | `#CCBCB2` |
+| `--border` | `#463835` |
+| `--primary` / `--primary-strong` | `#E2B2D8` (text on it: `#291F1F`, 9.8:1) |
+| `--primary-soft` | `#462F40` |
 
 Night mode removes shadows, uses borders instead, and hides decorations entirely.
 
@@ -106,23 +107,27 @@ number readable in every state and on every background.
 
 ## 6. Typography
 
-| Role | Font | Size / weight |
-|---|---|---|
-| Arabic UI | **Noto Sans Arabic** | — |
-| English UI and all digits | **Nunito Sans** | — |
-| Glucose on Home | Nunito Sans | **64 px / 700** |
-| Glucose in Night mode | Nunito Sans | **96 px / 700** |
-| Glucose in cards and lists | Nunito Sans | 40–48 px / 700 |
-| Screen title | Noto Sans Arabic | 26 px / 700 |
-| Card title | Noto Sans Arabic | 18 px / 600 |
-| Body | Noto Sans Arabic | 16 px / 400, line-height 1.6 |
-| Secondary | Noto Sans Arabic | 14 px / 400 |
-| Caption (minimum size) | Noto Sans Arabic | 12 px / 500 |
+One family for Arabic, Latin and digits: **Rubik** (rounded, warm, clear numerals), bundled with the app
+(`@fontsource/rubik`, weights 400–700) so it works offline and does not depend on Google Fonts.
 
-Rules: medical values always use Western digits (0–9), tabular figures, and are never wrapped across lines.
-No weight below 400. No handwriting or cartoon fonts anywhere data appears.
+| Use | Size / weight |
+|---|---|
+| Glucose on Home | **64 px / 700** |
+| Glucose in Night mode | **96 px / 700** |
+| Glucose in Analysis | 48 px / 700 |
+| Screen title | 26 px / 700 |
+| Card title | 18 px / 600 |
+| Body | 16 px / 400, line-height 1.6 |
+| Secondary | 14 px / 400 |
+| Caption (minimum size) | 12 px / 500 |
 
-Fallback stack: `"Noto Sans Arabic", "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif`.
+Numbers use tabular figures and are isolated left-to-right (`.num`). Digits are Western (0–9).
+
+**Units and words are Arabic** on every screen: مليمول/ل · ملغ/دل · د (minutes) · غ (grams) · و (units, rail
+labels only). Changes are words, not signs: «نزل 0.7 خلال 15 د», never «−0.7 / 15 min» — a minus sign next
+to Arabic text is easy to misread. Product names stay as printed on the label.
+
+Fallback stack: `Rubik, system-ui, -apple-system, "Segoe UI", sans-serif`.
 
 ---
 
@@ -345,36 +350,5 @@ should not be committed. Make the repository private (or host from a private rep
 
 ## 15. Tokens (copy into the app)
 
-```css
-:root {
-  --primary: #7776D8; --primary-strong: #5E5CC4; --primary-soft: #E8E7FA;
-  --secondary: #B9D7EE; --accent: #F49AB6; --accent-soft: #FCE5ED; --highlight: #F6D982;
-  --bg: #FFF9F3; --surface: #FFFFFF; --surface-2: #F7F2EE;
-  --text: #302B2B; --text-2: #6F6A6C; --border: #E9E5E3;
-
-  --st-urgent: #C83E4D; --st-urgent-text: #A82F3D; --st-urgent-soft: #F7DADD;
-  --st-low: #E95F68;    --st-low-text: #B83A44;    --st-low-soft: #FCE6E8;
-  --st-in: #46B98A;     --st-in-text: #1F7A55;     --st-in-soft: #E3F5EC;
-  --st-high: #F2A541;   --st-high-text: #8F5A00;   --st-high-soft: #FDF1DC;
-  --st-vhigh: #D9822B;  --st-vhigh-text: #8A4A0F;  --st-vhigh-soft: #FBE9D8;
-  --st-info: #519AD4;   --st-info-text: #2C6FA6;   --st-info-soft: #E4F0FA;
-
-  --radius-card: 22px; --radius-btn: 16px; --radius-input: 14px; --radius-pill: 999px;
-  --shadow-card: 0 2px 10px rgba(48, 43, 43, 0.06);
-  --font: "Noto Sans Arabic", "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-num: "Nunito Sans", system-ui, sans-serif;
-}
-
-/* Night: applied by the night schedule or the phone's dark mode */
-:root[data-theme="night"], .night {
-  --primary: #A9A8F2; --primary-strong: #A9A8F2; --primary-soft: #33316A;
-  --accent: #E58AA6; --bg: #17162B; --surface: #222140; --surface-2: #2C2B52;
-  --text: #F1EEF7; --text-2: #B4AFC6; --border: #37355E; --shadow-card: none;
-  --st-urgent: #FF5A68; --st-urgent-text: #FF5A68; --st-urgent-soft: #3A1E2A;
-  --st-low: #FF7A83;    --st-low-text: #FF7A83;    --st-low-soft: #3A2030;
-  --st-in: #5FD3A2;     --st-in-text: #5FD3A2;     --st-in-soft: #1B3534;
-  --st-high: #F5B65A;   --st-high-text: #F5B65A;   --st-high-soft: #3A2E22;
-  --st-vhigh: #F0954A;  --st-vhigh-text: #F0954A;  --st-vhigh-soft: #3A2820;
-  --st-info: #7CB8E8;   --st-info-text: #7CB8E8;   --st-info-soft: #1E2E46;
-}
-```
+The live tokens are in `src/index.css` (as RGB triplets for Tailwind) and are the source of truth; §2–§4
+list the same values as HEX.

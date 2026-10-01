@@ -49,8 +49,8 @@ export function Page({ title, back, action, children }: { title: string; back?: 
   return (
     <main className="mx-auto max-w-2xl px-4 pb-28 pt-4">
       <header className="mb-4 flex items-center gap-3">
-        {back && <button onClick={back} aria-label="رجوع" className="grid h-10 w-10 place-items-center rounded-full bg-white text-xl shadow-sm">→</button>}
-        <h1 className="flex-1 text-2xl font-bold">{title}</h1>
+        {back && <button onClick={back} aria-label="رجوع" className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl shadow-sm">→</button>}
+        <h1 className="flex-1 text-[26px] font-bold tracking-tight">{title}</h1>
         {action}
       </header>
       {children}
@@ -59,17 +59,17 @@ export function Page({ title, back, action, children }: { title: string; back?: 
 }
 
 export const Card = ({ children, className }: { children: ReactNode; className?: string }) =>
-  <section className={cx('rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-100', className)}>{children}</section>;
+  <section className={cx('rounded-2xl bg-white p-4 shadow-sm', className)}>{children}</section>;
 
 type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { kind?: 'primary' | 'ghost' | 'danger' | 'soft'; block?: boolean };
 export function Btn({ kind = 'soft', block, className, ...p }: BtnProps) {
   const styles = {
     primary: 'bg-brand text-white active:opacity-80',
     soft: 'bg-brand-soft text-brand active:opacity-80',
-    ghost: 'bg-white text-slate-700 ring-1 ring-slate-200 active:bg-slate-50',
+    ghost: 'bg-slate-50 text-slate-700 active:bg-slate-100',
     danger: 'bg-over-soft text-over active:opacity-80',
   }[kind];
-  return <button {...p} className={cx('min-h-[44px] rounded-xl px-4 py-2 text-base font-medium disabled:opacity-40', styles, block && 'w-full', className)} />;
+  return <button {...p} className={cx('min-h-[44px] rounded-2xl px-4 py-2 text-base font-semibold disabled:opacity-40', styles, block && 'w-full', className)} />;
 }
 
 export function Alert({ tone = 'near', children }: { tone?: 'near' | 'over' | 'ok' | 'info'; children: ReactNode }) {
@@ -78,7 +78,7 @@ export function Alert({ tone = 'near', children }: { tone?: 'near' | 'over' | 'o
 }
 
 export const Chip = ({ active, onClick, children }: { active?: boolean; onClick?: () => void; children: ReactNode }) =>
-  <button onClick={onClick} className={cx('shrink-0 rounded-full px-3 py-1.5 text-sm', active ? 'bg-brand text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200')}>{children}</button>;
+  <button onClick={onClick} className={cx('min-h-[36px] shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium', active ? 'bg-brand text-white' : 'bg-slate-50 text-slate-600')}>{children}</button>;
 
 export const Badge = ({ tone = 'gray', children }: { tone?: 'gray' | 'ok' | 'near' | 'over' | 'brand'; children: ReactNode }) => {
   const t = { gray: 'bg-slate-100 text-slate-600', ok: 'bg-ok-soft text-ok', near: 'bg-near-soft text-near', over: 'bg-over-soft text-over', brand: 'bg-brand-soft text-brand' }[tone];
@@ -122,8 +122,8 @@ const LEVEL = {
 export function CarbBadge({ carbs, level, size = 'md', unknown }: { carbs: number; level: Level; size?: 'md' | 'lg'; unknown?: boolean }) {
   if (unknown) return <span className="rounded-xl bg-slate-100 px-3 py-1 text-sm text-slate-500">كارب غير مكتمل</span>;
   return (
-    <span className={cx('inline-flex items-baseline gap-1 rounded-xl px-3 py-1 font-bold', LEVEL[level].cls, size === 'lg' ? 'text-4xl' : 'text-2xl')}>
-      <span className="num">{fmt(carbs)}</span><span className="text-sm font-medium">غ كارب</span>
+    <span className={cx('inline-flex shrink-0 items-baseline gap-1 whitespace-nowrap rounded-xl px-3 py-1 font-bold', LEVEL[level].cls, size === 'lg' ? 'text-4xl' : 'text-2xl')}>
+      <span className="num">{fmt(carbs)}</span><span className="whitespace-nowrap text-sm font-medium">غ كارب</span>
     </span>
   );
 }
@@ -138,7 +138,7 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
     </label>
   );
 }
-export const inputCls = 'w-full min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-base outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft';
+export const inputCls = 'w-full min-h-[44px] rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft';
 
 export function NumInput({ value, onChange, ...p }: { value: number | null | undefined; onChange: (v: number | null) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
   // keep what is being typed ("1." or "") instead of fighting the cursor

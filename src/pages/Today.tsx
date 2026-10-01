@@ -105,7 +105,7 @@ export default function Today() {
         <Card>
           <div className="text-sm text-slate-500">{relDay(new Date(last.eaten_at))} {fmtTime(new Date(last.eaten_at))}</div>
           <div className="text-lg font-bold">{last.name}</div>
-          <div className="num text-xl font-bold text-brand">{fmt(last.total_carbs)}g carbs</div>
+          <div className="text-xl font-bold text-brand"><span className="num">{fmt(last.total_carbs)}</span> غ كارب</div>
         </Card>
       ) : <Card><p className="text-slate-500">لم تُسجَّل وجبات بعد.</p></Card>}
 

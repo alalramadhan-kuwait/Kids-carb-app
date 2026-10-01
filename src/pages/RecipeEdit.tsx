@@ -152,7 +152,7 @@ export default function RecipeEdit() {
         <div className="mx-auto max-w-2xl space-y-2">
           {meal.complete && meal.level === 'over' && <Alert tone="over">تحذير: تتجاوز {settings.max_meal_carbs}غ كارب. يمكنك الحفظ لكنها لن تُقترح.</Alert>}
           {meal.complete && prev !== null && Math.abs(prev - meal.total.carbs) >= 0.05 && (
-            <div className="text-center text-sm">Previous: <b className="num">{fmt(prev)}g</b> carbs → New: <b className="num">{fmt(meal.total.carbs)}g</b> carbs</div>
+            <div className="text-center text-sm">السابق: <b className="num">{fmt(prev)}</b> غ ← الجديد: <b className="num">{fmt(meal.total.carbs)}</b> غ</div>
           )}
           <div className="flex items-center gap-3">
             <CarbBadge carbs={meal.total.carbs} level={meal.level} unknown={!meal.complete} />

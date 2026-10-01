@@ -7,6 +7,7 @@ import { formatGlucose, toMgdl, unitLabel } from '../lib/glucose';
 import { sinceText } from '../lib/now';
 import type { AlertRow, Settings } from '../lib/types';
 import { ALERT_NAME } from '../components/AlertStrip';
+import { Icon } from '../components/Icon';
 import { Alert, Btn, Card, Field, NumInput, Page, toast } from '../components/ui';
 
 type Sub = { id: string; user_id: string; device_label: string | null; last_ok_at: string | null; last_error: string | null; endpoint: string };
@@ -89,7 +90,7 @@ export default function AlertsPage() {
           <Btn kind="primary" block disabled={!!problem} onClick={save}>حفظ</Btn>
         </Card>
 
-        <Link to="/care-plan"><Card className="flex items-center gap-3 !p-4"><span className="text-2xl">📋</span><div className="flex-1 font-bold">خطة الطبيب</div><span className="text-slate-300">‹</span></Card></Link>
+        <Link to="/care-plan"><Card className="flex items-center gap-3 !p-4"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="heart" size={22} /></span><div className="flex-1 font-bold">خطة الطبيب</div><span className="text-slate-300">‹</span></Card></Link>
 
         <Card>
           <h2 className="mb-2 font-bold">الأجهزة</h2>

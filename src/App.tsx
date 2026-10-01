@@ -172,14 +172,14 @@ function Shell() {
         <Route path="/more" element={<More />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-0 z-40 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-6px_20px_rgba(58,46,43,0.06)] backdrop-blur">
         <ul className="mx-auto grid max-w-2xl grid-cols-5">
           {TABS.map((t) => {
             const on = t.to === '/' ? pathname === '/' : t.match.some((m) => pathname === m || pathname.startsWith(m + '/'));
             return (
               <li key={t.to}>
-                <NavLink to={t.to} aria-current={on ? 'page' : undefined} className={cx('flex min-h-[56px] flex-col items-center justify-center gap-0.5 py-1.5 text-xs', on ? 'font-bold text-brand' : 'text-slate-500')}>
-                  <Icon name={t.icon} active={on} />{t.label}
+                <NavLink to={t.to} aria-current={on ? 'page' : undefined} className={cx('flex min-h-[58px] flex-col items-center justify-center gap-1 py-1.5 text-xs', on ? 'font-semibold text-brand' : 'text-slate-500')}>
+                  <span className={cx('grid h-8 w-14 place-items-center rounded-full transition-colors', on && 'bg-brand-soft')}><Icon name={t.icon} active={on} /></span>{t.label}
                 </NavLink>
               </li>
             );

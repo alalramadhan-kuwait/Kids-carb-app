@@ -85,7 +85,6 @@ function Live() {
   const rate = n ? rateAt(series, n - 1) : null;
   const latest = g?.latest;
   const status = latest && fresh !== 'missing' ? glucoseStatus(latest.mg_dl, settings.glucose_low_mgdl, settings.glucose_high_mgdl) : null;
-  const sign = (x: number, d: number) => `${x > 0 ? '+' : x < 0 ? '−' : ''}${Math.abs(x).toFixed(d)}`;
   const period = PERIODS.find((p) => Math.abs(p.ms - view.span) / p.ms < 0.03)?.id;
 
   return (
@@ -98,9 +97,7 @@ function Live() {
               {latest.trend && <span aria-label={TREND_WORDS[latest.trend]}><Icon name={TREND_ICON[latest.trend]} size={30} /></span>}
               <span className="text-sm text-slate-500">{unitLabel(unit)}</span>
             </div>
-            <div className="num mt-1 text-sm text-slate-600" dir="ltr">
-              {d15 !== null ? `${sign(unit === 'mmol' ? d15 / 18.016 : d15, unit === 'mmol' ? 1 : 0)} / 15 min` : ''}{d15 !== null && rate !== null ? ' · ' : ''}{rate !== null ? `${sign(unit === 'mmol' ? rate / 18.016 : rate, unit === 'mmol' ? 2 : 1)} / min` : ''}
-            </div>
+            <div className="mt-1 text-sm text-slate-600">{change(d15, rate, unit)}</div>
           </div>
         ) : <div className="text-lg font-bold text-slate-500">{g ? 'لا توجد قراءة حديثة' : '…'}</div>}
         <span className={cx('ms-auto mb-1 rounded-full px-2.5 py-1 text-xs font-bold', FRESH[fresh].cls)}>
@@ -134,4 +131,14 @@ function Live() {
       </Sheet>
     </div>
   );
+}
+
+/** "نزل 0.7 خلال 15 د · 0.05 بالدقيقة": words instead of +/− signs, which read ambiguously inside Arabic text. */
+function change(d15: number | null, rate: number | null, unit: 'mmol' | 'mgdl') {
+  const f = (mg: number, d: number) => (unit === 'mmol' ? Math.abs(mg / 18.016) : Math.abs(mg)).toFixed(unit === 'mmol' ? d : d === 2 ? 1 : 0);
+  const word = (x: number) => (Math.abs(x) < (unit === 'mmol' ? 1.8 : 2) ? 'ثابت' : x < 0 ? 'نزل' : 'صعد');
+  const parts: string[] = [];
+  if (d15 !== null) parts.push(word(d15) === 'ثابت' ? 'ثابت خلال 15 د' : `${word(d15)} ${f(d15, 1)} خلال 15 د`);
+  if (rate !== null && (d15 === null || word(d15) !== 'ثابت')) parts.push(`${d15 === null ? (rate < 0 ? 'ينزل ' : 'يصعد ') : ''}${f(rate, 2)} بالدقيقة`);
+  return parts.join(' · ');
 }

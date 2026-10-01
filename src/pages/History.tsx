@@ -71,7 +71,7 @@ export default function History() {
                   <div className="mt-0.5 flex flex-wrap gap-1 text-xs text-slate-500"><span>{fmtTime(d)}</span>
                     {h.kind === 'snack' && <Badge>سناك</Badge>}{h.modified && <Badge tone="near">معدّلة</Badge>}{h.glucose_mgdl !== null && <Badge tone="brand"><span className="inline-flex items-center gap-1"><Icon name="glucose" size={12} /><span className="num">{formatGlucose(h.glucose_mgdl, settings.glucose_unit)}</span>{h.glucose_trend ? <Icon name={TREND_ICON[h.glucose_trend]} size={12} label={TREND_WORDS[h.glucose_trend]} /> : null}</span></Badge>}<span>اختيرت <span className="num">{times.get(keyOf(h))}</span> مرة</span></div>
                 </div>
-                <div className="num text-2xl font-bold text-brand">{fmt(h.total_carbs)}<span className="text-xs font-medium">g</span></div>
+                <div className="num text-2xl font-bold text-brand">{fmt(h.total_carbs)}<span className="text-xs font-medium"> غ</span></div>
               </button>
               {open === h.id && (
                 <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 text-sm">

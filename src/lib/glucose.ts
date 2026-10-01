@@ -13,7 +13,7 @@ export interface GlucoseState {
 const MMOL = 18.016;
 export const formatGlucose = (mgdl: number, unit: GlucoseUnit) => (unit === 'mmol' ? (Math.round((mgdl / MMOL) * 10) / 10).toFixed(1) : String(Math.round(mgdl)));
 export const toMgdl = (v: number, unit: GlucoseUnit) => Math.round(unit === 'mmol' ? v * MMOL : v);
-export const unitLabel = (u: GlucoseUnit) => (u === 'mmol' ? 'mmol/L' : 'mg/dL');
+export const unitLabel = (u: GlucoseUnit) => (u === 'mmol' ? 'مليمول/ل' : 'ملغ/دل');
 
 
 /** A number on screen must say how old it is: a stale reading looks exactly like a live one. */
