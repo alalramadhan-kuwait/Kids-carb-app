@@ -1022,6 +1022,15 @@ open-source Loop with the care team's duration and peak (rapid insulin only; lon
 linear over the care team's absorption time. Columns `iob_dia_min`, `iob_peak_min`, `cob_absorb_min` are
 empty by default, so the layers stay locked until the parents enter them. Display only: nothing reads them to
 suggest anything. Completed: 97 %.
+Stage 11 shipped in 0.19.0: observed pattern cards on الأنماط following the 5.7 rules (recurring lows in one
+2-hour window, ≥ 3 in 14 days; overnight drift, median 00:00 → 06:00 over the last 7 nights ≥ 30 mg/dL; rise
+after a recipe, median ≥ 60 mg/dL with n ≥ 3 in 30 days; unusual day, today's time below or above range over her
+90th percentile of 14 days). Each card shows n, opens its rule, links its days to the Day view and can be hidden
+for a week; none suggests anything. الأرقام gains an expandable "Analytical — not a clinical target" section:
+MAGE (average of both directions), MODD, CONGA 1/2/4 h, LBGI, HBGI, ADRR on a 15-minute grid with the 10.10
+minimum data (value hidden below it). MAGE is checked against a synthetic wave, not yet against `iglu`.
+Not built: the 10.11 stored event rows and the 10.12 correlations and factors (they need n ≥ 10 comparable
+events, which the app does not yet hold). Completed: 100 % of the staged plan.
 
 
 ## Sources

@@ -4,6 +4,8 @@ import { glucoseStats, type GlucoseStats } from '../lib/api';
 import { formatGlucose, unitLabel } from '../lib/glucose';
 import { gmi, hoursOfDay, kuwaitDayStart } from '../lib/now';
 import { Badge, Card, Chip } from '../components/ui';
+import { fetchSeries } from '../engine/useSeries';
+import { MIN_DAYS, adrrBand, hbgiBand, lbgiBand, variability, type Variability } from '../engine/variability';
 
 const PERIODS = [
   { id: 'today', label: 'اليوم', days: 0 },
@@ -28,6 +30,7 @@ export default function StatsPanel() {
   const [period, setPeriod] = useState<(typeof PERIODS)[number]['id']>('today');
   const [s, setS] = useState<GlucoseStats | null>(null);
   const [err, setErr] = useState('');
+  const [vr, setVr] = useState<Variability | null>(null);
   const days = PERIODS.find((p) => p.id === period)!.days;
 
   useEffect(() => {
@@ -35,6 +38,8 @@ export default function StatsPanel() {
     const from = days === 0 ? kuwaitDayStart(to) : new Date(kuwaitDayStart(to).getTime() - (days - 1) * 86400000);
     setS(null); setErr('');
     glucoseStats(from, to, settings.glucose_low_mgdl, settings.glucose_high_mgdl).then(setS).catch((e) => setErr(e.message));
+    setVr(null);
+    fetchSeries(from.getTime(), to.getTime()).then((sr) => setVr(variability(sr, from.getTime(), to.getTime()))).catch(() => setVr(null));
   }, [days, settings.glucose_low_mgdl, settings.glucose_high_mgdl]);
 
   const unit = settings.glucose_unit;
@@ -83,10 +88,38 @@ export default function StatsPanel() {
               <Kpi label="تغطية البيانات" value={String(Math.round(s.coverage))} unit="%" note={`${s.n} قراءة`} />
             </div>
           </Card>
-          <p className="px-1 text-xs text-slate-400">تحليل الإنسولين والوجبات والارتباطات يأتي في المراحل القادمة.</p>
+          {vr && <Analytical v={vr} unit={unit} />}
         </div>
       )}
     </>
+  );
+}
+
+/** GLUCOSE_PLAN 10.10: published variability and risk indices, behind an expandable section, never a target. */
+function Analytical({ v, unit }: { v: Variability; unit: 'mmol' | 'mgdl' }) {
+  const g = (x: number | null) => (x === null ? '—' : formatGlucose(x, unit));
+  const need = (d: number) => `يحتاج ${d} ${d === 1 ? 'يومًا' : d === 2 ? 'يومين' : 'أيام'} من البيانات`;
+  const days = (d: number) => (d >= 3 && d <= 10 ? 'أيام' : 'يومًا');
+  return (
+    <Card>
+      <details>
+        <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between">
+          <h2 className="font-bold">تحليلي: التقلّب والمخاطر</h2><Badge>ليس هدفًا علاجيًا</Badge>
+        </summary>
+        <p className="mb-2 text-xs text-slate-500">مقاييس منشورة في الأبحاث، محسوبة على شبكة كل 15 دقيقة دون وصل الانقطاعات. البيانات: <b className="num">{v.days}</b> {days(Math.round(v.days))}.</p>
+        <div className="grid grid-cols-2 gap-2">
+          <Kpi label="MAGE" value={g(v.mage)} unit={unitLabel(unit)} note={v.mage === null ? need(MIN_DAYS.mage) : 'متوسط التقلبات الأكبر من انحراف معياري'} />
+          <Kpi label="MODD" value={g(v.modd)} unit={unitLabel(unit)} note={v.modd === null ? `${need(MIN_DAYS.modd)} متتالية` : 'الفرق عن نفس الوقت أمس'} />
+          <Kpi label="CONGA 1 س" value={g(v.conga1)} unit={unitLabel(unit)} note={v.conga1 === null ? need(MIN_DAYS.conga) : `2 س ${g(v.conga2)} · 4 س ${g(v.conga4)}`} />
+          <Kpi label="LBGI" value={v.lbgi === null ? '—' : v.lbgi.toFixed(1)} unit="" note={v.lbgi === null ? need(MIN_DAYS.risk) : `خطر الانخفاض: ${lbgiBand(v.lbgi)}`} />
+          <Kpi label="HBGI" value={v.hbgi === null ? '—' : v.hbgi.toFixed(1)} unit="" note={v.hbgi === null ? need(MIN_DAYS.risk) : `خطر الارتفاع: ${hbgiBand(v.hbgi)}`} />
+          <Kpi label="ADRR" value={v.adrr === null ? '—' : v.adrr.toFixed(0)} unit="" note={v.adrr === null ? need(MIN_DAYS.adrr) : `مدى الخطر اليومي: ${adrrBand(v.adrr)}`} />
+        </div>
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+          MAGE: Service 1970 (متوسط الاتجاهين). MODD: Molnar 1972. CONGA: McDonnell 2005. LBGI و HBGI و ADRR: Kovatchev، والتصنيف حسب الحدود المنشورة. للنقاش مع الفريق الطبي.
+        </p>
+      </details>
+    </Card>
   );
 }
 

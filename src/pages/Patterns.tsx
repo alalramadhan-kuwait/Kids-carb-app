@@ -6,7 +6,10 @@ import { effectiveRange, formatGlucose, unitLabel } from '../lib/glucose';
 import { gmi } from '../lib/now';
 import { Badge, Card, Chip, cx } from '../components/ui';
 import { MIN_DAYS, daysFor, solidRuns, type Bin, type DayFilter } from '../engine/profile';
-import { dayStartOf } from '../engine/day';
+import { dayStartOf, dayTitle } from '../engine/day';
+import { useNavigate } from 'react-router-dom';
+import { fetchSeries } from '../engine/useSeries';
+import { DISMISS_MS, findPatterns, visible, type PatternCard } from '../engine/patterns';
 
 const PERIODS = [7, 14, 30, 90];
 const WEEK = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
@@ -37,6 +40,7 @@ export function Patterns() {
 
   return (
     <div className="space-y-3 pb-4">
+      <PatternCards />
       <div className="flex gap-1.5" dir="ltr">
         {PERIODS.map((d) => <Chip key={d} active={days === d} onClick={() => setDays(d)}>{d} يوم</Chip>)}
       </div>
@@ -78,6 +82,55 @@ export function Patterns() {
         </Card>
       )}
     </div>
+  );
+}
+
+/** Observed pattern cards (GLUCOSE_PLAN 5.7, A8): the rule, n, the days behind it; dismissable for a week. Never advice. */
+function PatternCards() {
+  const { settings, history } = useData();
+  const nav = useNavigate();
+  const unit = settings.glucose_unit;
+  const [cards, setCards] = useState<PatternCard[] | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState<Record<string, number>>(() => { try { return JSON.parse(localStorage.getItem('dismissed_patterns') ?? '{}'); } catch { return {}; } });
+  const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
+  useEffect(() => {
+    const now = Date.now();
+    fetchSeries(now - 31 * 86400000, now + 60000)
+      .then((series) => setCards(findPatterns({ series, history, now, low: rng.low!, high: rng.high!, reference: rng.reference })))
+      .catch(() => setCards([]));
+  }, [history, rng.low, rng.high, rng.reference]);
+  const dismiss = (id: string) => {
+    const next = { ...dismissed, [id]: Date.now() + DISMISS_MS };
+    setDismissed(next); try { localStorage.setItem('dismissed_patterns', JSON.stringify(next)); } catch { /* private mode */ }
+  };
+  const shown = cards ? visible(cards, dismissed, Date.now()) : [];
+  if (!shown.length) return null;
+  const fill = (c: PatternCard) => c.facts.text.replace(/\{(\d)\}/g, (_, k) => `${formatGlucose(c.facts.mg![+k], unit)} ${unitLabel(unit)}`);
+  return (
+    <section className="space-y-2" aria-label="ملاحظات">
+      <h2 className="px-1 font-bold">ملاحظات من بياناتها</h2>
+      {shown.map((c) => (
+        <Card key={c.id} className="space-y-2 !py-3">
+          <div className="flex items-start gap-2">
+            <h3 className="flex-1 font-bold">{c.title}</h3>
+            <Badge>{c.kind === 'overnight_drift' ? `${c.days.length} من ${c.n} ليالٍ` : `n = ${c.n}`}</Badge>
+          </div>
+          <p className="text-sm text-slate-600">{fill(c)}</p>
+          {open === c.id && <p className="text-xs text-slate-500">{c.rule}</p>}
+          <div className="flex flex-wrap gap-1.5">
+            {c.days.slice(0, 6).map((d) => (
+              <button key={d} onClick={() => nav(`/analysis?mode=day&day=${d}`)} className="min-h-[36px] rounded-full bg-slate-50 px-3 text-xs font-bold text-brand">{dayTitle(d).split(' ').slice(-2).join(' ')}</button>
+            ))}
+          </div>
+          <div className="flex gap-4 text-xs font-bold text-slate-500">
+            <button className="min-h-[36px]" onClick={() => setOpen(open === c.id ? null : c.id)}>{open === c.id ? 'إخفاء القاعدة' : 'كيف عرفنا؟'}</button>
+            <button className="min-h-[36px]" onClick={() => dismiss(c.id)}>إخفاء أسبوعًا</button>
+          </div>
+        </Card>
+      ))}
+      <p className="px-1 text-[11px] text-slate-400">ملاحظات وصفية من القراءات، ليست نصيحة علاجية. ناقشوها مع الفريق الطبي.</p>
+    </section>
   );
 }
 

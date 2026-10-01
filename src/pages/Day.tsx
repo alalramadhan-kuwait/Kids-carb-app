@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { useGlucose } from '../hooks/useGlucose';
 import { glucoseStats, type GlucoseStats } from '../lib/api';
@@ -28,7 +29,9 @@ export function DayView() {
   const land = useLandscape();
   const unit = settings.glucose_unit;
   const today = dayStartOf(Date.now());
-  const [day, setDay] = useState(today);
+  const [params] = useSearchParams();
+  // a pattern card can open a given day: ?mode=day&day=<Kuwait midnight ms>
+  const [day, setDay] = useState(() => { const d = Number(params.get('day')); return d && dayStartOf(d) === d && d <= today ? d : today; });
   const [view, setView] = useState<View>({ end: today + DAY, span: DAY });
   const [focus, setFocus] = useState<number | null>(null);
   const [picked, setPicked] = useState<Group | null>(null);

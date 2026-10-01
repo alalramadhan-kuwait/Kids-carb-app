@@ -14,6 +14,8 @@ import { inWindow, isNight, schoolWindow } from '../schedule';
 import { daysFor, solidRuns } from '../../engine/profile';
 import { seriesStats } from '../../engine/stats';
 import { buildCsv } from '../export';
+import { adrrBand, grid, hbgiBand, lbgiBand, riskF, variability } from '../../engine/variability';
+import { findPatterns, visible } from '../../engine/patterns';
 import { cobAt, dosesFrom, iobAt, iobFraction, iobParamsOk } from '../../engine/iob';
 import { GRID, alignCurve, buildOccurrence, coverage, medianCurve, notClean, summary, windowSeries } from '../../engine/meals';
 import { alertMessage, evaluate, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
@@ -757,6 +759,74 @@ test('IOB follows the exponential model (1 at the dose, 0 at DIA, falling); COB 
   const doses = dosesFrom([evr({ insulin_units: 3, insulin_type: 'rapid', occurred_at: '2026-10-01T10:00:00Z' }), evr({ id: 'l', insulin_units: 12, insulin_type: 'long', occurred_at: '2026-10-01T10:00:00Z' })] as any);
   assert.equal(doses.length, 1); assert.equal(iobAt(t0, doses, p), 3); assert.equal(iobAt(t0 - 60000, doses, p), 0);
   assert.equal(cobAt(t0 + 90 * M, [{ t: t0, grams: 45 }], 180), 22.5); assert.equal(cobAt(t0 + 200 * M, [{ t: t0, grams: 45 }], 180), 0);
+});
+
+console.log('variability and pattern cards');
+
+const mkSeries = (from: number, to: number, f: (t: number) => number | null, step = 60000) => {
+  const t: number[] = [], v: number[] = [];
+  for (let x = from; x < to; x += step) { const y = f(x); if (y !== null) { t.push(x); v.push(y); } }
+  return { t: Float64Array.from(t), v: Float64Array.from(v) };
+};
+
+test('variability: flat glucose has no swings; a 6-hour wave of ±50 gives MAGE about 100; MODD sees a day-to-day shift; minimum data hides values', () => {
+  const D = 86400000, start = Date.UTC(2026, 8, 1) - 3 * 3600000;
+  const flat = variability(mkSeries(start, start + 8 * D, () => 120), start, start + 8 * D);
+  assert.equal(flat.mage, 0); assert.equal(flat.modd, 0); assert.equal(flat.conga1, 0); assert.equal(flat.lbgi, 0);
+  const wave = (x: number) => 140 + 50 * Math.sin((2 * Math.PI * (x - start)) / (6 * 3600000)) + (Math.floor((x - start) / D) % 2 ? 20 : 0); // every other day 20 higher
+  const w = variability(mkSeries(start, start + 8 * D, wave), start, start + 8 * D);
+  assert.ok(Math.abs(w.mage! - 100) < 6, String(w.mage));
+  assert.ok(Math.abs(w.modd! - 20) < 0.5, String(w.modd));
+  assert.ok(w.conga1! > 20);
+  // 15-minute history and 1-minute live readings land on the same grid
+  const g1 = grid(mkSeries(start, start + D, () => 100), start, start + D), g15 = grid(mkSeries(start, start + D, () => 100, 900000), start, start + D);
+  assert.equal(g1.v.filter((x) => !isNaN(x)).length, g15.v.filter((x) => !isNaN(x)).length);
+  // a gap stays a gap: no pairs across it
+  const gappy = variability(mkSeries(start, start + 2 * D, (x) => (x - start < 30 * 3600000 ? 100 : x - start < 33 * 3600000 ? null : 200)), start, start + 2 * D);
+  assert.equal(gappy.conga1, 0);
+  // below the plan's minimum data the value is hidden
+  const short = variability(mkSeries(start, start + 3 * D, () => 120), start, start + 3 * D);
+  assert.equal(short.mage, null); assert.equal(short.modd, 0); assert.equal(short.adrr, null);
+});
+
+test('risk indices: Kovatchev f is zero at 112.5 mg/dL; a day at 50 is high low-risk, a day at 300 high high-risk', () => {
+  assert.ok(Math.abs(riskF(112.5)) < 0.01);
+  const D = 86400000, start = Date.UTC(2026, 8, 1) - 3 * 3600000;
+  const lo = variability(mkSeries(start, start + 14 * D, () => 50), start, start + 14 * D);
+  assert.equal(lbgiBand(lo.lbgi!), 'مرتفع'); assert.equal(lo.hbgi, 0); assert.equal(lo.fullDays, 14); assert.ok(Math.abs(lo.adrr! - 22.5) < 0.3, String(lo.adrr)); assert.equal(adrrBand(lo.adrr!), 'متوسط'); // f(50) ≈ −1.50 by hand → 10f² ≈ 22.5
+  const hi = variability(mkSeries(start, start + D, () => 300), start, start + D);
+  assert.equal(hbgiBand(hi.hbgi!), 'مرتفع'); assert.equal(hi.adrr, null, 'ADRR needs 14 days');
+});
+
+test('pattern cards follow plan 5.7: recurring lows, overnight drift, rise after a recipe, unusual day; each states its rule', () => {
+  const D = 86400000, H = 3600000, now = Date.UTC(2026, 9, 1, 12) - 3 * H; // noon Kuwait
+  const today = dayStartOf(now);
+  const driftNights = new Set([0, 1, 2, 4, 5].map((k) => today - k * D));        // 5 of 7 nights fall 80
+  const lowStarts = [3, 8, 11].map((k) => today - k * D - 1.5 * H);             // 22:30 three times
+  const meals = [8, 10, 11, 12].map((k) => today - k * D + 13 * H);
+  const f = (t: number) => {
+    const d = dayStartOf(t), c = t - d;
+    if (d === today && c >= 7 * H) return 60;                                    // today: low since 07:00
+    if (driftNights.has(d) && c <= 6 * H) return 180 - (80 * c) / (6 * H);
+    if (lowStarts.some((x) => t >= x && t < x + 25 * 60000)) return 60;
+    for (const m of meals) if (t >= m && t < m + 150 * 60000) return 110 + Math.min(80, ((t - m) / 60000) * 1.2);
+    return 110;
+  };
+  const series = mkSeries(today - 31 * D, now, f);
+  const history = meals.map((m, k) => ({ id: 'b' + k, kind: 'meal', recipe_id: 'r9', name: 'مكرونة', eaten_at: new Date(m).toISOString() })) as unknown as HistoryEntry[];
+  const cards = findPatterns({ series, history, now, low: 70, high: 180, reference: true });
+  const by = (k: string) => cards.find((c) => c.kind === k);
+  assert.equal(by('recurring_lows')?.n, 3); assert.ok(by('recurring_lows')!.title.includes('22:00'));
+  assert.ok(by('recurring_lows')!.facts.text.includes('مرجعي'));
+  assert.equal(by('overnight_drift')?.id, 'overnight_drift:down'); assert.equal(by('overnight_drift')!.days.length, 5); assert.equal(by('overnight_drift')!.facts.mg![1], 80);
+  assert.equal(by('recipe_rise')?.title, 'ارتفاع بعد مكرونة'); assert.equal(by('recipe_rise')!.n, 4); assert.equal(by('recipe_rise')!.facts.mg![0], 80);
+  assert.equal(by('unusual_day')?.id, `unusual_day:${today}:lo`);
+  for (const c of cards) assert.ok(c.rule.startsWith('القاعدة'), 'every card states its rule');
+  assert.equal(findPatterns({ series: mkSeries(today - 31 * D, now, () => 110), history: [], now, low: 70, high: 180, reference: false }).length, 0);
+  // dismissing hides a card for a week
+  const id = by('overnight_drift')!.id;
+  assert.equal(visible(cards, { [id]: now + 1000 }, now).some((c) => c.id === id), false);
+  assert.equal(visible(cards, { [id]: now - 1000 }, now).some((c) => c.id === id), true);
 });
 
 console.log('releases');

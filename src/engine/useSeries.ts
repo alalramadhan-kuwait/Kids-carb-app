@@ -3,6 +3,14 @@ import { supabase } from '../lib/supabase';
 import type { Reading } from '../lib/glucose';
 import { emptySeries, mergeSeries, type Series } from './series';
 
+/** One fetch of readings in [from, to) as a Series (epoch ms, mg/dL). */
+export async function fetchSeries(from: number, to: number): Promise<Series> {
+  const { data, error } = await supabase.rpc('glucose_series', { p_from: new Date(from).toISOString(), p_to: new Date(to).toISOString() });
+  if (error) throw new Error(error.message);
+  const d = data as { t: number[]; v: number[] };
+  return { t: Float64Array.from(d.t, (s) => s * 1000), v: Float64Array.from(d.v) };
+}
+
 /**
  * Readings for the timeline, loaded lazily as the view moves and kept in memory (one contiguous loaded range,
  * grown in both directions). Live readings from useGlucose are merged in as they arrive.
