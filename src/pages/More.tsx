@@ -15,6 +15,7 @@ import { setThemePref, themePref, type ThemePref } from '../lib/theme';
 import { isEn, t, tMaybe } from '../i18n';
 import { LangSwitch } from '../components/LangSwitch';
 import { callFood, type FoodStatus } from '../lib/food';
+import { ratioOk, type Ratio } from '../engine/status';
 
 /** Puts values into a translated sentence as bold numbers: rich(t('… {a} …'), { a: 5 }). */
 const rich = (s: string, v: Record<string, ReactNode>) => s.split(/\{(\w+)\}/).map((x, i) => (i % 2 ? <b key={i} className="num">{v[x]}</b> : x));
@@ -239,7 +240,11 @@ export function SettingsPage() {
     : out(s.iob_peak_min, 35, 120) ? t('الذروة بين 35 و120 دقيقة.')
     : s.iob_dia_min !== null && s.iob_peak_min! >= s.iob_dia_min / 2 ? t('الذروة يجب أن تكون أقل من نصف مدة العمل.')
     : out(s.cob_absorb_min, 60, 360) ? t('امتصاص الكارب بين 60 و360 دقيقة.') : null;
-  const bad = s.preferred_min > s.preferred_max || s.preferred_max > s.max_meal_carbs || !!iobBad;
+  const ratios = s.ratios ?? [];
+  const setR = (i: number, patch: Partial<Ratio>) => setS({ ...s, ratios: ratios.map((r, n) => (n === i ? { ...r, ...patch } : r)) });
+  const ratioBad = ratios.some((r) => !ratioOk(r)) ? t('نسبة الكارب بين 3 و100 غ، والتصحيح بين {lo} و{hi} {unit}.', { lo: formatGlucose(10, s.glucose_unit), hi: formatGlucose(500, s.glucose_unit), unit: unitLabel(s.glucose_unit) })
+    : new Set(ratios.map((r) => r.from)).size < ratios.length ? t('لكل فترة وقت بداية مختلف.') : null;
+  const bad = s.preferred_min > s.preferred_max || s.preferred_max > s.max_meal_carbs || !!iobBad || !!ratioBad;
 
   return (
     <Page title={t('الإعدادات')} back={() => nav(-1)}>
@@ -291,7 +296,7 @@ export function SettingsPage() {
 
         <Card className="space-y-3">
           <h2 className="font-bold">{t('الإنسولين والكارب النشط (IOB / COB)')}</h2>
-          <Alert tone="info">{t('للعرض فقط على الرسم. اكتبوا الأرقام كما أعطاكم إياها الفريق الطبي. التطبيق لا يقترح جرعات ولا كميات علاج.')}</Alert>
+          <Alert tone="info">{t('للعرض فقط على الرسم وصفحة الحالة. اكتبوا الأرقام كما أعطاكم إياها الفريق الطبي. التطبيق لا يقترح جرعات ولا كميات علاج.')}</Alert>
           <p className="text-sm text-slate-600">{t('مدة عمل الإنسولين السريع وذروته، ومدة امتصاص الكارب، بالدقائق. اتركوها فارغة ليبقى العرض مطفأً.')}</p>
           <div className="grid grid-cols-3 items-end gap-3">
             <Field label={t('مدة العمل (د)')}><NumInput value={s.iob_dia_min} onChange={(v) => setS({ ...s, iob_dia_min: v })} /></Field>
@@ -299,6 +304,36 @@ export function SettingsPage() {
             <Field label={t('الكارب (د)')}><NumInput value={s.cob_absorb_min} onChange={(v) => setS({ ...s, cob_absorb_min: v })} /></Field>
           </div>
           {iobBad && <p className="text-sm font-bold text-brand">{iobBad}</p>}
+        </Card>
+
+        <Card className="space-y-3">
+          <h2 className="font-bold">{t('نسبة الكارب ومعامل التصحيح')}</h2>
+          <Alert tone="info">{t('من الطبيب، لصفحة الحالة فقط: تقدير تقريبي لما سيصل إليه السكر بعد انتهاء الكارب والإنسولين المسجّلين. التطبيق لا يحسب جرعات.')}</Alert>
+          {ratios.length > 0 && (
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.5rem] gap-2 text-xs text-slate-500">
+              <span>{t('من الساعة')}</span><span>{t('غ لكل وحدة')}</span><span>{t('{unit} لكل وحدة', { unit: unitLabel(s.glucose_unit) })}</span><span />
+            </div>
+          )}
+          {ratios.map((r, i) => (
+            <div key={i} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.5rem] items-end gap-2">
+              <input type="time" aria-label={t('من الساعة')} className={inputCls} value={r.from} onChange={(e) => setR(i, { from: e.target.value })} />
+              <NumInput aria-label={t('غ لكل وحدة')} value={r.cr} onChange={(v) => setR(i, { cr: v ?? 0 })} />
+              <NumInput aria-label={t('معامل التصحيح')} value={Number(formatGlucose(r.isf, s.glucose_unit))} onChange={(v) => setR(i, { isf: v === null ? 0 : toMgdl(v, s.glucose_unit) })} />
+              <button aria-label={t('حذف')} className="h-11 rounded-xl bg-slate-100 text-slate-500" onClick={() => setS({ ...s, ratios: ratios.filter((_, n) => n !== i) })}>✕</button>
+            </div>
+          ))}
+          <p className="text-sm text-slate-600">{ratios.length ? t('كل فترة تبدأ من ساعتها حتى الفترة التالية. فترة واحدة تكفي لليوم كله.') : t('اتركوها فارغة ليبقى التقدير مطفأً.')}</p>
+          {ratios.length < 8 && <Btn kind="ghost" block onClick={() => setS({ ...s, ratios: [...ratios, { from: ratios.length ? '12:00' : '00:00', cr: ratios[ratios.length - 1]?.cr ?? 0, isf: ratios[ratios.length - 1]?.isf ?? 0 }] })}>{t('+ فترة')}</Btn>}
+          {ratioBad && <p className="text-sm font-bold text-brand">{ratioBad}</p>}
+        </Card>
+
+        <Card className="space-y-3">
+          <h2 className="font-bold">{t('الحساس')}</h2>
+          <Field label={t('نوع الحساس')} hint={t('لحساب موعد انتهائه والتذكير قبله بيوم وبساعتين.')}>
+            <select className={inputCls} value={s.sensor_days ?? 14} onChange={(e) => setS({ ...s, sensor_days: Number(e.target.value) as 14 | 15 })}>
+              <option value={14}>{t('Libre 2 — 14 يومًا')}</option><option value={15}>{t('Libre 2 Plus — 15 يومًا')}</option>
+            </select>
+          </Field>
         </Card>
 
         <AiKeyCard />

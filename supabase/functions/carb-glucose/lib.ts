@@ -90,3 +90,20 @@ export function loginProblem(http: number, json: any): LluErrorCode | null {
   if (http >= 400 || (json && json.status !== 0 && !json?.data?.redirect)) return http === 401 ? 'bad_credentials' : 'upstream';
   return null;
 }
+
+/** The active sensor from a graph or connections reply: serial and activation time (LibreLinkUp's "a", Unix seconds). */
+export function sensorFrom(data: any): { sn: string; started_at: string } | null {
+  const s = data?.activeSensors?.[0]?.sensor ?? data?.connection?.sensor ?? data?.[0]?.sensor;
+  const a = Number(s?.a);
+  if (!s?.sn || !Number.isFinite(a) || a < 1.5e9 || a > 4e9) return null;
+  return { sn: String(s.sn), started_at: new Date(a * 1000).toISOString() };
+}
+
+/** Which expiry reminder is due now, if one has not gone out for this sensor: 24 hours, then 2 hours before. */
+export function sensorReminderDue(startedAt: string, days: number, sn: string, reminded: string | null, now: number): '24' | '2' | null {
+  const left = Date.parse(startedAt) + days * 86400000 - now;
+  if (left <= 0) return null;
+  if (left <= 2 * 3600000) return reminded === `${sn}:2` ? null : '2';
+  if (left <= 24 * 3600000) return reminded === `${sn}:24` || reminded === `${sn}:2` ? null : '24';
+  return null;
+}

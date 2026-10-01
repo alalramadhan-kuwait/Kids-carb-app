@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.6.0",
+    "date": "2026-10-01",
+    "notes": [
+      "صفحة «الحالة»: السكر الآن، الكارب والإنسولين النشط، وتقدير تقريبي بعد انتهائهما حسب نسب الطبيب",
+      "نسبة الكارب ومعامل التصحيح من الطبيب في الإعدادات، بفترات حسب الوقت",
+      "عمر الحساس: متى بدأ ومتى ينتهي، مع تذكير للجوالات قبل يوم وقبل ساعتين",
+      "سطر جديد تحت رقم السكر في الرئيسية يعرض النشط ويفتح صفحة الحالة"
+    ],
+    "notes_en": [
+      "Status page: glucose now, active carbs and insulin, and a rough estimate once they are used up, from the doctor's ratios",
+      "The doctor's carb ratio and correction factor in Settings, by time of day",
+      "Sensor life: when it started and ends, with phone reminders a day and two hours before",
+      "A new line under the glucose on Home shows what is active and opens Status"
+    ]
+  },
+  {
     "version": "1.5.2",
     "date": "2026-10-01",
     "notes": [

@@ -2,8 +2,8 @@
 // service, the same route Gluroo uses) with a follower account, stores the readings, and returns
 // them. The login is kept in Supabase Vault; the browser can save it but never read it back.
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { hostFor, LLU_PRODUCT, LLU_VERSION, LluError, loginProblem, maskEmail, readingsFromGraph, redirectRegion, sha256Hex, tooSoon } from './lib.ts';
-import { ackMessage, alertMessage, evaluate, recipients, testMessage, type AlertCfg, type AlertKind, type Lang, type OpenAlert } from './alerts.ts';
+import { hostFor, LLU_PRODUCT, LLU_VERSION, LluError, loginProblem, maskEmail, readingsFromGraph, redirectRegion, sensorFrom, sensorReminderDue, sha256Hex, tooSoon } from './lib.ts';
+import { ackMessage, alertMessage, evaluate, recipients, sensorMessage, testMessage, type AlertCfg, type AlertKind, type Lang, type OpenAlert } from './alerts.ts';
 import { newVapid, sendPush, type Vapid } from './push.ts';
 
 const cors = {
@@ -108,6 +108,22 @@ async function pushAll(db: Db, payload: Payload | ((lang: Lang) => Payload), o: 
 }
 
 // ── Alerts: evaluated after every server poll ─────────────────────────────────
+/** One push to everyone 24 h and 2 h before the sensor ends; remembered per serial so each goes out once. */
+async function sensorReminder(db: Db, now: number) {
+  const [{ data: st }, { data: set }] = await Promise.all([
+    db.from('cgm_state').select('connected,sensor_sn,sensor_started_at,sensor_reminded').eq('id', true).single(),
+    db.from('settings').select('child_name,sensor_days').eq('id', true).single(),
+  ]);
+  const s = st as any;
+  if (!s?.connected || !s.sensor_sn || !s.sensor_started_at) return;
+  const days = (set as any)?.sensor_days ?? 14;
+  const due = sensorReminderDue(s.sensor_started_at, days, s.sensor_sn, s.sensor_reminded, now);
+  if (!due) return;
+  await db.from('cgm_state').update({ sensor_reminded: `${s.sensor_sn}:${due}` }).eq('id', true); // claim first: never twice
+  const ends = Date.parse(s.sensor_started_at) + days * 86400000;
+  await pushAll(db, (lang) => ({ ...sensorMessage(due, ends, (set as any)?.child_name ?? 'ليان', lang), tag: 'sensor', url: './#/status' }), { kind: 'sensor', urgency: 'normal' });
+}
+
 async function runAlerts(db: Db, now: number) {
   const [st, set, last, open, mem] = await Promise.all([
     db.from('cgm_state').select('connected').eq('id', true).single(),
@@ -189,12 +205,14 @@ Deno.serve(async (req) => {
   const reply = async (extra: Record<string, unknown> = {}) => {
     if (fromCron) {
       try { await runAlerts(db, Date.now()); } catch (e) { console.error('alerts', e instanceof Error ? e.message : e); }
+      try { await sensorReminder(db, Date.now()); } catch (e) { console.error('sensor', e instanceof Error ? e.message : e); }
       return json({ ok: !extra.error, ...extra });
     }
     const st = await state();
     const readings = await recent();
     return json({ connected: Boolean(st?.connected), account_hint: st?.account_hint ?? null, last_ok_at: st?.last_ok_at ?? null,
-      last_error: st?.last_error ?? null, latest: readings.at(-1) ?? null, readings, ...extra });
+      last_error: st?.last_error ?? null, latest: readings.at(-1) ?? null, readings,
+      sensor: st?.sensor_started_at ? { sn: st.sensor_sn, started_at: st.sensor_started_at } : null, ...extra });
   };
   const fail = async (e: unknown) => {
     const code = e instanceof LluError ? e.code : 'upstream';
@@ -296,7 +314,9 @@ Deno.serve(async (req) => {
         // a 200 with nothing in it is not success: say so instead of pretending all is well
         if (!readings.length) throw new LluError('no_data', 'graph returned no readings');
         if (readings.length) await db.from('glucose_readings').upsert(readings, { onConflict: 'taken_at' });
-        await db.from('cgm_state').update({ last_ok_at: new Date().toISOString(), last_error: null, updated_at: new Date().toISOString() }).eq('id', true);
+        const sensor = sensorFrom(r.json?.data);
+        await db.from('cgm_state').update({ last_ok_at: new Date().toISOString(), last_error: null, updated_at: new Date().toISOString(),
+          ...(sensor ? { sensor_sn: sensor.sn, sensor_started_at: sensor.started_at } : {}) }).eq('id', true);
         return await reply();
       } catch (e) { return await fail(e); }
     }

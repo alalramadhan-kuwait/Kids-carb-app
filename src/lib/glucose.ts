@@ -8,6 +8,8 @@ export interface GlucoseState {
   last_error: string | null;
   latest: Reading | null;
   readings: Reading[];
+  /** the sensor LibreLinkUp reports: serial and activation time */
+  sensor?: { sn: string | null; started_at: string } | null;
   error?: string;
 }
 

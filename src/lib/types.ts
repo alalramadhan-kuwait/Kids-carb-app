@@ -1,3 +1,4 @@
+import type { Ratio } from '../engine/status';
 export type Unit = 'g' | 'ml' | 'serving' | 'tbsp';
 export type State = 'raw' | 'cooked' | 'as_is';
 export type Role = 'main' | 'drink' | 'snack';
@@ -103,6 +104,9 @@ export interface Settings {
   escalate_min: number;
   /** display-only IOB / COB, from the care team; null = off */
   iob_dia_min: number | null; iob_peak_min: number | null; cob_absorb_min: number | null;
+  /** the doctor's carb ratio and correction factor by time of day; empty = no estimate */
+  ratios: Ratio[];
+  sensor_days: 14 | 15;
 }
 
 export interface HistoryLine {
@@ -165,6 +169,7 @@ export const DEFAULT_SETTINGS: Settings = {
   school_days: [0, 1, 2, 3, 4], school_start: null, school_end: null, school_low_mgdl: null, school_high_mgdl: null,
   escalate_min: 10,
   iob_dia_min: null, iob_peak_min: null, cob_absorb_min: null,
+  ratios: [], sensor_days: 14,
 };
 
 export type AlertKind = 'urgent_low' | 'low' | 'high' | 'no_data' | 'rapid_fall' | 'rapid_rise';

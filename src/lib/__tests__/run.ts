@@ -892,6 +892,49 @@ test('t(): placeholders, English plurals, fallback to Arabic', async () => {
   i.__setLangForTest('ar');
 });
 
+console.log('status page');
+
+{
+  const { onBoard, ratioAt, sensorLife } = await import('../../engine/status');
+  const { sensorFrom, sensorReminderDue } = await import('../../../supabase/functions/carb-glucose/lib');
+  const H = 3600000, T0 = Date.UTC(2026, 9, 1, 9, 0);
+  const R = [{ from: '06:00', cr: 15, isf: 54 }, { from: '12:00', cr: 20, isf: 72 }];
+  test('the doctor\'s block in effect wraps past midnight', () => {
+    assert.equal(ratioAt(R, 7 * 60)!.cr, 15); assert.equal(ratioAt(R, 13 * 60)!.cr, 20); assert.equal(ratioAt(R, 2 * 60)!.cr, 20);
+    assert.equal(ratioAt([{ from: '06:00', cr: 0, isf: 54 }], 400), null, 'a bad block is ignored');
+  });
+  const ev = (units: number, at: number) => ({ id: 'e', kind: 'insulin', insulin_type: 'rapid', insulin_units: units, occurred_at: new Date(at).toISOString(), deleted_at: null }) as never;
+  const meal = (g: number, at: number) => ({ eaten_at: new Date(at).toISOString(), total_carbs: g }) as never;
+  const base = { now: T0, kuwaitMin: 12 * 60 + 30, iob: { dia: 360, peak: 65 }, absorbMin: 180, ratios: R };
+  test('estimate = current + carbs left ÷ CR × ISF − insulin left × ISF', () => {
+    const o = onBoard({ ...base, glucose: { mg: 120, at: T0 }, history: [meal(40, T0)], events: [ev(2, T0)] });
+    assert.equal(o.iob, 2); assert.equal(o.cob, 40);
+    assert.ok(Math.abs(o.est! - (120 + 40 / 20 * 72 - 2 * 72)) < 1e-9);
+    assert.equal(o.estBy, T0 + 360 * 60000);
+  });
+  test('no estimate from an old reading, or without the doctor\'s numbers', () => {
+    assert.equal(onBoard({ ...base, glucose: { mg: 120, at: T0 - 20 * 60000 }, history: [], events: [] }).est, null);
+    assert.equal(onBoard({ ...base, ratios: [], glucose: { mg: 120, at: T0 }, history: [], events: [] }).est, null);
+    const idle = onBoard({ ...base, glucose: { mg: 120, at: T0 }, history: [], events: [] });
+    assert.equal(idle.est, 120); assert.equal(idle.estBy, T0);
+  });
+  test('sensor life and its reminders, once each per serial', () => {
+    const start = new Date(T0 - 13.5 * 24 * H).toISOString();
+    const l = sensorLife(start, 14, T0); assert.equal(l.state, 'today'); assert.ok(Math.abs(l.left - 12 * H) < 1);
+    assert.equal(sensorLife(new Date(T0 - 30 * 60000).toISOString(), 14, T0).warmup, true);
+    assert.equal(sensorLife(start, 14, T0 + 13 * H).state, 'ended');
+    assert.equal(sensorReminderDue(start, 14, 'A', null, T0), '24');
+    assert.equal(sensorReminderDue(start, 14, 'A', 'A:24', T0), null);
+    assert.equal(sensorReminderDue(start, 14, 'A', 'A:24', T0 + 11 * H), '2');
+    assert.equal(sensorReminderDue(start, 14, 'B', 'A:2', T0), '24', 'a new sensor starts over');
+    assert.equal(sensorReminderDue(start, 15, 'A', null, T0), null, 'Libre 2 Plus: a day more');
+  });
+  test('sensor serial and start from a LibreLinkUp reply', () => {
+    assert.deepEqual(sensorFrom({ activeSensors: [{ sensor: { sn: '0ABC', a: 1790000000 } }] }), { sn: '0ABC', started_at: new Date(1790000000000).toISOString() });
+    assert.equal(sensorFrom({ connection: { sensor: { sn: 'X', a: 0 } } }), null);
+  });
+}
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {

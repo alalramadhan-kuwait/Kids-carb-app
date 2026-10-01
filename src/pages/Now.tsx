@@ -25,6 +25,8 @@ import { describeEvent } from '../lib/events';
 import { Card, asset, cx } from '../components/ui';
 import { dir, isEn, t } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
+import { units2, useOnBoard } from './Status';
+import { sensorLife } from '../engine/status';
 
 const TONE_DOT: Record<Tone, string> = { ok: 'bg-ok-fill', low: 'bg-over-fill', urgent: 'bg-over', high: 'bg-near-fill', warn: 'bg-near-fill', plain: 'bg-slate-300' };
 const TONE_TEXT: Record<Tone, string> = { ok: 'text-ok', low: 'text-over', urgent: 'text-over', high: 'text-near', warn: 'text-near', plain: 'text-slate-700' };
@@ -47,6 +49,8 @@ export default function Now() {
   const status = latest ? glucoseStatus(latest.mg_dl, rng.low, rng.high) : null;
   const sentence = statusSentence({ hasReading: !!latest, age: age?.state ?? null, status, trend: latest?.trend ?? null });
   const notConnected = !!g && !g.connected;
+  const ob = useOnBoard(latest);
+  const sensor = g?.sensor?.started_at ? sensorLife(g.sensor.started_at, settings.sensor_days ?? 14, Date.now()) : null;
 
   const lastMeal = history.find((h) => h.kind === 'meal');
   const lastInsulin = events.find((e) => e.kind === 'insulin');
@@ -95,6 +99,16 @@ export default function Now() {
               <p className="mt-1 text-sm text-near">{t('آخر قراءة')} <span className="num font-bold">{formatGlucose(latest.mg_dl, unit)}</span> {sinceText(latest.taken_at)}. {t('تحقق من جوال ليان والحساس.')}</p>
             ) : null}
             {g?.error && <p className="mt-1 text-sm text-over">{GLUCOSE_ERRORS[g.error] ?? g.error} <button className="min-h-[44px] underline" onClick={reload}>{t('إعادة')}</button></p>}
+            {/* what is on board, and the sensor when it is nearly done: details on the Status page */}
+            <Link to="/status" className="-mx-1 mt-1 flex min-h-[44px] items-center gap-2 border-t border-slate-100 px-1 pt-1 text-sm text-slate-600">
+              <span className="min-w-0 flex-1 truncate">
+                {sensor && sensor.state !== 'ok'
+                  ? <b className="text-slate-900">{sensor.state === 'ended' ? t('انتهى الحساس') : t('الحساس ينتهي {time}', { time: sinceUntil(sensor.left) })}</b>
+                  : ob.ready ? <>{t('نشط:')} {[ob.iob !== null ? t('{u} وحدة', { u: units2(ob.iob) }) : '', ob.cob !== null ? t('{g} غ', { g: fmt(ob.cob) }) : ''].filter(Boolean).join(' · ')}</>
+                  : t('الحالة والحساس')}
+              </span>
+              <span className="shrink-0 font-bold text-brand">{t('الحالة')} {isEn() ? '›' : '‹'}</span>
+            </Link>
           </Card>
         )}
         {/* the graph runs edge to edge with no box around it, so it can use the whole width and plenty of height */}
@@ -151,6 +165,11 @@ export default function Now() {
     </main>
   );
 }
+
+const sinceUntil = (ms: number) => {
+  const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
+  return h > 0 ? t('خلال {h} س', { h }) : t('خلال {m} د', { m });
+};
 
 /** Setup progress as a small ring (goal gradient), with the count inside. */
 function SetupRing({ done, total }: { done: number; total: number }) {

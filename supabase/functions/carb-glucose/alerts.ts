@@ -214,3 +214,13 @@ export function recipients(members: { user_id: string; alert_role: string }[], n
   if (notify === 'escalate') return on.map((m) => m.user_id);
   return (primary.length ? primary : on).map((m) => m.user_id);
 }
+
+/** Sensor expiry reminder: when it ends, in Kuwait time, so a change can be planned outside school or sleep. */
+export function sensorMessage(due: '24' | '2', endsAt: number, child: string, lang: Lang = 'ar') {
+  const en = lang === 'en', name = childName(child, lang);
+  const k = new Date(endsAt + 3 * 3600000);
+  const at = `${String(k.getUTCHours()).padStart(2, '0')}:${String(k.getUTCMinutes()).padStart(2, '0')}`;
+  const title = en ? `${name}'s sensor ends ${due === '2' ? 'in 2 hours' : 'within a day'}` : `حساس ${name} ينتهي ${due === '2' ? 'خلال ساعتين' : 'خلال يوم'}`;
+  const body = en ? `At ${at}. Have a new sensor ready.` : `الساعة ${at}. جهّزوا حساسًا جديدًا.`;
+  return { title, body };
+}
