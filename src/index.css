@@ -54,3 +54,10 @@ html, body { background: rgb(var(--bg)); color: rgb(var(--text)); font-family: '
 body { -webkit-tap-highlight-color: transparent; padding-bottom: env(safe-area-inset-bottom); }
 .num { font-family: 'Rubik', system-ui, sans-serif; font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; display: inline-block; }
 input, select, textarea { font: inherit; }
+
+/* clinic report: print on white, without the app's chrome */
+@media print {
+  nav, .print\:hidden { display: none !important; }
+  html, body { background: #fff !important; }
+  .report { color: #261E5C; }
+}

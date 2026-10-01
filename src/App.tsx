@@ -17,6 +17,9 @@ import Cgm from './pages/Cgm';
 import AlertsPage from './pages/Alerts';
 import CarePlanPage from './pages/CarePlan';
 import Night from './pages/Night';
+import Shared from './pages/Shared';
+import SharePage from './pages/Share';
+import Report from './pages/Report';
 import { isNight } from './lib/schedule';
 import { UpdateBanner, VersionTag } from './components/Version';
 import { Icon } from './components/Icon';
@@ -141,7 +144,7 @@ const TABS: { to: string; label: string; icon: IconName; match: string[] }[] = [
   { to: '/timeline', label: 'السجل', icon: 'history', match: ['/timeline'] },
   { to: '/meals', label: 'الوجبات', icon: 'meals', match: ['/meals', '/recipes', '/products', '/plan', '/snacks'] },
   { to: '/analysis', label: 'التحليل', icon: 'advanced', match: ['/analysis', '/advanced'] },
-  { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm', '/alerts', '/care-plan'] },
+  { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm', '/alerts', '/care-plan', '/share', '/report'] },
 ];
 
 /** Night colours during the parents' night window (if they turned it on); the phone's dark mode still applies otherwise. */
@@ -187,6 +190,8 @@ function Shell() {
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/care-plan" element={<CarePlanPage />} />
         <Route path="/night" element={<Night />} />
+        <Route path="/share" element={<SharePage />} />
+        <Route path="/report" element={<Report />} />
         <Route path="/snacks" element={<SnacksPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/more" element={<More />} />
@@ -229,6 +234,9 @@ export default function App() {
   };
   useEffect(() => { if (session) void check(); else setMember(null); }, [session?.user.id]);
 
+  // a share link (#/s/<token>) is read-only and works without signing in
+  const shared = location.hash.match(/^#\/s\/([0-9a-f]{48})$/);
+  if (shared) return <Shared token={shared[1]} />;
   if (session === undefined) return null;
   let body;
   if (session && recovery) body = <SetPassword onDone={() => setRecovery(false)} />;

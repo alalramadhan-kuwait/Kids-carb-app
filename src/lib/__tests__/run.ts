@@ -13,6 +13,7 @@ import { dayStartOf, dayTitle, dayTotals, lowEpisodes } from '../../engine/day';
 import { inWindow, isNight, schoolWindow } from '../schedule';
 import { daysFor, solidRuns } from '../../engine/profile';
 import { seriesStats } from '../../engine/stats';
+import { buildCsv } from '../export';
 import { GRID, alignCurve, buildOccurrence, coverage, medianCurve, notClean, summary, windowSeries } from '../../engine/meals';
 import { alertMessage, evaluate, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
@@ -731,6 +732,18 @@ test('period stats on the phone follow carb.glucose_stats (time-weighted, 15-min
   assert.equal(st.min, 60); assert.equal(st.max, 200);
   assert.equal(seriesStats(ser, from, from + 180 * M, from + 180 * M, [5, 6]).n, 0); // Thursday is not weekend
   assert.equal(seriesStats(ser, from, from + 180 * M, from + 180 * M, [4]).n, 13);
+});
+
+test('CSV export: Kuwait time, both units, logged entries in order, commas quoted, deleted entries skipped', () => {
+  const t = Date.parse('2026-10-01T04:15:00Z');
+  const csv = buildCsv([{ t, v: 126 }], [evr({ id: 'a', insulin_units: 3, insulin_type: 'rapid', occurred_at: '2026-10-01T04:05:00Z', note: 'قبل الفطور, بسرعة' }),
+    evr({ id: 'b', insulin_units: 9, insulin_type: 'rapid', occurred_at: '2026-10-01T05:00:00Z', deleted_at: '2026-10-01T05:01:00Z' })] as any,
+    [meal({ eaten_at: '2026-10-01T04:20:00Z', total_carbs: 42 })] as any, () => 'ماما');
+  const lines = csv.replace('\uFEFF', '').trim().split('\r\n');
+  assert.equal(lines.length, 4);
+  assert.equal(lines[1], '2026-10-01 07:05,إنسولين,,,,3,سريع,"قبل الفطور, بسرعة",ماما');
+  assert.equal(lines[2], '2026-10-01 07:15,قراءة,126,7.0,,,,,');
+  assert.ok(lines[3].startsWith('2026-10-01 07:20,وجبة,,,42'));
 });
 
 console.log('releases');

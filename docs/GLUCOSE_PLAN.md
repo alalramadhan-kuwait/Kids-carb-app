@@ -1009,7 +1009,12 @@ the reason shown, median curve and 25–75 % band and the medians summary from �
 Stage 8 shipped in 0.16.0: Compare (today/yesterday, week/last week, school/weekend profiles over 28 days,
 custom two days) with synchronized timelines and an A/B/difference table from `engine/stats.ts`, the same
 time-weighted method as `carb.glucose_stats` plus a weekday filter; landscape full screen for Live and Day.
-Completed: 85 %. The app loads the last 60 days of
+Completed: 85 %.
+Stage 9 shipped in 0.17.0: read-only share links (token made in the database, only its SHA-256 kept, expiry,
+revoke; school scope adds the care plan) opened without signing in through `carb.share_view` — the anon role
+reaches only that function and no table (audited); CSV export (Kuwait time, both units); a printable clinic
+report (AGP, ranges, GMI, CV, coverage, logged totals). Per-person roles beyond alert roles are not built.
+Completed: 92 %. The app loads the last 60 days of
 events, so markers older than that do not show yet.
 
 
