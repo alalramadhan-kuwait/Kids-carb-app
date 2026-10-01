@@ -11,6 +11,8 @@ import { registerSw } from './lib/push';
 import { applyLang, useLang } from './i18n';
 
 applyLang();
+// iOS Safari ignores user-scalable=no; block its pinch gesture directly
+document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

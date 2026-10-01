@@ -88,3 +88,8 @@ input, select, textarea { font: inherit; }
 .truncate, .line-clamp-1, .line-clamp-2 { unicode-bidi: plaintext; }
 :where(html[dir="ltr"] .truncate, html[dir="ltr"] .line-clamp-1, html[dir="ltr"] .line-clamp-2) { text-align: left; }
 :where(html[dir="rtl"] .truncate, html[dir="rtl"] .line-clamp-1, html[dir="rtl"] .line-clamp-2) { text-align: right; }
+
+/* A fixed, app-like page: iPhone zooms into any field whose text is under 16px, so fields keep 16px while the rest
+   of the app stays compact; no pinch zoom, no sideways drift, no rubber-band of the whole page. */
+input, select, textarea { font-size: 16px !important; }
+html, body { overflow-x: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; }

@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.5.1",
+    "date": "2026-10-01",
+    "notes": [
+      "الشاشة ثابتة: لا تتكبّر عند الكتابة في الحقول، ولا تتحرك للجانب ولا تتكبّر بالأصبعين"
+    ],
+    "notes_en": [
+      "The screen stays put: no zooming when typing in a field, no sideways movement or pinch zoom"
+    ]
+  },
+  {
     "version": "1.5.0",
     "date": "2026-10-01",
     "notes": [
