@@ -843,6 +843,37 @@ test('pattern cards follow plan 5.7: recurring lows, overnight drift, rise after
   assert.equal(visible(cards, { [id]: now - 1000 }, now).some((c) => c.id === id), true);
 });
 
+console.log('food photos and barcodes');
+
+test('photo estimates are cleaned: bounded numbers, carbs never above the weight, totals computed here, no dosing text', async () => {
+  const { cleanEstimate, mentionsDosing, SCHEMA } = await import('../../../supabase/functions/carb-food/estimate');
+  const e = cleanEstimate({ is_food: true, notes_ar: 'تحقق من السكر', notes_en: 'Check the sugar', items: [
+    { name_ar: 'شاي', name_en: 'Tea', grams: 150, carbs_g: 10, protein_g: 0, fat_g: 0, kcal: 40, confidence: 'low', hidden_sugar: true },
+    { name_ar: 'خبز', name_en: 'Bread', grams: 30, carbs_g: 90, protein_g: -3, fat_g: 'x', kcal: 80, confidence: 'weird', hidden_sugar: 'yes' },
+  ] });
+  assert.equal(e.items.length, 2);
+  assert.equal(e.items[1].carbs_g, 30, 'carbs capped at the weight');
+  assert.equal(e.items[1].protein_g, 0); assert.equal(e.items[1].fat_g, 0); assert.equal(e.items[1].confidence, 'low'); assert.equal(e.items[1].hidden_sugar, false);
+  assert.equal(e.total.carbs_g, 40);
+  assert.equal(cleanEstimate({ is_food: true, items: [] }).is_food, false, 'no items means nothing to log');
+  assert.equal(cleanEstimate(null).items.length, 0);
+  assert.ok(mentionsDosing('give 2 units of insulin') && mentionsDosing('جرعة الإنسولين') && !mentionsDosing('Check the sugar in the tea'));
+  // the schema the model must answer in is strict (structured outputs)
+  assert.equal(SCHEMA.additionalProperties, false); assert.equal(SCHEMA.properties.items.items.additionalProperties, false);
+});
+
+test('editing an estimated item: grams scale everything; barcode data reads Open Food Facts per 100 g', async () => {
+  const { scaleItem, totals, offToPackaged } = await import('../foodcalc');
+  const i = { name_ar: 'أرز', name_en: 'Rice', grams: 100, carbs_g: 28, protein_g: 2.7, fat_g: 0.3, kcal: 130, confidence: 'medium' as const, hidden_sugar: false };
+  const h = scaleItem(i, 150);
+  assert.equal(h.carbs_g, 42); assert.equal(h.kcal, 195); assert.equal(h.grams, 150);
+  assert.equal(totals([i, h]).carbs, 70);
+  const p = offToPackaged('6281007', { status: 1, product: { product_name: 'Juice', product_name_ar: 'عصير', brands: 'Almarai, X', serving_quantity: '200', nutriments: { carbohydrates_100g: 11.5, proteins_100g: 0.4, 'energy-kcal_100g': 48 } } }, 'ar')!;
+  assert.equal(p.name, 'عصير'); assert.equal(p.brand, 'Almarai'); assert.equal(p.per100.carbs, 11.5); assert.equal(p.serving, 200); assert.equal(p.per100.fat, null);
+  assert.equal(offToPackaged('1', { status: 1, product: { product_name: 'No carbs listed', nutriments: {} } }, 'en'), null, 'no carb value: not usable');
+  assert.equal(offToPackaged('1', { status: 0 }, 'en'), null);
+});
+
 console.log('languages');
 
 test('English: every t() text has a translation with the same placeholders, and no Arabic is left outside t()', async () => {

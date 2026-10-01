@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.3.0",
+    "date": "2026-10-01",
+    "notes": [
+      "صوّر الأكل: صورة واحدة تقدّر الأصناف والكميات والكارب بالذكاء الاصطناعي، أو تقرأ باركود المنتج",
+      "التقدير قابل للتعديل بالكامل، ولا يُحفظ شيء قبل مراجعتكم، ويُكتب في السجل أنه تقدير",
+      "من «سجّل» أو من الوجبات. يحتاج مفتاح Anthropic في الإعدادات"
+    ],
+    "notes_en": [
+      "Snap food: one photo estimates the items, amounts and carbs with AI, or reads a product barcode",
+      "The estimate is fully editable, nothing is saved before you check it, and the log marks it as an estimate",
+      "From Log or Meals. Needs an Anthropic key in Settings"
+    ]
+  },
+  {
     "version": "1.2.0",
     "date": "2026-10-01",
     "notes": [

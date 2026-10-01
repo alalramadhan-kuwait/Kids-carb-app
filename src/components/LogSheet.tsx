@@ -96,9 +96,14 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
               </button>
             ))}
           </div>
-          <Link to="/meals" onClick={close} className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-white font-medium ring-1 ring-slate-200">
-            <Icon name="meals" size={22} /> {t('وجبة من الوصفات')}
-          </Link>
+          <div className="grid grid-cols-2 gap-2">
+            <Link to="/scan" onClick={close} className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-white font-medium ring-1 ring-slate-200">
+              <Icon name="camera" size={22} /> {t('صوّر الأكل')}
+            </Link>
+            <Link to="/meals" onClick={close} className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-white font-medium ring-1 ring-slate-200">
+              <Icon name="meals" size={22} /> {t('من الوصفات')}
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">

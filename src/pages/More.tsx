@@ -14,6 +14,7 @@ import { Alert, Badge, Btn, Card, CarbBadge, Field, NumInput, Page, Photo, asset
 import { setThemePref, themePref, type ThemePref } from '../lib/theme';
 import { isEn, t, tMaybe } from '../i18n';
 import { LangSwitch } from '../components/LangSwitch';
+import { callFood, type FoodStatus } from '../lib/food';
 
 /** Puts values into a translated sentence as bold numbers: rich(t('… {a} …'), { a: 5 }). */
 const rich = (s: string, v: Record<string, ReactNode>) => s.split(/\{(\w+)\}/).map((x, i) => (i % 2 ? <b key={i} className="num">{v[x]}</b> : x));
@@ -195,6 +196,38 @@ export function SnacksPage() {
 }
 
 // ── settings ────────────────────────────────────────────────────────────────
+/** The Anthropic key for photo estimates: write-only (kept in Vault by the server, never shown again). */
+function AiKeyCard() {
+  const [st, setSt] = useState<FoodStatus | null>(null);
+  const [key, setKey] = useState('');
+  const [busy, setBusy] = useState(false);
+  const load = () => callFood<FoodStatus>({ action: 'status' }).then(setSt).catch(() => setSt(null));
+  useEffect(() => { void load(); }, []);
+  const save = async () => {
+    setBusy(true);
+    try { await callFood({ action: 'save_key', key }); setKey(''); toast(t('تم حفظ المفتاح ✓')); await load(); }
+    catch (e) { toast((e as Error).message === 'bad_key' ? t('المفتاح غير صالح.') : t('تعذّر التحقق من المفتاح.')); }
+    finally { setBusy(false); }
+  };
+  return (
+    <Card className="space-y-3">
+      <h2 className="font-bold">{t('تقدير الأكل من الصور')}</h2>
+      <p className="text-sm text-slate-600">{t('يستخدم Claude من Anthropic. يحتاج مفتاح API من console.anthropic.com (الاستخدام مدفوع، بحد {n} صورة في اليوم). يُحفظ المفتاح مشفّرًا ولا يظهر مرة أخرى.', { n: st?.limit ?? 40 })}</p>
+      {st?.configured ? (
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-medium text-brand">{t('المفتاح محفوظ ✓')}</span>
+          <Btn kind="ghost" onClick={async () => { if (confirm(t('حذف المفتاح؟ يتوقف تقدير الصور.'))) { await callFood({ action: 'clear_key' }); await load(); } }}>{t('حذف المفتاح')}</Btn>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <input className={inputCls} dir="ltr" type="password" autoComplete="off" placeholder="sk-ant-…" value={key} onChange={(e) => setKey(e.target.value)} />
+          <Btn kind="primary" disabled={!key || busy} onClick={save}>{t('حفظ')}</Btn>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function SettingsPage() {
   const nav = useNavigate();
   const { settings, reload } = useData();
@@ -267,6 +300,8 @@ export function SettingsPage() {
           </div>
           {iobBad && <p className="text-sm font-bold text-brand">{iobBad}</p>}
         </Card>
+
+        <AiKeyCard />
 
         <Btn kind="primary" block disabled={bad} onClick={async () => {
           try { await saveSettings({ ...s, category_targets: s.category_targets.filter((ct) => ct.category.trim()) }); await reload(); toast(t('تم حفظ الإعدادات ✓')); }

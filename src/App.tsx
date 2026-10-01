@@ -20,6 +20,7 @@ import Night from './pages/Night';
 import Shared from './pages/Shared';
 import SharePage from './pages/Share';
 import Report from './pages/Report';
+import Scan from './pages/Scan';
 import { isNight } from './lib/schedule';
 import { UpdateBanner, VersionTag } from './components/Version';
 import { Icon } from './components/Icon';
@@ -146,7 +147,7 @@ function Claim({ onDone }: { onDone: () => void }) {
 const TABS: { to: string; label: string; icon: IconName; match: string[] }[] = [
   { to: '/', label: 'الآن', icon: 'home', match: ['/'] }, // i18n-ok
   { to: '/timeline', label: 'السجل', icon: 'history', match: ['/timeline'] }, // i18n-ok
-  { to: '/meals', label: 'الوجبات', icon: 'meals', match: ['/meals', '/recipes', '/products', '/plan', '/snacks'] }, // i18n-ok
+  { to: '/meals', label: 'الوجبات', icon: 'meals', match: ['/meals', '/recipes', '/products', '/plan', '/snacks', '/scan'] }, // i18n-ok
   { to: '/analysis', label: 'التحليل', icon: 'advanced', match: ['/analysis', '/advanced'] }, // i18n-ok
   { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm', '/alerts', '/care-plan', '/share', '/report'] }, // i18n-ok
 ];
@@ -193,6 +194,7 @@ function Shell() {
         <Route path="/products/new" element={<ProductEdit />} />
         <Route path="/products/:id" element={<ProductEdit />} />
         <Route path="/plan" element={<Plan />} />
+        <Route path="/scan" element={<Scan />} />
         <Route path="/cgm" element={<Cgm />} />
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/care-plan" element={<CarePlanPage />} />
