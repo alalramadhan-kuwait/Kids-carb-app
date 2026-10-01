@@ -22,6 +22,12 @@ export default {
         },
         brand: { DEFAULT: v('primary-strong'), soft: v('primary-soft'), light: v('primary'), muted: v('primary-muted'), num: v('num') },
         warm: { soft: v('accent-soft') },
+        // entry kinds (insulin, carbs, exercise, sleep, note)
+        kins: { DEFAULT: v('k-ins'), soft: v('k-ins-soft') },
+        kcarb: { DEFAULT: v('k-carb'), soft: v('k-carb-soft') },
+        kex: { DEFAULT: v('k-ex'), soft: v('k-ex-soft') },
+        ksleep: { DEFAULT: v('k-sleep'), soft: v('k-sleep-soft') },
+        knote: { DEFAULT: v('k-note'), soft: v('k-note-soft') },
         // medical colours: DEFAULT is the readable text colour, soft is the chip background
         ok: { DEFAULT: v('st-in-text'), soft: v('st-in-soft'), fill: v('st-in') },
         near: { DEFAULT: v('st-high-text'), soft: v('st-high-soft'), fill: v('st-high') },

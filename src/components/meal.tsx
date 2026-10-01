@@ -5,7 +5,8 @@ import { logMeal } from '../lib/api';
 import { useData } from '../lib/data';
 import type { Recipe } from '../lib/types';
 import { t, tMaybe } from '../i18n';
-import { Btn, CarbBadge, Photo, recipeArt, toast } from './ui';
+import { Btn, CarbBadge, Photo, cx, recipeArt, toast } from './ui';
+import { KIND_STYLE } from '../lib/kinds';
 
 export const lineName = (l: Line) => l.ing.label ?? l.product?.name ?? (l.ing.slot_category ? tMaybe(l.ing.slot_category) : t('؟'));
 
@@ -48,7 +49,7 @@ export function MealCard({ recipe, meal, chosenToday }: { recipe: Recipe; meal: 
           <span className="mt-1 block"><CarbBadge carbs={meal.total.carbs} level={meal.level} unknown={!meal.complete} size="sm" /></span>
         </span>
       </Link>
-      <Btn kind="soft" className="min-h-[44px] shrink-0 !px-4" disabled={busy || chosenToday}
+      <Btn kind="soft" className={cx('min-h-[44px] shrink-0 !px-4', KIND_STYLE.meal.soft)} disabled={busy || chosenToday}
         onClick={() => choose({ kind: 'meal', recipe_id: recipe.id, name: recipe.name, category: recipe.category, meal, modified: false })}>
         {chosenToday ? t('✓ اخترناها') : t('اخترناها')}
       </Btn>

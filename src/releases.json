@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.5.0",
+    "date": "2026-10-01",
+    "notes": [
+      "لكل نوع تسجيل لون يسهل تمييزه: الإنسولين أزرق، الكارب والوجبات وردي، الرياضة تركوازي، النوم نيلي، الملاحظات رمادي، علاج الانخفاض أحمر",
+      "الألوان نفسها في أزرار التسجيل والسجل والرسم",
+      "الخط أصغر قليلًا"
+    ],
+    "notes_en": [
+      "Each kind of entry has its own colour: insulin blue, carbs and meals pink, exercise teal, sleep indigo, notes grey, low treatment red",
+      "The same colours on the log buttons, the Log and the graph",
+      "Slightly smaller text"
+    ]
+  },
+  {
     "version": "1.4.0",
     "date": "2026-10-01",
     "notes": [

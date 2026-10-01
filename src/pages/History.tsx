@@ -8,9 +8,10 @@ import type { IconName } from '../icons/defs';
 import { formatGlucose, unitLabel } from '../lib/glucose';
 import { Icon, TREND_ICON, TREND_WORDS } from '../components/Icon';
 import { fmtTime } from '../lib/constants';
-import { Btn, Card, Chip, Page, Sheet, toast } from '../components/ui';
+import { Btn, Card, Chip, Page, Sheet, cx, toast } from '../components/ui';
 import { dayStartOf, dayTitle, dayTotals } from '../engine/day';
 import { isEn, t, tMaybe } from '../i18n';
+import { KIND_STYLE } from '../lib/kinds';
 
 const DAY = 86400000;
 type Kind = 'all' | 'meals' | 'insulin' | 'treatment' | 'other';
@@ -102,7 +103,7 @@ function Row({ it, who, onOpen }: { it: Item; who: string; onOpen: () => void })
     <li>
       <button onClick={onOpen} className="flex min-h-[56px] w-full items-center gap-3 px-4 py-2 text-start active:bg-slate-50">
         <span className="num w-[4.5rem] shrink-0 text-sm text-slate-500">{fmtTime(new Date(it.t))}</span>
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name={icon} size={18} /></span>
+        <span className={cx('grid h-8 w-8 shrink-0 place-items-center rounded-full', KIND_STYLE[it.h ? 'meal' : it.e!.kind].icon)}><Icon name={icon} size={18} /></span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium">{main}</span>
           {(sub || who) && <span className="block truncate text-xs text-slate-500"><bdi>{[sub, who].filter(Boolean).join(' · ')}</bdi></span>}

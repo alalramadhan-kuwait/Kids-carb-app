@@ -17,6 +17,7 @@ import { dayStartOf, dayTitle, dayTotals, lowEpisodes, type Episode } from '../e
 import type { View } from '../engine/series';
 import type { IconName } from '../icons/defs';
 import { isEn, t } from '../i18n';
+import { KIND_STYLE } from '../lib/kinds';
 
 const H = 3600000, DAY = 24 * H, KW = 3 * H;
 const clock = (t: number) => { const d = new Date(t + KW); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
@@ -162,7 +163,7 @@ export function DayView() {
                     </>
                   ) : (
                     <>
-                      <span className={cx('grid h-8 w-8 shrink-0 place-items-center rounded-full', r.mark!.kind === 'treatment' ? 'bg-over-soft text-over' : 'bg-brand-muted/70 text-brand')}><Icon name={ICON[r.mark!.kind]} size={17} /></span>
+                      <span className={cx('grid h-8 w-8 shrink-0 place-items-center rounded-full', KIND_STYLE[r.mark!.kind].icon)}><Icon name={ICON[r.mark!.kind]} size={17} /></span>
                       <span className="min-w-0 flex-1 truncate font-medium">{r.mark!.meal ? r.mark!.meal.name + ' · ' + t('{v} غ', { v: fmt(r.mark!.meal.total_carbs) }) : r.mark!.event!.kind === 'note' ? r.mark!.event!.note : describeEvent(r.mark!.event!)}</span>
                     </>
                   )}

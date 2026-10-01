@@ -4,10 +4,11 @@ import { useData } from '../lib/data';
 import { blocker, suggest } from '../lib/suggest';
 import { computeSnack, problemText, type Problem } from '../lib/carbs';
 import { sameDay } from '../lib/constants';
-import { Alert, Btn, Page, CarbBadge } from '../components/ui';
+import { Alert, Btn, Page, CarbBadge, cx } from '../components/ui';
 import { MealCard, useChoose } from '../components/meal';
 import { Icon } from '../components/Icon';
 import { isEn, t, tMaybe } from '../i18n';
+import { KIND_STYLE } from '../lib/kinds';
 
 const SHUFFLE_KEY = 'kc-shuffle';
 const readShuffle = () => { try { const v = JSON.parse(localStorage.getItem(SHUFFLE_KEY) ?? 'null'); return v?.day === new Date().toDateString() ? Number(v.n) : 0; } catch { return 0; } };
@@ -89,7 +90,7 @@ export default function Today() {
                 <span className="block truncate font-bold">{s.name}</span>
                 <span className="mt-1 block"><CarbBadge carbs={meal.total.carbs} level="normal" size="sm" unknown={!meal.complete} /></span>
               </span>
-              <Btn kind="soft" className="min-h-[44px] shrink-0 !px-4" disabled={busy || !meal.complete}
+              <Btn kind="soft" className={cx('min-h-[44px] shrink-0 !px-4', KIND_STYLE.meal.soft)} disabled={busy || !meal.complete}
                 onClick={() => choose({ kind: 'snack', recipe_id: null, name: s.name,
                   category: 'سناك', // i18n-ok: stored category name
                   meal, modified: false })}>{t('اخترناه')}</Btn>

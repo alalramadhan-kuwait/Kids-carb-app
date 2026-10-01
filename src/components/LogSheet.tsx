@@ -9,6 +9,7 @@ import { Icon } from './Icon';
 import type { IconName } from '../icons/defs';
 import { Alert, Btn, Field, NumInput, Sheet, cx, inputCls, toast } from './ui';
 import { t } from '../i18n';
+import { KIND_STYLE } from '../lib/kinds';
 
 const KINDS: { kind: EventKind; label: string; icon: IconName }[] = [
   { kind: 'insulin', label: 'إنسولين', icon: 'insulin' }, // i18n-ok
@@ -91,8 +92,8 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
             {KINDS.map((k) => (
-              <button key={k.kind} onClick={() => setKind(k.kind)} className="flex min-h-[88px] flex-col items-center justify-center gap-2 rounded-2xl bg-brand-soft text-brand">
-                <Icon name={k.icon} size={30} /><span className="font-bold">{t(k.label)}</span>
+              <button key={k.kind} onClick={() => setKind(k.kind)} className={cx('flex min-h-[80px] flex-col items-center justify-center gap-1.5 rounded-2xl', KIND_STYLE[k.kind].soft)}>
+                <Icon name={k.icon} size={26} /><span className="text-sm font-bold">{t(k.label)}</span>
               </button>
             ))}
           </div>
@@ -117,20 +118,20 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
                   : <NumInput value={kind === 'insulin' ? units : kind === 'exercise' ? mins : grams} onChange={kind === 'insulin' ? setUnits : kind === 'exercise' ? setMins : setGrams}
                       className="!min-h-[56px] !text-center !text-3xl font-bold" autoFocus />}
               </div>
-              <Btn kind="primary" className="min-h-[56px] shrink-0 !px-5" disabled={!valid || busy || (!!dup && !dupAck)} onClick={save}>{t('حفظ')}</Btn>
+              <Btn kind="primary" className={cx('min-h-[56px] shrink-0 !px-5', KIND_STYLE[kind].solid)} disabled={!valid || busy || (!!dup && !dupAck)} onClick={save}>{t('حفظ')}</Btn>
             </div>
           )}
           {kind !== 'sleep' && kind !== 'note' && (
-            <Steps steps={kind === 'insulin' ? [1, 0.5] : kind === 'exercise' ? [15, 5] : [5, 1]}
+            <Steps tone={KIND_STYLE[kind].soft} steps={kind === 'insulin' ? [1, 0.5] : kind === 'exercise' ? [15, 5] : [5, 1]}
               value={kind === 'insulin' ? units : kind === 'exercise' ? mins : grams} onChange={kind === 'insulin' ? setUnits : kind === 'exercise' ? setMins : setGrams} />
           )}
           {kind === 'insulin' && <>
-            <Seg value={type} onChange={(v) => setType(v as 'rapid' | 'long')} options={[['rapid', t('سريع المفعول')], ['long', t('طويل المفعول')]]} />
-            {type === 'rapid' && <Seg value={purpose ?? ''} onChange={(v) => setPurpose((v || null) as typeof purpose)} options={[['meal', t('لوجبة')], ['correction', t('تصحيح')], ['both', t('الاثنين')]]} allowNone />}
+            <Seg on={KIND_STYLE[kind!].solid} value={type} onChange={(v) => setType(v as 'rapid' | 'long')} options={[['rapid', t('سريع المفعول')], ['long', t('طويل المفعول')]]} />
+            {type === 'rapid' && <Seg on={KIND_STYLE[kind!].solid} value={purpose ?? ''} onChange={(v) => setPurpose((v || null) as typeof purpose)} options={[['meal', t('لوجبة')], ['correction', t('تصحيح')], ['both', t('الاثنين')]]} allowNone />}
             {units !== null && units > 20 && <Alert tone="near">{t('رقم كبير. تأكد أنه صحيح قبل الحفظ.')}</Alert>}
           </>}
-          {kind === 'treatment' && <Seg value={treat} onChange={setTreat} options={[['عصير', t('عصير')], ['أقراص جلوكوز', t('أقراص')], ['أخرى', t('أخرى')]]} /* i18n-ok: stored values */ />}
-          {kind === 'exercise' && <Seg value={level} onChange={(v) => setLevel(v as typeof level)} options={(['light', 'moderate', 'hard'] as const).map((l) => [l, LEVEL_TEXT[l]])} />}
+          {kind === 'treatment' && <Seg on={KIND_STYLE[kind!].solid} value={treat} onChange={setTreat} options={[['عصير', t('عصير')], ['أقراص جلوكوز', t('أقراص')], ['أخرى', t('أخرى')]]} /* i18n-ok: stored values */ />}
+          {kind === 'exercise' && <Seg on={KIND_STYLE[kind!].solid} value={level} onChange={(v) => setLevel(v as typeof level)} options={(['light', 'moderate', 'hard'] as const).map((l) => [l, LEVEL_TEXT[l]])} />}
           {kind === 'sleep' && (
             <div className="grid grid-cols-2 gap-3">
               <Field label={t('نامت')}><input type="time" dir="ltr" className={inputCls} value={sleepFrom} onChange={(e) => setSleepFrom(e.target.value)} /></Field>
@@ -143,7 +144,7 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
           {kind !== 'note' && <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('ملاحظة (اختياري)')} />}
           {kind !== 'sleep' && <div>
             <div className="mb-1 text-sm font-medium text-slate-600">{kind === 'exercise' ? t('متى بدأت؟') : t('متى؟')}</div>
-            <Seg value={String(ago)} onChange={(v) => setAgo(Number(v))} options={AGO.map((m) => [String(m), m === 0 ? t('الآن') : m === 60 ? t('قبل ساعة') : t('قبل {m} د', { m })])} />
+            <Seg on={KIND_STYLE[kind!].solid} value={String(ago)} onChange={(v) => setAgo(Number(v))} options={AGO.map((m) => [String(m), m === 0 ? t('الآن') : m === 60 ? t('قبل ساعة') : t('قبل {m} د', { m })])} />
           </div>}
           {dup && !dupAck && (
             <Alert tone="near">
@@ -166,23 +167,23 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
 }
 
 /** Quick adjustments, as in other diabetes apps: − big, − small | + small, + big. Never below zero. */
-function Steps({ steps, value, onChange }: { steps: [number, number]; value: number | null; onChange: (v: number | null) => void }) {
+function Steps({ steps, value, onChange, tone }: { steps: [number, number]; value: number | null; onChange: (v: number | null) => void; tone: string }) {
   const [big, small] = steps;
   const add = (d: number) => onChange(Math.max(0, Math.round(((value ?? 0) + d) * 100) / 100));
   const b = (d: number) => (
-    <button key={d} onPointerDown={(e) => e.preventDefault()} onClick={() => add(d)} className="min-h-[44px] flex-1 rounded-xl bg-brand-soft text-sm font-bold text-brand active:opacity-80" dir="ltr">
+    <button key={d} onPointerDown={(e) => e.preventDefault()} onClick={() => add(d)} className={cx('min-h-[44px] flex-1 rounded-xl text-sm font-bold active:opacity-80', tone)} dir="ltr">
       <span className="num">{d > 0 ? '+' : '−'}{Math.abs(d)}</span>
     </button>
   );
   return <div className="flex gap-1.5" dir="ltr">{b(-big)}{b(-small)}{b(small)}{b(big)}</div>;
 }
 
-function Seg({ value, onChange, options, allowNone }: { value: string; onChange: (v: string) => void; options: [string, string][]; allowNone?: boolean }) {
+function Seg({ value, onChange, options, allowNone, on }: { value: string; onChange: (v: string) => void; options: [string, string][]; allowNone?: boolean; on?: string }) {
   return (
     <div className="flex gap-2" role="radiogroup">
       {options.map(([v, l]) => (
         <button key={v} role="radio" aria-checked={value === v} onClick={() => onChange(allowNone && value === v ? '' : v)}
-          className={cx('min-h-[44px] flex-1 rounded-xl px-2 text-sm font-medium', value === v ? 'bg-brand text-white' : 'bg-white ring-1 ring-slate-200')}>
+          className={cx('min-h-[44px] flex-1 rounded-xl px-2 text-sm font-medium', value === v ? (on ?? 'bg-brand text-white') : 'bg-white ring-1 ring-slate-200')}>
           {l}
         </button>
       ))}

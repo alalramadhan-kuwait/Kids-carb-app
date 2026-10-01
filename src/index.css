@@ -14,6 +14,13 @@
   --st-high: 242 165 65; --st-high-text: 143 90 0; --st-high-soft: 253 241 220;
   --st-low: 233 95 104;  --st-low-text: 184 58 68; --st-low-soft: 252 230 232;
   --shadow-card: 0 4px 18px rgba(91, 72, 214, 0.06);
+  /* kinds of entry: each has its own colour so buttons and icons are told apart at a glance (never glucose colours) */
+  --k-ins: 46 124 214;  --k-ins-soft: 227 238 251;
+  --k-carb: 194 64 143; --k-carb-soft: 251 231 242;
+  --k-ex: 14 141 160;   --k-ex-soft: 222 243 246;
+  --k-sleep: 79 91 213; --k-sleep-soft: 230 232 251;
+  --k-note: 100 116 139; --k-note-soft: 236 239 243;
+
   color-scheme: light;
 }
 /* Night: follows the phone's dark mode (and data-theme="night" for the night schedule later). */
@@ -28,6 +35,18 @@
     --st-in: 95 211 162;   --st-in-text: 95 211 162;   --st-in-soft: 27 53 52;
     --st-high: 245 182 90; --st-high-text: 245 182 90; --st-high-soft: 58 46 34;
     --st-low: 255 122 131; --st-low-text: 255 122 131; --st-low-soft: 58 32 48;
+    --k-ins: 116 170 240;  --k-ins-soft: 36 52 84;
+    --k-carb: 240 128 196; --k-carb-soft: 72 38 64;
+    --k-ex: 86 203 218;    --k-ex-soft: 26 62 70;
+    --k-sleep: 150 158 245; --k-sleep-soft: 46 48 92;
+    --k-note: 170 180 196; --k-note-soft: 58 58 74;
+
+    --k-ins: 116 170 240;  --k-ins-soft: 36 52 84;
+    --k-carb: 240 128 196; --k-carb-soft: 72 38 64;
+    --k-ex: 86 203 218;    --k-ex-soft: 26 62 70;
+    --k-sleep: 150 158 245; --k-sleep-soft: 46 48 92;
+    --k-note: 170 180 196; --k-note-soft: 58 58 74;
+
     --shadow-card: none;
     color-scheme: dark;
   }
@@ -50,7 +69,7 @@
 @media (prefers-color-scheme: dark) { :root:not([data-theme="day"]) { --drop-urgent: #FF5A68; --drop-low: #FF7A83; --drop-in: #5FD3A2; --drop-high: #F5B65A; --drop-vhigh: #F0954A; } }
 :root[data-theme="night"] { --drop-urgent: #FF5A68; --drop-low: #FF7A83; --drop-in: #5FD3A2; --drop-high: #F5B65A; --drop-vhigh: #F0954A; }
 
-html { font-size: 15px; } /* compact: everything sized in rem follows */
+html { font-size: 14px; } /* compact: everything sized in rem follows */
 html, body { background: rgb(var(--bg)); color: rgb(var(--text)); font-family: 'Rubik', system-ui, -apple-system, 'Segoe UI', sans-serif; }
 body { -webkit-tap-highlight-color: transparent; padding-bottom: env(safe-area-inset-bottom); }
 .num { font-family: 'Rubik', system-ui, sans-serif; font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; display: inline-block; }

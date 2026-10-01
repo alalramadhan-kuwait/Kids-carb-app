@@ -24,6 +24,7 @@ import { useAlerts } from '../hooks/useAlerts';
 import { describeEvent } from '../lib/events';
 import { Card, asset, cx } from '../components/ui';
 import { dir, isEn, t } from '../i18n';
+import { KIND_STYLE } from '../lib/kinds';
 
 const TONE_DOT: Record<Tone, string> = { ok: 'bg-ok-fill', low: 'bg-over-fill', urgent: 'bg-over', high: 'bg-near-fill', warn: 'bg-near-fill', plain: 'bg-slate-300' };
 const TONE_TEXT: Record<Tone, string> = { ok: 'text-ok', low: 'text-over', urgent: 'text-over', high: 'text-near', warn: 'text-near', plain: 'text-slate-700' };
@@ -113,9 +114,9 @@ export default function Now() {
             </Link>
           )}
           <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
-            <Line icon="meals" text={lastMeal ? <><bdi>{lastMeal.name}</bdi> · {t('{g} غ', { g: fmt(lastMeal.total_carbs) })}</> : t('لا توجد وجبة مسجّلة')} when={lastMeal?.eaten_at} />
-            <Line icon="insulin" text={lastInsulin ? describeEvent(lastInsulin) : t('لا يوجد إنسولين مسجّل')} when={lastInsulin?.occurred_at} who={lastInsulin ? nameOf(lastInsulin.created_by) : ''} />
-            {lastTreatment && <Line icon="treatment" text={describeEvent(lastTreatment)} when={lastTreatment.occurred_at} who={nameOf(lastTreatment.created_by)} />}
+            <Line icon="meals" tone={KIND_STYLE.meal.icon} text={lastMeal ? <><bdi>{lastMeal.name}</bdi> · {t('{g} غ', { g: fmt(lastMeal.total_carbs) })}</> : t('لا توجد وجبة مسجّلة')} when={lastMeal?.eaten_at} />
+            <Line icon="insulin" tone={KIND_STYLE.insulin.icon} text={lastInsulin ? describeEvent(lastInsulin) : t('لا يوجد إنسولين مسجّل')} when={lastInsulin?.occurred_at} who={lastInsulin ? nameOf(lastInsulin.created_by) : ''} />
+            {lastTreatment && <Line icon="treatment" tone={KIND_STYLE.treatment.icon} text={describeEvent(lastTreatment)} when={lastTreatment.occurred_at} who={nameOf(lastTreatment.created_by)} />}
             <SchoolLine />
           </ul>
         </section>
@@ -200,10 +201,10 @@ function LayanHeader({ alertCount, night }: { alertCount: number; night: boolean
   );
 }
 
-function Line({ icon, text, when, who }: { icon: IconName; text: React.ReactNode; when?: string; who?: string }) {
+function Line({ icon, text, when, who, tone }: { icon: IconName; text: React.ReactNode; when?: string; who?: string; tone: string }) {
   return (
     <li><Link to="/timeline" className="flex min-h-[52px] items-center gap-3 px-4 py-1.5 active:bg-slate-50">
-      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name={icon} size={18} /></span>
+      <span className={cx('grid h-8 w-8 shrink-0 place-items-center rounded-full', tone)}><Icon name={icon} size={18} /></span>
       <span className="min-w-0 flex-1 truncate">{text}</span>
       {when && <span className="shrink-0 text-sm text-slate-500">{sinceText(when)}{who ? <> · <bdi>{who}</bdi></> : ''}</span>}
     </Link></li>

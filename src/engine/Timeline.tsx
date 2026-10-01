@@ -10,6 +10,7 @@ import { cx } from '../components/ui';
 import { groupLabel, groupMarks, type Group, type Layer, type Mark, type MarkKind } from './events';
 import { ICONS, type IconName } from '../icons/defs';
 import { dir, t } from '../i18n';
+import { KIND_STYLE } from '../lib/kinds';
 
 const MARK_ICON: Record<MarkKind, IconName> = { meal: 'meals', carbs: 'carbs', insulin: 'insulin', basal: 'insulin', treatment: 'treatment', exercise: 'activity', note: 'note', sleep: 'moon' };
 const iconPaths = new Map<IconName, Path2D[]>();
@@ -223,7 +224,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
       groups.forEach((gr, k) => {
         const x = Math.min(width - 14, Math.max(14, gr.x));
         const kind = gr.marks[0].kind;
-        const tone = kind === 'treatment' ? '--st-low' : '--primary-strong';
+        const tone = KIND_STYLE[kind].token; // each kind its own colour
         g.fillStyle = css('--surface'); g.strokeStyle = css(tone, 0.55); g.lineWidth = 1.5;
         g.beginPath(); g.arc(x, railY, 12.5, 0, 7); g.fill(); g.stroke();
         g.save(); g.translate(x - 8.4, railY - 8.4); g.scale(0.7, 0.7);
