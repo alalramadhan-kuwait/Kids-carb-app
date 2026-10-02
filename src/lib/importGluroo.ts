@@ -108,9 +108,12 @@ export async function rebuildGluroo(): Promise<{ meals: number; events: number; 
     insulin_units: e.insulin_units ?? null, insulin_type: e.insulin_type ?? null, bolus_purpose: e.bolus_purpose ?? null,
     carbs_g: e.carbs_g ?? null, treatment: e.treatment ?? null, bg_mgdl: e.bg_mgdl ?? null,
   })));
-  if (evRows.length) { const { error } = await supabase.from('events').upsert(evRows, { onConflict: 'client_id' }); if (error) throw new Error(error.message); }
-  const { data: oldEv } = await supabase.from('events').select('id,client_id').eq('source', 'gluroo');
-  const keepEv = new Set(evRows.map((e) => e.client_id));
+  // an entry a parent edited by hand is theirs now: never overwritten or removed by a re-sync
+  const { data: oldEv } = await supabase.from('events').select('id,client_id,edited_at').eq('source', 'gluroo');
+  const editedEv = new Set((oldEv ?? []).filter((e: { edited_at: string | null }) => e.edited_at).map((e: { client_id: string }) => e.client_id));
+  const evPut = evRows.filter((e) => !editedEv.has(e.client_id));
+  if (evPut.length) { const { error } = await supabase.from('events').upsert(evPut, { onConflict: 'client_id' }); if (error) throw new Error(error.message); }
+  const keepEv = new Set([...evRows.map((e) => e.client_id), ...editedEv]);
   const dropEv = (oldEv ?? []).filter((e: { client_id: string }) => !keepEv.has(e.client_id)).map((e: { id: string }) => e.id);
   if (dropEv.length) await supabase.from('events').delete().in('id', dropEv);
 
@@ -123,9 +126,11 @@ export async function rebuildGluroo(): Promise<{ meals: number; events: number; 
     glucose_mgdl: m.glucose?.mg ?? null, glucose_trend: null, glucose_at: m.glucose ? new Date(m.glucose.t).toISOString() : null,
     source: 'gluroo', source_key: m.key,
   }));
-  if (meals.length) { const { error } = await supabase.from('meal_history').upsert(meals, { onConflict: 'source_key' }); if (error) throw new Error(error.message); }
-  const { data: oldMeals } = await supabase.from('meal_history').select('id,source_key').eq('source', 'gluroo');
-  const keepM = new Set(meals.map((m) => m.source_key));
+  const { data: oldMeals } = await supabase.from('meal_history').select('id,source_key,edited_at').eq('source', 'gluroo');
+  const editedM = new Set((oldMeals ?? []).filter((m: { edited_at: string | null }) => m.edited_at).map((m: { source_key: string }) => m.source_key));
+  const mealPut = meals.filter((m) => !editedM.has(m.source_key));
+  if (mealPut.length) { const { error } = await supabase.from('meal_history').upsert(mealPut, { onConflict: 'source_key' }); if (error) throw new Error(error.message); }
+  const keepM = new Set([...meals.map((m) => m.source_key), ...editedM]);
   const dropM = (oldMeals ?? []).filter((m: { source_key: string }) => !keepM.has(m.source_key)).map((m: { id: string }) => m.id);
   if (dropM.length) await supabase.from('meal_history').delete().in('id', dropM);
 

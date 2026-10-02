@@ -16,6 +16,7 @@ import { KIND_STYLE } from '../lib/kinds';
 import { supabase } from '../lib/supabase';
 import { checkMinutes } from '../engine/predict';
 import { LogSheet } from '../components/LogSheet';
+import { EditEntry } from '../components/EditEntry';
 import type { PredictionRow } from '../lib/predictions';
 
 const DAY = 86400000;
@@ -32,6 +33,8 @@ export default function History() {
   const [days, setDays] = useState(7);
   const [open, setOpen] = useState<Item | null>(null);
   const [logOpen, setLogOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const close = () => { setOpen(null); setEditing(false); };
 
   const keyOf = (h: { recipe_id: string | null; name: string }) => h.recipe_id ?? `n:${h.name}`;
   const times = useMemo(() => { const m = new Map<string, number>(); for (const h of history) m.set(keyOf(h), (m.get(keyOf(h)) ?? 0) + 1); return m; }, [history]);
@@ -53,7 +56,7 @@ export default function History() {
   }, [shown]);
 
   const remove = async (it: Item) => {
-    setOpen(null);
+    close();
     if (it.e) {
       await deleteEvent(it.e.id, me); await reload();
       toast(t('حُذف التسجيل'), { label: t('تراجع'), run: async () => { await restoreEvent(it.e!.id); await reload(); } });
@@ -79,7 +82,7 @@ export default function History() {
                 <span className="text-xs text-slate-500">{[tot.carbs ? t('{g} غ كارب', { g: fmt(tot.carbs) }) : '', tot.rapid ? t('{u} وحدة سريع', { u: fmt(tot.rapid) }) : ''].filter(Boolean).join(' · ')}</span>
               </div>
               <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
-                {items.map((it) => <Row key={it.key} it={it} who={whoOf(it)} onOpen={() => setOpen(it)} />)}
+                {items.map((it) => <Row key={it.key} it={it} who={whoOf(it)} onOpen={() => { setEditing(false); setOpen(it); }} />)}
               </ul>
             </section>
           );
@@ -89,15 +92,21 @@ export default function History() {
         <div className="h-16" aria-hidden />{/* room so the Log button never covers the last entry */}
       </div>
 
-      <Sheet open={!!open} onClose={() => setOpen(null)} title={open?.h ? open.h.name : open?.e ? describeEvent(open.e) : ''}>
-        {open?.h && <MealDetail h={open.h} n={times.get(keyOf(open.h)) ?? 1} unit={settings.glucose_unit} />}
-        {open?.e && (
+      <Sheet open={!!open} onClose={close} title={editing ? t('تعديل التسجيل') : open?.h ? open.h.name : open?.e ? describeEvent(open.e) : ''}>
+        {open && editing && <EditEntry e={open.e} h={open.h} onCancel={() => setEditing(false)} onDone={close} />}
+        {open?.h && !editing && <MealDetail h={open.h} n={times.get(keyOf(open.h)) ?? 1} unit={settings.glucose_unit} />}
+        {open?.e && !editing && (
           <div className="space-y-1 text-sm text-slate-600">
             {open.e.note && <p dir="auto" className="text-base text-slate-800">{open.e.note}</p>}
             <p>{fmtTime(new Date(open.e.occurred_at))}{open.e.source ? '' : <> · <bdi>{nameOf(open.e.created_by)}</bdi></>}</p>
           </div>
         )}
-        {open && <Btn kind="danger" block className="mt-4" onClick={() => remove(open)}>{t('حذف التسجيل')}</Btn>}
+        {open && !editing && (
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <Btn kind="primary" onClick={() => setEditing(true)}>{t('تعديل')}</Btn>
+            <Btn kind="danger" onClick={() => remove(open)}>{t('حذف')}</Btn>
+          </div>
+        )}
       </Sheet>
 
       {/* the same primary action as Now, in the thumb zone above the tab bar */}

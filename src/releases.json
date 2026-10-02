@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.14.0",
+    "date": "2026-10-02",
+    "notes": [
+      "يمكن تعديل أي تسجيل في السجل: الوقت والكمية والملاحظة. المسوه ثم اختاروا «تعديل».",
+      "التعديل يُرفض إذا كانت القيمة غير معقولة (مثل 150 وحدة)، حتى لا يصل خطأ كتابة إلى الحاسبة.",
+      "تسجيلات Gluroo المعدّلة تبقى كما عدّلتموها."
+    ],
+    "notes_en": [
+      "You can now edit any entry in the Log: time, amount and note. Tap it → “Edit”.",
+      "Implausible values (like 150 units) are refused, so a typo never reaches the dose calculator.",
+      "Gluroo entries you edit stay as you changed them."
+    ]
+  },
+  {
     "version": "1.13.2",
     "date": "2026-10-02",
     "notes": [

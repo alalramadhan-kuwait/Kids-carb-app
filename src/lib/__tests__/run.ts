@@ -1289,6 +1289,31 @@ console.log('research lab');
   });
 }
 
+console.log('editing entries');
+
+{
+  const Ed = await import('../edit');
+  const now = Date.UTC(2026, 9, 2, 7, 0);
+  test('the time picker shows the same clock as the log and reads it back exactly', () => {
+    const t = new Date(2026, 9, 2, 0, 21).getTime();
+    assert.equal(Ed.toLocalInput(t), '2026-10-02T00:21');
+    assert.equal(Ed.fromLocalInput('2026-10-02T00:21'), t);
+    assert.equal(Ed.fromLocalInput(''), null); assert.equal(Ed.fromLocalInput('2026-10-02'), null); assert.equal(Ed.fromLocalInput('2026-02-31T10:00'), null);
+  });
+  test('an edit is refused when it would put an impossible value in the log', () => {
+    const t = now - 3600000;
+    assert.equal(Ed.editProblem('insulin', { t, units: 3 }, now), null);
+    assert.equal(Ed.editProblem('insulin', { t, units: 0 }, now), 'units');
+    assert.equal(Ed.editProblem('insulin', { t, units: 150 }, now), 'units', 'a typo like 150 units never reaches the dose calculator');
+    assert.equal(Ed.editProblem('meal', { t, carbs: 45, name: 'x' }, now), null);
+    assert.equal(Ed.editProblem('meal', { t, carbs: 45, name: ' ' }, now), 'name');
+    assert.equal(Ed.editProblem('treatment', { t, carbs: 400 }, now), 'carbs');
+    assert.equal(Ed.editProblem('bg_check', { t, bg: 10 }, now), 'bg');
+    assert.equal(Ed.editProblem('note', { t: now + 3600000 }, now), 'future');
+    assert.equal(Ed.editProblem('note', { t: null }, now), 'time');
+  });
+}
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {
