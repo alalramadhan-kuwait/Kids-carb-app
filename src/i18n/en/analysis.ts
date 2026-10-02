@@ -442,8 +442,8 @@ export const analysis: Record<string, string> = {
   "الكارب الذي ما زال يُمتص. بعد «الآن» متقطع: ما تبقّى منه.": "Carbs still being absorbed. Dashed after “now”: what is left of them.",
   "شرح الرسم": "About this graph",
   "الخطوط المتقطعة للعرض فقط، وليست للجرعة. للجرعة استخدموا الحاسبة.": "Dashed lines are for display only, not for dosing. For a dose, use the calculator.",
-  "الكارب الذي ما زال يُمتص. بعد «الآن» متقطع: ما تبقّى منه. الوجبة الدسمة تُمتص أبطأ، خلال 5 ساعات.": "Carbs still being absorbed. Dashed after “now”: what is left of them. A fatty meal absorbs more slowly, over 5 hours.",
   "دسمة": "Fatty",
   "وجبة دسمة": "Fatty meal",
   "قد يرتفع السكر متأخرًا حتى {time}": "A late rise is possible until {time}",
+  "السياق + أثر الدهون المتأخر": "Context + late fat bump",
 };

@@ -8,33 +8,43 @@ const MIN = 60000, KW = 3 * 3600000;
 
 export interface RReading { t: number; v: number; a: number | null }
 export interface RDose { t: number; u: number }
-export interface RCarb { t: number; g: number }
+export interface RCarb { t: number; g: number; fpu?: number } // fpu: fat-protein units (100 kcal of fat and protein)
 export interface RContext { doses: RDose[]; carbs: RCarb[]; iob: IobParams; absorb: number; cr: number; isf: number }
 export interface Prediction { v15: number; v30: number; rate: number }   // rate: mg/dL per minute over the next 15 min
 export type Predictor = (i: number, t: number[], v: number[], a: (number | null)[], ctx: RContext) => Prediction | null;
 
 const LIBRE_RATE: Record<number, number> = { 1: -2.5, 2: -1.5, 3: 0, 4: 1.5, 5: 2.5 };  // middle of each arrow's band
 
+/** A late fat-and-protein bump: `k` grams of carb-equivalent per FPU (from 1 FPU), arriving evenly 2 to 5 hours
+ *  after the meal. The meal's own carbs keep their normal absorption. */
+export interface FatBump { k: number; from: number; to: number }
+export const FAT_WINDOW = { from: 120, to: 300 } as const;
+
 /** Glucose effect (mg/dL) of logged carbs and insulin between t0 and t1, from the doctor's ratios. */
-export function physEffect(ctx: RContext, t0: number, t1: number): number {
+export function physEffect(ctx: RContext, t0: number, t1: number, bump?: FatBump): number {
   const remI = (dt: number) => (dt <= 0 ? 1 : iobFraction(dt / MIN, ctx.iob));
   const remC = (dt: number) => (dt <= 0 ? 1 : Math.max(0, 1 - dt / (ctx.absorb * MIN)));
+  // share of the bump still to come at dt minutes after the meal
+  const remB = (dt: number) => (!bump ? 0 : dt <= bump.from * MIN ? 1 : dt >= bump.to * MIN ? 0 : 1 - (dt - bump.from * MIN) / ((bump.to - bump.from) * MIN));
   let fx = 0;
   for (const d of ctx.doses) if (d.t <= t0) fx -= d.u * (remI(t0 - d.t) - remI(t1 - d.t)) * ctx.isf;
-  for (const c of ctx.carbs) if (c.t <= t0) fx += (c.g * (remC(t0 - c.t) - remC(t1 - c.t)) / ctx.cr) * ctx.isf;
+  for (const c of ctx.carbs) if (c.t <= t0) {
+    fx += (c.g * (remC(t0 - c.t) - remC(t1 - c.t)) / ctx.cr) * ctx.isf;
+    if (bump && bump.k > 0 && (c.fpu ?? 0) >= 1) fx += ((c.fpu! * bump.k) * (remB(t0 - c.t) - remB(t1 - c.t)) / ctx.cr) * ctx.isf;
+  }
   return fx;
 }
 
 /** Carbs and insulin over the horizon (doctor's ratios), plus a share `w` of the trend they do not explain. */
-export function contextModel(w: number, absorb?: number): Predictor {
+export function contextModel(w: number, absorb?: number, bump?: FatBump): Predictor {
   return (i, t, v, _a, c) => {
     const ctx = absorb ? { ...c, absorb } : c;
     const r = rateBetween(t, v, t[i] - 20 * MIN, t[i]);
     if (r === null) return null;
     const now = t[i];
-    const physNow = physEffect(ctx, now - 5 * MIN, now) / 5;               // what carbs and insulin explain right now (per min)
+    const physNow = physEffect(ctx, now - 5 * MIN, now, bump) / 5;               // what carbs and insulin explain right now (per min)
     const resid = r - physNow;                                             // the part of the trend they do not explain
-    const p15 = physEffect(ctx, now, now + 15 * MIN), p30 = physEffect(ctx, now, now + 30 * MIN);
+    const p15 = physEffect(ctx, now, now + 15 * MIN, bump), p30 = physEffect(ctx, now, now + 30 * MIN, bump);
     return { v15: v[i] + p15 + w * resid * 15, v30: v[i] + p30 + w * resid * 30, rate: (p15 + w * resid * 15) / 15 };
   };
 }

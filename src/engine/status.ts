@@ -1,6 +1,6 @@
 // The Status page (Gluroo-style "On board"). Pure, tested in Node. Display only: it adds up what was already
 // logged with the doctor's numbers. Nothing here, or anywhere in the app, turns it into an amount to give.
-import { absorbOf, carbsFrom, cobAt, dosesFrom, iobAt, iobParamsOk, type IobParams } from './iob';
+import { carbsFrom, cobAt, dosesFrom, iobAt, iobParamsOk, type IobParams } from './iob';
 import type { EventRow, HistoryEntry } from '../lib/types';
 
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
@@ -45,7 +45,7 @@ export function onBoard(p: OnBoardInput): OnBoard {
   const ratio = ratioAt(p.ratios, p.kuwaitMin);
   let estBy: number | null = null;
   if (iobP) for (const d of doses) if (d.t <= p.now && p.now - d.t < iobP.dia * MIN) estBy = Math.max(estBy ?? 0, d.t + iobP.dia * MIN);
-  if (p.absorbMin) for (const c of carbs) { const a = absorbOf(c, p.absorbMin); if (c.t <= p.now && p.now - c.t < a * MIN) estBy = Math.max(estBy ?? 0, c.t + a * MIN); }
+  if (p.absorbMin) for (const c of carbs) if (c.t <= p.now && p.now - c.t < p.absorbMin * MIN) estBy = Math.max(estBy ?? 0, c.t + p.absorbMin * MIN);
   const fresh = p.glucose && p.now - p.glucose.at <= 15 * MIN;
   const est = fresh && ratio && iob !== null && cob !== null
     ? p.glucose!.mg + (cob / ratio.cr) * ratio.isf - iob * ratio.isf : null;

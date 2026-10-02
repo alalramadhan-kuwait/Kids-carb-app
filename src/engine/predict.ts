@@ -1,7 +1,7 @@
 // Prediction tracking. Pure, tested in Node. At the start of each meal (or a correction on its own) the app freezes
 // a predicted glucose curve from the doctor's ratios and the insulin and carb models, then compares it with the
 // sensor at 1 hour, 2 hours and the end. Only meals with nothing else logged in between count toward accuracy.
-import { absorbOf, iobFraction, isFatty, type IobParams } from './iob';
+import { iobFraction, type IobParams } from './iob';
 import { ratioAt } from './status';
 import type { Ratio } from './status';
 import type { EventRow, HistoryEntry } from '../lib/types';
@@ -11,12 +11,12 @@ const KW = 3 * 3600000;
 export const PLAN_AFTER = 15 * MIN;      // entries up to 15 min after the start belong to the same plan
 const NEAR = 10 * MIN;                   // a reading this close to a moment stands for it
 
-export interface Entry { key: string; t: number; kind: 'meal' | 'carbs' | 'dose' | 'treatment' | 'exercise'; grams: number; units: number; name: string | null; recipe_id: string | null; fatty?: boolean }
+export interface Entry { key: string; t: number; kind: 'meal' | 'carbs' | 'dose' | 'treatment' | 'exercise'; grams: number; units: number; name: string | null; recipe_id: string | null }
 
 /** Everything that can start or disturb a prediction, oldest first. */
 export function entriesFrom(history: HistoryEntry[], events: EventRow[]): Entry[] {
   const out: Entry[] = [];
-  for (const h of history) out.push({ key: 'h:' + h.id, t: Date.parse(h.eaten_at), kind: 'meal', grams: h.total_carbs, units: 0, name: h.name, recipe_id: h.recipe_id, fatty: isFatty(h.total_fat, h.total_protein) });
+  for (const h of history) out.push({ key: 'h:' + h.id, t: Date.parse(h.eaten_at), kind: 'meal', grams: h.total_carbs, units: 0, name: h.name, recipe_id: h.recipe_id });
   for (const e of events) {
     if (e.deleted_at) continue;
     const t = Date.parse(e.occurred_at), base = { key: 'e:' + e.id, t, grams: 0, units: 0, name: null, recipe_id: null };
@@ -47,7 +47,6 @@ export interface Prediction {
 
 const remIns = (dt: number, p: IobParams) => (dt < 0 ? 1 : iobFraction(dt / MIN, p));
 const remCarb = (dt: number, absorb: number) => (dt < 0 ? 1 : Math.max(0, 1 - dt / (absorb * MIN)));
-const absorbE = (e: Entry, base: number) => absorbOf(e, base);
 
 /** The frozen curve: start + carbs absorbed × ISF ÷ CR − insulin used × ISF, every 15 minutes until all is used up. */
 export function predict(trigger: Entry, entries: Entry[], startMg: number, m: Model): Prediction | null {
@@ -56,12 +55,12 @@ export function predict(trigger: Entry, entries: Entry[], startMg: number, m: Mo
   if (!ratio) return null;
   const inPlan = (e: Entry, life: number) => e.t <= t0 + PLAN_AFTER && t0 - e.t < life * MIN;
   const doses = entries.filter((e) => e.kind === 'dose' && inPlan(e, m.iob.dia));
-  const carbs = entries.filter((e) => (e.kind === 'meal' || e.kind === 'carbs' || e.kind === 'treatment') && e.grams > 0 && inPlan(e, absorbE(e, m.absorb)));
+  const carbs = entries.filter((e) => (e.kind === 'meal' || e.kind === 'carbs' || e.kind === 'treatment') && e.grams > 0 && inPlan(e, m.absorb));
   const I = (t: number) => doses.reduce((s, d) => s + d.units * remIns(t - d.t, m.iob), 0);
-  const C = (t: number) => carbs.reduce((s, c) => s + c.grams * remCarb(t - c.t, absorbE(c, m.absorb)), 0);
+  const C = (t: number) => carbs.reduce((s, c) => s + c.grams * remCarb(t - c.t, m.absorb), 0);
   let end = t0;
   for (const d of doses) end = Math.max(end, d.t + m.iob.dia * MIN);
-  for (const c of carbs) end = Math.max(end, c.t + absorbE(c, m.absorb) * MIN);
+  for (const c of carbs) end = Math.max(end, c.t + m.absorb * MIN);
   const end_min = Math.min(360, Math.max(120, Math.ceil((end - t0) / STEP) * 15));
   const I0 = I(t0), C0 = C(t0), curve: number[] = [];
   for (let k = 0; k * 15 <= end_min; k++) {
@@ -74,7 +73,7 @@ export function predict(trigger: Entry, entries: Entry[], startMg: number, m: Mo
     carbs: carbs.filter((c) => c.t >= t0).reduce((s, c) => s + c.grams, 0), units: doses.filter((d) => d.t >= t0).reduce((s, d) => s + d.units, 0), start_mg: startMg,
     params: { cr: ratio.cr, isf: ratio.isf, dia: m.iob.dia, peak: m.iob.peak, absorb: m.absorb,
       onboard_iob: Math.round(doses.filter((d) => !after(d) && d.t < t0).reduce((s, d) => s + d.units * remIns(t0 - d.t, m.iob), 0) * 100) / 100,
-      onboard_cob: Math.round(carbs.filter((c) => c.t < t0).reduce((s, c) => s + c.grams * remCarb(t0 - c.t, absorbE(c, m.absorb)), 0)) },
+      onboard_cob: Math.round(carbs.filter((c) => c.t < t0).reduce((s, c) => s + c.grams * remCarb(t0 - c.t, m.absorb), 0)) },
     curve, end_min,
   };
 }

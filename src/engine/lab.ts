@@ -9,7 +9,7 @@
 //    materially better than what the app shows. Nothing here changes a dose, a displayed reading or a rule.
 import { iobFraction } from './iob';
 import { minuteOnly } from './trend';
-import { MODELS, contextModel, dampedTrend, samples, score, type Exclusion, type Predictor, type RContext, type RReading, type Sample, type Score, type Situation } from './research';
+import { FAT_WINDOW, MODELS, contextModel, dampedTrend, samples, score, type Exclusion, type Predictor, type RContext, type RReading, type Sample, type Score, type Situation } from './research';
 
 const MIN = 60000, HOUR = 3600000, DAY = 86400000, KW = 3 * HOUR;
 export const LAB_CODE_VERSION = 1;
@@ -19,6 +19,8 @@ export const LAB_CODE_VERSION = 1;
 export type ModelRole = 'production' | 'reference' | 'candidate';
 export interface ModelDef { key: string; version: number; name: string; note: string; role: ModelRole; params: Record<string, unknown> | null }
 const FIT_W = [0, 0.25, 0.5, 0.75], FIT_ABSORB = [120, 180, 240], DAMP_K = [0.25, 0.5, 0.75, 1];
+// late fat bump (2026-10-02): grams of carb-equivalent per FPU, 0 = no bump (the family can choose none)
+const FAT_K = [0, 2, 4, 6];
 /** Every model the lab knows, with its version. A changed definition gets a new version; old ones stay in the history. */
 export const REGISTRY: ModelDef[] = [
   { key: 'none', version: 1, name: 'No change', note: 'glucose stays where it is', role: 'reference', params: null },
@@ -27,6 +29,7 @@ export const REGISTRY: ModelDef[] = [
   { key: 'context', version: 1, name: 'Context v1', note: 'carbs + insulin with the doctor\'s ratios + half the unexplained trend; fixed, as in Baseline v1', role: 'candidate', params: { w: 0.5, absorb: 'settings' } },
   { key: 'context_fit', version: 1, name: 'Context, refit daily', note: 'Context with the trend share and absorption time chosen each day from older days only', role: 'candidate', params: { w: FIT_W, absorb: FIT_ABSORB } },
   { key: 'damped', version: 1, name: 'Damped trend', note: 'the app trend scaled down, the scale chosen each day from older days only', role: 'candidate', params: { k: DAMP_K } },
+  { key: 'fat_bump', version: 1, name: 'Context + late fat bump', note: 'Context v1, plus a late effect of fat and protein (k g of carbs per 100 kcal of fat+protein, arriving 2–5 h after the meal); k chosen each day from older days only, 0 allowed', role: 'candidate', params: { w: 0.5, k: FAT_K, window_min: [FAT_WINDOW.from, FAT_WINDOW.to] } },
 ];
 export const CANDIDATES = REGISTRY.filter((m) => m.role === 'candidate').map((m) => m.key);
 
@@ -35,6 +38,7 @@ export function gridModels(): Record<string, { f: Predictor }> {
   const g: Record<string, { f: Predictor }> = {};
   for (const w of FIT_W) for (const a of FIT_ABSORB) g[`context_fit|${w}|${a}`] = { f: contextModel(w, a) };
   for (const k of DAMP_K) g[`damped|${k}`] = { f: dampedTrend(k) };
+  for (const k of FAT_K) g[`fat_bump|${k}`] = { f: contextModel(0.5, undefined, { k, ...FAT_WINDOW }) };
   return g;
 }
 
@@ -269,7 +273,7 @@ export function runLab(p: LabInput): LabResult {
   const { kept, excluded, excludedBy } = samples(R, p.ctx, ex, models);
   // 3. candidates that choose settings from older days only
   const choices: LabResult['choices'] = {};
-  for (const fam of ['context_fit', 'damped']) choices[fam] = walkForward(kept, fam, p.baselineEnd);
+  for (const fam of ['context_fit', 'damped', 'fat_bump']) choices[fam] = walkForward(kept, fam, p.baselineEnd);
   // 4. same unseen moments for everything compared
   const keys = [...new Set(['none', 'libre', 'trend', p.production, ...CANDIDATES])];
   const unseen = kept.filter((s) => s.t >= p.baselineEnd && keys.every((k) => s.preds[k]));

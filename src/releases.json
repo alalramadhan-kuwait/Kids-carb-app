@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-02",
+    "version": "1.27.0",
+    "notes": [
+      "الكارب النشط وخطوط التوقع رجعت للامتصاص العادي: عند مقارنتها ببيانات ليان كان تبطيء الوجبة الدسمة أقل دقة. تنبيه «وجبة دسمة» وعلامة «دسمة» باقيان.",
+      "البحث: نموذج جديد «السياق + أثر الدهون المتأخر» يُختبر تلقائيًا على بيانات ليان، ولا يظهر في الرسوم إلا إذا صار أدق بوضوح."
+    ],
+    "notes_en": [
+      "Carbs on board and the forecast lines are back to normal absorption: compared with Layan’s data, slowing fatty meals was less accurate. The “Fatty meal” notice and “Fatty” tag stay.",
+      "Research: a new model, “Context + late fat bump”, is tested automatically on Layan’s data and only reaches the graphs if it is clearly more accurate."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "version": "1.26.0",
     "notes": [
       "الوجبات الدسمة (15 غ دهون أو أكثر، أو دهون وبروتين كثيرين): تنبيه في الصفحة الرئيسية أن السكر قد يرتفع متأخرًا حتى 5 ساعات بعد الأكل، وعلامة «دسمة» في السجل.",
