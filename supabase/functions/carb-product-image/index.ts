@@ -3,7 +3,7 @@
 // database with the cron secret). Never overwrites a photo the family took. Only the maker's own sites
 // (kddc.com, eshop.kddc.com) are read; only the picture columns are written, never nutrition.
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { allowedHost, pickImage, pictures, shareImage, toHttps } from './lib.ts';
+import { allowedHost, labelAddsUp, packOf, parseLabel, pickImage, pictures, shareImage, toHttps } from './lib.ts';
 
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret' };
 const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
@@ -33,7 +33,29 @@ Deno.serve(async (req) => {
     const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;|&#160;/g, ' ').replace(/\s+/g, ' ');
     const at = text.search(/nutrition|calories|energy/i);
     const title = /<title>([^<]*)<\/title>/i.exec(html)?.[1]?.trim() ?? null;
-    return json({ status: r?.status ?? 0, title, share: shareImage(html, u), pictures: pictures(html, u).slice(0, 80), nutrition: at < 0 ? null : text.slice(Math.max(0, at - 200), at + 1500) });
+    const links = [...new Map([...html.matchAll(/<a\b[^>]*href\s*=\s*["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi)]
+      .map((m) => { try { return [new URL(m[1].replace(/&amp;/g, '&'), u).href, m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120)] as const; } catch { return null; } })
+      .filter((x): x is readonly [string, string] => !!x && allowedHost(x[0]))).entries()].map(([href, text]) => ({ href, text }));
+    return json({ status: r?.status ?? 0, title, share: shareImage(html, u), pictures: pictures(html, u).slice(0, 80), links: links.slice(0, 400),
+      nutrition: at < 0 ? null : text.slice(Math.max(0, at - 200), at + 1500), text: (body as { full?: boolean }).full ? text.slice(0, 20000) : undefined });
+  }
+
+  // read the maker's shop pages (at most 25 a call, one at a time): name, code, label per 100. Nothing is written.
+  const shop = (body as { shop?: number[] }).shop;
+  if (shop?.length) {
+    const out = [];
+    for (const pid of shop.slice(0, 25)) {
+      const u = `https://eshop.kddc.com/index.php?route=product/product&product_id=${Number(pid)}`;
+      const r = await fetch(u, { headers: { 'User-Agent': UA, Accept: 'text/html' }, signal: AbortSignal.timeout(15000) }).catch(() => null);
+      const html = r && r.ok ? await r.text() : '';
+      if (!html) { out.push({ pid, ok: false }); continue; }
+      const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;|&#160;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ');
+      const name = (/<h1[^>]*>([\s\S]*?)<\/h1>/i.exec(html)?.[1] ?? /<title>([^<]*)<\/title>/i.exec(html)?.[1] ?? '').replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+      const label = parseLabel(text);
+      out.push({ pid, ok: true, url: u, name, code: /Product Code:\s*([A-Z0-9]+)/.exec(text)?.[1] ?? null, pack: packOf(name), label, addsUp: label ? labelAddsUp(label) : false,
+        about: /Description Reviews \(\d+\)\s*(.{0,300}?)\s*Nutrition/i.exec(text)?.[1] ?? null });
+    }
+    return json({ items: out });
   }
 
   let q = db.from('products').select('id,name,source_url,image_path').not('source_url', 'is', null);

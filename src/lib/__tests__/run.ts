@@ -1398,6 +1398,31 @@ console.log('product pictures');
   });
 }
 
+console.log('maker labels');
+
+{
+  const I = await import('../../../supabase/functions/carb-product-image/lib');
+  test('a maker nutrition table is read per 100, scaled when it is for another amount', () => {
+    const page = 'Description Delicious milk Nutrition Facts Per 100 ml. Nutrition Value Energy (Calories) 80 Calories from Fat (g) 18 Total Fat (g) 2 Saturated Fat (g) 1.5 Trans Fat (g) 0 Cholesterol (g) 5 Total Carbohydrate (g) 12 Dietary Fibres (g) 1 Total Sugars (g) 11 Added Sugar (g) 7 Protein (g) 3 Write a review';
+    assert.deepEqual(I.parseLabel(page), { basis: 100, unit: 'ml', carbs: 12, kcal: 80, fat: 2, fiber: 1, sugars: 11, protein: 3 });
+    const cup = I.parseLabel('Nutrition Facts per 50 g Energy 100 Total Fat 5 Carbohydrates 12 Protein 2');
+    assert.equal(cup?.carbs, 24); assert.equal(cup?.unit, 'g'); assert.equal(cup?.kcal, 200);
+    assert.equal(I.parseLabel('Nutrition Facts Energy 80 Protein 3'), null, 'no carbohydrate line: nothing');
+    assert.equal(I.parseLabel('Delicious milk, no table'), null);
+    assert.ok(I.labelAddsUp(I.parseLabel(page)!));
+    assert.ok(!I.labelAddsUp({ basis: 100, unit: 'ml', carbs: 13, kcal: 60, fat: 1, protein: 3, fiber: null, sugars: null }), 'carbs that do not match the energy are flagged');
+  });
+  test('pack size from a product name', () => {
+    assert.deepEqual(I.packOf('Mango Nectar 250ml'), { size: 250, unit: 'ml' });
+    assert.deepEqual(I.packOf('Apple Juice 1 LTR'), { size: 1000, unit: 'ml' });
+    assert.deepEqual(I.packOf('Lactose Free - Full Cream Milk 1LTR'), { size: 1000, unit: 'ml' });
+    assert.deepEqual(I.packOf('Labneh ( Full Fat ) 500 GRM.'), { size: 500, unit: 'g' });
+    assert.deepEqual(I.packOf('Spicy Tomato Paste 130 Grms'), { size: 130, unit: 'g' });
+    assert.deepEqual(I.packOf('Chocolate Protein Milk 20g (No Added Sugar)'), { size: 20, unit: 'g' }, 'the caller checks this against the shop unit');
+    assert.equal(I.packOf('Vanilla Lulu Stick'), null);
+  });
+}
+
 console.log('product portions');
 
 {

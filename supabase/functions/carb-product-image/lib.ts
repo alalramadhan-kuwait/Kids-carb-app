@@ -72,3 +72,38 @@ function byFullName(cands: Candidate[], name: string): string | null {
     .sort((a, b) => b.f - a.f || size(b.url) - size(a.url) || Number(/-en[-.]/.test(b.url)) - Number(/-en[-.]/.test(a.url)));
   return fit[0]?.url ?? null;
 }
+
+/** A maker's nutrition table (page text) as values per 100 g or ml, or null when it has no carbohydrate line.
+ *  Tables for another amount ("per 94 g") are scaled to 100. */
+export interface Label { basis: number; unit: 'g' | 'ml'; kcal: number | null; fat: number | null; carbs: number; fiber: number | null; sugars: number | null; protein: number | null }
+export function parseLabel(text: string): Label | null {
+  const at = text.search(/nutrition (facts|information|value)/i);
+  if (at < 0) return null;
+  const end = text.slice(at).search(/write a review|ingredients|storage/i);
+  const t = text.slice(at, end > 0 ? at + end : at + 2000);
+  const b = /per\s*(\d+(?:\.\d+)?)\s*(ml|millilit|g\b|gm|grm|gram)/i.exec(t);
+  const basis = b ? Number(b[1]) : 100, unit: 'g' | 'ml' = b && /^m/i.test(b[2]) ? 'ml' : b ? 'g' : 'ml';
+  const get = (label: RegExp) => {
+    const m = new RegExp('(?:' + label.source + ')' + String.raw`\s*(?:\([^)]*\))?\s*:?\s*(\d+(?:\.\d+)?)`, 'i').exec(t);
+    return m ? Math.round((Number(m[1]) * 100 / basis) * 10) / 10 : null;
+  };
+  const carbs = get(/(?:total\s+)?carbohydrates?/);
+  if (carbs === null || !(basis > 0)) return null;
+  return { basis, unit, carbs, kcal: get(/energy|calories(?!\s+from)/), fat: get(/total\s+fat/) ?? get(/(?<!from\s)\bfat/), fiber: get(/dietary\s+fib(?:re|er)s?/) ?? get(/\bfib(?:re|er)s?/),
+    sugars: get(/total\s+sugars?/) ?? get(/(?<!added\s)\bsugars?/), protein: get(/protein/) };
+}
+/** Pack size from a product name: "Mango Nectar 250ml" → 250 ml, "Apple Juice 1 LTR" → 1000 ml, "Labneh 500 GRM." → 500 g. */
+export function packOf(name: string): { size: number; unit: 'g' | 'ml' } | null {
+  const m = /(\d+(?:\.\d+)?)\s*(ml|ltr|litre|liter|l|grms?|gms?|gm|g|kg)(?![a-z])/i.exec(name);
+  if (!m) return null;
+  const n = Number(m[1]), u = m[2].toLowerCase();
+  if (/^(ltr|litre|liter|l)$/.test(u)) return { size: n * 1000, unit: 'ml' };
+  if (u === 'kg') return { size: n * 1000, unit: 'g' };
+  return u === 'ml' ? { size: n, unit: 'ml' } : { size: n, unit: 'g' };
+}
+/** Does the label add up? Energy within 20% (or 10 kcal) of 4·carbs + 4·protein + 9·fat. */
+export function labelAddsUp(l: Label): boolean {
+  if (l.kcal === null || l.fat === null || l.protein === null) return false;
+  const est = 4 * l.carbs + 4 * l.protein + 9 * l.fat;
+  return Math.abs(est - l.kcal) <= Math.max(10, 0.2 * l.kcal);
+}
