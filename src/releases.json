@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-02",
+    "version": "1.24.2",
+    "notes": [
+      "زر صغير «i» على الرسم يشرح كل خط وشريط عند الضغط عليه، بدل السطر الثابت تحت الرسم."
+    ],
+    "notes_en": [
+      "A small “i” button on the graph explains every line and strip when tapped, instead of the fixed line under the graph."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "version": "1.24.1",
     "notes": [
       "رسم التحليل أوضح: يظهر توقّع آخر وجبة فقط بدل خطوط كل الوجبات السابقة."

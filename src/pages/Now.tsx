@@ -31,7 +31,7 @@ import { sensorLife } from '../engine/status';
 import { syncPredictions } from '../lib/predictions';
 import { trendFrom, libreOf } from '../engine/trend';
 import { useGraphExtras } from '../hooks/useGraphExtras';
-import { ForecastKey } from '../components/ForecastKey';
+import { GraphHelp } from '../components/ForecastKey';
 import { TrendArrow, TrendLine } from '../components/Trend';
 import { NextDose } from '../components/NextDose';
 import { arrowSource, shownLevel } from '../lib/arrowChoice';
@@ -291,7 +291,7 @@ function HomeChart({ live }: { live: Reading[] }) {
         <button onClick={() => { setFollowing(true); setView({ span: SPAN, end: limitEnd(Infinity, Date.now(), SPAN, AHEAD) }); }}
           className="absolute start-4 top-2 min-h-[40px] rounded-full bg-brand px-4 text-sm font-bold text-white shadow">{t('الآن')}</button>
       )}
-      {forecasts.length > 0 && <ForecastKey />}
+      <GraphHelp tracks={!!tracks} className="absolute right-12 top-2" />
       <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
     </div>
   );

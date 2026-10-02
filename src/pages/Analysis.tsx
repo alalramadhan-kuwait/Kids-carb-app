@@ -20,7 +20,7 @@ import { iobParamsOk, modelLine } from '../engine/iob';
 import { usePredictions } from '../lib/predictions';
 import { trendFrom } from '../engine/trend';
 import { useGraphExtras } from '../hooks/useGraphExtras';
-import { ForecastKey } from '../components/ForecastKey';
+import { GraphHelp } from '../components/ForecastKey';
 import { LAYERS, buildMarks, defaultLayers, type Group, type Layer } from '../engine/events';
 import { isEn, t } from '../i18n';
 
@@ -179,6 +179,7 @@ function Live() {
           range={rng}
           marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={ahead} />
         {loading && <div className="absolute start-3 top-3 text-xs text-slate-400">…</div>}
+        <GraphHelp past={forecasts.some((f) => f.kind === 'past')} tracks={!!tracks} className="absolute right-12 top-3" />
       </div>
 
       <div className="flex items-center gap-2">
@@ -188,7 +189,6 @@ function Live() {
         <button onClick={() => setLayersOpen(true)} className="min-h-[40px] shrink-0 rounded-full bg-white px-3 text-sm font-bold ring-1 ring-slate-200">{t('الطبقات')}</button>
         {!live && <button onClick={() => onView({ span: view.span, end: Infinity }, { animate: true })} className="min-h-[40px] shrink-0 rounded-full bg-brand px-4 text-sm font-bold text-white">{t('الآن')}</button>}
       </div>
-      {forecasts.length > 0 && <div className="-mx-4"><ForecastKey past={forecasts.some((f) => f.kind === 'past')} /></div>}
       {model && <p className="px-1 text-xs text-slate-500">{model}</p>}
       {firstVisits && <p className="px-1 text-xs text-slate-400">{t('اسحب للتنقل · اقرص للتكبير · اضغط مطوّلًا للتفاصيل · اضغط أيقونة لما سُجّل')}</p>}
       <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
