@@ -12,6 +12,8 @@ export interface Product {
   category: string;
   kind: 'natural' | 'commercial';
   image_path: string | null;
+  /** the maker's page it came from, and where its picture was fetched from */
+  source_url?: string | null; image_source?: string | null;
   pack_size: number | null;
   unit: 'g' | 'ml';
   carbs_per_100: number; // Total Carbohydrate

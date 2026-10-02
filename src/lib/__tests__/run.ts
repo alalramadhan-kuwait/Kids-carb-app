@@ -1366,6 +1366,28 @@ console.log('entry actions');
   });
 }
 
+console.log('product pictures');
+
+{
+  const I = await import('../../../supabase/functions/carb-product-image/lib');
+  const base = 'https://shop.example.com/en/item-1';
+  test('a product page gives its share picture; logos and icons are never taken', () => {
+    const html = '<meta property="og:image" content="/img/full-cream-250.jpg"><img src="/logo.png" alt="KDD"><img src="/img/other.jpg" alt="x">';
+    assert.equal(I.pickImage(html, base, 'Full Cream Milk 250ml', false), 'https://shop.example.com/img/full-cream-250.jpg');
+    assert.equal(I.pickImage('<img src="/logo.png" alt="Full Cream">', base, 'Full Cream Milk 250ml', false), null);
+  });
+  test('a page listing several products only gives a picture that names this product', () => {
+    const html = '<meta property="og:image" content="/banner-good-for-me.jpg"><img data-src="/p/mango-peach-0.png" alt="Mango Peach 0% sugar"><img src="/p/mojito.png" alt="Mojito lemon mint"><img src="/p/apple-rasp.png" alt="Apple Raspberry">';
+    assert.equal(I.pickImage(html, base, 'Mango Peach Beverage (0% Sugar) 250ml', true), 'https://shop.example.com/p/mango-peach-0.png');
+    assert.equal(I.pickImage(html, base, 'Mojito (lemon & mint) Beverage (0% Sugar) 250ml', true), 'https://shop.example.com/p/mojito.png');
+    assert.equal(I.pickImage(html, base, 'Chocolate Ice Cream Cups (No Added Sugar)', true), null, 'no match: no picture rather than a wrong one');
+    assert.deepEqual(I.keyWords('Mango Peach Beverage (0% Sugar) 250ml'), ['mango', 'peach']);
+    // a shop page for one product whose name is all common words: the big English picture, not a thumbnail or a flag
+    const shop = '<img src="/catalog/language/en-gb/en-gb.png" alt="English"><img src="/image/cache//catalog/FullCreamMilk250ml-en-543x543.png" alt="Full Cream Milk 250ml"><img src="/image/cache//catalog/FullCreamMilk250ml-ar-114x114.png" alt="Full Cream Milk 250ml"><img src="/image/cache//catalog/FullCreamMilk250ml-en-114x114.png" alt="Full Cream Milk 250ml">';
+    assert.equal(I.pickImage(shop, base, 'Full Cream Milk 250ml', false), 'https://shop.example.com/image/cache//catalog/FullCreamMilk250ml-en-543x543.png');
+  });
+}
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {

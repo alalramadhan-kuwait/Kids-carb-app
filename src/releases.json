@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.20.0",
+    "date": "2026-10-02",
+    "notes": [
+      "صور منتجات KDD من موقع الشركة صارت في دليل المنتجات (7 من 12).",
+      "في صفحة المنتج: «صفحة المنتج عند الشركة» وزر «جلب الصورة من صفحة المنتج»."
+    ],
+    "notes_en": [
+      "KDD product pictures from the maker's site are now in Products (7 of 12).",
+      "On a product: “Maker's product page” and a “Get the picture from the product page” button."
+    ]
+  },
+  {
     "version": "1.19.1",
     "date": "2026-10-02",
     "notes": [

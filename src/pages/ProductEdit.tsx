@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { deriveLabel, fmt, labelMismatch, targetMiss } from '../lib/carbs';
 import { deleteProduct, saveProduct } from '../lib/api';
-import { uploadPhoto } from '../lib/supabase';
+import { supabase, uploadPhoto } from '../lib/supabase';
 import { PRODUCT_CATEGORIES } from '../lib/constants';
 import { t, tMaybe } from '../i18n';
 import { Alert, Btn, Card, Field, NumInput, Page, Photo, inputCls, toast } from '../components/ui';
@@ -20,6 +20,8 @@ export default function ProductEdit() {
   const [category, setCategory] = useState(p?.category ?? sp.get('category') ?? '');
   const [kind, setKind] = useState<'natural' | 'commercial'>(p?.kind ?? 'commercial');
   const [image, setImage] = useState(p?.image_path ?? null);
+  const [source, setSource] = useState(p?.source_url ?? '');
+  const [fetching, setFetching] = useState(false);
   const [unit, setUnit] = useState<'g' | 'ml'>(p?.unit ?? 'g');
   const [packSize, setPackSize] = useState<number | null>(p?.pack_size ?? null);
   const [per100, setPer100] = useState<number | null>(p?.carbs_per_100 ?? null);
@@ -47,7 +49,7 @@ export default function ProductEdit() {
     setBusy(true);
     try {
       await saveProduct({
-        id: p?.id, name: name.trim(), brand: brand.trim() || null, category: category.trim(), kind, image_path: image, unit,
+        id: p?.id, name: name.trim(), brand: brand.trim() || null, category: category.trim(), kind, image_path: image, source_url: source.trim() || null, unit,
         pack_size: packSize, carbs_per_100: derived.per100, serving_size: serving, carbs_per_serving: derived.perServing,
         fat_per_100: fat, fiber_per_100: fiber, protein_per_100: protein, kcal_per_100: kcal,
         label_basis: basis, cooked_yield: cookedYield, approved, available, notes: notes.trim() || null,
@@ -87,6 +89,22 @@ export default function ProductEdit() {
               }} />
             </label>
           </div>
+          <Field label={t('صفحة المنتج عند الشركة (اختياري)')}>
+            <input className={inputCls} dir="ltr" inputMode="url" placeholder="https://" value={source} onChange={(e) => setSource(e.target.value)} />
+          </Field>
+          {p?.id && p.source_url && p.source_url === source.trim() && (
+            <Btn kind="ghost" block disabled={fetching} onClick={async () => {
+              if (image && !confirm(t('استبدال الصورة الحالية بصورة الشركة؟'))) return;
+              setFetching(true);
+              try {
+                const { data, error } = await supabase.functions.invoke('carb-product-image', { body: { ids: [p.id] } });
+                if (error) throw new Error(error.message);
+                const r = (data as { results?: { ok: boolean; why?: string }[] }).results?.[0];
+                if (r?.ok) { await reload(); const { data: row } = await supabase.from('products').select('image_path').eq('id', p.id).single(); setImage(row?.image_path ?? image); toast(t('تم جلب الصورة ✓')); }
+                else toast(t('لم نجد صورة هذا المنتج في الصفحة. صوّروا العلبة بدلًا منها.'));
+              } catch (e) { toast((e as Error).message); } finally { setFetching(false); }
+            }}>{fetching ? t('جارٍ الجلب…') : t('جلب الصورة من صفحة المنتج')}</Btn>
+          )}
         </Card>
 
         <Card className="space-y-3">

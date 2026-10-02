@@ -429,4 +429,10 @@ export const food: Record<string, string> = {
   "اكتبوا الكمية (مل أو غ)": "Enter the amount (ml or g)",
   "وجبة": "Meal",
   "غ كارب": "g carbs",
+  "صفحة المنتج عند الشركة (اختياري)": "Maker's product page (optional)",
+  "استبدال الصورة الحالية بصورة الشركة؟": "Replace the current photo with the maker's picture?",
+  "تم جلب الصورة ✓": "Picture fetched ✓",
+  "لم نجد صورة هذا المنتج في الصفحة. صوّروا العلبة بدلًا منها.": "No picture of this product was found on the page. Take a photo of the box instead.",
+  "جارٍ الجلب…": "Fetching…",
+  "جلب الصورة من صفحة المنتج": "Get the picture from the product page",
 };
