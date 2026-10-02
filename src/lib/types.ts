@@ -142,6 +142,8 @@ export interface HistoryEntry {
   glucose_at: string | null;
   lines: HistoryLine[];
   notes: string | null;
+  /** imported from another app (e.g. 'gluroo'); needs_review: next to an entry the parents have not decided on */
+  source?: string | null; needs_review?: boolean;
 }
 
 export interface PlanRow {

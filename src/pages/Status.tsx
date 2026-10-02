@@ -12,6 +12,7 @@ import { Card, Page, cx } from '../components/ui';
 import { isEn, locale, t } from '../i18n';
 import type { Settings } from '../lib/types';
 import { usePredictions } from '../lib/predictions';
+import { rememberSensor } from '../lib/fingerprick';
 import { PredictionAccuracy } from '../components/PredictionAccuracy';
 import { ArrowAccuracy } from '../components/ArrowAccuracy';
 import { trendFrom } from '../engine/trend';
@@ -53,6 +54,8 @@ export default function Status() {
   const trend = g ? trendFrom(g.readings, Date.now()) : null;
   const unit = s.glucose_unit;
   const predictions = usePredictions(g?.sensor?.started_at ? Date.parse(g.sensor.started_at) : null);
+  // a new serial from LibreLinkUp starts a new sensor accuracy profile
+  useEffect(() => { if (g?.sensor?.sn && g.sensor.started_at) void rememberSensor(g.sensor.sn, g.sensor.started_at, s.sensor_days ?? 14, 'librelinkup'); }, [g?.sensor?.sn, g?.sensor?.started_at, s.sensor_days]);
   const age = latest ? glucoseAge(latest.taken_at) : null;
   const lastMeal = history[0] ?? null;
   const lastDose = events.find((e) => e.kind === 'insulin' && e.insulin_type !== 'long') ?? null;
@@ -169,6 +172,7 @@ function SensorCard({ startedAt, days, connected }: { startedAt: string | null; 
       {l.warmup && <p className="text-xs text-slate-500">{t('الساعة الأولى تسخين: القراءات تبدأ بعدها وقد تكون أقل دقة في اليوم الأول.')}</p>}
       {l.state !== 'ok' && l.state !== 'ended' && <p className="text-sm font-medium">{t('جهّزوا حساسًا جديدًا. يصل تذكير للجوالات قبل يوم وقبل ساعتين.')}</p>}
       <p className="text-xs text-slate-500">{t('من LibreLinkUp. نوع الحساس (14 أو 15 يومًا) من الإعدادات.')}</p>
+      <Link to="/sensor-accuracy" className="flex min-h-[44px] items-center justify-between text-sm font-bold text-brand">{t('دقة الحساس مقابل وخز الإصبع')}<span>{isEn() ? '›' : '‹'}</span></Link>
     </Card>
   );
 }

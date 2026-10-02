@@ -13,6 +13,8 @@ import { KIND_STYLE } from '../lib/kinds';
 import { DoseCalculator } from './DoseCalculator';
 import { logQuick, useQuickItems } from '../lib/quick';
 import { deleteHistory } from '../lib/api';
+import { startComparison, syncComparisons } from '../lib/fingerprick';
+import { toMgdl, unitLabel } from '../lib/glucose';
 import { fmt } from '../lib/carbs';
 import type { DoseCalc } from '../lib/types';
 
@@ -23,6 +25,7 @@ const KINDS: { kind: EventKind; label: string; icon: IconName }[] = [
   { kind: 'note', label: 'ملاحظة', icon: 'note' }, // i18n-ok
   { kind: 'exercise', label: 'رياضة', icon: 'activity' }, // i18n-ok
   { kind: 'sleep', label: 'نوم', icon: 'moon' }, // i18n-ok
+  { kind: 'bg_check', label: 'وخز إصبع', icon: 'glucose' }, // i18n-ok
 ];
 const KW = 3 * 3600000;
 const hhmm = (t: number) => { const d = new Date(t + KW); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
@@ -32,7 +35,7 @@ const AGO = [0, 15, 30, 60];
 
 /** "سجّل": insulin, carbs, hypo treatment or a note. Rapid insulin shows the dose calculator (doctor's plan); the parent confirms. */
 export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { events, me, nameOf, reload, settings } = useData();
+  const { events, me, nameOf, reload, settings, history } = useData();
   const [kind, setKind] = useState<EventKind | null>(null);
   const [clientId, setClientId] = useState(() => crypto.randomUUID());
   const [units, setUnits] = useState<number | null>(null);
@@ -49,11 +52,13 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
   const [busy, setBusy] = useState(false);
   const [dupAck, setDupAck] = useState(false);
   const [calc, setCalc] = useState<DoseCalc | null>(null);
+  const [bg, setBg] = useState<number | null>(null);          // finger-prick, in the family's unit
+  const [clean, setClean] = useState(true);                     // hands washed and dried
   const quick = useQuickItems();
 
   const reset = () => {
     setKind(null); setClientId(crypto.randomUUID()); setUnits(null); setType('rapid'); setPurpose(null);
-    setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault()); setCalc(null);
+    setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault()); setCalc(null); setBg(null); setClean(true);
   };
   const close = () => { reset(); onClose(); };
 
@@ -70,13 +75,15 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
       carbs_g: kind === 'carbs' || kind === 'treatment' ? grams : null,
       treatment: kind === 'treatment' ? treat : null, note: note.trim() || null,
       dose_calc: kind === 'insulin' && type === 'rapid' ? calc : null,
+      bg_mgdl: kind === 'bg_check' && bg !== null ? toMgdl(bg, settings.glucose_unit) : null,
     };
-  }, [kind, clientId, units, type, purpose, grams, treat, note, ago, mins, level, sleepFrom, sleepTo, calc]);
+  }, [kind, clientId, units, type, purpose, grams, treat, note, ago, mins, level, sleepFrom, sleepTo, calc, bg, settings.glucose_unit]);
 
   const valid = !!draft && (
     (kind === 'insulin' && !!units && units > 0 && units < 100) ||
     ((kind === 'carbs' || kind === 'treatment') && grams !== null && grams >= 0 && grams < 500) ||
     (kind === 'note' && !!note.trim()) ||
+    (kind === 'bg_check' && !!draft.bg_mgdl && draft.bg_mgdl >= 20 && draft.bg_mgdl <= 600) ||
     (kind === 'exercise' && !!mins && mins > 0 && mins <= 600) ||
     (kind === 'sleep' && !!draft.ends_at && sleepWindow(sleepFrom, sleepTo).minutes <= 16 * 60));
   const dup = draft && valid ? findDuplicate(events, draft) : null;
@@ -87,6 +94,8 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
     setBusy(true);
     try {
       const id = await saveEvent(draft);
+      // a finger-prick starts its comparison with Libre now; the +5 and +10 min readings complete it later
+      if (id && draft.kind === 'bg_check' && draft.bg_mgdl) { await startComparison(id, Date.parse(draft.occurred_at), draft.bg_mgdl, ago, clean); void syncComparisons(events, history); }
       await reload();
       const text = describeEvent(draft);
       close();
@@ -140,16 +149,23 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
           {kind !== 'sleep' && (
             <div className="flex items-end gap-2">
               <div className="min-w-0 flex-1">
-                <div className="mb-1 text-sm font-medium text-slate-600">{kind === 'insulin' ? t('عدد الوحدات') : kind === 'exercise' ? t('المدة (دقائق)') : kind === 'note' ? t('الملاحظة') : t('الكارب (غرام)')}</div>
+                <div className="mb-1 text-sm font-medium text-slate-600">{kind === 'insulin' ? t('عدد الوحدات') : kind === 'exercise' ? t('المدة (دقائق)') : kind === 'note' ? t('الملاحظة') : kind === 'bg_check' ? t('السكر بالوخز ({unit})', { unit: unitLabel(settings.glucose_unit) }) : t('الكارب (غرام)')}</div>
                 {kind === 'note'
                   ? <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('مثلًا: مريضة، حفلة، تغيير الحساس')} autoFocus />
-                  : <NumInput value={kind === 'insulin' ? units : kind === 'exercise' ? mins : grams} onChange={kind === 'insulin' ? setUnits : kind === 'exercise' ? setMins : setGrams}
+                  : <NumInput value={kind === 'insulin' ? units : kind === 'exercise' ? mins : kind === 'bg_check' ? bg : grams} onChange={kind === 'insulin' ? setUnits : kind === 'exercise' ? setMins : kind === 'bg_check' ? setBg : setGrams}
                       className="!min-h-[56px] !text-center !text-3xl font-bold" autoFocus={kind !== 'insulin'} />}
               </div>
               <Btn kind="primary" className={cx('min-h-[56px] shrink-0 !px-5', KIND_STYLE[kind].solid)} disabled={!valid || busy || (!!dup && !dupAck)} onClick={save}>{t('حفظ')}</Btn>
             </div>
           )}
-          {kind !== 'sleep' && kind !== 'note' && (
+          {kind === 'bg_check' && (
+            <div>
+              <div className="mb-1 text-sm font-medium text-slate-600">{t('اليدان مغسولتان وجافتان؟')}</div>
+              <Seg on={KIND_STYLE.bg_check.solid} value={clean ? 'y' : 'n'} onChange={(v) => setClean(v === 'y')} options={[['y', t('نعم')], ['n', t('لم تُغسل')]]} />
+              <p className="mt-1.5 text-xs text-slate-500">{t('للمقارنة مع الحساس فقط: لا يغيّر قراءة Libre ولا الجرعة.')}</p>
+            </div>
+          )}
+          {kind !== 'sleep' && kind !== 'note' && kind !== 'bg_check' && (
             <Steps tone={KIND_STYLE[kind].soft} steps={kind === 'insulin' ? (settings.pen_step === 1 ? [2, 1] : [1, 0.5]) : kind === 'exercise' ? [15, 5] : [5, 1]}
               value={kind === 'insulin' ? units : kind === 'exercise' ? mins : grams} onChange={kind === 'insulin' ? setUnits : kind === 'exercise' ? setMins : setGrams} />
           )}

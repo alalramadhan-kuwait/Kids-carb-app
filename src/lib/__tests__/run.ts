@@ -1101,25 +1101,98 @@ console.log('gluroo import');
     assert.equal(rows.length, 59);
     assert.equal(rows.find((r) => r.msgType === 'ANNOUNCE_MEAL')!.text, 'A grilled sandwich with scrambled eggs inside., turkey, cheese');
   });
-  const plan = G.planGluroo(rows, [{ kind: 'carbs', amount: 15, t: Date.parse(at(141)) }]);
-  test('Gluroo import: re-estimates and the other parent logging the same plate count once', () => {
-    assert.equal(plan.meals.length, 1);
-    assert.equal(plan.meals[0].carbs, 46, 'tea 10 + the last sandwich estimate 36');
-    assert.equal(plan.doubles.length, 1); assert.equal(plan.doubles[0].otherParent, true);
+  const readings = G.readingsFrom(rows);
+  const entries = G.classify(rows, readings, [{ kind: 'carbs', amount: 15, t: Date.parse(at(141)) }]);
+  const st = (pred: (e: (typeof entries)[number]) => boolean) => entries.filter(pred).map((e) => e.status);
+  test('Gluroo import: every row is kept with a status; the other parent logging the same food waits for a decision', () => {
+    assert.equal(entries.length, 9, 'all message rows kept');
+    assert.deepEqual(st((e) => e.food_key === 'egg_sandwich'), ['uncertain', 'accepted']);
+    assert.equal(entries.find((e) => e.status === 'uncertain' && e.food_key === 'egg_sandwich')!.reason, 'other_parent_same_food');
+    const d = G.derive(entries, readings);
+    assert.equal(d.meals.length, 1); assert.equal(d.meals[0].carbs, 46, 'tea 10 + the accepted sandwich 36'); assert.equal(d.meals[0].uncertain, true);
+    const decided = entries.map((e) => (e.status === 'uncertain' && e.food_key === 'egg_sandwich' ? { ...e, status: 'accepted' as const } : e));
+    const d2 = G.derive(decided, readings);
+    assert.equal(d2.meals[0].carbs, 86, 'a parent said it was separate food: added'); assert.equal(d2.meals[0].uncertain, false);
   });
-  test('Gluroo import: dose purpose, finger-prick, juice while low, second basal flagged, existing skipped', () => {
-    const ins = plan.events.filter((e) => e.kind === 'insulin');
-    assert.deepEqual(ins.map((e) => [e.insulin_type, e.bolus_purpose]), [['rapid', 'meal'], ['long', undefined]]);
-    assert.equal(plan.flagged.length, 1); assert.equal(plan.flagged[0].minutes, 8);
-    assert.equal(plan.events.find((e) => e.kind === 'bg_check')!.bg_mgdl, 132);
-    const tr = plan.events.filter((e) => e.kind === 'treatment');
-    assert.equal(tr.length, 1, 'the juice at 70 min, glucose 70 at the time'); assert.equal(tr[0].carbs_g, 15);
-    assert.equal(plan.skipped.length, 1, 'the juice at 140 min is already in the app');
-    assert.equal(plan.readings.length, 50); assert.equal(plan.readings[0].tr, 4);
+  test('Gluroo import: juice while low, a second basal left undecided, already-logged entries marked, finger-prick kept', () => {
+    assert.deepEqual(st((e) => e.food_key === 'juice_box'), ['low_treatment', 'probable_duplicate']);
+    assert.deepEqual(st((e) => e.type === 'DOSE_BASAL_INSULIN'), ['accepted', 'uncertain']);
+    const d = G.derive(entries, readings);
+    assert.deepEqual(d.events.filter((e) => e.kind === 'insulin').map((e) => [e.insulin_type, e.bolus_purpose]), [['rapid', 'meal'], ['long', undefined]]);
+    assert.equal(d.events.find((e) => e.kind === 'bg_check')!.bg_mgdl, 132);
+    assert.equal(d.events.filter((e) => e.kind === 'treatment').length, 1);
+    assert.equal(readings.length, 50); assert.equal(readings[0].tr, 4);
+  });
+  test('Gluroo import: the same amount again 10–30 min later is uncertain; a changed amount is a corrected estimate', () => {
+    const rows2 = G.parseCsv([H,
+      msg(0, '422389', 'ANNOUNCE_MEAL', { text: 'Made from juice concentrate', g: 15 }),
+      msg(12, '422389', 'ANNOUNCE_MEAL', { text: 'Made from juice concentrate', g: 15 }),
+      msg(40, '422389', 'ANNOUNCE_MEAL', { text: 'A cup of cooked white basmati rice', g: 60 }),
+      msg(45, '422389', 'ANNOUNCE_MEAL', { text: 'A plate of cooked white basmati rice', g: 45 }),
+    ].join('\n'));
+    const e2 = G.classify(rows2, [], []);
+    assert.deepEqual(e2.map((e) => e.status), ['uncertain', 'accepted', 'replaced', 'accepted']);
   });
   test('Gluroo import: stable ids, so importing again adds nothing', async () => {
     const a = await G.uuid5('gluroo:x'), b = await G.uuid5('gluroo:x');
     assert.equal(a, b); assert.match(a, /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  });
+}
+
+console.log('finger-prick vs sensor');
+
+{
+  const F = await import('../../engine/fingerprick');
+  const M = 60000, T = Date.UTC(2026, 9, 1, 9, 0); // 12:00 Kuwait
+  const R = (f: (m: number) => number) => Array.from({ length: 41 }, (_, k) => ({ t: T + (k - 20) * M, v: f(k - 20), a: 3 }));
+  const base = { enteredLateMin: 2, handsClean: true, sensor: { sn: 'S1', startedAt: T - 1.5 * 86400000 }, lastMeal: T - 200 * M, lastInsulin: T - 200 * M, now: T + 60 * M };
+  test('steady glucose, Libre 1.6 lower: a good test pointing at sensor bias', () => {
+    const r = F.compareFingerprick({ ...base, t: T, bg: 180, readings: R(() => 151) });
+    assert.equal(r.state, 'stable'); assert.equal(r.quality, 'good'); assert.equal(r.cause, 'sensor_bias');
+    assert.equal(r.diff_mgdl, -29); assert.equal(r.sensor_day, 2); assert.equal(r.libre_10, 151); assert.equal(r.complete, true);
+  });
+  test('rising: Libre catches up 10 minutes later, so it is lag, not error', () => {
+    const r = F.compareFingerprick({ ...base, t: T, bg: 112, readings: R((m) => 100 + 1.4 * m) }); // finger 6.2, Libre 5.5 → 6.3 at +10
+    assert.equal(r.state, 'rising'); assert.equal(r.cause, 'cgm_lag'); assert.equal(r.best, 'plus10'); assert.equal(r.quality, 'fair');
+  });
+  test('fast change, juice just before, night pressure: named for what they are', () => {
+    assert.equal(F.compareFingerprick({ ...base, t: T, bg: 160, readings: R((m) => 120 + 2.5 * m) }).cause, 'rapid_change');
+    assert.equal(F.compareFingerprick({ ...base, t: T, bg: 95, lastMeal: T - 9 * M, readings: R(() => 70) }).cause, 'cgm_lag');
+    const night = T - 9 * 3600000; // 03:00 Kuwait
+    const Rn = Array.from({ length: 41 }, (_, k) => ({ t: night + (k - 20) * M, v: 65, a: 3 }));
+    assert.equal(F.compareFingerprick({ ...base, t: night, bg: 100, readings: Rn }).cause, 'compression');
+    assert.equal(F.compareFingerprick({ ...base, t: T, bg: 120, readings: [] }).cause, 'insufficient');
+  });
+  test('no bias estimate from fewer than 4 good steady tests', () => {
+    const one = { ...F.compareFingerprick({ ...base, t: T, bg: 180, readings: R(() => 151) }), bg: 180 };
+    assert.equal(F.sensorProfile([one, one, one]).bias, null);
+    const p = F.sensorProfile([one, one, one, one]);
+    assert.equal(p.bias!.n, 4); assert.equal(p.bias!.mgdl, -29);
+  });
+}
+
+console.log('research scoring');
+
+{
+  const Rz = await import('../../engine/research');
+  const M = 60000, T = Date.UTC(2026, 9, 1, 9, 0);
+  const ctx = { doses: [] as { t: number; u: number }[], carbs: [] as { t: number; g: number }[], iob: { dia: 360, peak: 65 }, absorb: 180, cr: 15, isf: 54 };
+  test('carbs push the context effect up, insulin pulls it down, by the doctor\'s ratios', () => {
+    const c = { ...ctx, carbs: [{ t: T, g: 45 }] };
+    assert.ok(Math.abs(Rz.physEffect(c, T, T + 180 * M) - 162) < 1e-9, '45 g ÷ 15 × 54');
+    const d = { ...ctx, doses: [{ t: T, u: 1 }] };
+    assert.ok(Math.abs(Rz.physEffect(d, T, T + 360 * M) + 54) < 1e-9);
+    assert.equal(Rz.physEffect({ ...ctx, carbs: [{ t: T + M, g: 45 }] }, T, T + 60 * M), 0, 'only what was known at the moment');
+  });
+  test('on steady glucose no-change is exact; a steady rise is caught by the trend, and moments are shared', () => {
+    const steady = Array.from({ length: 90 }, (_, k) => ({ t: T + k * M, v: 120, a: 3 }));
+    const s1 = Rz.samples(steady, ctx, []).kept;
+    assert.ok(s1.length > 10); assert.equal(Rz.score(s1, 'none').mae15, 0);
+    const rise = Array.from({ length: 90 }, (_, k) => ({ t: T + k * M, v: 100 + 2.5 * k, a: 5 }));
+    const s2 = Rz.samples(rise, ctx, []).kept;
+    const tr = Rz.score(s2, 'trend');
+    assert.ok(tr.mae15 < 1e-6); assert.equal(tr.rise.caught, tr.rise.truth); assert.ok(Rz.score(s2, 'none').mae15 > 30);
+    assert.equal(Rz.samples(rise, ctx, [[T, T + 90 * M]]).kept.length, 0, 'excluded windows are left out');
   });
 }
 

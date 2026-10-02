@@ -1,125 +1,171 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../lib/data';
-import { applyGluroo, existingFrom, planFrom, readGlurooFile, type ImportResult } from '../lib/importGluroo';
-import type { GlurooPlan } from '../lib/gluroo';
-import { formatGlucose } from '../lib/glucose';
+import { decide, existingFrom, importGluroo, loadEntries, preview, readGlurooFile, type ImportResult, type Preview, type StoredEntry } from '../lib/importGluroo';
+import { GLUROO_SENDERS, derive, type EntryStatus, type ImportEntry } from '../lib/gluroo';
 import { fmt } from '../lib/carbs';
-import { Alert, Btn, Card, Page, toast } from '../components/ui';
-import { locale, t, tMaybe } from '../i18n';
+import { Alert, Btn, Card, Chip, Page, Sheet, cx, toast } from '../components/ui';
+import { locale, t, tMaybe, tr } from '../i18n';
 
-const day = (ms: number) => new Date(ms).toLocaleString(locale(), { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true, numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
+const when = (ms: number) => new Date(ms).toLocaleString(locale(), { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true, numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
+const STATUS: Record<EntryStatus, string> = tr({ // i18n-ok: values translated when read
+  accepted: 'مقبول', probable_duplicate: 'مكرر غالبًا', replaced: 'استُبدل بتقدير لاحق', low_treatment: 'علاج انخفاض', uncertain: 'غير مؤكد', info: 'معلومة فقط', // i18n-ok
+});
+const REASON: Record<string, string> = tr({ // i18n-ok: values translated when read
+  identical_repeat: 'نفس النص والكمية مرة ثانية خلال 10 دقائق', // i18n-ok
+  later_estimate: 'نفس الأكل بكمية مختلفة خلال 30 دقيقة (تقدير مصحَّح)', // i18n-ok
+  same_food_again: 'نفس الأكل والكمية بعد 10–30 دقيقة: مكرر أم حصة ثانية؟', // i18n-ok
+  other_parent_same_food: 'نفس الأكل من الوالد الآخر خلال ساعة: نفس الطبق أم أكل منفصل؟', // i18n-ok
+  second_basal: 'تريسيبا مرة ثانية خلال ساعتين من شخص آخر: جرعة واحدة أم جرعتان؟', // i18n-ok
+  already_in_app: 'مسجّل في التطبيق', // i18n-ok
+  juice_while_low: 'عصير 20 غ أو أقل والسكر تحت 4.4', // i18n-ok
+  intervention: 'علاج من Gluroo', // i18n-ok
+});
+const TONE: Record<EntryStatus, string> = {
+  accepted: 'bg-slate-100 text-slate-700', probable_duplicate: 'bg-slate-100 text-slate-500', replaced: 'bg-slate-100 text-slate-500',
+  low_treatment: 'bg-over-soft text-over', uncertain: 'bg-near-soft text-near', info: 'bg-slate-100 text-slate-400',
+};
+const label = (e: ImportEntry) =>
+  e.food_name ? `${tMaybe(e.food_name)} · ${fmt(e.carbs)} ${t('غ')}`
+  : e.type === 'DOSE_INSULIN' ? t('{u} وحدة سريع', { u: fmt(e.units) })
+  : e.type.startsWith('DOSE_BASAL') ? t('تريسيبا {u} وحدة', { u: fmt(e.units) })
+  : e.type === 'BGL_FP_READING' ? t('وخز إصبع {v}', { v: e.raw.text?.replace(/^Fingerprick of /, '') ?? '' })
+  : e.raw.text?.slice(0, 60) || e.type;
 
 /**
- * استيراد من Gluroo: pick the export (.zip or .csv), see exactly what will be added and what was left out, then
- * import. Importing the same export again adds nothing.
+ * استيراد من Gluroo. Every exported entry is kept with the importer's decision; nothing is thrown away. Undecided
+ * entries come first for the parents; any decision can be changed later, and the cleaned meals follow at once.
  */
 export default function ImportPage() {
   const nav = useNavigate();
-  const { events, history, settings, reload } = useData();
+  const { events, history, reload } = useData();
   const file = useRef<HTMLInputElement>(null);
-  const [plan, setPlan] = useState<GlurooPlan | null>(null);
+  const [plan, setPlan] = useState<Preview | null>(null);
   const [err, setErr] = useState('');
   const [step, setStep] = useState<string | null>(null);
   const [done, setDone] = useState<ImportResult | null>(null);
-  const unit = settings.glucose_unit;
+  const [stored, setStored] = useState<StoredEntry[] | null>(null);
+  const refresh = () => loadEntries().then(setStored).catch(() => setStored([]));
+  useEffect(() => { void refresh(); }, []);
 
   const pick = async (f: File | undefined) => {
     if (!f) return;
     setErr(''); setPlan(null); setDone(null);
-    try { setPlan(planFrom(await readGlurooFile(f), existingFrom(events, history))); }
+    try { setPlan(preview(await readGlurooFile(f), existingFrom(events, history))); }
     catch (e) { setErr((e as Error).message === 'not_gluroo' || (e as Error).message === 'no_csv' ? t('هذا ليس ملف تصدير من Gluroo.') : (e as Error).message); }
   };
   const run = async () => {
     if (!plan) return;
-    try { const r = await applyGluroo(plan, setStep); setDone(r); await reload(); toast(t('تم الاستيراد ✓')); }
+    try { const r = await importGluroo(plan, setStep); setDone(r); setPlan(null); await reload(); await refresh(); toast(t('تم الاستيراد ✓')); }
     catch (e) { setErr((e as Error).message); } finally { setStep(null); }
   };
-
-  const counts = useMemo(() => plan && {
-    rapid: plan.events.filter((e) => e.kind === 'insulin' && e.insulin_type === 'rapid').length,
-    long: plan.events.filter((e) => e.kind === 'insulin' && e.insulin_type === 'long').length,
-    bg: plan.events.filter((e) => e.kind === 'bg_check').length,
-    treat: plan.events.filter((e) => e.kind === 'treatment').length,
-  }, [plan]);
 
   return (
     <Page title={t('استيراد من Gluroo')} back={() => nav(-1)}>
       <div className="space-y-4">
         <Card className="space-y-3">
-          <p className="text-sm text-slate-600">{t('في Gluroo: القائمة ← تصدير البيانات. اختاروا الملف هنا (zip أو csv). سترون كل ما سيُضاف قبل الاستيراد، والاستيراد مرة ثانية لا يكرر شيئًا.')}</p>
+          <p className="text-sm text-slate-600">{t('في Gluroo: القائمة ← تصدير البيانات. اختاروا الملف هنا (zip أو csv). يُحفظ كل سطر كما هو، ومع كل سطر قرار يمكنكم تغييره. الاستيراد مرة ثانية لا يكرر شيئًا ويحتفظ بقراراتكم.')}</p>
           <input ref={file} type="file" accept=".zip,.csv,text/csv,application/zip" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
           <Btn kind={plan ? 'ghost' : 'primary'} block onClick={() => file.current?.click()}>{plan ? t('اختيار ملف آخر') : t('اختيار ملف التصدير')}</Btn>
           {err && <Alert tone="near">{err}</Alert>}
         </Card>
 
-        {plan && counts && !done && (
-          <>
-            <Card className="space-y-2">
-              <h2 className="font-bold">{t('سيُضاف')}</h2>
-              <Row label={t('قراءات السكر')} value={plan.range ? t('{n} · {from} – {to}', { n: plan.readings.length, from: day(plan.range[0]), to: day(plan.range[1]) }) : '0'} hint={t('فقط الأوقات التي ليس فيها قراءة')} />
-              <Row label={t('إنسولين سريع')} value={String(counts.rapid)} hint={t('«لوجبة» إذا سُجّل أكل قبلها بـ20 د أو بعدها بـ45 د، وإلا «تصحيح»')} />
-              <Row label={t('تريسيبا')} value={String(counts.long)} />
-              <Row label={t('وخز إصبع')} value={String(counts.bg)} />
-              <Row label={t('علاج انخفاض')} value={String(counts.treat)} hint={t('عصير أو حلاوة 20 غ أو أقل والسكر تحت 4.4')} />
-              <Row label={t('وجبات وسناكات')} value={String(plan.meals.length)} hint={t('ما سُجّل خلال 20 دقيقة يصبح وجبة واحدة')} />
-              <Row label={t('أكل متكرر (يُسجَّل بضغطة)')} value={String(plan.quick.length)} />
-            </Card>
-
-            {plan.flagged.map((f) => (
-              <Alert key={f.t} tone="near">{t('تريسيبا {u} وحدة سُجّلت مرة ثانية بعد {m} دقيقة من شخص آخر ({when}). لم تُستورد. تأكدوا أنها جرعة واحدة.', { u: f.amount, m: f.minutes, when: day(f.t) })}</Alert>
-            ))}
-
-            <Card className="space-y-2">
-              <h2 className="font-bold">{t('سُجّل مرتين ({n})', { n: plan.doubles.length })}</h2>
-              <p className="text-sm text-slate-600">{t('نفس الأكل مرة ثانية خلال 30 دقيقة (تقدير مصحَّح)، أو من الوالد الآخر خلال ساعة (نفس الطبق). يُحفظ الأخير فقط.')}</p>
-              <details>
-                <summary className="min-h-[44px] cursor-pointer py-2 text-sm font-medium text-brand">{t('عرض التفاصيل')}</summary>
-                <ul className="space-y-1 text-sm">
-                  {plan.doubles.map((d, i) => (
-                    <li key={i} className="flex justify-between gap-2"><span><bdi>{tMaybe(d.item.name)}</bdi> · <span className="num">{fmt(d.item.g)}</span> {t('غ')}</span><span className="text-slate-500">{day(d.item.t)} → <span className="num">{fmt(d.keptG)}</span> {t('غ')}</span></li>
-                  ))}
-                </ul>
-              </details>
-              {plan.skipped.length > 0 && <p className="text-sm text-slate-600">{t('موجود في التطبيق، لن يُكرَّر: {n}', { n: plan.skipped.length })}</p>}
-            </Card>
-
-            <Card className="space-y-2">
-              <h2 className="font-bold">{t('الوجبات')}</h2>
-              <details>
-                <summary className="min-h-[44px] cursor-pointer py-2 text-sm font-medium text-brand">{t('عرض {n} وجبة', { n: plan.meals.length })}</summary>
-                <ul className="divide-y divide-slate-100 text-sm">
-                  {plan.meals.map((m) => (
-                    <li key={m.key} className="flex justify-between gap-3 py-1.5">
-                      <span className="min-w-0"><bdi className="block">{m.items.map((i) => tMaybe(i.name)).join(' + ')}</bdi><span className="text-xs text-slate-500">{day(m.t)}{m.glucose ? ` · ${formatGlucose(m.glucose.mg, unit)}` : ''}</span></span>
-                      <b className="num shrink-0">{fmt(m.carbs)} {t('غ')}</b>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-              <h3 className="pt-2 text-sm font-bold">{t('الأكل المتكرر')}</h3>
-              <ul className="space-y-1 text-sm">
-                {plan.quick.map((q) => <li key={q.name} className="flex justify-between gap-2"><bdi>{tMaybe(q.name)}</bdi><span><b className="num">{fmt(q.carbs)}</b> {t('غ')} <span className="text-xs text-slate-500">· {t('{n} مرة', { n: q.uses })}</span></span></li>)}
-              </ul>
-            </Card>
-
-            <Btn kind="primary" block disabled={!!step} onClick={run}>{step ? t('جارٍ الاستيراد…') : t('استيراد')}</Btn>
-          </>
-        )}
+        {plan && <PlanCard plan={plan} busy={!!step} onImport={run} />}
 
         {done && (
-          <Card className="space-y-2">
+          <Card className="space-y-1.5">
             <h2 className="font-bold">{t('تم الاستيراد')}</h2>
-            <Row label={t('قراءات السكر')} value={String(done.readings)} />
-            <Row label={t('إنسولين ووخز وعلاج')} value={String(done.events)} />
+            <Row label={t('قراءات السكر الجديدة')} value={String(done.readings)} />
+            <Row label={t('سطور محفوظة كما هي')} value={String(done.entries)} />
             <Row label={t('وجبات وسناكات')} value={String(done.meals)} />
-            <Row label={t('أكل متكرر')} value={String(done.quick)} />
-            <p className="text-xs text-slate-500">{t('ما كان موجودًا من قبل لم يُكرَّر.')}</p>
+            <Row label={t('إنسولين ووخز وعلاج')} value={String(done.events)} />
+            <Row label={t('أكل متكرر جديد')} value={String(done.quick)} />
             <Link to="/timeline" className="flex min-h-[44px] items-center font-bold text-brand">{t('فتح السجل')}</Link>
           </Card>
         )}
+
+        {stored && stored.length > 0 && <Review entries={stored} onChange={async () => { await refresh(); await reload(); }} />}
       </div>
     </Page>
+  );
+}
+
+function PlanCard({ plan, busy, onImport }: { plan: Preview; busy: boolean; onImport: () => void }) {
+  const d = useMemo(() => derive(plan.entries, plan.readings), [plan]);
+  const by = (s: EntryStatus) => plan.entries.filter((e) => e.status === s).length;
+  return (
+    <>
+      <Card className="space-y-2">
+        <h2 className="font-bold">{t('في الملف')}</h2>
+        <Row label={t('قراءات السكر')} value={String(plan.readings.length)} hint={plan.readings.length ? `${when(plan.readings[0].t)} – ${when(plan.readings[plan.readings.length - 1].t)} · ${t('تُضاف فقط الأوقات التي ليس فيها قراءة')}` : undefined} />
+        <Row label={t('سطور التسجيل')} value={String(plan.entries.length)} hint={t('كلها تُحفظ كما هي')} />
+        {(['accepted', 'low_treatment', 'replaced', 'probable_duplicate', 'uncertain', 'info'] as EntryStatus[]).map((s) => <Row key={s} label={`· ${STATUS[s]}`} value={String(by(s))} />)}
+        <Row label={t('الوجبات بعد التنظيف')} value={String(d.meals.length)} hint={t('ما سُجّل خلال 20 دقيقة يصبح وجبة واحدة')} />
+      </Card>
+      {by('uncertain') > 0 && <Alert tone="near">{t('{n} سطور غير مؤكدة ستنتظر قراركم بعد الاستيراد، ولا تدخل في الحسابات ولا في البحث حتى تقرروا.', { n: by('uncertain') })}</Alert>}
+      <Btn kind="primary" block disabled={busy} onClick={onImport}>{busy ? t('جارٍ الاستيراد…') : t('استيراد')}</Btn>
+    </>
+  );
+}
+
+function Review({ entries, onChange }: { entries: StoredEntry[]; onChange: () => Promise<void> }) {
+  const [filter, setFilter] = useState<EntryStatus | 'all'>('uncertain');
+  const [open, setOpen] = useState<StoredEntry | null>(null);
+  const [busy, setBusy] = useState(false);
+  const byKey = useMemo(() => new Map(entries.map((e) => [e.key, e])), [entries]);
+  const count = (s: EntryStatus) => entries.filter((e) => e.status === s).length;
+  const shown = entries.filter((e) => (filter === 'all' ? e.status !== 'info' : e.status === filter));
+  const set = async (e: StoredEntry, s: EntryStatus) => {
+    setBusy(true);
+    try { await decide(e.id, s); await onChange(); toast(t('تم الحفظ ✓')); setOpen(null); } catch (x) { toast((x as Error).message); } finally { setBusy(false); }
+  };
+  const chips: (EntryStatus | 'all')[] = ['uncertain', 'all', 'accepted', 'low_treatment', 'replaced', 'probable_duplicate', 'info'];
+  return (
+    <Card className="space-y-3">
+      <h2 className="font-bold">{t('السطور المستوردة')}</h2>
+      {count('uncertain') > 0 ? <p className="text-sm font-medium">{t('{n} تحتاج قراركم.', { n: count('uncertain') })}</p> : <p className="text-sm text-slate-600">{t('لا شيء ينتظر قراركم. يمكن تغيير أي قرار من القائمة.')}</p>}
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
+        {chips.map((c) => <Chip key={c} active={filter === c} onClick={() => setFilter(c)}>{c === 'all' ? t('الكل') : `${STATUS[c]} (${count(c)})`}</Chip>)}
+      </div>
+      <ul className="divide-y divide-slate-100">
+        {shown.map((e) => {
+          const rel = e.related_key ? byKey.get(e.related_key) : null;
+          return (
+            <li key={e.id} className="space-y-1.5 py-2.5">
+              <button className="w-full text-start" onClick={() => setOpen(e)}>
+                <div className="flex items-baseline justify-between gap-2">
+                  <bdi className="min-w-0 truncate font-medium">{label(e)}</bdi>
+                  <span className={cx('shrink-0 rounded-full px-2 py-0.5 text-xs', TONE[e.status])}>{STATUS[e.status]}{e.decided_by === 'parent' ? ' ✓' : ''}</span>
+                </div>
+                <div className="text-xs text-slate-500">{when(e.t)} · <bdi>{GLUROO_SENDERS[e.sender] ?? e.sender}</bdi>{e.reason && REASON[e.reason] ? ` · ${REASON[e.reason]}` : ''}</div>
+                {rel && <div className="text-xs text-slate-500">{t('مقابل: {x} · {when}', { x: label(rel), when: when(rel.t) })}</div>}
+              </button>
+              {e.status === 'uncertain' && (
+                <div className="grid grid-cols-2 gap-2">
+                  <Btn kind="ghost" disabled={busy} onClick={() => set(e, 'probable_duplicate')}>{e.reason === 'second_basal' ? t('جرعة واحدة (مكرر)') : t('نفس الأكل (مكرر)')}</Btn>
+                  <Btn disabled={busy} onClick={() => set(e, 'accepted')}>{e.reason === 'second_basal' ? t('جرعتان') : t('أكل منفصل (يُضاف)')}</Btn>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <Sheet open={!!open} onClose={() => setOpen(null)} title={open ? label(open) : ''}>
+        {open && (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">{when(open.t)} · <bdi>{GLUROO_SENDERS[open.sender] ?? open.sender}</bdi></p>
+            {open.raw.text && <p className="rounded-xl bg-slate-50 p-2.5 text-sm" dir="auto">{open.raw.text}</p>}
+            <p className="text-xs text-slate-500">{t('كما في الملف: كارب {g} · دهون {f} · بروتين {p} · {k} سعرة', { g: open.raw.foodG || '—', f: open.raw.foodFat || '—', p: open.raw.foodProtein || '—', k: open.raw.foodCal || '—' })}</p>
+            <div className="text-sm font-medium">{t('القرار')}</div>
+            <div className="grid grid-cols-2 gap-2">
+              {(['accepted', 'probable_duplicate', 'replaced', 'low_treatment', 'uncertain'] as EntryStatus[]).map((s) => (
+                <Btn key={s} kind={open.status === s ? 'primary' : 'ghost'} disabled={busy || open.status === s} onClick={() => set(open, s)}>{STATUS[s]}</Btn>
+              ))}
+            </div>
+          </div>
+        )}
+      </Sheet>
+    </Card>
   );
 }
 

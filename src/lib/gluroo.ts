@@ -1,16 +1,18 @@
-// Import a Gluroo data export (CSV). Pure planning, tested in Node; applying the plan is in importGluroo.ts.
-// The same rules as scripts/gluroo_import.py:
-//   readings      -> glucose_readings (only where no reading exists within 90 s), Libre's arrow kept
-//   rapid dose    -> insulin event; 'meal' if food was logged from 20 min before to 45 min after, else 'correction'
-//   basal dose    -> insulin event, long; a second basal within 2 h is reported, not imported
-//   finger-prick  -> bg_check event
-//   intervention  -> treatment event
-//   meals         -> meal_history after removing double entries: the same food again within 30 min (a corrected
-//                    estimate) or by the other parent within 60 min (the same plate) keeps only the last one;
-//                    items within 20 min become one meal; juice or a sweet of 20 g or less while glucose is under
-//                    4.4 mmol/L becomes a low treatment
-//   repeated foods -> quick items
-// Anything already in the app (same kind and amount within 15 min) is skipped. Running it twice adds nothing.
+// Import a Gluroo data export (CSV). Pure, tested in Node; reading the file and writing to the database are in
+// importGluroo.ts. Two steps, so that no exported entry is ever thrown away:
+//
+// 1. classify(): every message row becomes an import entry, kept as exported, with a status the parents can change:
+//      accepted            used as logged
+//      probable_duplicate  the same text and carbs again within 10 min from the same person, or already in the app
+//      replaced            the same food with a changed amount from the same person within 30 min: a corrected estimate
+//      low_treatment       juice or a sweet of 20 g or less while glucose was under 4.4 mmol/L (or a Gluroo intervention)
+//      uncertain           the same food and amount again from the same person 10–30 min later, the same food from
+//                          the other parent within 60 min, or a second basal within 2 h:
+//                          maybe the same plate or dose logged twice, maybe not. Left for the parents to decide;
+//                          the importer never uses the insulin dose to judge what a meal "should" have been
+//      info                badges, messages, barcode definitions: kept, not used
+// 2. derive(): the cleaned meals and events, rebuilt from the entries' current statuses (after any parent change).
+//    Items within 20 min form one meal; a meal next to an undecided entry is marked uncertain, so research leaves it out.
 
 const MIN = 60000;
 export const GLUROO_SENDERS: Record<string, string> = { '422380': 'الأب', '422389': 'Rawan', '422378': 'Layan' }; // i18n-ok: data
@@ -77,117 +79,135 @@ export function foodOf(text: string, desc: string): { key: string; name: string;
   return f ? { key: f.key, name: f.name, kind: f.kind } : { key: 'other:' + s.slice(0, 40), name: text.slice(0, 60), kind: 'snack' };
 }
 
-export interface Existing { kind: 'insulin' | 'carbs' | 'treatment'; amount: number; t: number }
-export interface PlanEvent {
-  key: string; kind: 'insulin' | 'treatment' | 'bg_check'; t: number; sender: string;
-  insulin_units?: number; insulin_type?: 'rapid' | 'long'; bolus_purpose?: 'meal' | 'correction';
-  carbs_g?: number; treatment?: string; bg_mgdl?: number; sensor?: number | null;
+export type EntryStatus = 'accepted' | 'probable_duplicate' | 'replaced' | 'low_treatment' | 'uncertain' | 'info';
+export interface ImportEntry {
+  key: string; t: number; type: string; sender: string; raw: Record<string, string>;
+  food_key: string | null; food_name: string | null; carbs: number | null; units: number | null;
+  status: EntryStatus; reason: string | null; related_key: string | null; decided_by?: 'importer' | 'parent';
 }
-export interface PlanItem { t: number; key: string; name: string; kind: 'meal' | 'snack' | 'treatment'; g: number; fat: number | null; protein: number | null; kcal: number | null; sender: string; barcode: string | null; date: string }
-export interface PlanMeal { key: string; t: number; kind: 'meal' | 'snack'; name: string; items: PlanItem[]; carbs: number; fat: number | null; protein: number | null; kcal: number | null; glucose: { mg: number; trend: number | null; t: number } | null; senders: string[] }
-export interface PlanQuick { name: string; carbs: number; fat: number | null; protein: number | null; kcal: number | null; kind: 'meal' | 'snack'; barcode: string | null; uses: number; values: number[]; last: number }
-export interface GlurooPlan {
-  readings: { t: number; mg: number; tr: number | null }[];
-  range: [number, number] | null;
-  events: PlanEvent[];
-  meals: PlanMeal[];
-  quick: PlanQuick[];
-  doubles: { item: PlanItem; keptG: number; keptT: number; otherParent: boolean }[];
-  skipped: { what: string; t: number; amount: number }[];
-  flagged: { what: string; t: number; amount: number; minutes: number }[];
+export interface Existing { kind: 'insulin' | 'carbs' | 'treatment'; amount: number; t: number }
+export interface Reading { t: number; mg: number; tr: number | null }
+
+export const entryKey = (r: Record<string, string>) => `gluroo:${r.date}:${r.msgType}:${(r.text || '').slice(0, 40)}:${r.foodG || r.doseUnits || r.fpBgl || ''}`;
+
+export function readingsFrom(rows: Record<string, string>[]): Reading[] {
+  return rows.filter((r) => r.eventType === 'cgm_reading' && num(r.bgl)).map((r) => ({ t: Date.parse(r.date), mg: num(r.bgl)!, tr: ARROW[r.trend] ?? null }))
+    .filter((r) => !Number.isNaN(r.t)).sort((a, b) => a.t - b.t);
 }
 
-export function planGluroo(rows: Record<string, string>[], existing: Existing[]): GlurooPlan {
-  type Row = Record<string, string> & { t: number };
-  const R: Row[] = rows.map((r) => Object.assign({}, r, { t: Date.parse(r.date) }) as Row).filter((r) => !Number.isNaN(r.t)).sort((a, b) => a.t - b.t);
+export function nearestReading(readings: Reading[], t: number, within = 10 * MIN): Reading | null {
+  let lo = 0, hi = readings.length - 1;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (readings[m].t < t) lo = m + 1; else hi = m; }
+  const c = [readings[lo - 1], readings[lo]].filter(Boolean).sort((a, b) => Math.abs(a.t - t) - Math.abs(b.t - t))[0];
+  return c && Math.abs(c.t - t) <= within ? c : null;
+}
+
+/** Step 1: one entry per exported message, with the importer's status and the reason in plain words. */
+export function classify(rows: Record<string, string>[], readings: Reading[], existing: Existing[]): ImportEntry[] {
   const already = (kind: Existing['kind'], amount: number, t: number) =>
     existing.some((e) => e.kind === kind && Math.abs(e.t - t) <= 15 * MIN && Math.abs(e.amount - amount) < 0.01);
-
-  const cgm = R.filter((r) => r.eventType === 'cgm_reading' && num(r.bgl));
-  const readings = cgm.map((r) => ({ t: r.t, mg: num(r.bgl)!, tr: ARROW[r.trend] ?? null }));
-  const bgAt = (t: number) => {
-    let best: (typeof readings)[number] | null = null;
-    for (const g of readings) if (!best || Math.abs(g.t - t) < Math.abs(best.t - t)) best = g;
-    return best && Math.abs(best.t - t) <= 10 * MIN ? best : null;
-  };
-
-  const msgs = R.filter((r) => r.eventType === 'message');
-  const mealMsgs = msgs.filter((r) => r.msgType === 'ANNOUNCE_MEAL' && num(r.foodG) !== null);
-  const events: PlanEvent[] = [], skipped: GlurooPlan['skipped'] = [], flagged: GlurooPlan['flagged'] = [];
-
-  // insulin
-  let lastBasal: number | null = null;
-  for (const r of msgs) {
-    const long = r.msgType.startsWith('DOSE_BASAL');
-    if (!(r.msgType === 'DOSE_INSULIN' || long)) continue;
-    const u = num(r.doseUnits); if (!u) continue;
-    if (already('insulin', u, r.t)) { skipped.push({ what: long ? 'long' : 'rapid', t: r.t, amount: u }); continue; }
-    if (long && lastBasal !== null && r.t - lastBasal < 2 * 3600000) { flagged.push({ what: 'long', t: r.t, amount: u, minutes: Math.round((r.t - lastBasal) / MIN) }); continue; }
-    if (long) lastBasal = r.t;
-    const purpose = long ? undefined : mealMsgs.some((m) => m.t - r.t >= -20 * MIN && m.t - r.t <= 45 * MIN) ? 'meal' : 'correction';
-    events.push({ key: `gluroo:${r.date}:${r.msgType}`, kind: 'insulin', t: r.t, sender: r.senderId, insulin_units: u, insulin_type: long ? 'long' : 'rapid', ...(purpose ? { bolus_purpose: purpose as 'meal' | 'correction' } : {}) });
-  }
-  // finger-pricks
-  for (const r of msgs) {
-    if (r.msgType !== 'BGL_FP_READING' || !num(r.fpBgl)) continue;
-    events.push({ key: `gluroo:${r.date}:fp`, kind: 'bg_check', t: r.t, sender: r.senderId, bg_mgdl: Math.round(num(r.fpBgl)!), sensor: bgAt(r.t)?.mg ?? null });
-  }
-
-  // food
-  const items: PlanItem[] = mealMsgs.map((r) => {
-    const f = foodOf(r.text, r.description);
-    return { t: r.t, key: f.key, name: f.name, kind: f.kind, g: num(r.foodG)!, fat: num(r.foodFat), protein: num(r.foodProtein), kcal: num(r.foodCal), sender: r.senderId, barcode: /^\d+$/.test(r.description) ? r.description : null, date: r.date };
+  const msgs = rows.filter((r) => r.eventType === 'message').map((r) => ({ r, t: Date.parse(r.date) })).filter((x) => !Number.isNaN(x.t)).sort((a, b) => a.t - b.t);
+  const out: ImportEntry[] = [];
+  const base = (r: Record<string, string>, t: number): ImportEntry => ({
+    key: entryKey(r), t, type: r.msgType || 'message', sender: r.senderId, raw: r, food_key: null, food_name: null,
+    carbs: num(r.foodG), units: num(r.doseUnits), status: 'info', reason: null, related_key: null,
   });
-  for (const r of msgs) if (r.msgType === 'INTERVENTION')
-    items.push({ t: r.t, key: 'sweet', name: r.description || 'حلاوة', kind: 'treatment', g: num(r.foodG) ?? 0, fat: null, protein: null, kcal: num(r.foodCal), sender: r.senderId, barcode: null, date: r.date }); // i18n-ok: stored
-  items.sort((a, b) => a.t - b.t);
-
-  const doubles: GlurooPlan['doubles'] = [], kept: PlanItem[] = [];
-  items.forEach((it, i) => {
-    const later = items.slice(i + 1).filter((j) => j.key === it.key && (j.t - it.t <= 30 * MIN || (j.sender !== it.sender && j.t - it.t <= 60 * MIN)));
-    if (later.length) { const k = later[later.length - 1]; doubles.push({ item: it, keptG: k.g, keptT: k.t, otherParent: k.sender !== it.sender }); return; }
-    kept.push(it);
-  });
-
-  const food: PlanItem[] = [];
-  for (const it of kept) {
-    if (already('carbs', it.g, it.t) || already('treatment', it.g, it.t)) { skipped.push({ what: it.name, t: it.t, amount: it.g }); continue; }
-    const s = bgAt(it.t);
-    if (it.kind === 'treatment' || (TREAT_KEYS.has(it.key) && it.g <= 20 && s && s.mg < 80)) {
-      events.push({ key: `gluroo:${it.date}:treat`, kind: 'treatment', t: it.t, sender: it.sender, carbs_g: it.g, treatment: it.key === 'sweet' ? 'أخرى' : 'عصير', sensor: s?.mg ?? null }); // i18n-ok: stored values
-      continue;
+  const seen = new Map<string, number>(); // identical rows (same time, text and amount) stay separate entries
+  let lastBasal: ImportEntry | null = null;
+  const food: ImportEntry[] = [];
+  for (const { r, t } of msgs) {
+    const e = base(r, t);
+    const n = (seen.get(e.key) ?? 0) + 1; seen.set(e.key, n); if (n > 1) e.key += `#${n}`;
+    if (r.msgType === 'DOSE_INSULIN' || r.msgType.startsWith('DOSE_BASAL')) {
+      const long = r.msgType.startsWith('DOSE_BASAL');
+      if (e.units && already('insulin', e.units, t)) Object.assign(e, { status: 'probable_duplicate', reason: 'already_in_app' });
+      else if (long && lastBasal && t - lastBasal.t < 2 * 3600000 && lastBasal.sender !== e.sender)
+        Object.assign(e, { status: 'uncertain', reason: 'second_basal', related_key: lastBasal.key });
+      else e.status = 'accepted';
+      if (long && e.status === 'accepted') lastBasal = e;
+    } else if (r.msgType === 'BGL_FP_READING' && num(r.fpBgl)) e.status = 'accepted';
+    else if (r.msgType === 'INTERVENTION') Object.assign(e, { status: 'low_treatment', reason: 'intervention', food_key: 'sweet', food_name: r.description || 'حلاوة', carbs: num(r.foodG) ?? 0 }); // i18n-ok: stored
+    else if (r.msgType === 'ANNOUNCE_MEAL' && num(r.foodG) !== null) {
+      const f = foodOf(r.text, r.description);
+      Object.assign(e, { food_key: f.key, food_name: f.name, status: 'accepted' });
+      food.push(e);
     }
-    food.push(it);
+    out.push(e);
   }
+  // food: compare each entry with the later ones
+  food.forEach((it, i) => {
+    const later = food.slice(i + 1);
+    const same = later.find((j) => j.sender === it.sender && j.raw.text === it.raw.text && j.carbs === it.carbs && j.t - it.t <= 10 * MIN);
+    if (same) return void Object.assign(it, { status: 'probable_duplicate', reason: 'identical_repeat', related_key: same.key });
+    // a changed amount for the same food soon after is a corrected estimate; the same amount again may be a second serving
+    const corrected = later.filter((j) => j.food_key === it.food_key && j.sender === it.sender && j.t - it.t <= 30 * MIN && j.carbs !== it.carbs).pop();
+    if (corrected) return void Object.assign(it, { status: 'replaced', reason: 'later_estimate', related_key: corrected.key });
+    const again = later.find((j) => j.food_key === it.food_key && j.sender === it.sender && j.t - it.t <= 30 * MIN);
+    if (again) return void Object.assign(it, { status: 'uncertain', reason: 'same_food_again', related_key: again.key });
+    const other = later.filter((j) => j.food_key === it.food_key && j.sender !== it.sender && j.t - it.t <= 60 * MIN).pop();
+    if (other) return void Object.assign(it, { status: 'uncertain', reason: 'other_parent_same_food', related_key: other.key });
+    if (already('carbs', it.carbs!, it.t) || already('treatment', it.carbs!, it.t)) return void Object.assign(it, { status: 'probable_duplicate', reason: 'already_in_app' });
+    const g = nearestReading(readings, it.t);
+    if (TREAT_KEYS.has(it.food_key!) && it.carbs! <= 20 && g && g.mg < 80) Object.assign(it, { status: 'low_treatment', reason: 'juice_while_low' });
+  });
+  return out;
+}
 
-  const groups: PlanItem[][] = [];
-  for (const it of food) {
+export interface DerivedEvent {
+  key: string; kind: 'insulin' | 'treatment' | 'bg_check'; t: number; sender: string;
+  insulin_units?: number; insulin_type?: 'rapid' | 'long'; bolus_purpose?: 'meal' | 'correction';
+  carbs_g?: number; treatment?: string; bg_mgdl?: number;
+}
+export interface DerivedMeal {
+  key: string; t: number; kind: 'meal' | 'snack'; name: string; items: ImportEntry[]; carbs: number;
+  fat: number | null; protein: number | null; kcal: number | null; uncertain: boolean; senders: string[];
+  glucose: Reading | null;
+}
+export interface DerivedQuick { name: string; carbs: number; fat: number | null; protein: number | null; kcal: number | null; kind: 'meal' | 'snack'; barcode: string | null; uses: number; values: number[]; last: number }
+
+/** Step 2: the cleaned meals and events from the entries' current statuses. */
+export function derive(entries: ImportEntry[], readings: Reading[]): { meals: DerivedMeal[]; events: DerivedEvent[]; quick: DerivedQuick[] } {
+  const E = [...entries].sort((a, b) => a.t - b.t);
+  const used = (e: ImportEntry) => e.status === 'accepted';
+  const foodIn = E.filter((e) => e.type === 'ANNOUNCE_MEAL');
+  const events: DerivedEvent[] = [];
+  for (const e of E) {
+    if (e.type === 'DOSE_INSULIN' && used(e) && e.units) {
+      const nearFood = foodIn.some((m) => (m.status === 'accepted' || m.status === 'uncertain') && m.t - e.t >= -20 * MIN && m.t - e.t <= 45 * MIN);
+      events.push({ key: e.key, kind: 'insulin', t: e.t, sender: e.sender, insulin_units: e.units, insulin_type: 'rapid', bolus_purpose: nearFood ? 'meal' : 'correction' });
+    } else if (e.type.startsWith('DOSE_BASAL') && used(e) && e.units) events.push({ key: e.key, kind: 'insulin', t: e.t, sender: e.sender, insulin_units: e.units, insulin_type: 'long' });
+    else if (e.type === 'BGL_FP_READING' && used(e) && num(e.raw.fpBgl)) events.push({ key: e.key, kind: 'bg_check', t: e.t, sender: e.sender, bg_mgdl: Math.round(num(e.raw.fpBgl)!) });
+    else if (e.status === 'low_treatment') events.push({ key: e.key, kind: 'treatment', t: e.t, sender: e.sender, carbs_g: e.carbs ?? 0, treatment: e.food_key === 'sweet' ? 'أخرى' : 'عصير' }); // i18n-ok: stored values
+  }
+  const groups: ImportEntry[][] = [];
+  for (const it of foodIn.filter(used)) {
     const g = groups[groups.length - 1];
     if (g && it.t - g[g.length - 1].t <= 20 * MIN) g.push(it); else groups.push([it]);
   }
-  const sum = (g: PlanItem[], k: 'fat' | 'protein' | 'kcal') => (g.some((i) => i[k] !== null) ? r1(g.reduce((s, i) => s + (i[k] ?? 0), 0)) : null);
-  const meals: PlanMeal[] = groups.map((g) => {
-    const carbs = r1(g.reduce((s, i) => s + i.g, 0)), s = bgAt(g[0].t);
+  const pending = foodIn.filter((e) => e.status === 'uncertain');
+  const sum = (g: ImportEntry[], k: 'foodFat' | 'foodProtein' | 'foodCal') => (g.some((i) => num(i.raw[k]) !== null) ? r1(g.reduce((s, i) => s + (num(i.raw[k]) ?? 0), 0)) : null);
+  const meals: DerivedMeal[] = groups.map((g) => {
+    const carbs = r1(g.reduce((s, i) => s + (i.carbs ?? 0), 0)), keys = new Set(g.map((i) => i.key));
     return {
-      key: 'gluroo:' + g[0].date, t: g[0].t, kind: carbs >= 20 || g.some((i) => i.kind === 'meal') ? 'meal' : 'snack',
-      name: [...new Set(g.map((i) => i.name))].join(' + '), items: g, carbs, fat: sum(g, 'fat'), protein: sum(g, 'protein'), kcal: sum(g, 'kcal'),
-      glucose: s ? { mg: s.mg, trend: s.tr, t: s.t } : null, senders: [...new Set(g.map((i) => GLUROO_SENDERS[i.sender] ?? i.sender))],
+      key: g[0].key, t: g[0].t, kind: carbs >= 20 || g.some((i) => FOODS.find((f) => f.key === i.food_key)?.kind === 'meal') ? 'meal' : 'snack',
+      name: [...new Set(g.map((i) => i.food_name!))].join(' + '), items: g, carbs, fat: sum(g, 'foodFat'), protein: sum(g, 'foodProtein'), kcal: sum(g, 'foodCal'),
+      uncertain: pending.some((p) => (p.related_key && keys.has(p.related_key)) || Math.abs(p.t - g[0].t) <= 60 * MIN),
+      senders: [...new Set(g.map((i) => GLUROO_SENDERS[i.sender] ?? i.sender))], glucose: nearestReading(readings, g[0].t),
     };
   });
-
-  // repeated foods -> quick items: the amount logged most often (the larger one on a tie)
-  const by = new Map<string, PlanItem[]>();
-  for (const it of kept) if (!it.key.startsWith('other:') && it.key !== 'sweet') by.set(it.key, [...(by.get(it.key) ?? []), it]);
-  const quick: PlanQuick[] = [...by.values()].filter((its) => its.length >= 2).map((its) => {
-    // partial servings (under half the largest amount) do not set the item's amount
-    const max = Math.max(...its.map((i) => i.g));
-    const counts = new Map<number, number>(); for (const i of its) if (i.g >= max / 2) counts.set(r1(i.g), (counts.get(r1(i.g)) ?? 0) + 1);
+  // foods logged on 2 or more occasions -> quick items, with the amount logged most often (partial servings ignored)
+  const by = new Map<string, ImportEntry[]>();
+  for (const it of foodIn) if ((used(it) || it.status === 'low_treatment') && !it.food_key!.startsWith('other:')) by.set(it.food_key!, [...(by.get(it.food_key!) ?? []), it]);
+  const quick: DerivedQuick[] = [...by.values()].filter((its) => its.length >= 2).map((its) => {
+    const max = Math.max(...its.map((i) => i.carbs ?? 0));
+    const counts = new Map<number, number>(); for (const i of its) if ((i.carbs ?? 0) >= max / 2) counts.set(r1(i.carbs ?? 0), (counts.get(r1(i.carbs ?? 0)) ?? 0) + 1);
     const carbs = [...counts.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0];
-    const pick = [...its].reverse().find((i) => r1(i.g) === carbs) ?? its[its.length - 1];
-    return { name: pick.name, carbs, fat: pick.fat, protein: pick.protein, kcal: pick.kcal, kind: (pick.kind === 'meal' ? 'meal' : 'snack') as 'meal' | 'snack', barcode: its.find((i) => i.barcode)?.barcode ?? null, uses: its.length, values: its.map((i) => i.g), last: its[its.length - 1].t };
+    const pick = [...its].reverse().find((i) => r1(i.carbs ?? 0) === carbs) ?? its[its.length - 1];
+    const kind = (FOODS.find((f) => f.key === pick.food_key)?.kind ?? 'snack') as 'meal' | 'snack';
+    return { name: pick.food_name!, carbs, fat: num(pick.raw.foodFat), protein: num(pick.raw.foodProtein), kcal: num(pick.raw.foodCal), kind,
+      barcode: its.map((i) => i.raw.description).find((d) => /^\d+$/.test(d ?? '')) ?? null, uses: its.length, values: its.map((i) => i.carbs ?? 0), last: its[its.length - 1].t };
   }).sort((a, b) => b.uses - a.uses);
-
-  return { readings, range: readings.length ? [readings[0].t, readings[readings.length - 1].t] : null, events, meals, quick, doubles, skipped, flagged };
+  return { meals, events, quick };
 }
 
 /** RFC 4122 version 5 (SHA-1) id, so the same Gluroo entry always gets the same client id. */

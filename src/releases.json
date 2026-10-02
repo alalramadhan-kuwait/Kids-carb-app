@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.12.0",
+    "date": "2026-10-02",
+    "notes": [
+      "الاستيراد من Gluroo يحفظ كل سطر كما هو مع قرار يمكنكم تغييره: مقبول، مكرر غالبًا، استُبدل بتقدير لاحق، علاج انخفاض، أو غير مؤكد",
+      "السطور غير المؤكدة تنتظر قراركم ولا تدخل في الحسابات حتى تقرروا",
+      "وخز الإصبع من «سجّل»: يُقارن تلقائيًا بقراءة Libre وقتها وبعد 5 و10 دقائق",
+      "«دقة الحساس» من صفحة الحالة: الفرق مع الوخز لكل حساس، حسب ثبات السكر ويوم الحساس، دون تغيير أي رقم أو جرعة"
+    ],
+    "notes_en": [
+      "The Gluroo import keeps every line as exported with a decision you can change: accepted, probable duplicate, replaced by a later estimate, low treatment, or uncertain",
+      "Uncertain lines wait for your decision and stay out of calculations until you decide",
+      "Finger-prick from Log: compared automatically with Libre at the time and 5 and 10 minutes later",
+      "\"Sensor accuracy\" from the Status page: the difference from finger-pricks per sensor, by steady/moving glucose and sensor day, without changing any number or dose"
+    ]
+  },
+  {
     "version": "1.11.0",
     "date": "2026-10-02",
     "notes": [

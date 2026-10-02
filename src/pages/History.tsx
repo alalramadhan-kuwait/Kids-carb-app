@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { fmt, stateText, unitText } from '../lib/carbs';
 import { deleteEvent, deleteHistory, restoreEvent } from '../lib/api';
@@ -101,7 +102,7 @@ export default function History() {
 function Row({ it, who, onOpen }: { it: Item; who: string; onOpen: () => void }) {
   const icon: IconName = it.h ? 'meals' : EVENT_ICON[it.e!.kind];
   const main = it.h ? <bdi>{it.h.name}</bdi> : it.e!.kind === 'note' ? <bdi>{it.e!.note}</bdi> : describeEvent(it.e!);
-  const sub = it.h ? (it.h.kind === 'snack' ? t('سناك') : '') : it.e!.kind !== 'note' && it.e!.note ? it.e!.note : '';
+  const sub = it.h ? [it.h.kind === 'snack' ? t('سناك') : '', it.h.needs_review ? t('يحتاج تأكيد') : '', it.h.source === 'gluroo' ? 'Gluroo' : ''].filter(Boolean).join(' · ') : it.e!.kind !== 'note' && it.e!.note ? it.e!.note : '';
   return (
     <li>
       <button onClick={onOpen} className="flex min-h-[56px] w-full items-center gap-3 px-4 py-2 text-start active:bg-slate-50">
@@ -135,6 +136,7 @@ function MealDetail({ h, n, unit }: { h: HistoryEntry; n: number; unit: 'mmol' |
       </ul>
       {h.total_kcal !== null && <p className="num text-xs text-slate-500">{t('دهون {fat}غ • ألياف {fiber}غ • بروتين {protein}غ • {kcal} سعرة', { fat: fmt(h.total_fat), fiber: fmt(h.total_fiber), protein: fmt(h.total_protein), kcal: h.total_kcal })}</p>}
       <p className="text-xs text-slate-500">{t('اختيرت {n} مرة', { n })}{h.modified ? ' · ' + t('معدّلة') : ''}</p>
+      {h.needs_review && <Link to="/import" className="block rounded-xl bg-near-soft p-2.5 text-sm font-medium text-near">{t('سُجّل جزء منها مرتين في Gluroo. قرّروا في صفحة الاستيراد.')}</Link>}
       <MealPrediction id={h.id} unit={unit} />
     </div>
   );
