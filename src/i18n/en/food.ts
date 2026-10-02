@@ -411,4 +411,6 @@ export const food: Record<string, string> = {
   "لتسجيله بلمسة في المرة القادمة": "So it is one tap next time",
   "الأكثر": "Most used",
   "القيم الغذائية غير معقولة": "Those nutrition values are not plausible",
+  "البراند": "Brand",
+  "وجبة من عدة أصناف: يتغير المجموع فقط.": "A meal of several items: only the total changes.",
 };

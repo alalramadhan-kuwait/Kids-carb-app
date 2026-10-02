@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.15.1",
+    "date": "2026-10-02",
+    "notes": [
+      "صفحة التعديل أصغر وتكفيها الشاشة: الاسم والبراند في سطر، والقيم الغذائية الخمس في سطر واحد."
+    ],
+    "notes_en": [
+      "The edit form is compact and fits the screen: name and brand on one line, the five nutrition values on one row."
+    ]
+  },
+  {
     "version": "1.15.0",
     "date": "2026-10-02",
     "notes": [

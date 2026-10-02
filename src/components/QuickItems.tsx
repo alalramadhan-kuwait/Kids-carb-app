@@ -67,16 +67,14 @@ function QuickEdit({ q, brands, onDone }: { q: QuickItem; brands: string[]; onDo
   return (
     <div className="space-y-3">
       <Field label={t('الاسم')}><input className={inputCls} dir="auto" value={name} onChange={(e) => setName(e.target.value)} /></Field>
-      <Field label={t('البراند (اختياري)')}>
+      <Field label={t('البراند')}>
         <input className={inputCls} dir="auto" list="quick-brands" value={brand} maxLength={60} onChange={(e) => setBrand(e.target.value)} />
         <datalist id="quick-brands">{brands.map((b) => <option key={b} value={b} />)}</datalist>
       </Field>
-      <Field label={t('الكارب للحصة (غ)')}><NumInput value={carbs} onChange={setCarbs} /></Field>
-      <div className="grid grid-cols-2 gap-2">
-        <Field label={t('دهون (غ)')}><NumInput value={fat} onChange={setFat} /></Field>
-        <Field label={t('بروتين (غ)')}><NumInput value={protein} onChange={setProtein} /></Field>
-        <Field label={t('ألياف (غ)')}><NumInput value={fiber} onChange={setFiber} /></Field>
-        <Field label={t('سعرات')}><NumInput value={kcal} onChange={setKcal} /></Field>
+      <div className="grid grid-cols-5 gap-1.5">
+        {([[t('كارب'), carbs, setCarbs], [t('دهون'), fat, setFat], [t('بروتين'), protein, setProtein], [t('ألياف'), fiber, setFiber], [t('سعرات'), kcal, setKcal]] as [string, number | null, (v: number | null) => void][]).map(([l, v, set]) => (
+          <label key={l} className="block min-w-0"><span className="mb-0.5 block truncate text-xs font-medium text-slate-500">{l}</span><NumInput className="!min-h-[40px] !rounded-xl !px-1 !py-1.5 !text-center" value={v} onChange={set} /></label>
+        ))}
       </div>
       {q.note && <p className="text-xs text-slate-500" dir="auto">{q.note}</p>}
       <div className="grid grid-cols-[1fr_2fr] gap-2">

@@ -4,7 +4,7 @@ import { editProblem, fromLocalInput, toLocalInput, type EditDraft, type EditPro
 import { updateEvent, updateMeal } from '../lib/editSave';
 import { formatGlucose, toMgdl, unitLabel } from '../lib/glucose';
 import type { EventRow, HistoryEntry } from '../lib/types';
-import { Alert, Btn, Field, NumInput, Toggle, inputCls, toast } from './ui';
+import { Alert, Btn, NumInput, Toggle, cx, toast } from './ui';
 import { useQuickItems } from '../lib/quick';
 import { brandsOf } from '../lib/brand';
 import { t, tr } from '../i18n';
@@ -49,53 +49,60 @@ export function EditEntry({ e, h, onDone, onCancel }: { e?: EventRow; h?: Histor
     } catch (x) { toast((x as Error).message); } finally { setBusy(false); }
   };
 
+  // compact: the whole form fits one phone screen (short labels, the five nutrition values in one row)
+  const box = 'block w-full min-w-0 max-w-full appearance-none rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 min-h-[40px] text-base outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft';
+  const num = '!min-h-[40px] !rounded-xl !px-1 !py-1.5 !text-center';
+  const others = brands.filter((b) => b.toLowerCase() !== brand.trim().toLowerCase()).slice(0, 8);
   return (
-    <div className="space-y-3">
-      <Field label={t('الوقت')}>
-        <input type="datetime-local" className={inputCls} dir="ltr" value={when} max={toLocalInput(Date.now() + 5 * 60000)} onChange={(x) => setWhen(x.target.value)} />
-      </Field>
-      {kind === 'meal' && <Field label={t('الاسم')}><input className={inputCls} dir="auto" value={name} maxLength={120} onChange={(x) => setName(x.target.value)} /></Field>}
+    <div className="space-y-2.5">
+      <L label={t('الوقت')}>
+        <input type="datetime-local" className={cx(box, 'text-start')} dir="ltr" value={when} max={toLocalInput(Date.now() + 5 * 60000)} onChange={(x) => setWhen(x.target.value)} />
+      </L>
       {kind === 'meal' && (
-        <Field label={t('البراند (اختياري)')} hint={t('مثل KDD أو Almarai: تظهر منتجات البراند معًا في «أكل متكرر».')}>
-          <input className={inputCls} dir="auto" list="brand-list" value={brand} maxLength={60} onChange={(x) => setBrand(x.target.value)} />
-          <datalist id="brand-list">{brands.map((b) => <option key={b} value={b} />)}</datalist>
-          {brands.length > 0 && (
-            <div className="-mx-1 mt-2 flex flex-wrap gap-1.5">
-              {brands.slice(0, 8).map((b) => <button key={b} type="button" onClick={() => setBrand(b)} className="min-h-[32px] rounded-full bg-slate-50 px-3 text-sm text-slate-600"><bdi>{b}</bdi></button>)}
-            </div>
-          )}
-        </Field>
-      )}
-      {kind === 'insulin' && <Field label={e?.insulin_type === 'long' ? t('وحدات الإنسولين الطويل') : t('وحدات الإنسولين السريع')}><NumInput value={units} onChange={setUnits} /></Field>}
-      {(kind === 'meal' || kind === 'carbs' || kind === 'treatment') && (
-        <Field label={t('الكارب (غ)')} hint={kind === 'meal' && (h?.lines.length ?? 0) > 1 ? t('هذه وجبة من عدة أصناف: يتغير المجموع فقط وتُعلَّم «معدّلة».') : undefined}>
-          <NumInput value={carbs} onChange={setCarbs} />
-        </Field>
-      )}
-      {kind === 'meal' && (
-        <div className="grid grid-cols-2 gap-2">
-          <Field label={t('دهون (غ)')}><NumInput value={fat} onChange={setFat} /></Field>
-          <Field label={t('بروتين (غ)')}><NumInput value={protein} onChange={setProtein} /></Field>
-          <Field label={t('ألياف (غ)')}><NumInput value={fiber} onChange={setFiber} /></Field>
-          <Field label={t('سعرات')}><NumInput value={kcal} onChange={setKcal} /></Field>
+        <div className="grid grid-cols-[3fr_2fr] gap-2">
+          <L label={t('الاسم')}><input className={box} dir="auto" value={name} maxLength={120} onChange={(x) => setName(x.target.value)} /></L>
+          <L label={t('البراند')}>
+            <input className={box} dir="auto" list="brand-list" value={brand} maxLength={60} onChange={(x) => setBrand(x.target.value)} />
+            <datalist id="brand-list">{brands.map((b) => <option key={b} value={b} />)}</datalist>
+          </L>
         </div>
       )}
-      {kind === 'bg_check' && <Field label={t('وخز الإصبع ({unit})', { unit: unitLabel(unit) })}><NumInput value={bg} onChange={setBg} /></Field>}
-      {kind === 'exercise' && <Field label={t('المدة (دقيقة)')}><NumInput value={minutes} onChange={setMinutes} /></Field>}
-      {kind !== 'note' && <Field label={t('ملاحظة')}><input className={inputCls} dir="auto" value={note} maxLength={300} onChange={(x) => setNote(x.target.value)} /></Field>}
-      {kind === 'note' && <Field label={t('الملاحظة')}><textarea className={inputCls} dir="auto" rows={3} value={note} maxLength={500} onChange={(x) => setNote(x.target.value)} /></Field>}
+      {kind === 'meal' && others.length > 0 && (
+        <div className="-mx-4 -mt-1 flex gap-1.5 overflow-x-auto px-4">
+          {others.map((b) => <button key={b} type="button" onClick={() => setBrand(b)} className="h-7 shrink-0 rounded-full bg-slate-50 px-2.5 text-xs text-slate-600"><bdi>{b}</bdi></button>)}
+        </div>
+      )}
+      {kind === 'insulin' && <L label={e?.insulin_type === 'long' ? t('وحدات الإنسولين الطويل') : t('وحدات الإنسولين السريع')}><NumInput className={num} value={units} onChange={setUnits} /></L>}
       {kind === 'meal' && (
-        <label className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2.5">
-          <span className="text-sm"><b className="block">{inQuick ? t('حدّثه في «أكل متكرر»') : t('أضفه إلى «أكل متكرر»')}</b><span className="text-xs text-slate-500">{t('لتسجيله بلمسة في المرة القادمة')}</span></span>
+        <div className="grid grid-cols-5 gap-1.5">
+          <L label={t('كارب')}><NumInput className={num} value={carbs} onChange={setCarbs} /></L>
+          <L label={t('دهون')}><NumInput className={num} value={fat} onChange={setFat} /></L>
+          <L label={t('بروتين')}><NumInput className={num} value={protein} onChange={setProtein} /></L>
+          <L label={t('ألياف')}><NumInput className={num} value={fiber} onChange={setFiber} /></L>
+          <L label={t('سعرات')}><NumInput className={num} value={kcal} onChange={setKcal} /></L>
+        </div>
+      )}
+      {kind === 'meal' && (h?.lines.length ?? 0) > 1 && <p className="-mt-1 text-[11px] text-slate-500">{t('وجبة من عدة أصناف: يتغير المجموع فقط.')}</p>}
+      {(kind === 'carbs' || kind === 'treatment') && <L label={t('الكارب (غ)')}><NumInput className={num} value={carbs} onChange={setCarbs} /></L>}
+      {kind === 'bg_check' && <L label={t('وخز الإصبع ({unit})', { unit: unitLabel(unit) })}><NumInput className={num} value={bg} onChange={setBg} /></L>}
+      {kind === 'exercise' && <L label={t('المدة (دقيقة)')}><NumInput className={num} value={minutes} onChange={setMinutes} /></L>}
+      {kind !== 'note' && <L label={t('ملاحظة')}><input className={box} dir="auto" value={note} maxLength={300} onChange={(x) => setNote(x.target.value)} /></L>}
+      {kind === 'note' && <L label={t('الملاحظة')}><textarea className={box} dir="auto" rows={3} value={note} maxLength={500} onChange={(x) => setNote(x.target.value)} /></L>}
+      {kind === 'meal' && (
+        <label className="flex min-h-[44px] items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-1.5">
+          <span className="text-sm font-medium">{inQuick ? t('حدّثه في «أكل متكرر»') : t('أضفه إلى «أكل متكرر»')}</span>
           <Toggle on={keep} onChange={setToQuick} label={t('أكل متكرر')} />
         </label>
       )}
       {problem && problem !== 'time' && <Alert tone="near">{PROBLEM[problem]}</Alert>}
-      {(h?.source || e?.source) && <p className="text-xs text-slate-500">{t('مستورد من Gluroo: بعد التعديل يبقى كما عدّلتموه ولا تغيّره أي مزامنة لاحقة.')}</p>}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 pt-0.5">
         <Btn kind="ghost" onClick={onCancel} disabled={busy}>{t('إلغاء')}</Btn>
         <Btn kind="primary" onClick={save} disabled={busy || !!problem}>{busy ? t('جارٍ الحفظ…') : t('حفظ')}</Btn>
       </div>
     </div>
   );
 }
+
+const L = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <label className="block min-w-0"><span className="mb-0.5 block truncate text-xs font-medium text-slate-500">{label}</span>{children}</label>
+);
