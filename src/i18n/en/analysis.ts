@@ -408,4 +408,5 @@ export const analysis: Record<string, string> = {
   "بعد الأكل": "After food",
   "بعد الإنسولين": "After insulin",
   "غير ذلك": "Other",
+  "خارج البحث": "left out of research",
 };

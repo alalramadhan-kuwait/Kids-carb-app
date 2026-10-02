@@ -15,6 +15,7 @@ import { isEn, t, tMaybe } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
 import { supabase } from '../lib/supabase';
 import { checkMinutes } from '../engine/predict';
+import { LogSheet } from '../components/LogSheet';
 import type { PredictionRow } from '../lib/predictions';
 
 const DAY = 86400000;
@@ -30,6 +31,7 @@ export default function History() {
   const [kind, setKind] = useState<Kind>('all');
   const [days, setDays] = useState(7);
   const [open, setOpen] = useState<Item | null>(null);
+  const [logOpen, setLogOpen] = useState(false);
 
   const keyOf = (h: { recipe_id: string | null; name: string }) => h.recipe_id ?? `n:${h.name}`;
   const times = useMemo(() => { const m = new Map<string, number>(); for (const h of history) m.set(keyOf(h), (m.get(keyOf(h)) ?? 0) + 1); return m; }, [history]);
@@ -59,7 +61,8 @@ export default function History() {
   };
 
   const KINDS: [Kind, string][] = [['all', t('الكل')], ['meals', t('الوجبات')], ['insulin', t('إنسولين')], ['treatment', t('علاج انخفاض')], ['other', t('أخرى')]];
-  const whoOf = (it: Item) => nameOf(it.e ? it.e.created_by : (it.h as unknown as { created_by?: string }).created_by);
+  // imported entries name who logged them in the other app (in the note), not the account that imported them
+  const whoOf = (it: Item) => ((it.e ?? it.h)?.source ? '' : nameOf(it.e ? it.e.created_by : (it.h as unknown as { created_by?: string }).created_by));
   return (
     <Page title={t('السجل')}>
       <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
@@ -83,6 +86,7 @@ export default function History() {
         })}
         {!groups.length && <Card><p className="text-slate-500">{t('لا يوجد شيء في هذه الفترة.')}</p></Card>}
         {older && <Btn block kind="ghost" onClick={() => setDays(days + 7)}>{t('عرض أيام أقدم')}</Btn>}
+        <div className="h-16" aria-hidden />{/* room so the Log button never covers the last entry */}
       </div>
 
       <Sheet open={!!open} onClose={() => setOpen(null)} title={open?.h ? open.h.name : open?.e ? describeEvent(open.e) : ''}>
@@ -90,11 +94,21 @@ export default function History() {
         {open?.e && (
           <div className="space-y-1 text-sm text-slate-600">
             {open.e.note && <p dir="auto" className="text-base text-slate-800">{open.e.note}</p>}
-            <p>{fmtTime(new Date(open.e.occurred_at))} · <bdi>{nameOf(open.e.created_by)}</bdi></p>
+            <p>{fmtTime(new Date(open.e.occurred_at))}{open.e.source ? '' : <> · <bdi>{nameOf(open.e.created_by)}</bdi></>}</p>
           </div>
         )}
         {open && <Btn kind="danger" block className="mt-4" onClick={() => remove(open)}>{t('حذف التسجيل')}</Btn>}
       </Sheet>
+
+      {/* the same primary action as Now, in the thumb zone above the tab bar */}
+      <div className={cx('pointer-events-none fixed inset-x-0 bottom-[calc(66px+env(safe-area-inset-bottom))] z-30 px-4', (logOpen || !!open) && 'hidden')}>
+        <div className="mx-auto flex max-w-2xl justify-start">
+          <button onClick={() => setLogOpen(true)} className="pointer-events-auto flex min-h-[50px] items-center gap-2 rounded-full bg-brand pe-5 ps-4 text-base font-bold text-white shadow-[0_8px_24px_rgba(91,72,214,0.30)] active:scale-[0.98]">
+            <Icon name="plus" size={24} /> {t('سجّل')}
+          </button>
+        </div>
+      </div>
+      <LogSheet open={logOpen} onClose={() => setLogOpen(false)} />
     </Page>
   );
 }
@@ -102,7 +116,7 @@ export default function History() {
 function Row({ it, who, onOpen }: { it: Item; who: string; onOpen: () => void }) {
   const icon: IconName = it.h ? 'meals' : EVENT_ICON[it.e!.kind];
   const main = it.h ? <bdi>{it.h.name}</bdi> : it.e!.kind === 'note' ? <bdi>{it.e!.note}</bdi> : describeEvent(it.e!);
-  const sub = it.h ? [it.h.kind === 'snack' ? t('سناك') : '', it.h.needs_review ? t('يحتاج تأكيد') : '', it.h.source === 'gluroo' ? 'Gluroo' : ''].filter(Boolean).join(' · ') : it.e!.kind !== 'note' && it.e!.note ? it.e!.note : '';
+  const sub = it.h ? [it.h.kind === 'snack' ? t('سناك') : '', it.h.needs_review ? t('خارج البحث') : '', it.h.source === 'gluroo' ? it.h.notes ?? 'Gluroo' : ''].filter(Boolean).join(' · ') : it.e!.kind !== 'note' && it.e!.note ? it.e!.note : '';
   return (
     <li>
       <button onClick={onOpen} className="flex min-h-[56px] w-full items-center gap-3 px-4 py-2 text-start active:bg-slate-50">

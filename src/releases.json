@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.13.2",
+    "date": "2026-10-02",
+    "notes": [
+      "زر «سجّل» صار في صفحة السجل أيضًا.",
+      "ما استُورد من Gluroo يظهر باسم من سجّله هناك بدل «أنت»."
+    ],
+    "notes_en": [
+      "The Log button is now on the Log page too.",
+      "Entries imported from Gluroo show who logged them there instead of “You”."
+    ]
+  },
+  {
     "version": "1.13.1",
     "date": "2026-10-02",
     "notes": [
