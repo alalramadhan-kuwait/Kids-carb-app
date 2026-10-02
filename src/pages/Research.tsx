@@ -11,7 +11,7 @@ import { isEn, locale, t, tr } from '../i18n';
 const HOUR = 3600000;
 const when = (iso: string | number) => new Date(iso).toLocaleString(locale(), { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true, numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
 const NAME: Record<string, string> = tr({ // i18n-ok: values translated when read
-  none: 'بدون تغيير', libre: 'سهم Libre (المعروض)', trend: 'اتجاه التطبيق', context: 'السياق v1 (أكل + إنسولين)', context_fit: 'السياق، يُعاد ضبطه يوميًا', damped: 'اتجاه مخفَّف', fat_bump: 'السياق + أثر الدهون المتأخر', // i18n-ok
+  none: 'بدون تغيير', libre: 'سهم Libre (المعروض)', trend: 'اتجاه التطبيق', context: 'السياق v1 (أكل + إنسولين)', context_fit: 'السياق، يُعاد ضبطه يوميًا', damped: 'اتجاه مخفَّف', fat_bump: 'السياق + أثر الدهون المتأخر', drift_fat: 'السياق + ميل الإنسولين الطويل + أثر الدهون', // i18n-ok
 });
 const STATUS: Record<string, string> = tr({ // i18n-ok: values translated when read
   production: 'المستخدم الآن', reference: 'للمقارنة', collecting: 'يجمع بيانات', not_better: 'ليس أفضل بوضوح', ready: 'أفضل بوضوح', rejected: 'مرفوض', retired: 'متقاعد', // i18n-ok
@@ -34,7 +34,7 @@ const EXCL: Record<string, string> = tr({ // i18n-ok: values translated when rea
 });
 const SIT: Record<string, string> = tr({ night: 'الليل', after_food: 'بعد الأكل', after_insulin: 'بعد الإنسولين', other: 'غير ذلك' }); // i18n-ok
 const sep = () => (isEn() ? ', ' : '، '); // i18n-ok: punctuation
-const ORDER = ['libre', 'none', 'trend', 'context', 'context_fit', 'damped', 'fat_bump'];
+const ORDER = ['libre', 'none', 'trend', 'context', 'context_fit', 'damped', 'fat_bump', 'drift_fat'];
 
 /**
  * البحث: what the app learns on its own. Every 12 hours it scores the arrow it shows, "no change" and the

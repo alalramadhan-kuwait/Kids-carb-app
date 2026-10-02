@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-02",
+    "version": "1.28.0",
+    "notes": [
+      "الإعدادات: اسم الإنسولين السريع والطويل (NovoRapid و Tresiba)، ويظهران في التقرير الطبي مع مدة العمل ونسب الطبيب ومتوسط الجرعة الطويلة.",
+      "التقرير الطبي: قسم «الليالي» يعرض لكل ليلة أدنى قراءة والوقت تحت 3.9 وعلاجات الانخفاض.",
+      "البحث: نموذج جديد يضيف ميلًا ثابتًا للسكر (مثل أثر الإنسولين الطويل) مع أثر الدهون المتأخر، ويُختبر تلقائيًا."
+    ],
+    "notes_en": [
+      "Settings: the rapid and long-acting insulin names (NovoRapid and Tresiba), shown in the clinic report with the action time, the doctor’s ratios and the average long-acting dose.",
+      "Clinic report: a “Nights” section with each night’s lowest reading, time below 3.9 and low treatments.",
+      "Research: a new model adds a steady drift (such as the long-acting insulin’s effect) to the late fat bump, tested automatically."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "version": "1.27.0",
     "notes": [
       "الكارب النشط وخطوط التوقع رجعت للامتصاص العادي: عند مقارنتها ببيانات ليان كان تبطيء الوجبة الدسمة أقل دقة. تنبيه «وجبة دسمة» وعلامة «دسمة» باقيان.",

@@ -36,7 +36,9 @@ export function physEffect(ctx: RContext, t0: number, t1: number, bump?: FatBump
 }
 
 /** Carbs and insulin over the horizon (doctor's ratios), plus a share `w` of the trend they do not explain. */
-export function contextModel(w: number, absorb?: number, bump?: FatBump): Predictor {
+/** `drift`: a steady change in mg/dL per hour that carbs and insulin do not explain (e.g. a basal dose a little strong
+ *  or weak), added on top. */
+export function contextModel(w: number, absorb?: number, bump?: FatBump, drift = 0): Predictor {
   return (i, t, v, _a, c) => {
     const ctx = absorb ? { ...c, absorb } : c;
     const r = rateBetween(t, v, t[i] - 20 * MIN, t[i]);
@@ -45,7 +47,8 @@ export function contextModel(w: number, absorb?: number, bump?: FatBump): Predic
     const physNow = physEffect(ctx, now - 5 * MIN, now, bump) / 5;               // what carbs and insulin explain right now (per min)
     const resid = r - physNow;                                             // the part of the trend they do not explain
     const p15 = physEffect(ctx, now, now + 15 * MIN, bump), p30 = physEffect(ctx, now, now + 30 * MIN, bump);
-    return { v15: v[i] + p15 + w * resid * 15, v30: v[i] + p30 + w * resid * 30, rate: (p15 + w * resid * 15) / 15 };
+    const d = drift / 60; // per minute
+    return { v15: v[i] + p15 + w * resid * 15 + d * 15, v30: v[i] + p30 + w * resid * 30 + d * 30, rate: (p15 + w * resid * 15) / 15 + d };
   };
 }
 /** The 20-minute trend, scaled by k (k < 1: assume the movement slows down). */

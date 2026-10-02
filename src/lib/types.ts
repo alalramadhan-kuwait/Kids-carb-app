@@ -114,6 +114,8 @@ export interface Settings {
   /** dose calculator: the doctor's correction target range (mg/dL), pen step, minimum minutes between rapid doses */
   target_mgdl: number | null; target_high_mgdl: number | null;
   pen_step: number; dose_gap_min: number;
+  /** the insulin brands, for clinical reports */
+  rapid_insulin: string | null; basal_insulin: string | null;
 }
 
 export interface HistoryLine {
@@ -183,6 +185,7 @@ export const DEFAULT_SETTINGS: Settings = {
   iob_dia_min: null, iob_peak_min: null, cob_absorb_min: null,
   ratios: [], sensor_days: 14,
   target_mgdl: null, target_high_mgdl: null, pen_step: 1, dose_gap_min: 120,
+  rapid_insulin: null, basal_insulin: null,
 };
 
 export type AlertKind = 'urgent_low' | 'low' | 'high' | 'no_data' | 'rapid_fall' | 'rapid_rise';

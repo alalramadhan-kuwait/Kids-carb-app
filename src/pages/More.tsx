@@ -353,6 +353,17 @@ export function SettingsPage() {
               </select>
             </Field>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t('الإنسولين السريع')}>
+              <input className={inputCls} dir="auto" maxLength={60} list="rapid-ins" value={s.rapid_insulin ?? ''} onChange={(e) => setS({ ...s, rapid_insulin: e.target.value || null })} />
+              <datalist id="rapid-ins">{['NovoRapid (insulin aspart)', 'Humalog (insulin lispro)', 'Fiasp (faster aspart)', 'Lyumjev (lispro-aabc)', 'Apidra (insulin glulisine)'].map((x) => <option key={x} value={x} />)}</datalist>
+            </Field>
+            <Field label={t('الإنسولين الطويل')}>
+              <input className={inputCls} dir="auto" maxLength={60} list="basal-ins" value={s.basal_insulin ?? ''} onChange={(e) => setS({ ...s, basal_insulin: e.target.value || null })} />
+              <datalist id="basal-ins">{['Tresiba (insulin degludec)', 'Lantus (insulin glargine)', 'Toujeo (glargine 300)', 'Levemir (insulin detemir)'].map((x) => <option key={x} value={x} />)}</datalist>
+            </Field>
+          </div>
+          <p className="text-xs text-slate-500">{t('للتقرير الطبي فقط؛ منحنى الإنسولين تحدده مدة العمل والذروة أعلاه.')}</p>
         </Card>
 
         <Card className="space-y-3">

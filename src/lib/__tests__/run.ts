@@ -1413,6 +1413,25 @@ console.log('fatty meals');
   });
 }
 
+console.log('nights report');
+
+{
+  const N = await import('../../engine/nights');
+  test('each night: lowest reading, minutes below 70 and low treatments, in the parents night hours', () => {
+    const KW = 3 * 3600000, M = 60000, day = Date.parse('2026-09-30T00:00:00Z') - KW; // Kuwait midnight 30 Sep
+    const start = day + 22 * 60 * M; // 22:00 on 30 Sep
+    const t: number[] = [], v: number[] = [];
+    for (let k = 0; k < 8 * 12; k++) { t.push(start + k * 5 * M); v.push(k >= 40 && k < 46 ? 62 : 110); } // 30 min under 70
+    const rows = N.nightRows(t, v, [start + 4 * 3600000], day, day + 86400000, '22:00', '06:00');
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].min, 62);
+    assert.equal(rows[0].minutesBelow, 30);
+    assert.equal(rows[0].treatments, 1);
+    assert.ok(rows[0].coverage > 0.99);
+    assert.deepEqual(N.nightRows([], [], [], day, day + 86400000, '22:00', '06:00'), [], 'no readings: no row');
+  });
+}
+
 console.log('fat bump candidate');
 
 {
@@ -1432,6 +1451,13 @@ console.log('fat bump candidate');
     const lean = { ...ctx, carbs: [{ t: T, g: 30, fpu: 0.5 }] };
     assert.equal(R.physEffect(lean, T + 180 * M, T + 240 * M, bump), R.physEffect(lean, T + 180 * M, T + 240 * M));
     assert.equal(R.physEffect(ctx, T + 180 * M, T + 240 * M, { ...bump, k: 0 }), R.physEffect(ctx, T + 180 * M, T + 240 * M));
+  });
+  test('basal drift adds a steady change per hour on top of the context model', () => {
+    const M = 60000, t = [0, 5, 10, 15, 20].map((k) => k * M), v = [120, 120, 120, 120, 120];
+    const ctx = { doses: [], carbs: [], iob: { dia: 360, peak: 65 }, absorb: 180, cr: 15, isf: 54 };
+    const flat = R.contextModel(0.5)(4, t, v, [3, 3, 3, 3, 3], ctx)!, drift = R.contextModel(0.5, undefined, undefined, -6)(4, t, v, [3, 3, 3, 3, 3], ctx)!;
+    assert.ok(Math.abs(drift.v30 - flat.v30 - -3) < 1e-9, '-6 mg/dL an hour → -3 over 30 min');
+    assert.ok(Math.abs(drift.v15 - flat.v15 - -1.5) < 1e-9);
   });
 }
 
