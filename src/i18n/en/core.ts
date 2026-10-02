@@ -260,4 +260,7 @@ export const core: Record<string, string> = {
   "مرات سابقة": "Earlier times",
   "غداء": "Lunch",
   "عشاء": "Dinner",
+  "−1 يوم": "−1 day",
+  "+1 يوم": "+1 day",
+  "د": "m",
 };

@@ -1,5 +1,15 @@
 [
   {
+    "version": "1.19.1",
+    "date": "2026-10-02",
+    "notes": [
+      "تغيير الوقت يركّز على الساعة: الوقت كبير ويفتح عجلة الساعة والدقيقة، واليوم بأزرار −1/+1، مع −15/−5/الآن/+5/+15 دقيقة."
+    ],
+    "notes_en": [
+      "Changing a time focuses on the clock: a big time that opens the hour–minute wheel, the day as −1/+1 buttons, and −15/−5/Now/+5/+15 min."
+    ]
+  },
+  {
     "version": "1.19.0",
     "date": "2026-10-02",
     "notes": [

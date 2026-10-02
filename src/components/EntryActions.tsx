@@ -9,6 +9,7 @@ import { fmtTime } from '../lib/constants';
 import { formatGlucose } from '../lib/glucose';
 import type { EventRow, HistoryEntry } from '../lib/types';
 import { Icon } from './Icon';
+import { TimePicker } from './TimePicker';
 import type { IconName } from '../icons/defs';
 import { Btn, cx, inputCls, toast } from './ui';
 import { locale, t, tMaybe, tr } from '../i18n';
@@ -29,6 +30,7 @@ export function EntryActions({ e, h, onEdit, onRemove, onOpenOther, onClose }: {
   const [busy, setBusy] = useState(false);
   const kind = h ? 'meal' : e!.kind;
   const at = Date.parse(h ? h.eaten_at : e!.occurred_at);
+  const [pick, setPick] = useState(at);
   const edited = (h ?? e)?.edited_at;
   const before = h ? similar(h, history) : [];
   const run = async (f: () => Promise<void>) => { setBusy(true); try { await f(); } catch (x) { toast((x as Error).message); } finally { setBusy(false); } };
@@ -83,11 +85,12 @@ export function EntryActions({ e, h, onEdit, onRemove, onOpenOther, onClose }: {
         </div>
       )}
       {panel === 'time' && (
-        <div className="flex flex-wrap gap-1.5">
-          {[0, 5, 15, 30, 60].map((m) => (
-            <button key={m} disabled={busy} onClick={() => moveTo(Date.now() - m * 60000)} className="min-h-[40px] rounded-full bg-brand-soft px-3.5 text-sm font-medium text-brand">{m === 0 ? t('الآن') : t('قبل {m} د', { m })}</button>
-          ))}
-          <button onClick={onEdit} className="min-h-[40px] rounded-full bg-slate-50 px-3.5 text-sm text-slate-600">{t('وقت آخر…')}</button>
+        <div className="space-y-2 rounded-2xl border border-slate-100 p-3">
+          <TimePicker value={pick} onChange={setPick} />
+          <div className="grid grid-cols-2 gap-2">
+            <Btn kind="ghost" onClick={() => { setPick(at); setPanel(null); }}>{t('إلغاء')}</Btn>
+            <Btn kind="primary" disabled={busy || pick === at} onClick={() => moveTo(pick)}>{t('حفظ')}</Btn>
+          </div>
         </div>
       )}
 
