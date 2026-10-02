@@ -21,18 +21,21 @@ export function ProductPicker({ onPick }: { onPick: (p: Product) => void }) {
   }, [products, q, brand]);
   const u = (p: Product) => (p.unit === 'ml' ? t('مل') : t('غ'));
   return (
-    <div className="space-y-2">
-      <input className={inputCls} dir="auto" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('ابحث عن منتج أو شركة')} autoFocus />
-      {brands.length > 0 && (
-        <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4">
-          <Chip active={!brand} onClick={() => setBrand(null)}>{t('الكل')}</Chip>
-          {brands.map((b) => <Chip key={b} active={sameBrand(brand, b)} onClick={() => setBrand(b)}><bdi>{b}</bdi></Chip>)}
-        </div>
-      )}
-      <ul className="max-h-[55vh] divide-y divide-slate-100 overflow-y-auto rounded-2xl border border-slate-100">
+    <div>
+      {/* search and brands stay on top while the list scrolls (one scroll: the sheet's); the keyboard opens only when asked */}
+      <div className="sticky -top-2 z-10 -mx-4 space-y-2 bg-white px-4 pb-2 pt-1">
+        <input className={inputCls} dir="auto" type="search" enterKeyHint="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('ابحث عن منتج أو شركة')} />
+        {brands.length > 0 && (
+          <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4">
+            <Chip active={!brand} onClick={() => setBrand(null)}>{t('الكل')}</Chip>
+            {brands.map((b) => <Chip key={b} active={sameBrand(brand, b)} onClick={() => setBrand(b)}><bdi>{b}</bdi></Chip>)}
+          </div>
+        )}
+      </div>
+      <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-100">
         {rows.map((p) => (
           <li key={p.id}>
-            <button onClick={() => onPick(p)} className="flex min-h-[56px] w-full items-center gap-3 px-3 py-1.5 text-start active:bg-slate-50">
+            <button onClick={() => { (document.activeElement as HTMLElement | null)?.blur(); onPick(p); }} className="flex min-h-[56px] w-full items-center gap-3 px-3 py-1.5 text-start active:bg-slate-50">
               <Photo path={p.image_path} category={p.category} className="h-10 w-10 shrink-0 rounded-lg" />
               <span className="min-w-0 flex-1">
                 <bdi className="block truncate text-sm font-medium">{tMaybe(p.name)}</bdi>

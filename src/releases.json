@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-02",
+    "version": "1.29.1",
+    "notes": [
+      "«من المنتجات»: لا تفتح لوحة المفاتيح تلقائيًا، والقائمة كاملة تُمرَّر مرة واحدة مع بقاء البحث والبراندات في الأعلى."
+    ],
+    "notes_en": [
+      "“From products”: the keyboard no longer opens by itself, and the whole list scrolls in one go with search and brands kept on top."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "version": "1.29.0",
     "notes": [
       "في «سجّل»: زر «من المنتجات» للبحث في دليل المنتجات (مع البراندات) وتسجيل الكمية والوقت مباشرة."
