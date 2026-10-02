@@ -10,7 +10,9 @@ import { ratioAt } from '../engine/status';
 import { LAB_CODE_VERSION, REGISTRY, kuwaitDay, pickQuestions, runLab, type AnswerChoice, type Cause, type Confidence, type LabResult, type ModelScore, type Verdict } from '../engine/lab';
 import type { EventRow, HistoryEntry, Settings } from './types';
 
-const MIN = 60000, HOUR = 3600000, DAY = 86400000, SLOT = 12 * HOUR, BACK = 60 * DAY;
+// BACK stays under 31 days: glucose_series_arrows returns nothing for a longer window (the auto runs read 0 readings
+// with 60 days, 2026-10-02)
+const MIN = 60000, HOUR = 3600000, DAY = 86400000, SLOT = 12 * HOUR, BACK = 30 * DAY;
 export const slotOf = (t: number) => Math.floor(t / SLOT) * SLOT;
 
 export interface RunRow {
@@ -44,6 +46,7 @@ async function gather({ settings: s, events, history }: RunInput, now: number) {
   ]);
   if (series.error || !series.data) throw new Error(series.error?.message ?? 'no_readings');
   const d = series.data as { t: number[]; v: number[]; a: (number | null)[] };
+  if (!d.t.length) throw new Error('no_readings'); // an empty window is a failed run, never a run that scored nothing
   const live = events.filter((e) => !e.deleted_at);
   const uncertain = ((unc.data ?? []) as { id: string; occurred_at: string }[]).map((u) => ({ id: u.id, t: Date.parse(u.occurred_at) }));
   return {

@@ -447,4 +447,6 @@ export const analysis: Record<string, string> = {
   "قد يرتفع السكر متأخرًا حتى {time}": "A late rise is possible until {time}",
   "السياق + أثر الدهون المتأخر": "Context + late fat bump",
   "السياق + ميل الإنسولين الطويل + أثر الدهون": "Context + basal drift + late fat bump",
+  "مختبر التوقعات": "Prediction lab",
+  "المختبر": "Lab",
 };

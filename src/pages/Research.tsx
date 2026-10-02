@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { runLabNow, slotOf, useLab, type ModelRow, type RunRow, type UnexplainedRow } from '../lib/lab';
 import { formatGlucose, unitLabel, type GlucoseUnit } from '../lib/glucose';
 import type { ModelScore } from '../engine/lab';
 import { answerText } from '../components/ResearchQuestion';
-import { Alert, Btn, Card, Chip, Page, cx, toast } from '../components/ui';
+import { Alert, Btn, Card, Chip, cx, toast } from '../components/ui';
 import { isEn, locale, t, tr } from '../i18n';
 
 const HOUR = 3600000;
@@ -41,8 +41,8 @@ const ORDER = ['libre', 'none', 'trend', 'context', 'context_fit', 'damped', 'fa
  * candidate methods on data none of them was tuned on, sorts out unexplained movements, and keeps every run.
  * Nothing here changes a dose, a reading on screen or an alert.
  */
-export default function Research() {
-  const nav = useNavigate();
+/** The prediction lab, shown as a tab of التحليل. */
+export function ResearchPanel() {
   const { settings, events, history } = useData();
   const unit = settings.glucose_unit;
   const { runs, models, events: moves, reload } = useLab();
@@ -58,7 +58,6 @@ export default function Research() {
   const scores = last?.metrics ? (sit === 'all' ? last.metrics.all : last.metrics.bySituation?.[sit as 'night'] ?? null) : null;
 
   return (
-    <Page title={t('البحث')} back={() => nav(-1)}>
       <div className="space-y-4">
         <Card className="space-y-2">
           <p className="text-sm text-slate-600">{t('كل 12 ساعة يقارن التطبيق وحده طرق التوقع على بيانات جديدة لم تُضبط عليها، ويرفض الضعيف منها، ويصنّف التغيرات غير المفسَّرة. لا يغيّر الجرعات ولا القراءات المعروضة ولا التنبيهات.')}</p>
@@ -99,7 +98,6 @@ export default function Research() {
 
         <History models={models} runs={runs ?? []} />
       </div>
-    </Page>
   );
 }
 
@@ -206,3 +204,8 @@ function History({ models, runs }: { models: ModelRow[]; runs: RunRow[] }) {
 const Fact = ({ label, value }: { label: string; value: string }) => (
   <div className="flex justify-between gap-3 text-sm"><span className="text-slate-600">{label}</span><b className="num">{value}</b></div>
 );
+
+/** The old address opens the lab inside التحليل. */
+export default function Research() {
+  return <Navigate to="/analysis?mode=lab" replace />;
+}

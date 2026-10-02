@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-02",
+    "version": "1.30.0",
+    "notes": [
+      "«البحث» صار تبويب «المختبر» داخل التحليل (مختبر التوقعات).",
+      "إصلاح: التشغيل التلقائي للمختبر كان يقرأ 0 قراءات، فلم يقارن شيئًا منذ البداية. يعمل الآن."
+    ],
+    "notes_en": [
+      "“Research” is now the “Lab” tab inside Analysis (Prediction lab).",
+      "Fix: the lab’s automatic runs were reading 0 readings, so nothing was compared after the baseline. Fixed."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "version": "1.29.1",
     "notes": [
       "«من المنتجات»: لا تفتح لوحة المفاتيح تلقائيًا، والقائمة كاملة تُمرَّر مرة واحدة مع بقاء البحث والبراندات في الأعلى."

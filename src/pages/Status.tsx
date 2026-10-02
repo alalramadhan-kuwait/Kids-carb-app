@@ -191,9 +191,9 @@ function ResearchCard() {
   const last = runs?.find((r) => r.status === 'done' && r.trigger !== 'baseline');
   const ready = models.filter((m) => m.status === 'ready').length;
   return (
-    <Link to="/research" className="flex min-h-[56px] items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-2.5">
+    <Link to="/analysis?mode=lab" className="flex min-h-[56px] items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-2.5">
       <span className="min-w-0 flex-1">
-        <span className="block font-bold">{t('البحث')}</span>
+        <span className="block font-bold">{t('مختبر التوقعات')}</span>
         <span className="block text-xs text-slate-500">
           {ready ? t('طريقة توقع أفضل بوضوح تنتظر قراركم') : last ? t('آخر تشغيل تلقائي {when}', { when: sinceText(last.finished_at ?? last.started_at) }) : t('يعمل تلقائيًا كل 12 ساعة')}
         </span>
