@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-02",
+    "version": "1.26.0",
+    "notes": [
+      "الوجبات الدسمة (15 غ دهون أو أكثر، أو دهون وبروتين كثيرين): تنبيه في الصفحة الرئيسية أن السكر قد يرتفع متأخرًا حتى 5 ساعات بعد الأكل، وعلامة «دسمة» في السجل.",
+      "الكارب النشط وخطوط التوقع تحسب الوجبة الدسمة أبطأ امتصاصًا (5 ساعات). للعرض فقط؛ حاسبة الجرعة لم تتغير."
+    ],
+    "notes_en": [
+      "Fatty meals (15 g fat or more, or a lot of fat and protein): a notice on the home screen that glucose may rise late, up to 5 hours after eating, and a “Fatty” tag in the log.",
+      "Carbs on board and the forecast lines treat a fatty meal as absorbing more slowly (5 hours). Display only; the dose calculator is unchanged."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "version": "1.25.0",
     "notes": [
       "تعديل «كارب» المسجّل وحده: أضيفوا له اسمًا وبراندًا ودهونًا وبروتينًا وأليافًا وسعرات، فيصير أكلًا كاملًا في السجل."

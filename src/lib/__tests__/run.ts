@@ -1398,6 +1398,25 @@ console.log('product pictures');
   });
 }
 
+console.log('fatty meals');
+
+{
+  const I = await import('../../engine/iob');
+  test('a fatty meal absorbs over 5 hours; a normal one over the care team time', () => {
+    const T = Date.parse('2026-10-02T12:00:00Z'), M = 60000;
+    assert.ok(I.isFatty(18, 12) && I.isFatty(15, null) && I.isFatty(12, 25), 'fat 15 g, or fat and protein worth 200 kcal');
+    assert.ok(!I.isFatty(5, 3) && !I.isFatty(null, 30) && !I.isFatty(0.7, 5.8));
+    const normal = [{ t: T, grams: 30 }], fatty = [{ t: T, grams: 30, fatty: true }];
+    assert.equal(I.cobAt(T + 180 * M, normal, 180), 0, 'gone after 3 h');
+    assert.ok(Math.abs(I.cobAt(T + 180 * M, fatty, 180) - 12) < 1e-9, 'a fatty meal still has 2/5 left after 3 h');
+    assert.equal(I.cobAt(T + 300 * M, fatty, 180), 0);
+    assert.equal(I.absorbOf({ fatty: true }, 360), 360, 'never shorter than the care team time');
+    const h = (min: number, fat: number | null) => ({ name: 'x' + min, eaten_at: new Date(T - min * M).toISOString(), total_fat: fat, total_protein: null });
+    assert.equal(I.recentFatty([h(60, 20), h(30, 2)], T)?.name, 'x60');
+    assert.equal(I.recentFatty([h(301, 20)], T), null, 'after 5 h: no notice');
+  });
+}
+
 console.log('graph forecasts');
 
 {

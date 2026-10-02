@@ -31,6 +31,8 @@ import { sensorLife } from '../engine/status';
 import { syncPredictions } from '../lib/predictions';
 import { trendFrom, libreOf } from '../engine/trend';
 import { useGraphExtras } from '../hooks/useGraphExtras';
+import { fmtTime } from '../lib/constants';
+import { recentFatty } from '../engine/iob';
 import { GraphHelp } from '../components/ForecastKey';
 import { TrendArrow, TrendLine } from '../components/Trend';
 import { NextDose } from '../components/NextDose';
@@ -151,6 +153,7 @@ export default function Now() {
           <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
             <Line icon="meals" tone={KIND_STYLE.meal.icon} text={lastMeal ? <><span className="text-slate-500">{t('آخر أكل:')}</span> <bdi>{tMaybe(lastMeal.name)}</bdi> · {t('{g} غ', { g: fmt(lastMeal.total_carbs) })}</> : t('لا توجد وجبة مسجّلة')} when={lastMeal?.eaten_at} />
             <Line icon="insulin" tone={KIND_STYLE.insulin.icon} text={lastInsulin ? <><span className="text-slate-500">{t('آخر جرعة:')}</span> {describeEvent(lastInsulin)}</> : t('لا يوجد إنسولين مسجّل')} when={lastInsulin?.occurred_at} who={lastInsulin ? nameOf(lastInsulin.created_by) : ''} />
+            <FattyLine />
             {lastTreatment && <Line icon="treatment" tone={KIND_STYLE.treatment.icon} text={describeEvent(lastTreatment)} when={lastTreatment.occurred_at} who={nameOf(lastTreatment.created_by)} />}
             <SchoolLine />
           </ul>
@@ -294,6 +297,24 @@ function HomeChart({ live }: { live: Reading[] }) {
       <GraphHelp tracks={!!tracks} className="absolute right-12 top-2" />
       <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
     </div>
+  );
+}
+
+/** For 5 hours after a fatty meal: its carbs arrive late, so a rise 3–5 hours after eating is expected. */
+function FattyLine() {
+  const { history } = useData();
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 60000); return () => window.clearInterval(id); }, []);
+  const f = recentFatty(history, now);
+  if (!f) return null;
+  return (
+    <li><Link to="/timeline" className="flex min-h-[52px] items-center gap-3 px-4 py-1.5 active:bg-slate-50">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-warm-soft text-base" aria-hidden>🍕</span>
+      <span className="min-w-0 flex-1 text-sm">
+        <b className="block">{t('وجبة دسمة')}: <bdi>{tMaybe(f.name)}</bdi></b>
+        <span className="block text-xs text-slate-600">{t('قد يرتفع السكر متأخرًا حتى {time}', { time: fmtTime(new Date(f.until)) })}</span>
+      </span>
+    </Link></li>
   );
 }
 

@@ -1,7 +1,7 @@
 // Forecast lines for the glucose graph. Pure, tested in Node. Display only: production calculations (the trend
 // arrow's 30-minute projection, the on-board estimate, the predictions frozen at each meal); no research model,
 // and nothing here feeds the dose calculator.
-import { cobAt, iobAt, type CarbEntry, type Dose, type IobParams } from './iob';
+import { absorbOf, cobAt, iobAt, type CarbEntry, type Dose, type IobParams } from './iob';
 import type { Ratio } from './status';
 
 const MIN = 60000;
@@ -24,7 +24,7 @@ export function onboardForecast(last: Pt | null, now: number, doses: Dose[], car
   if (I0 < 0.05 && C0 < 1) return null; // nothing on board: no curve
   let end = t0;
   for (const d of doses) if (d.t <= t0 && t0 - d.t < iob.dia * MIN) end = Math.max(end, d.t + iob.dia * MIN);
-  for (const c of carbs) if (c.t <= t0 && t0 - c.t < absorb * MIN) end = Math.max(end, c.t + absorb * MIN);
+  for (const c of carbs) { const a = absorbOf(c, absorb); if (c.t <= t0 && t0 - c.t < a * MIN) end = Math.max(end, c.t + a * MIN); }
   end = Math.min(end, t0 + 6 * 60 * MIN);
   const pts: Pt[] = [];
   for (let t = t0; t <= end; t += 5 * MIN) {

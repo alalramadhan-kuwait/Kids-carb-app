@@ -26,7 +26,7 @@ export function GraphHelp({ past, tracks, className }: { past?: boolean; tracks?
     ...(past ? [['past', t('توقع آخر وجبة'), t('ما توقّعه التطبيق وقت آخر وجبة. قارنوه بخط السكر لتروا دقة التوقع.')] as [Swatch, string, string]] : []),
     ...(tracks ? [
       ['ins', 'IOB', t('الإنسولين السريع الذي ما زال يعمل. بعد «الآن» متقطع: ما تبقّى منه.')] as [Swatch, string, string],
-      ['carb', 'COB', t('الكارب الذي ما زال يُمتص. بعد «الآن» متقطع: ما تبقّى منه.')] as [Swatch, string, string],
+      ['carb', 'COB', t('الكارب الذي ما زال يُمتص. بعد «الآن» متقطع: ما تبقّى منه. الوجبة الدسمة تُمتص أبطأ، خلال 5 ساعات.')] as [Swatch, string, string],
     ] : []),
   ];
   return (
