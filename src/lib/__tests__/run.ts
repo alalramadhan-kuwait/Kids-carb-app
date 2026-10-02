@@ -1347,6 +1347,25 @@ console.log('label per 100');
   });
 }
 
+console.log('entry actions');
+
+{
+  const A = await import('../entryActions');
+  test('meal labels by time of day; a dose, finger-prick or sleep is never one tap to repeat', () => {
+    const at = (h: number) => new Date(2026, 9, 2, h, 30).getTime();
+    assert.deepEqual([7, 12, 19, 23, 2].map((h) => A.mealSlot(at(h))), ['breakfast', 'lunch', 'dinner', 'late', 'late']);
+    assert.ok(A.canLogAgain('meal') && A.canLogAgain('treatment'));
+    assert.ok(!A.canLogAgain('insulin') && !A.canLogAgain('bg_check') && !A.canLogAgain('sleep'));
+  });
+  test('earlier times of the same food: same recipe or name, newest first, not itself', () => {
+    const H = (id: string, name: string, d: number, recipe_id: string | null = null) => ({ id, name, recipe_id, eaten_at: new Date(2026, 9, d).toISOString() });
+    const me = H('a', 'Rice', 5);
+    const r = A.similar(me, [me, H('b', 'rice ', 1), H('c', 'Pasta', 3), H('d', 'Other name', 4, 'r1'), H('e', 'Rice', 3)]);
+    assert.deepEqual(r.map((x) => x.id), ['e', 'b']);
+    assert.deepEqual(A.similar({ ...me, recipe_id: 'r1' }, [H('d', 'Other name', 4, 'r1')]).map((x) => x.id), ['d']);
+  });
+}
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {

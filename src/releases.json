@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.19.0",
+    "date": "2026-10-02",
+    "notes": [
+      "عند لمس أي تسجيل في السجل: تعديل، ملاحظة، الوقت (الآن، قبل 5/15/30/60 د)، سجّل مرة ثانية، نسخ، حذف.",
+      "الوجبة تُظهر وقتها (فطور، غداء، عشاء)، والبراند، ومن عدّلها آخر مرة، والمرات السابقة لنفس الأكل مع السكر وقتها.",
+      "«سجّل مرة ثانية» لا يظهر للإنسولين ولا للوخز، حتى لا تتكرر جرعة بلمسة."
+    ],
+    "notes_en": [
+      "Tap any entry in the Log: Edit, Note, Time (now, 5/15/30/60 min ago), Log again, Copy, Delete.",
+      "A meal shows its time of day (breakfast, lunch, dinner), brand, who edited it last, and earlier times of the same food with the glucose then.",
+      "“Log again” is not offered for insulin or finger-pricks, so a dose is never repeated with one tap."
+    ]
+  },
+  {
     "version": "1.18.0",
     "date": "2026-10-02",
     "notes": [

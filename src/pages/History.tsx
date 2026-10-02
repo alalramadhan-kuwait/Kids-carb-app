@@ -17,6 +17,7 @@ import { supabase } from '../lib/supabase';
 import { checkMinutes } from '../engine/predict';
 import { LogSheet } from '../components/LogSheet';
 import { EditEntry } from '../components/EditEntry';
+import { EntryActions } from '../components/EntryActions';
 import { useQuickItems } from '../lib/quick';
 import { brandsOf, sameBrand } from '../lib/brand';
 import type { PredictionRow } from '../lib/predictions';
@@ -120,12 +121,7 @@ export default function History() {
             <p>{fmtTime(new Date(open.e.occurred_at))}{open.e.source ? '' : <> · <bdi>{nameOf(open.e.created_by)}</bdi></>}</p>
           </div>
         )}
-        {open && !editing && (
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <Btn kind="primary" onClick={() => setEditing(true)}>{t('تعديل')}</Btn>
-            <Btn kind="danger" onClick={() => remove(open)}>{t('حذف')}</Btn>
-          </div>
-        )}
+        {open && !editing && <EntryActions key={open.key} e={open.e} h={open.h} onEdit={() => setEditing(true)} onRemove={() => remove(open)} onClose={close} onOpenOther={(x) => setOpen({ t: Date.parse(x.eaten_at), key: 'h' + x.id, h: x })} />}
       </Sheet>
 
       {/* the same primary action as Now, in the thumb zone above the tab bar */}

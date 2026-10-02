@@ -146,6 +146,7 @@ export interface HistoryEntry {
   source?: string | null; needs_review?: boolean;
   /** the maker, e.g. KDD, so the family can find all of one brand's products */
   brand?: string | null;
+  edited_at?: string | null; edited_by?: string | null;
 }
 
 export interface PlanRow {
@@ -220,6 +221,7 @@ export interface EventRow {
   bg_mgdl?: number | null;
   /** where an imported entry came from (e.g. 'gluroo'); null when logged in the app */
   source?: string | null;
+  edited_at?: string | null; edited_by?: string | null;
   ends_at?: string | null;
   created_by: string;
   deleted_at: string | null;
