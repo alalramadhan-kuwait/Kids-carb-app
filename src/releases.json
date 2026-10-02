@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-02",
+    "version": "1.23.0",
+    "notes": [
+      "صفحة «الحالة» صارت بالرسوم: عمود للسكر الآن، كم يرفعه الكارب وكم ينزله الإنسولين، وأين ينتهي تقريبًا، مع النطاق مظلّلًا.",
+      "بطاقات صغيرة للكارب والإنسولين، وأشرطة لدقة التقدير والأسهم بدل الجداول والنصوص الطويلة."
+    ],
+    "notes_en": [
+      "The Status page is now visual: glucose now, how much the carbs push it up and the insulin brings it down, and roughly where it ends, with the range shaded.",
+      "Small tiles for carbs and insulin, and bars for estimate and arrow accuracy instead of tables and long text."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "version": "1.22.2",
     "notes": [
       "قسم جديد للمنتجات: «حلويات» 🍬، وأيقونات للآيس كريم والمشروبات."

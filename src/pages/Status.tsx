@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { useGlucose } from '../hooks/useGlucose';
-import { formatGlucose, glucoseAge, GLUCOSE_ERRORS, unitLabel, type GlucoseUnit, type Reading } from '../lib/glucose';
+import { effectiveRange, formatGlucose, glucoseAge, GLUCOSE_ERRORS, unitLabel, type GlucoseUnit, type Reading } from '../lib/glucose';
 import { sinceText } from '../lib/now';
 import { fmt } from '../lib/carbs';
 import { kuwaitClock } from '../lib/schedule';
@@ -18,6 +18,7 @@ import { ArrowAccuracy } from '../components/ArrowAccuracy';
 import { useLab } from '../lib/lab';
 import { trendFrom } from '../engine/trend';
 import { TrendArrow, TrendLine } from '../components/Trend';
+import { OnBoardChart } from '../components/OnBoardChart';
 
 const MIN = 60000;
 export const units2 = (u: number) => String(Math.round(u * 100) / 100);
@@ -58,6 +59,7 @@ export default function Status() {
   // a new serial from LibreLinkUp starts a new sensor accuracy profile
   useEffect(() => { if (g?.sensor?.sn && g.sensor.started_at) void rememberSensor(g.sensor.sn, g.sensor.started_at, s.sensor_days ?? 14, 'librelinkup'); }, [g?.sensor?.sn, g?.sensor?.started_at, s.sensor_days]);
   const age = latest ? glucoseAge(latest.taken_at) : null;
+  const rng = effectiveRange(s.glucose_low_mgdl, s.glucose_high_mgdl);
   const lastMeal = history[0] ?? null;
   const lastDose = events.find((e) => e.kind === 'insulin' && e.insulin_type !== 'long') ?? null;
   const effect = (mg: number) => (unit === 'mmol' ? (Math.round((mg / 18.016) * 10) / 10).toFixed(1) : String(Math.round(mg)));
@@ -66,34 +68,36 @@ export default function Status() {
   return (
     <Page title={t('الحالة')} back={() => nav(-1)}>
       <div className="space-y-4">
-        <Card className="space-y-1">
-          <h2 className="mb-1 font-bold">{t('في الجسم الآن')}</h2>
-          <Row label={t('السكر الآن')} sub={latest ? sinceText(latest.taken_at) : ''}>
+        <Card className="space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="font-bold">{t('في الجسم الآن')}</h2>
+              {latest && <p className="text-xs text-slate-500">{sinceText(latest.taken_at)}</p>}
+            </div>
             {latest ? (
               <span className={cx('flex items-center gap-1', age?.state !== 'fresh' && 'opacity-50')}>
-                <b className="num text-2xl text-brand-num">{formatGlucose(latest.mg_dl, unit)}</b>
-                <TrendArrow trend={trend} libre={latest.trend} size={20} />
+                <b className="num text-3xl text-brand-num">{formatGlucose(latest.mg_dl, unit)}</b>
+                <TrendArrow trend={trend} libre={latest.trend} size={22} />
               </span>
             ) : <span className="text-slate-500">—</span>}
-          </Row>
-          {latest && age?.state === 'fresh' && <TrendLine trend={trend} libre={latest.trend} unit={unit} className="-mt-1 ps-6 text-xs text-slate-500" />}
-          <Row sign="+" label={t('كارب ما زال يُمتص')} sub={lastMeal ? t('آخر أكل {when}', { when: sinceText(lastMeal.eaten_at) }) : ''}
-            effect={o.est !== null && o.ratio && o.cob ? signed((o.cob / o.ratio.cr) * o.ratio.isf) : undefined}>
-            {o.cob !== null ? <b className="num text-lg">{t('{g} غ', { g: fmt(o.cob) })}</b> : <Missing />}
-          </Row>
-          <Row sign="−" label={t('إنسولين سريع ما زال يعمل')} sub={lastDose ? t('آخر جرعة {when}', { when: sinceText(lastDose.occurred_at) }) : ''}
-            effect={o.est !== null && o.ratio && o.iob ? signed(-o.iob * o.ratio.isf) : undefined}>
-            {o.iob !== null ? <b className="num text-lg">{t('{u} وحدة', { u: units2(o.iob) })}</b> : <Missing />}
-          </Row>
-          <div className="!mt-2 border-t border-slate-200 pt-2">
-            <Row sign="=" label={t('تقدير تقريبي بعد انتهائها')} sub={o.est !== null && o.estBy ? (o.estBy - Date.now() < MIN ? t('لا شيء نشط الآن') : t('حوالي {time}', { time: clock(o.estBy) })) : ''}>
-              {o.est !== null ? <b className="num text-2xl text-slate-800">{shown(o.est, unit)}</b> : <span className="text-sm text-slate-500">—</span>}
-            </Row>
           </div>
+          {latest && age?.state === 'fresh' && <TrendLine trend={trend} libre={latest.trend} unit={unit} className="-mt-2 text-xs text-slate-500" />}
+
+          {latest && o.est !== null && o.ratio && (
+            <OnBoardChart now={latest.mg_dl} up={o.cob ? (o.cob / o.ratio.cr) * o.ratio.isf : 0} down={o.iob ? o.iob * o.ratio.isf : 0} est={o.est}
+              low={rng.low ?? 70} high={rng.high ?? 180} unit={unit}
+              estBy={o.estBy && o.estBy - Date.now() >= MIN ? clock(o.estBy) : t('الآن')} />
+          )}
+
+          <div className="grid grid-cols-2 gap-2">
+            <Tile tone="carb" icon="plus" value={o.cob !== null ? t('{g} غ', { g: fmt(o.cob) }) : null} label={t('كارب يُمتص')}
+              sub={lastMeal ? t('آخر أكل {when}', { when: sinceText(lastMeal.eaten_at) }) : ''} />
+            <Tile tone="ins" icon="minus" value={o.iob !== null ? t('{u} وحدة', { u: units2(o.iob) }) : null} label={t('إنسولين يعمل')}
+              sub={lastDose ? t('آخر جرعة {when}', { when: sinceText(lastDose.occurred_at) }) : ''} />
+          </div>
+
           <EstimateNote s={s} o={o} fresh={age?.state === 'fresh'} />
-          <p className="!mt-3 rounded-xl bg-slate-50 p-2.5 text-xs leading-relaxed text-slate-600">
-            {t('تقدير تقريبي من المسجّل فقط، ولا يعرف الرياضة ولا المرض ولا الأكل غير المسجّل. للجرعة استخدموا الحاسبة في «سجّل ← إنسولين».')}
-          </p>
+          <p className="text-xs text-slate-500">ⓘ {t('تقدير من المسجّل فقط. للجرعة: الحاسبة في «سجّل ← إنسولين».')}</p>
         </Card>
 
         <PredictionAccuracy rows={predictions} unit={unit} />
@@ -116,19 +120,18 @@ export default function Status() {
   );
 }
 
-function Row({ sign, label, sub, effect, children }: { sign?: string; label: string; sub?: string; effect?: string; children: React.ReactNode }) {
+function Tile({ tone, icon, value, label, sub }: { tone: 'carb' | 'ins'; icon: 'plus' | 'minus'; value: string | null; label: string; sub: string }) {
   return (
-    <div className="flex min-h-[48px] items-center gap-2">
-      <span className="num w-4 shrink-0 text-center text-lg font-bold text-slate-400">{sign}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium">{label}</span>
-        {sub && <span className="block text-xs text-slate-500">{sub}</span>}
-      </span>
-      {effect && <span className="num shrink-0 text-xs text-slate-500" dir="ltr">{effect}</span>}
-      <span className="shrink-0">{children}</span>
+    <div className={cx('rounded-xl px-3 py-2', tone === 'carb' ? 'bg-kcarb-soft' : 'bg-kins-soft')}>
+      <div className={cx('flex items-center gap-1 text-xs font-medium', tone === 'carb' ? 'text-kcarb' : 'text-kins')}>
+        <span className="num text-base leading-none" aria-hidden>{icon === 'plus' ? '↑' : '↓'}</span>{label}
+      </div>
+      <div className="mt-0.5 text-xl font-bold text-slate-900">{value ?? <Missing />}</div>
+      {sub && <div className="truncate text-[11px] text-slate-600">{sub}</div>}
     </div>
   );
 }
+
 const Missing = () => <Link to="/settings" className="text-sm text-brand underline">{t('أضف من الإعدادات')}</Link>;
 const Fact = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <p className="flex justify-between gap-3 text-sm"><span className="text-slate-600">{label}</span><span className="num text-end font-medium">{children}</span></p>
@@ -139,9 +142,11 @@ function EstimateNote({ s, o, fresh }: { s: Settings; o: OnBoard; fresh: boolean
   const unit = s.glucose_unit;
   if (o.ratio && o.est !== null)
     return (
-      <p className="text-xs text-slate-500">
-        {t('خطة الطبيب الآن (من {from}): كارب {cr} غ لكل وحدة · تصحيح {isf} {unit} لكل وحدة', { from: o.ratio.from, cr: fmt(o.ratio.cr), isf: formatGlucose(o.ratio.isf, unit), unit: unitLabel(unit) })}
-      </p>
+      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+        <span className="text-slate-500">{t('خطة الطبيب من {from}', { from: o.ratio.from })}</span>
+        <span className="rounded-full bg-slate-50 px-2 py-0.5 font-medium text-slate-700">{t('1 وحدة = {cr} غ كارب', { cr: fmt(o.ratio.cr) })}</span>
+        <span className="rounded-full bg-slate-50 px-2 py-0.5 font-medium text-slate-700">{t('1 وحدة = −{isf} {unit}', { isf: formatGlucose(o.ratio.isf, unit), unit: unitLabel(unit) })}</span>
+      </div>
     );
   const why = !o.ratio ? t('أضيفوا نسبة الكارب ومعامل التصحيح من الطبيب في الإعدادات ليظهر التقدير.')
     : o.iob === null || o.cob === null ? t('أضيفوا مدة عمل الإنسولين وامتصاص الكارب في الإعدادات ليظهر التقدير.')

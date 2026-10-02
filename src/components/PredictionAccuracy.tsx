@@ -18,33 +18,50 @@ export function PredictionAccuracy({ rows, unit }: { rows: PredictionRow[] | nul
     <Card className="space-y-3">
       <div>
         <h2 className="font-bold">{t('دقة التقدير')}</h2>
-        <p className="text-xs text-slate-500">{t('عند كل وجبة يُحفظ التقدير الأول، ثم يُقارن بالحساس. آخر 14 يومًا.')}</p>
+        <p className="text-xs text-slate-500">{t('التقدير مقابل الحساس بعد كل وجبة · آخر 14 يومًا')}</p>
       </div>
-      <dl className="divide-y divide-slate-100">
-        {acc.map((a) => (
-          <div key={a.key} className="flex min-h-[44px] items-center gap-3 py-1.5">
-            <dt className="w-20 shrink-0 text-sm font-medium">{label[a.key]}</dt>
-            {a.n >= MIN_N ? (
-              <dd className="min-w-0 flex-1 text-sm">
-                <b className="num">±{formatGlucose(a.mae, unit)}</b> <span className="text-slate-600">{t('متوسط الفرق')}</span>
-                <span className="block text-xs text-slate-500">
-                  {Math.abs(a.bias) < 9 ? t('بلا ميل واضح') : a.bias > 0 ? t('غالبًا أعلى من التقدير ({d})', { d: delta(a.bias, unit) }) : t('غالبًا أقل من التقدير ({d})', { d: delta(a.bias, unit) })}
-                  {' · '}{t('{p}% ضمن 1.0', { p: Math.round(a.within * 100) })}{' · '}{t('{n} وجبة', { n: a.n })}
-                </span>
-              </dd>
-            ) : <dd className="flex-1 text-sm text-slate-500">{t('نحتاج {k} وجبات نظيفة على الأقل (الآن {n}).', { k: MIN_N, n: a.n })}</dd>}
-          </div>
-        ))}
-      </dl>
+      <div className="space-y-2.5">
+        {acc.map((a) => {
+          const pct = Math.round(a.within * 100);
+          const lean = Math.abs(a.bias) < 9 ? null : a.bias > 0 ? 'up' : 'down';
+          return (
+            <div key={a.key} className="grid grid-cols-[4.5rem_1fr] items-center gap-x-3">
+              <span className="text-sm font-medium">{label[a.key]}</span>
+              {a.n >= MIN_N ? (
+                <div className="min-w-0 space-y-1">
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <b className="num text-base text-slate-900">±{formatGlucose(a.mae, unit)}</b>
+                    <span className={cx('rounded-full px-1.5 py-0.5 font-medium', lean ? 'bg-slate-100 text-slate-700' : 'bg-ok-soft text-ok')}
+                      title={lean === 'up' ? t('غالبًا أعلى من التقدير ({d})', { d: delta(a.bias, unit) }) : lean === 'down' ? t('غالبًا أقل من التقدير ({d})', { d: delta(a.bias, unit) }) : t('بلا ميل واضح')}>
+                      {lean === 'up' ? '↑ ' : lean === 'down' ? '↓ ' : '≈'}{lean && <span className="num" dir="ltr">{delta(a.bias, unit)}</span>}
+                    </span>
+                    <span className="ms-auto text-slate-500">{t('{n} وجبة', { n: a.n })}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={t('{p}% ضمن 1.0', { p: pct })}>
+                      <div className="h-full rounded-full bg-brand-light" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="num w-9 shrink-0 text-end text-xs font-medium text-slate-700">{pct}%</span>
+                  </div>
+                </div>
+              ) : <span className="text-xs text-slate-500">{t('نحتاج {k} وجبات نظيفة على الأقل (الآن {n}).', { k: MIN_N, n: a.n })}</span>}
+            </div>
+          );
+        })}
+        {acc.some((a) => a.n >= MIN_N) && <p className="text-[11px] text-slate-500">{t('± متوسط الفرق · ↑↓ ميل الحساس عن التقدير · الشريط: نسبة ضمن 1.0')}</p>}
+      </div>
       {rows.length > 0 && (
         <div className="space-y-1.5">
           <h3 className="text-sm font-bold text-slate-700">{t('آخر التقديرات')}</h3>
           <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100">
-            {rows.slice(0, 6).map((r) => <Row key={r.id} r={r} unit={unit} />)}
+            {rows.slice(0, 4).map((r) => <Row key={r.id} r={r} unit={unit} />)}
           </ul>
         </div>
       )}
-      <p className="text-xs leading-relaxed text-slate-500">{t('تُحسب الوجبة فقط إذا لم يُسجَّل بعدها أكل أو جرعة أو رياضة أو علاج حتى نقطة المقارنة. أول يوم للحساس لا يُحسب. الفرق = الحساس − التقدير.')}</p>
+      <details className="text-xs text-slate-500">
+        <summary className="cursor-pointer">{t('كيف يُحسب؟')}</summary>
+        <p className="mt-1 leading-relaxed">{t('تُحسب الوجبة فقط إذا لم يُسجَّل بعدها أكل أو جرعة أو رياضة أو علاج حتى نقطة المقارنة. أول يوم للحساس لا يُحسب. الفرق = الحساس − التقدير.')}</p>
+      </details>
     </Card>
   );
 }
