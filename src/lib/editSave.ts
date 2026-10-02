@@ -31,5 +31,5 @@ export async function updateMeal(h: HistoryEntry, d: EditDraft, me: string | nul
   if (h.lines?.length === 1) patch.lines = [{ ...h.lines[0], carbs: d.carbs }];
   const { error } = await supabase.from('meal_history').update(patch).eq('id', h.id);
   if (error) throw new Error(error.message);
-  if (d.toQuick) await quickFromMeal(h.name, { name: d.name!.trim(), brand: d.brand ?? null, kind: h.kind === 'meal' ? 'meal' : 'snack', carbs: d.carbs!, fat: d.fat ?? null, protein: d.protein ?? null, kcal: d.kcal ?? null, fiber: d.fiber ?? null, at: patch.eaten_at as string });
+  if (d.toQuick) await quickFromMeal(h.name, { name: d.name!.trim(), brand: d.brand ?? null, kind: h.kind === 'meal' ? 'meal' : 'snack', carbs: d.carbs!, fat: d.fat ?? null, protein: d.protein ?? null, kcal: d.kcal ?? null, fiber: d.fiber ?? null, at: patch.eaten_at as string, label: d.label ?? null });
 }

@@ -13,6 +13,8 @@ import { KIND_STYLE } from '../lib/kinds';
 import { DoseCalculator } from './DoseCalculator';
 import { logQuick, useQuickItems } from '../lib/quick';
 import { brandsOf, sameBrand } from '../lib/brand';
+import { ProductForm } from './ProductForm';
+import type { QuickItem } from '../lib/quick';
 import { deleteHistory } from '../lib/api';
 import { startComparison, syncComparisons } from '../lib/fingerprick';
 import { toMgdl, unitLabel } from '../lib/glucose';
@@ -56,7 +58,8 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
   const [bg, setBg] = useState<number | null>(null);          // finger-prick, in the family's unit
   const [clean, setClean] = useState(true);                     // hands washed and dried
   const quick = useQuickItems();
-  const [brandPick, setBrandPick] = useState<string | null>(null);   // frequent foods of one brand only
+  const [brandPick, setBrandPick] = useState<string | null>(null);
+  const [newProduct, setNewProduct] = useState(false);              // entering a product from the box in hand   // frequent foods of one brand only
   const brands = useMemo(() => brandsOf(quick.items), [quick.items]);
   const quickShown = brandPick ? quick.items.filter((q) => sameBrand(q.brand, brandPick)) : quick.items.slice(0, 10);
 
@@ -64,7 +67,7 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
     setKind(null); setClientId(crypto.randomUUID()); setUnits(null); setType('rapid'); setPurpose(null);
     setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault()); setCalc(null); setBg(null); setClean(true);
   };
-  const close = () => { reset(); setBrandPick(null); onClose(); };
+  const close = () => { reset(); setBrandPick(null); setNewProduct(false); onClose(); };
 
   const draft: NewEvent | null = useMemo(() => {
     if (!kind) return null;
@@ -108,8 +111,13 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
   };
 
   return (
-    <Sheet open={open} onClose={close} title={kind ? t(KINDS.find((k) => k.kind === kind)!.label) : t('سجّل')}>
-      {!kind ? (
+    <Sheet open={open} onClose={close} title={newProduct ? t('منتج جديد') : kind ? t(KINDS.find((k) => k.kind === kind)!.label) : t('سجّل')}>
+      {newProduct ? (
+        <ProductForm q={null} brands={brands} onDone={() => { setNewProduct(false); void quick.reload(); }} onLog={async (q: QuickItem) => {
+          const id = await logQuick(q); await reload(); void quick.reload(); close();
+          toast(t('تم التسجيل: {x}', { x: `${tMaybe(q.name)} · ${t('{g} غ', { g: fmt(q.carbs) })}` }), { label: t('تراجع'), run: async () => { await deleteHistory(id); await reload(); } });
+        }} />
+      ) : !kind ? (
         <div className="space-y-3">
           <div className="grid grid-cols-3 gap-3">
             {KINDS.map((k) => (
@@ -119,9 +127,12 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
             ))}
           </div>
           {/* foods she has often: one tap logs the usual amount (undo in the toast) */}
-          {quick.items.length > 0 && (
+          {(
             <div>
-              <div className="mb-1.5 text-sm font-medium text-slate-600">{t('أكل متكرر')}</div>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <span className="text-sm font-medium text-slate-600">{t('أكل متكرر')}</span>
+                <button onClick={() => setNewProduct(true)} className="min-h-[36px] text-sm font-bold text-brand">{t('+ منتج جديد')}</button>
+              </div>
               {brands.length > 0 && (
                 <div className="-mx-4 mb-2 flex gap-1.5 overflow-x-auto px-4">
                   <Chip active={!brandPick} onClick={() => setBrandPick(null)}>{t('الأكثر')}</Chip>

@@ -7,6 +7,8 @@ import type { EventRow, HistoryEntry } from '../lib/types';
 import { Alert, Btn, NumInput, Toggle, cx, toast } from './ui';
 import { useQuickItems } from '../lib/quick';
 import { brandsOf } from '../lib/brand';
+import { nutrProblem, totalsOf, type NutrState } from '../lib/per100';
+import { NutritionFields, nutrStateFrom } from './NutritionFields';
 import { t, tr } from '../i18n';
 
 const PROBLEM: Record<EditProblem, string> = tr({ // i18n-ok: values translated when read
@@ -28,17 +30,17 @@ export function EditEntry({ e, h, onDone, onCancel }: { e?: EventRow; h?: Histor
   const [name, setName] = useState(h?.name ?? '');
   const [note, setNote] = useState((h ? h.notes : e!.note) ?? '');
   const [brand, setBrand] = useState(h?.brand ?? '');
-  const [fat, setFat] = useState<number | null>(h?.total_fat ?? null);
-  const [protein, setProtein] = useState<number | null>(h?.total_protein ?? null);
-  const [fiber, setFiber] = useState<number | null>(h?.total_fiber ?? null);
-  const [kcal, setKcal] = useState<number | null>(h?.total_kcal ?? null);
+  const [n, setN] = useState<NutrState>(() => nutrStateFrom({ carbs: h?.total_carbs ?? null, fat: h?.total_fat ?? null, protein: h?.total_protein ?? null, fiber: h?.total_fiber ?? null, kcal: h?.total_kcal ?? null }));
+  const tot = totalsOf(n);
   const inQuick = !!h && quick.items.some((q) => q.name === h.name);
   const [toQuick, setToQuick] = useState<boolean | null>(null);           // null: follow the default below
   const keep = toQuick ?? (inQuick || !!brand.trim());                    // a branded product is worth keeping one tap away
   const brands = brandsOf([...quick.items, ...products.map((p) => ({ brand: p.brand }))]);
   const [busy, setBusy] = useState(false);
-  const draft: EditDraft = { t: fromLocalInput(when), units, carbs, bg: bg === null ? null : toMgdl(bg, unit), minutes, name, note, ...(h ? { brand, fat, protein, fiber, kcal, toQuick: keep } : {}) };
-  const problem = editProblem(kind, draft, Date.now());
+  const draft: EditDraft = { t: fromLocalInput(when), units, carbs, bg: bg === null ? null : toMgdl(bg, unit), minutes, name, note, ...(h ? { carbs: tot.carbs, brand, fat: tot.fat, protein: tot.protein, fiber: tot.fiber, kcal: tot.kcal, toQuick: keep,
+    label: n.mode === 'per100' ? { per100: n.per100, amount: n.amount, unit: n.unit } : null } : {}) };
+  const np = h ? nutrProblem(n) : null;
+  const problem: EditProblem | null = np ? (np === 'carbs' ? 'carbs' : 'nutrition') : editProblem(kind, draft, Date.now());
 
   const save = async () => {
     if (problem) return;
@@ -73,15 +75,7 @@ export function EditEntry({ e, h, onDone, onCancel }: { e?: EventRow; h?: Histor
         </div>
       )}
       {kind === 'insulin' && <L label={e?.insulin_type === 'long' ? t('وحدات الإنسولين الطويل') : t('وحدات الإنسولين السريع')}><NumInput className={num} value={units} onChange={setUnits} /></L>}
-      {kind === 'meal' && (
-        <div className="grid grid-cols-5 gap-1.5">
-          <L label={t('كارب')}><NumInput className={num} value={carbs} onChange={setCarbs} /></L>
-          <L label={t('دهون')}><NumInput className={num} value={fat} onChange={setFat} /></L>
-          <L label={t('بروتين')}><NumInput className={num} value={protein} onChange={setProtein} /></L>
-          <L label={t('ألياف')}><NumInput className={num} value={fiber} onChange={setFiber} /></L>
-          <L label={t('سعرات')}><NumInput className={num} value={kcal} onChange={setKcal} /></L>
-        </div>
-      )}
+      {kind === 'meal' && <NutritionFields s={n} set={setN} />}
       {kind === 'meal' && (h?.lines.length ?? 0) > 1 && <p className="-mt-1 text-[11px] text-slate-500">{t('وجبة من عدة أصناف: يتغير المجموع فقط.')}</p>}
       {(kind === 'carbs' || kind === 'treatment') && <L label={t('الكارب (غ)')}><NumInput className={num} value={carbs} onChange={setCarbs} /></L>}
       {kind === 'bg_check' && <L label={t('وخز الإصبع ({unit})', { unit: unitLabel(unit) })}><NumInput className={num} value={bg} onChange={setBg} /></L>}

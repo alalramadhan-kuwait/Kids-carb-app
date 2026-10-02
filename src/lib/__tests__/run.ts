@@ -1327,6 +1327,26 @@ console.log('brands');
   });
 }
 
+console.log('label per 100');
+
+{
+  const P = await import('../per100');
+  const label = { carbs: 9.4, fat: 2, protein: 3, fiber: 0, kcal: 64 };   // flavoured milk, per 100 ml
+  test('a 135 ml box from the per-100 ml label', () => {
+    assert.deepEqual(P.fromPer100(label, 135), { carbs: 12.7, fat: 2.7, protein: 4.1, fiber: 0, kcal: 86 });
+    assert.deepEqual(P.fromPer100(label, null), P.EMPTY, 'no amount, no serving');
+  });
+  test('per-100 values over 100 g are refused (a serving typed in the wrong box); the amount is required', () => {
+    const s = { mode: 'per100' as const, serving: P.EMPTY, per100: label, amount: 135, unit: 'ml' as const };
+    assert.equal(P.nutrProblem(s), null);
+    assert.equal(P.totalsOf(s).carbs, 12.7);
+    assert.equal(P.nutrProblem({ ...s, amount: null }), 'amount');
+    assert.equal(P.nutrProblem({ ...s, per100: { ...label, carbs: 120 } }), 'per100');
+    assert.equal(P.nutrProblem({ mode: 'serving', serving: { ...P.EMPTY, carbs: 19 }, per100: P.EMPTY, amount: null, unit: 'ml' }), null);
+    assert.equal(P.nutrProblem({ mode: 'serving', serving: P.EMPTY, per100: P.EMPTY, amount: null, unit: 'ml' }), 'carbs');
+  });
+}
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {

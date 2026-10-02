@@ -17,6 +17,7 @@ export function fromLocalInput(v: string): number | null {
 export interface EditDraft {
   t: number | null; units?: number | null; carbs?: number | null; bg?: number | null; minutes?: number | null; name?: string; note?: string;
   fat?: number | null; protein?: number | null; fiber?: number | null; kcal?: number | null; brand?: string; toQuick?: boolean;
+  label?: { per100: import('./per100').Nutr; amount: number | null; unit: 'ml' | 'g' } | null;
 }
 export type EditProblem = 'time' | 'future' | 'units' | 'carbs' | 'bg' | 'minutes' | 'name' | 'nutrition';
 /** What is wrong with the draft, if anything (a typo must not reach the log or the dose calculator). */
