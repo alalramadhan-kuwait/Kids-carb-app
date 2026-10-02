@@ -82,6 +82,7 @@ export function More() {
         </>)}
         {group(t('التطبيق'), <>
           {link('/settings', 'settings', t('الإعدادات'), t('الحد الأقصى للكارب ونطاق السكر'))}
+          {link('/import', 'history', t('استيراد من Gluroo'), t('قراءات وجرعات ووجبات من ملف التصدير'))}
           <li className="space-y-4 px-4 py-4">
             <div className="space-y-1.5"><div className="text-sm font-medium text-slate-600">{t('اللغة')}{!isEn() && <span className="text-slate-400"> · Language</span>}</div><LangSwitch /></div>
             <Appearance />

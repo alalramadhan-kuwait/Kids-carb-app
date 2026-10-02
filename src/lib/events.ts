@@ -2,9 +2,9 @@ import type { EventRow } from './types';
 import type { IconName } from '../icons/defs';
 import { isEn, t, tMaybe, tr } from '../i18n';
 
-export const EVENT_ICON: Record<EventRow['kind'], IconName> = { insulin: 'insulin', carbs: 'carbs', treatment: 'treatment', note: 'note', exercise: 'activity', sleep: 'moon' };
+export const EVENT_ICON: Record<EventRow['kind'], IconName> = { insulin: 'insulin', carbs: 'carbs', treatment: 'treatment', note: 'note', exercise: 'activity', sleep: 'moon', bg_check: 'glucose' };
 
-type Describable = Pick<EventRow, 'kind' | 'insulin_units' | 'insulin_type' | 'carbs_g' | 'treatment' | 'note' | 'activity_min' | 'activity_level' | 'occurred_at' | 'ends_at'>;
+type Describable = Pick<EventRow, 'kind' | 'insulin_units' | 'insulin_type' | 'carbs_g' | 'treatment' | 'note' | 'activity_min' | 'activity_level' | 'occurred_at' | 'ends_at'> & { bg_mgdl?: number | null };
 
 export const LEVEL_TEXT = tr({ light: 'خفيف', moderate: 'متوسط', hard: 'شديد' } as const); // i18n-ok
 const hm = (min: number) => (min < 60 ? t('{m} د', { m: min }) : t('{hm} س', { hm: `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}` }));
@@ -15,6 +15,7 @@ export const unitsWord = (n: number) => (isEn() ? (n === 1 ? 'unit' : 'units') :
 export const describeEvent = (e: Describable) => {
   if (e.kind === 'insulin') return `${e.insulin_units} ${unitsWord(e.insulin_units ?? 0)} · ${e.insulin_type === 'long' ? t('طويل المفعول') : t('سريع')}`;
   if (e.kind === 'carbs') return t('{g}غ كارب', { g: e.carbs_g });
+  if (e.kind === 'bg_check' && e.bg_mgdl) return t('وخز إصبع {v} مليمول/ل', { v: (Math.round((e.bg_mgdl / 18.016) * 10) / 10).toFixed(1) });
   if (e.kind === 'treatment') return t('علاج انخفاض {g}غ', { g: e.carbs_g }) + (e.treatment ? ` · ${tMaybe(e.treatment)}` : '');
   if (e.kind === 'exercise') return t('رياضة {d}', { d: hm(e.activity_min ?? 0) }) + (e.activity_level ? ` · ${LEVEL_TEXT[e.activity_level]}` : '');
   if (e.kind === 'sleep' && e.ends_at) return t('نوم {d}', { d: hm(Math.round((Date.parse(e.ends_at) - Date.parse(e.occurred_at)) / 60000)) });

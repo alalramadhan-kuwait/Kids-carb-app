@@ -1,5 +1,21 @@
 [
   {
+    "version": "1.11.0",
+    "date": "2026-10-02",
+    "notes": [
+      "استيراد من Gluroo (المزيد ← استيراد): القراءات والجرعات والوجبات ووخز الإصبع من ملف التصدير، مع عرض كل شيء قبل الاستيراد",
+      "الأكل المسجّل مرتين (تقدير مصحَّح أو من الوالدين معًا) يُحسب مرة واحدة، والعصير وقت الانخفاض يُسجَّل علاج انخفاض",
+      "«أكل متكرر»: الأكل الذي يتكرر يُسجَّل بضغطة من «سجّل» أو من صفحة الوجبات، ويمكن تعديل الكارب",
+      "وخز الإصبع نوع تسجيل جديد"
+    ],
+    "notes_en": [
+      "Import from Gluroo (More → Import): readings, doses, meals and finger-pricks from the export file, with everything shown before importing",
+      "Food logged twice (a corrected estimate, or by both parents) counts once, and juice during a low is logged as a low treatment",
+      "\"Frequent foods\": foods she has often are logged with one tap from Log or the Meals page, with editable carbs",
+      "Finger-prick checks are a new kind of entry"
+    ]
+  },
+  {
     "version": "1.10.0",
     "date": "2026-10-01",
     "notes": [

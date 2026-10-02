@@ -15,6 +15,7 @@ import History from './pages/History';
 import Plan from './pages/Plan';
 import Cgm from './pages/Cgm';
 import Status from './pages/Status';
+import ImportPage from './pages/Import';
 import AlertsPage from './pages/Alerts';
 import CarePlanPage from './pages/CarePlan';
 import Night from './pages/Night';
@@ -198,6 +199,7 @@ function Shell() {
         <Route path="/scan" element={<Scan />} />
         <Route path="/cgm" element={<Cgm />} />
         <Route path="/status" element={<Status />} />
+        <Route path="/import" element={<ImportPage />} />
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/care-plan" element={<CarePlanPage />} />
         <Route path="/night" element={<Night />} />

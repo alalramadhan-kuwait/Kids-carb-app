@@ -8,9 +8,12 @@ import type { EventKind } from '../lib/types';
 import { Icon } from './Icon';
 import type { IconName } from '../icons/defs';
 import { Alert, Btn, Field, NumInput, Sheet, cx, inputCls, toast } from './ui';
-import { t } from '../i18n';
+import { t, tMaybe } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
 import { DoseCalculator } from './DoseCalculator';
+import { logQuick, useQuickItems } from '../lib/quick';
+import { deleteHistory } from '../lib/api';
+import { fmt } from '../lib/carbs';
 import type { DoseCalc } from '../lib/types';
 
 const KINDS: { kind: EventKind; label: string; icon: IconName }[] = [
@@ -46,6 +49,7 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
   const [busy, setBusy] = useState(false);
   const [dupAck, setDupAck] = useState(false);
   const [calc, setCalc] = useState<DoseCalc | null>(null);
+  const quick = useQuickItems();
 
   const reset = () => {
     setKind(null); setClientId(crypto.randomUUID()); setUnits(null); setType('rapid'); setPurpose(null);
@@ -101,6 +105,26 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
               </button>
             ))}
           </div>
+          {/* foods she has often: one tap logs the usual amount (undo in the toast) */}
+          {quick.items.length > 0 && (
+            <div>
+              <div className="mb-1.5 text-sm font-medium text-slate-600">{t('أكل متكرر')}</div>
+              <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+                {quick.items.slice(0, 10).map((q) => (
+                  <button key={q.id} disabled={busy} className={cx('flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium', KIND_STYLE.meal.soft)}
+                    onClick={async () => {
+                      setBusy(true);
+                      try {
+                        const id = await logQuick(q); await reload(); void quick.reload(); close();
+                        toast(t('تم التسجيل: {x}', { x: `${tMaybe(q.name)} · ${t('{g} غ', { g: fmt(q.carbs) })}` }), { label: t('تراجع'), run: async () => { await deleteHistory(id); await reload(); } });
+                      } catch (e) { toast(t('تعذّر الحفظ: {e}', { e: (e as Error).message })); } finally { setBusy(false); }
+                    }}>
+                    <bdi>{tMaybe(q.name)}</bdi><span className="num opacity-70">{fmt(q.carbs)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <Link to="/scan" onClick={close} className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-white font-medium ring-1 ring-slate-200">
               <Icon name="camera" size={22} /> {t('صوّر الأكل')}

@@ -1075,6 +1075,54 @@ console.log('arrow comparison');
   });
 }
 
+console.log('gluroo import');
+
+{
+  const G = await import('../gluroo');
+  const H = 'date,bgl,trend,eventType,senderId,text,template,msgType,affectsFob,affectsIob,doseUnits,foodG,foodSugar,foodFat,foodProtein,foodSalt,foodCal,doseAutomatic,description,fpBgl,actionMins,exerciseMins,exerciseLevel';
+  const at = (m: number) => new Date(Date.UTC(2026, 8, 29, 9, 0) + m * 60000).toISOString();
+  const cgm = (m: number, mg: number, tr = 'FLAT') => `${at(m)},${mg},${tr},cgm_reading,,,,,,,,,,,,,,,,,,,`;
+  const msg = (m: number, sender: string, type: string, o: { text?: string; units?: number; g?: number; fp?: number; desc?: string } = {}) =>
+    `${at(m)},,,message,${sender},"${o.text ?? ''}",,${type},true,false,${o.units ?? ''},${o.g ?? ''},,,,,,false,${o.desc ?? ''},${o.fp ?? ''},,,`;
+  const csv = [H,
+    ...Array.from({ length: 50 }, (_, k) => cgm(k * 3 - 30, k * 3 - 30 > 60 ? 70 : 120, 'FORTYFIVE_UP')),
+    msg(0, '422389', 'DOSE_INSULIN', { units: 3 }),
+    msg(5, '422389', 'ANNOUNCE_MEAL', { text: 'A grilled sandwich with scrambled eggs inside., turkey, cheese', g: 40 }),
+    msg(6, '422389', 'ANNOUNCE_MEAL', { text: 'A cup of tea with milk, small spoon of sugar', g: 10 }),
+    msg(12, '422380', 'ANNOUNCE_MEAL', { text: 'sandwich with two eggs and turkey with cheese bread, accompanied by a cup', g: 36 }),
+    msg(30, '422380', 'BGL_FP_READING', { text: 'Fingerprick of 7.3mM', fp: 132 }),
+    msg(70, '422380', 'ANNOUNCE_MEAL', { text: 'Made from juice concentrate. With added sugar, fruit content min 30%', g: 15 }),
+    msg(100, '422389', 'DOSE_BASAL_INSULIN', { units: 11, desc: 'Tresiba' }),
+    msg(108, '422380', 'DOSE_BASAL_INSULIN', { units: 11, desc: 'Tresiba' }),
+    msg(140, '422380', 'ANNOUNCE_MEAL', { text: 'Made from juice concentrate. With added sugar', g: 15 }),
+  ].join('\n');
+  const rows = G.parseCsv(csv);
+  test('Gluroo CSV: quoted fields with commas are read whole', () => {
+    assert.equal(rows.length, 59);
+    assert.equal(rows.find((r) => r.msgType === 'ANNOUNCE_MEAL')!.text, 'A grilled sandwich with scrambled eggs inside., turkey, cheese');
+  });
+  const plan = G.planGluroo(rows, [{ kind: 'carbs', amount: 15, t: Date.parse(at(141)) }]);
+  test('Gluroo import: re-estimates and the other parent logging the same plate count once', () => {
+    assert.equal(plan.meals.length, 1);
+    assert.equal(plan.meals[0].carbs, 46, 'tea 10 + the last sandwich estimate 36');
+    assert.equal(plan.doubles.length, 1); assert.equal(plan.doubles[0].otherParent, true);
+  });
+  test('Gluroo import: dose purpose, finger-prick, juice while low, second basal flagged, existing skipped', () => {
+    const ins = plan.events.filter((e) => e.kind === 'insulin');
+    assert.deepEqual(ins.map((e) => [e.insulin_type, e.bolus_purpose]), [['rapid', 'meal'], ['long', undefined]]);
+    assert.equal(plan.flagged.length, 1); assert.equal(plan.flagged[0].minutes, 8);
+    assert.equal(plan.events.find((e) => e.kind === 'bg_check')!.bg_mgdl, 132);
+    const tr = plan.events.filter((e) => e.kind === 'treatment');
+    assert.equal(tr.length, 1, 'the juice at 70 min, glucose 70 at the time'); assert.equal(tr[0].carbs_g, 15);
+    assert.equal(plan.skipped.length, 1, 'the juice at 140 min is already in the app');
+    assert.equal(plan.readings.length, 50); assert.equal(plan.readings[0].tr, 4);
+  });
+  test('Gluroo import: stable ids, so importing again adds nothing', async () => {
+    const a = await G.uuid5('gluroo:x'), b = await G.uuid5('gluroo:x');
+    assert.equal(a, b); assert.match(a, /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  });
+}
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {

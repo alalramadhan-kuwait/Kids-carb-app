@@ -196,7 +196,7 @@ export interface AlertRow {
 
 export interface CarePlan { hypo: string | null; hyper: string | null; sick_day: string | null; contacts: string | null; updated_by: string | null; updated_at: string }
 
-export type EventKind = 'insulin' | 'carbs' | 'treatment' | 'note' | 'exercise' | 'sleep';
+export type EventKind = 'insulin' | 'carbs' | 'treatment' | 'note' | 'exercise' | 'sleep' | 'bg_check';
 export interface EventRow {
   id: string;
   client_id: string;
@@ -212,6 +212,10 @@ export interface EventRow {
   activity_level?: 'light' | 'moderate' | 'hard' | null;
   /** what the dose calculator showed when this dose was logged from it */
   dose_calc?: DoseCalc | null;
+  /** finger-prick value (kind bg_check), mg/dL */
+  bg_mgdl?: number | null;
+  /** where an imported entry came from (e.g. 'gluroo'); null when logged in the app */
+  source?: string | null;
   ends_at?: string | null;
   created_by: string;
   deleted_at: string | null;

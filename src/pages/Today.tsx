@@ -9,6 +9,7 @@ import { MealCard, useChoose } from '../components/meal';
 import { Icon } from '../components/Icon';
 import { isEn, t, tMaybe } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
+import { QuickItemsSection } from '../components/QuickItems';
 
 const SHUFFLE_KEY = 'kc-shuffle';
 const readShuffle = () => { try { const v = JSON.parse(localStorage.getItem(SHUFFLE_KEY) ?? 'null'); return v?.day === new Date().toDateString() ? Number(v.n) : 0; } catch { return 0; } };
@@ -98,6 +99,7 @@ export default function Today() {
           );
         })}
       </ul>
+      <QuickItemsSection />
       {recipes.length === 0 && <div className="mt-4"><Alert tone="info">{t('لا توجد وصفات بعد.')}</Alert></div>}
     </Page>
   );
