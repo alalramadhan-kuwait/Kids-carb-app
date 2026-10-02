@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-02",
+    "version": "1.29.0",
+    "notes": [
+      "في «سجّل»: زر «من المنتجات» للبحث في دليل المنتجات (مع البراندات) وتسجيل الكمية والوقت مباشرة."
+    ],
+    "notes_en": [
+      "In “Log”: a “From products” button to search the products catalogue (with brands) and log an amount and time straight away."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "version": "1.28.0",
     "notes": [
       "الإعدادات: اسم الإنسولين السريع والطويل (NovoRapid و Tresiba)، ويظهران في التقرير الطبي مع مدة العمل ونسب الطبيب ومتوسط الجرعة الطويلة.",

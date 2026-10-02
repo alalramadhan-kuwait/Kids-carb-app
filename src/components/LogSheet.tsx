@@ -14,6 +14,9 @@ import { DoseCalculator } from './DoseCalculator';
 import { logQuick, useQuickItems } from '../lib/quick';
 import { brandsOf, sameBrand } from '../lib/brand';
 import { ProductForm } from './ProductForm';
+import { ProductPicker } from './ProductPicker';
+import { ProductSheet } from './ProductSheet';
+import type { Product } from '../lib/types';
 import type { QuickItem } from '../lib/quick';
 import { deleteHistory } from '../lib/api';
 import { startComparison, syncComparisons } from '../lib/fingerprick';
@@ -59,6 +62,8 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
   const [clean, setClean] = useState(true);                     // hands washed and dried
   const quick = useQuickItems();
   const [brandPick, setBrandPick] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);                  // choosing from the products catalogue
+  const [picked, setPicked] = useState<Product | null>(null);
   const [newProduct, setNewProduct] = useState(false);              // entering a product from the box in hand   // frequent foods of one brand only
   const brands = useMemo(() => brandsOf(quick.items), [quick.items]);
   const quickShown = brandPick ? quick.items.filter((q) => sameBrand(q.brand, brandPick)) : quick.items.slice(0, 10);
@@ -67,7 +72,7 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
     setKind(null); setClientId(crypto.randomUUID()); setUnits(null); setType('rapid'); setPurpose(null);
     setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault()); setCalc(null); setBg(null); setClean(true);
   };
-  const close = () => { reset(); setBrandPick(null); setNewProduct(false); onClose(); };
+  const close = () => { reset(); setBrandPick(null); setNewProduct(false); setPicking(false); onClose(); };
 
   const draft: NewEvent | null = useMemo(() => {
     if (!kind) return null;
@@ -111,8 +116,11 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
   };
 
   return (
-    <Sheet open={open} onClose={close} title={newProduct ? t('منتج جديد') : kind ? t(KINDS.find((k) => k.kind === kind)!.label) : t('سجّل')}>
-      {newProduct ? (
+    <>
+    <Sheet open={open} onClose={close} title={picking ? t('من المنتجات') : newProduct ? t('منتج جديد') : kind ? t(KINDS.find((k) => k.kind === kind)!.label) : t('سجّل')}>
+      {picking ? (
+        <ProductPicker onPick={(p) => { setPicked(p); close(); }} />
+      ) : newProduct ? (
         <ProductForm q={null} brands={brands} onDone={() => { setNewProduct(false); void quick.reload(); }} onLog={async (q: QuickItem) => {
           const id = await logQuick(q); await reload(); void quick.reload(); close();
           toast(t('تم التسجيل: {x}', { x: `${tMaybe(q.name)} · ${t('{g} غ', { g: fmt(q.carbs) })}` }), { label: t('تراجع'), run: async () => { await deleteHistory(id); await reload(); } });
@@ -155,6 +163,9 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
               </div>
             </div>
           )}
+          <button onClick={() => setPicking(true)} className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-white font-medium ring-1 ring-slate-200">
+            <Icon name="products" size={22} /> {t('من المنتجات')}
+          </button>
           <div className="grid grid-cols-2 gap-2">
             <Link to="/scan" onClick={close} className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-white font-medium ring-1 ring-slate-200">
               <Icon name="camera" size={22} /> {t('صوّر الأكل')}
@@ -229,6 +240,8 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
         </div>
       )}
     </Sheet>
+    <ProductSheet p={picked} start="log" onClose={() => setPicked(null)} />
+    </>
   );
 }
 

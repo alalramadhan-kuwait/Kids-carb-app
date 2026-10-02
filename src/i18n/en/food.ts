@@ -441,4 +441,6 @@ export const food: Record<string, string> = {
   "حلويات": "Sweets",
   "+ اسم وقيم غذائية (دهون، بروتين…)": "+ Name and nutrition (fat, protein…)",
   "يُحفظ كأكل باسمه وقيمه بدل «كارب» فقط، في نفس الوقت.": "Saved as a food with its name and values instead of “carbs” only, at the same time.",
+  "من المنتجات": "From products",
+  "لا توجد نتائج": "No results",
 };

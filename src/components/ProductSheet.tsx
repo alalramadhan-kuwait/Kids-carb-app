@@ -11,18 +11,18 @@ import { Alert, Btn, NumInput, Photo, Sheet, cx, toast } from './ui';
 import { t, tMaybe } from '../i18n';
 
 /** A product tapped in the catalogue: log an amount of it at a chosen time, or edit it. */
-export function ProductSheet({ p, onClose }: { p: Product | null; onClose: () => void }) {
+export function ProductSheet({ p, onClose, start = 'choose' }: { p: Product | null; onClose: () => void; start?: 'choose' | 'log' }) {
   return (
     <Sheet open={!!p} onClose={onClose} title={p?.name ?? ''}>
-      {p && <Body key={p.id} p={p} onClose={onClose} />}
+      {p && <Body key={p.id} p={p} onClose={onClose} start={start} />}
     </Sheet>
   );
 }
 
-function Body({ p, onClose }: { p: Product; onClose: () => void }) {
+function Body({ p, onClose, start }: { p: Product; onClose: () => void; start: 'choose' | 'log' }) {
   const nav = useNavigate();
   const { reload } = useData();
-  const [mode, setMode] = useState<'choose' | 'log'>('choose');
+  const [mode, setMode] = useState<'choose' | 'log'>(start);
   const choices = amountChoices(p);
   const [amount, setAmount] = useState<number | null>(choices[0]?.amount ?? null);
   const [at, setAt] = useState(Date.now());
