@@ -16,13 +16,24 @@ import { MealResponse } from './MealResponse';
 import { Compare } from './Compare';
 import { EventSheet } from '../components/EventSheet';
 import { Sheet, Toggle } from '../components/ui';
-import { carbsFrom, cobAt, dosesFrom, iobAt, iobParamsOk, modelLine } from '../engine/iob';
-import type { Tracks } from '../engine/Timeline';
+import { iobParamsOk, modelLine } from '../engine/iob';
+import { usePredictions } from '../lib/predictions';
+import { trendFrom } from '../engine/trend';
+import { useGraphExtras } from '../hooks/useGraphExtras';
+import { ForecastKey } from '../components/ForecastKey';
 import { LAYERS, buildMarks, defaultLayers, type Group, type Layer } from '../engine/events';
 import { isEn, t } from '../i18n';
 
 const loadLayers = (): Set<Layer> => {
-  try { const v = localStorage.getItem('layers'); if (v) return new Set(JSON.parse(v) as Layer[]); } catch { /* private mode */ }
+  try {
+    const v = localStorage.getItem('layers');
+    if (v) {
+      const set = new Set(JSON.parse(v) as Layer[]);
+      // forecasts arrived after the choice was saved: on once, then the parents' choice stands
+      if (!localStorage.getItem('layers_forecast')) { set.add('forecast'); localStorage.setItem('layers_forecast', '1'); localStorage.setItem('layers', JSON.stringify([...set])); }
+      return set;
+    }
+  } catch { /* private mode */ }
   return defaultLayers();
 };
 
@@ -82,13 +93,6 @@ function Live() {
   // IOB / COB: only with the care team's parameters, only when the parents turn the layer on; display only
   const iobP = settings.iob_dia_min && settings.iob_peak_min ? { dia: settings.iob_dia_min, peak: settings.iob_peak_min } : null;
   const iobOk = iobParamsOk(iobP), cobOk = !!settings.cob_absorb_min;
-  const tracks = useMemo<Tracks | undefined>(() => {
-    const t: Tracks = {};
-    if (iobOk && layers.has('iob')) { const d = dosesFrom(events); t.iob = (x) => iobAt(x, d, iobP!); }
-    if (cobOk && layers.has('cob')) { const c = carbsFrom(history, events), a = settings.cob_absorb_min!; t.cob = (x) => cobAt(x, c, a); }
-    return t.iob || t.cob ? t : undefined;
-  }, [iobOk, cobOk, layers, events, history, settings.iob_dia_min, settings.iob_peak_min, settings.cob_absorb_min]);
-  const model = tracks ? modelLine(tracks.iob ? iobP : null, tracks.cob ? settings.cob_absorb_min : null) : null;
   const [now, setNow] = useState(Date.now());
   const [view, setView] = useState<View>(() => ({ span: PERIODS[0].ms, end: limitEnd(Infinity, Date.now(), PERIODS[0].ms) }));
   const [live, setLive] = useState(true);
@@ -98,14 +102,15 @@ function Live() {
 
   useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 15000); return () => window.clearInterval(id); }, []);
   useEffect(() => { if (g?.latest) setNow(Date.now()); }, [g?.latest?.taken_at]);
-  useEffect(() => { if (live) setView((v) => ({ span: v.span, end: limitEnd(Infinity, now, v.span) })); }, [now, live]);
+  const aheadRef = useRef(0.04);
+  useEffect(() => { if (live) setView((v) => ({ span: v.span, end: limitEnd(Infinity, now, v.span, aheadRef.current) })); }, [now, live]);
 
   const onView = useCallback((v: View, o?: { animate?: boolean }) => {
     cancelAnimationFrame(anim.current);
     const t = Date.now();
     const isLive = v.end >= t + v.span * 0.02;
     setLive(isLive);
-    const target = isLive ? { span: v.span, end: limitEnd(Infinity, t, v.span) } : v;
+    const target = isLive ? { span: v.span, end: limitEnd(Infinity, t, v.span, aheadRef.current) } : v;
     if (!o?.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { setView(target); return; }
     const from = viewRef.current, t0 = performance.now();
     const step = () => {
@@ -117,6 +122,12 @@ function Live() {
   }, []);
 
   const { series, loading } = useSeries(view.end - view.span, view.end, g?.readings);
+  const past = usePredictions(g?.sensor?.started_at ? Date.parse(g.sensor.started_at) : null);
+  const projected30 = useMemo(() => (g?.readings ? trendFrom(g.readings, now)?.projected30 ?? null : null), [g?.readings, now]);
+  const { tracks, forecasts, ahead } = useGraphExtras({ series, now, iob: layers.has('iob'), cob: layers.has('cob'), forecast: layers.has('forecast'),
+    projected30, past: view.span <= 24 * 3600000 ? past : null, start: view.end - view.span, end: view.end });
+  const model = tracks ? modelLine(tracks.iob ? iobP : null, tracks.cob ? settings.cob_absorb_min : null) : null;
+  aheadRef.current = ahead;
   const n = series.t.length;
   const lastT = n ? series.t[n - 1] : null;
   const fresh = freshness(lastT, now);
@@ -139,7 +150,7 @@ function Live() {
       </div>
       <div className="flex-1 bg-white">
         <Timeline series={series} view={view} now={now} onView={onView} unit={unit} height={Math.max(160, land.height - 48)}
-          range={rng} marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} />
+          range={rng} marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={ahead} />
       </div>
       <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
     </div>
@@ -166,7 +177,7 @@ function Live() {
       <div className="relative -mx-4 bg-white py-2 shadow-card">
         <Timeline series={series} view={view} now={now} onView={onView} unit={unit} height={height}
           range={rng}
-          marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} />
+          marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={ahead} />
         {loading && <div className="absolute start-3 top-3 text-xs text-slate-400">…</div>}
       </div>
 
@@ -177,6 +188,7 @@ function Live() {
         <button onClick={() => setLayersOpen(true)} className="min-h-[40px] shrink-0 rounded-full bg-white px-3 text-sm font-bold ring-1 ring-slate-200">{t('الطبقات')}</button>
         {!live && <button onClick={() => onView({ span: view.span, end: Infinity }, { animate: true })} className="min-h-[40px] shrink-0 rounded-full bg-brand px-4 text-sm font-bold text-white">{t('الآن')}</button>}
       </div>
+      {forecasts.length > 0 && <div className="-mx-4"><ForecastKey past={forecasts.some((f) => f.kind === 'past')} /></div>}
       {model && <p className="px-1 text-xs text-slate-500">{model}</p>}
       {firstVisits && <p className="px-1 text-xs text-slate-400">{t('اسحب للتنقل · اقرص للتكبير · اضغط مطوّلًا للتفاصيل · اضغط أيقونة لما سُجّل')}</p>}
       <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />

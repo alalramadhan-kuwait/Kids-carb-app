@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-02",
+    "version": "1.24.0",
+    "notes": [
+      "رسم الصفحة الرئيسية: شريطان تحت الرسم للإنسولين النشط (IOB) والكارب النشط (COB)، مع ما تبقّى منهما للساعات القادمة.",
+      "خطوط توقّع على الرسم: إلى أين يتجه السكر مع ما في الجسم، واتجاه الـ30 دقيقة القادمة.",
+      "في التحليل: طبقة «التوقعات» تعرض أيضًا ما توقّعه التطبيق عند كل وجبة سابقة بجانب ما حدث فعلًا."
+    ],
+    "notes_en": [
+      "Home graph: two strips under the graph for insulin on board (IOB) and carbs on board (COB), with what is left over the next hours.",
+      "Forecast lines on the graph: where glucose is heading with what is on board, and the trend for the next 30 minutes.",
+      "In Analysis: a “Forecasts” layer also shows what the app predicted at each past meal next to what actually happened."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "version": "1.23.1",
     "notes": [
       "الصفحة الرئيسية: سطر «آخر أكل» يعرض آخر ما أكلته فعلًا، حتى السناك والكارب المسجّل مع الجرعة، وسطر «آخر جرعة» صار واضحًا."

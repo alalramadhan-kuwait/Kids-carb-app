@@ -30,6 +30,8 @@ import { units2, useOnBoard } from './Status';
 import { sensorLife } from '../engine/status';
 import { syncPredictions } from '../lib/predictions';
 import { trendFrom, libreOf } from '../engine/trend';
+import { useGraphExtras } from '../hooks/useGraphExtras';
+import { ForecastKey } from '../components/ForecastKey';
 import { TrendArrow, TrendLine } from '../components/Trend';
 import { NextDose } from '../components/NextDose';
 import { arrowSource, shownLevel } from '../lib/arrowChoice';
@@ -262,29 +264,34 @@ function HomeChart({ live }: { live: Reading[] }) {
   const SPAN = 3 * 3600000;
   const [now, setNow] = useState(Date.now());
   const [following, setFollowing] = useState(true);
-  const [view, setView] = useState<View>(() => ({ span: SPAN, end: limitEnd(Infinity, Date.now(), SPAN) }));
+  const AHEAD = 0.25; // room for what is still working and the forecast lines
+  const [view, setView] = useState<View>(() => ({ span: SPAN, end: limitEnd(Infinity, Date.now(), SPAN, AHEAD) }));
   const [picked, setPicked] = useState<Group | null>(null);
   useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 15000); return () => window.clearInterval(id); }, []);
   useEffect(() => { setNow(Date.now()); }, [live]);
-  useEffect(() => { if (following) setView((v) => ({ span: v.span, end: limitEnd(Infinity, now, v.span) })); }, [now, following]);
+  useEffect(() => { if (following) setView((v) => ({ span: v.span, end: limitEnd(Infinity, now, v.span, AHEAD) })); }, [now, following]);
   const onView = useCallback((v: View) => {
     const t1 = Date.now(), isLive = v.end >= t1 + v.span * 0.02;
     setFollowing(isLive);
-    setView(isLive ? { span: v.span, end: limitEnd(Infinity, t1, v.span) } : v);
+    setView(isLive ? { span: v.span, end: limitEnd(Infinity, t1, v.span, AHEAD) } : v);
   }, []);
   const { series } = useSeries(view.end - view.span, view.end, live);
   const marks = useMemo(() => buildMarks(history, events), [history, events]);
   const layers = useMemo(() => defaultLayers(), []);
-  const height = useMemo(() => Math.round(Math.min(440, Math.max(240, window.innerHeight * 0.36)) + 48), []); // + the readout strip
+  const projected30 = useMemo(() => trendFrom(live, now)?.projected30 ?? null, [live, now]);
+  // IOB and COB as two thin strips under the graph, and where glucose heads from here (display only)
+  const { tracks, forecasts } = useGraphExtras({ series, now, iob: true, cob: true, forecast: true, projected30, start: view.end - view.span, end: view.end });
+  const height = useMemo(() => Math.round(Math.min(440, Math.max(240, window.innerHeight * 0.36)) + 48) + (tracks ? 68 : 0), [!!tracks]); // eslint-disable-line react-hooks/exhaustive-deps
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
   return (
     <div className="relative -mx-4">
       <Timeline series={series} view={view} now={now} onView={onView} unit={settings.glucose_unit} height={height}
-        range={rng} marks={marks} layers={layers} onSelect={setPicked} />
+        range={rng} marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={AHEAD} />
       {!following && (
-        <button onClick={() => { setFollowing(true); setView({ span: SPAN, end: limitEnd(Infinity, Date.now(), SPAN) }); }}
+        <button onClick={() => { setFollowing(true); setView({ span: SPAN, end: limitEnd(Infinity, Date.now(), SPAN, AHEAD) }); }}
           className="absolute start-4 top-2 min-h-[40px] rounded-full bg-brand px-4 text-sm font-bold text-white shadow">{t('الآن')}</button>
       )}
+      {forecasts.length > 0 && <ForecastKey />}
       <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
     </div>
   );

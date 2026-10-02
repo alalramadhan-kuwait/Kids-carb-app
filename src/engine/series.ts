@@ -149,7 +149,8 @@ export function zoomAt(v: View, factor: number, anchorFrac: number): View {
 }
 
 /** Never scroll past "now" (plus a small margin so the newest dot is not on the edge). */
-export const limitEnd = (end: number, now: number, span: number) => Math.min(end, now + span * 0.04);
+/** How far past now the view may run: a sliver by default, more when forecasts are drawn (`ahead`, a share of the span). */
+export const limitEnd = (end: number, now: number, span: number, ahead = 0.04) => Math.min(end, now + span * ahead);
 
 /** Time ticks for the axis: a step that leaves ≥ `minPx` between labels, aligned to Kuwait local time (UTC+3). */
 const KW = 3 * 60 * MIN;

@@ -20,6 +20,7 @@ const pathsOf = (n: IconName) => { let p = iconPaths.get(n); if (!p) { p = (ICON
 
 export interface Range { low: number | null; high: number | null; reference?: boolean } // mg/dL; reference = the international range in use until the parents set hers
 /** Display-only secondary tracks (IOB in units, COB in grams), each on its own scale under the glucose plot. */
+import type { Forecast } from './forecast';
 export interface Tracks { iob?: (t: number) => number; cob?: (t: number) => number }
 export interface Inspect { t: number; i: number | null; x: number }
 
@@ -43,11 +44,12 @@ const css = (name: string, a = 1) => {
 const KW = 3 * 3600000;
 const clock = (t: number) => { const d = new Date(t + KW); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
 
-export function Timeline({ series, view, now, onView, range, unit, height: total, marks = [], layers, onSelect, dayParts, highlight, tracks }: {
+export function Timeline({ series, view, now, onView, range, unit, height: total, marks = [], layers, onSelect, dayParts, highlight, tracks, forecasts, ahead = 0.04 }: {
   series: Series; view: View; now: number; onView: (v: View, opts?: { animate?: boolean }) => void;
   range: Range; unit: GlucoseUnit; height: number;
   marks?: Mark[]; layers?: Set<Layer>; onSelect?: (g: Group) => void;
   dayParts?: boolean; highlight?: number | null; tracks?: Tracks;
+  forecasts?: Forecast[]; ahead?: number;
 }) {
   // the readout strip sits under the plot (never over the data); the canvas gets the rest of the height
   const BAR = 48, height = total - BAR;
@@ -191,6 +193,36 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
       const dot = (v: number) => !hasRange ? cIn : v < 54 ? cVLow : range.low !== null && v < range.low ? cLow : v > 250 ? cVHigh : range.high !== null && v > range.high ? cHigh : cIn;
       for (const r of runs) if (r.raw) for (let k = 0; k < r.x.length; k++) { g.fillStyle = dot(r.v[k]); g.beginPath(); g.arc(r.x[k], Y(r.v[k]), 1.9, 0, 7); g.fill(); }
     }
+    // forecasts (display only): the meal predictions frozen in the past, faint and dashed with a small ring at each
+    // hour; the on-board curve ahead, dashed with its end value; the trend's 30 minutes, dotted
+    if (forecasts?.length) {
+      g.save(); g.beginPath(); g.rect(0, PAD_T, width, plotH); g.clip();
+      for (const f of forecasts) {
+        const pts = f.pts.filter((p, k) => (k === 0 || f.pts[k - 1].t <= end) && (k === f.pts.length - 1 || f.pts[k + 1].t >= start));
+        if (pts.length < 2) continue;
+        const past = f.kind === 'past';
+        g.beginPath(); pts.forEach((p, k) => (k ? g.lineTo(X(p.t), Y(p.v)) : g.moveTo(X(p.t), Y(p.v))));
+        g.setLineDash(f.kind === 'trend' ? [2, 4] : past ? [4, 4] : [6, 4]);
+        g.lineWidth = past ? 1.4 : 2; g.lineCap = 'round';
+        g.strokeStyle = past ? css('--text-3', 0.75) : css('--primary-strong', f.kind === 'trend' ? 0.7 : 0.85);
+        g.stroke(); g.setLineDash([]);
+        if (past) {
+          g.fillStyle = css('--surface'); g.strokeStyle = css('--text-3', 0.85); g.lineWidth = 1.2;
+          for (const p of pts) if (Math.round((p.t - f.pts[0].t) / 60000) % 60 === 0 && p.t !== f.pts[0].t) { g.beginPath(); g.arc(X(p.t), Y(p.v), 3, 0, 7); g.fill(); g.stroke(); }
+        } else {
+          const lastP = pts[pts.length - 1], x = Math.min(width - 30, X(lastP.t)), y = Y(lastP.v);
+          g.fillStyle = css('--surface'); g.strokeStyle = css('--primary-strong'); g.lineWidth = 1.5; g.beginPath(); g.arc(X(lastP.t), y, 3.5, 0, 7); g.fill(); g.stroke();
+          if (f.kind === 'onboard') {
+            const label = '≈' + formatGlucose(lastP.v, unit);
+            g.font = '700 11px Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.direction = 'ltr';
+            const w = g.measureText(label).width + 8;
+            g.fillStyle = css('--surface', 0.92); g.fillRect(x - w / 2, y - 21, w, 15);
+            g.fillStyle = css('--primary-strong'); g.fillText(label, x, y - 7);
+          }
+        }
+      }
+      g.restore();
+    }
     // newest reading
     const n = series.t.length;
     if (n && series.t[n - 1] >= start && series.t[n - 1] <= end) {
@@ -202,17 +234,32 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
     trackList.forEach((k, n) => {
       const f = tracks![k]!, top = PAD_T + plotH + n * TRACK_H + 4, h = TRACK_H - 8;
       const xs: number[] = [], vs: number[] = [];
-      for (let x = 0; x <= width; x += 3) { const t = start + (x / width) * span; if (t > now) break; xs.push(x); vs.push(f(t)); }
+      for (let x = 0; x <= width; x += 3) { const t = start + (x / width) * span; xs.push(x); vs.push(f(t)); }
+      const nowX = X(now); // ahead of now the area is what is left to come: lighter, dashed
       const peak = Math.max(0, ...vs);
       g.strokeStyle = css('--border'); g.lineWidth = 1; g.beginPath(); g.moveTo(0, top + h + 0.5); g.lineTo(width, top + h + 0.5); g.stroke();
       if (peak > 0 && xs.length > 1) {
         const ty = (v: number) => top + h - (v / peak) * h;
-        g.beginPath(); g.moveTo(xs[0], top + h); xs.forEach((x, j) => g.lineTo(x, ty(vs[j]))); g.lineTo(xs[xs.length - 1], top + h); g.closePath();
-        g.fillStyle = css(k === 'iob' ? '--primary' : '--primary-muted', k === 'iob' ? 0.22 : 0.5); g.fill();
-        g.beginPath(); xs.forEach((x, j) => (j ? g.lineTo(x, ty(vs[j])) : g.moveTo(x, ty(vs[j])))); g.strokeStyle = css('--primary-strong', 0.8); g.lineWidth = 1.2; g.stroke();
+        const tone = k === 'iob' ? '--k-ins' : '--k-carb';
+        for (const future of [false, true]) {
+          g.save(); g.beginPath(); g.rect(future ? nowX : 0, top - 2, future ? width - nowX : nowX, h + 4); g.clip();
+          g.beginPath(); g.moveTo(xs[0], top + h); xs.forEach((x, j) => g.lineTo(x, ty(vs[j]))); g.lineTo(xs[xs.length - 1], top + h); g.closePath();
+          g.fillStyle = css(tone, future ? 0.1 : 0.25); g.fill();
+          g.beginPath(); xs.forEach((x, j) => (j ? g.lineTo(x, ty(vs[j])) : g.moveTo(x, ty(vs[j]))));
+          g.setLineDash(future ? [4, 3] : []); g.strokeStyle = css(tone, future ? 0.7 : 1); g.lineWidth = 1.4; g.stroke(); g.setLineDash([]);
+          g.restore();
+        }
+        // the value now, at the now line
+        if (nowX > 0 && nowX < width) {
+          const v = f(now);
+          g.fillStyle = css(tone); g.beginPath(); g.arc(nowX, ty(v), 2.6, 0, 7); g.fill();
+        }
       }
       g.font = '600 10.5px Rubik, system-ui, sans-serif'; g.fillStyle = css('--text-2'); g.textAlign = 'left'; g.textBaseline = 'top'; g.direction = dir();
-      g.fillText(k === 'iob' ? t('IOB · أعلى {v} وحدة', { v: peak.toFixed(1) }) : t('COB · أعلى {v} غ', { v: Math.round(peak) }), 4, top);
+      const inView = now >= start && now <= end, cur = inView ? f(now) : peak;
+      g.fillText(inView
+        ? (k === 'iob' ? t('IOB الآن {v} وحدة', { v: cur.toFixed(1) }) : t('COB الآن {v} غ', { v: Math.round(cur) }))
+        : (k === 'iob' ? t('IOB · أعلى {v} وحدة', { v: peak.toFixed(1) }) : t('COB · أعلى {v} غ', { v: Math.round(peak) })), 4, top);
       g.direction = 'ltr';
     });
 
@@ -265,7 +312,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
         g.strokeStyle = css('--text'); g.lineWidth = 2; g.beginPath(); g.arc(x, y, 5, 0, 7); g.stroke();
       }
     }
-  }, [series, view, now, range.low, range.high, range.reference, unit, width, height, inspect, marks, layers, hasRail, RAIL, dayParts, highlight, tracks, TRK]);
+  }, [series, view, now, range.low, range.high, range.reference, unit, width, height, inspect, marks, layers, hasRail, RAIL, dayParts, highlight, tracks, TRK, forecasts]);
 
   useEffect(() => { const id = requestAnimationFrame(draw); return () => cancelAnimationFrame(id); }, [draw]);
   useEffect(() => { // redraw on light/dark change
@@ -331,7 +378,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
       const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1, mid = ((a.x + b.x) / 2 - r.left) / r.width;
       let v = zoomAt(s.view0, s.dist0 / dist, s.mid0);
       v = { ...v, end: v.end - (mid - s.mid0) * v.span };
-      onView({ span: v.span, end: limitEnd(v.end, now, v.span) });
+      onView({ span: v.span, end: limitEnd(v.end, now, v.span, ahead) });
       return;
     }
     if (s.mode === 'pending' && Math.abs(e.clientX - s.x0) > TAP_SLOP) { window.clearTimeout(s.timer); s.mode = 'pan'; setInspect(null); }
@@ -339,7 +386,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
       const t = performance.now();
       s.vel = (e.clientX - s.lastX) / Math.max(1, t - s.lastT); s.lastX = e.clientX; s.lastT = t;
       const end = s.view0.end - ((e.clientX - s.x0) / r.width) * s.view0.span;
-      onView({ span: s.view0.span, end: limitEnd(end, now, s.view0.span) });
+      onView({ span: s.view0.span, end: limitEnd(end, now, s.view0.span, ahead) });
     }
   };
   const onUp = (e: React.PointerEvent) => {
@@ -379,7 +426,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
         const t = performance.now(), dt = t - last; last = t;
         vel *= Math.pow(0.994, dt);
         const v = viewRef.current;
-        onView({ span: v.span, end: limitEnd(v.end - ((vel * dt) / r.width) * v.span, now, v.span) });
+        onView({ span: v.span, end: limitEnd(v.end - ((vel * dt) / r.width) * v.span, now, v.span, ahead) });
         if (Math.abs(vel) > 0.02) g.current.fling = requestAnimationFrame(step);
       };
       s.fling = requestAnimationFrame(step);
@@ -388,7 +435,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
   };
   const onWheel = (e: React.WheelEvent) => {
     if (!e.ctrlKey && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-      const v = viewRef.current; onView({ span: v.span, end: limitEnd(v.end + (e.deltaX / width) * v.span, now, v.span) }); return;
+      const v = viewRef.current; onView({ span: v.span, end: limitEnd(v.end + (e.deltaX / width) * v.span, now, v.span, ahead) }); return;
     }
     const r = rect();
     onView(zoomAt(viewRef.current, Math.exp(e.deltaY * 0.002), (e.clientX - r.left) / r.width));

@@ -425,4 +425,11 @@ export const analysis: Record<string, string> = {
   "خطة الطبيب من {from}": "Doctor's plan from {from}",
   "1 وحدة = {cr} غ كارب": "1 u = {cr} g carbs",
   "1 وحدة = −{isf} {unit}": "1 u = −{isf} {unit}",
+  "التقدير مع ما في الجسم": "Estimate from what's on board",
+  "الاتجاه 30 د": "Trend 30 min",
+  "توقع الوجبات السابقة": "Past meal predictions",
+  "للعرض فقط، ليس للجرعة": "Display only, not for dosing",
+  "IOB الآن {v} وحدة": "IOB now {v} u",
+  "COB الآن {v} غ": "COB now {v} g",
+  "التوقعات": "Forecasts",
 };

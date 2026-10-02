@@ -1398,6 +1398,38 @@ console.log('product pictures');
   });
 }
 
+console.log('graph forecasts');
+
+{
+  const F = await import('../../engine/forecast');
+  test('forecast lines: trend 30 min, the on-board curve, past frozen curves', () => {
+    const T = Date.parse('2026-10-02T12:00:00Z'), M = 60000;
+    const last = { t: T - 2 * M, v: 140 };
+    const tr = F.trendForecast(last, 170, T)!;
+    assert.deepEqual(tr.pts, [last, { t: last.t + 30 * M, v: 170 }]);
+    assert.equal(F.trendForecast({ t: T - 20 * M, v: 140 }, 170, T), null, 'an old reading draws no trend line');
+    assert.equal(F.trendForecast(last, null, T), null);
+
+    const iob = { dia: 300, peak: 75 }, ratio = { from: '00:00', cr: 15, isf: 54 };
+    // 2 u just given and nothing to eat: the curve only goes down, by 2 × ISF in total, and ends when the insulin is used up
+    const down = F.onboardForecast(last, T, [{ t: last.t, units: 2 }], [], iob, 180, ratio)!;
+    assert.equal(down.pts[0].v, 140);
+    assert.ok(down.pts.every((p, k) => k === 0 || p.v <= down.pts[k - 1].v + 1e-9));
+    assert.ok(Math.abs(down.pts[down.pts.length - 1].v - (140 - 2 * 54)) < 3);
+    assert.ok(down.pts[down.pts.length - 1].t <= last.t + 300 * M);
+    // 30 g and the matching 2 u: it ends about where it started
+    const even = F.onboardForecast(last, T, [{ t: last.t, units: 2 }], [{ t: last.t, grams: 30 }], iob, 180, ratio)!;
+    assert.ok(Math.abs(even.pts[even.pts.length - 1].v - 140) < 3);
+    assert.equal(F.onboardForecast(last, T, [], [], iob, 180, ratio), null, 'nothing on board: no curve');
+    assert.equal(F.onboardForecast(last, T, [{ t: last.t, units: 2 }], [], null, 180, ratio), null, 'no care-team numbers: no curve');
+
+    const rows = [{ key: 'h:a', t0: new Date(T - 3 * 60 * M).toISOString(), curve: [120, 150, 170, 160, 140] }, { key: 'h:b', t0: new Date(T - 30 * 60 * M).toISOString(), curve: [100, 110] }];
+    const past = F.pastForecasts(rows, T - 4 * 60 * M, T);
+    assert.equal(past.length, 1);
+    assert.equal(past[0].pts[2].t, T - 3 * 60 * M + 30 * M);
+  });
+}
+
 console.log('next dose');
 
 {
