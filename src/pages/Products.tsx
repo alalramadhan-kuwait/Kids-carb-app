@@ -7,6 +7,8 @@ import { PRODUCT_CATEGORIES } from '../lib/constants';
 import { t, tMaybe } from '../i18n';
 import { Badge, Card, Chip, Page, Photo, Toggle, toast } from '../components/ui';
 import { brandsOf, sameBrand } from '../lib/brand';
+import { ProductSheet } from '../components/ProductSheet';
+import type { Product } from '../lib/types';
 
 export function ProductList() {
   const { products, settings, reload } = useData();
@@ -14,6 +16,7 @@ export function ProductList() {
   const [q, setQ] = useState('');
   const [onlyHome, setOnlyHome] = useState(false);
   const [brand, setBrand] = useState<string | null>(null);
+  const [picked, setPicked] = useState<Product | null>(null);
   const brands = brandsOf(products.map((p) => ({ brand: p.brand })));
   const cats = [...new Set([...PRODUCT_CATEGORIES.filter((c) => products.some((p) => p.category === c)), ...products.map((p) => p.category)])];
   const rows = products.filter((p) => (!cat || p.category === cat) && (!brand || sameBrand(p.brand, brand)) && (!onlyHome || p.available) && (p.name + (p.brand ?? '')).toLowerCase().includes(q.toLowerCase()));
@@ -38,7 +41,7 @@ export function ProductList() {
           const miss = targetMiss(p, settings);
           return (
             <Card key={p.id} className="flex items-center gap-3 !p-3">
-              <Link to={`/products/${p.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+              <button onClick={() => setPicked(p)} className="flex min-w-0 flex-1 items-center gap-3 text-start">
                 <Photo path={p.image_path} category={p.category} className="h-16 w-16 shrink-0 rounded-xl" />
                 <div className="min-w-0">
                   <div className="truncate font-bold">{p.name}</div>
@@ -50,7 +53,7 @@ export function ProductList() {
                     {miss && <Badge tone="over">{t('فوق الهدف ({max})', { max: miss.max })}</Badge>}
                   </div>
                 </div>
-              </Link>
+              </button>
               <div className="flex shrink-0 flex-col items-center gap-1">
                 <Toggle on={p.available} label={t('{name} موجود بالبيت', { name: p.name })} onChange={async (v) => { try { await setAvailable(p.id, v); await reload(); } catch (e) { toast((e as Error).message); } }} />
                 <span className="text-[11px] text-slate-500">{p.available ? t('موجود') : t('غير موجود')}</span>
@@ -60,6 +63,7 @@ export function ProductList() {
         })}
         {rows.length === 0 && <Card><p className="text-slate-500">{t('لا توجد منتجات. أضف منتجًا من ملصقه الغذائي.')}</p></Card>}
       </div>
+      <ProductSheet p={picked} onClose={() => setPicked(null)} />
     </Page>
   );
 }

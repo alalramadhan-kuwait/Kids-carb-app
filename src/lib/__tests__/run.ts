@@ -1398,6 +1398,20 @@ console.log('product pictures');
   });
 }
 
+console.log('product portions');
+
+{
+  const P = await import('../portion');
+  test('a product portion follows its label per 100; the pack comes first', () => {
+    const mango = { carbs_per_100: 15, fat_per_100: 0, protein_per_100: null, fiber_per_100: null, kcal_per_100: 60, pack_size: 125, serving_size: 125 };
+    const x = P.portion(mango as any, 125);
+    assert.equal(x.carbs, 18.8); assert.equal(x.kcal, 75); assert.equal(x.fat, 0); assert.equal(x.protein, null);
+    assert.deepEqual(P.amountChoices(mango as any), [{ key: 'pack', amount: 125 }, { key: 'hundred', amount: 100 }]);
+    assert.deepEqual(P.amountChoices({ pack_size: 1000, serving_size: 200 } as any), [{ key: 'serving', amount: 200 }, { key: 'hundred', amount: 100 }], 'a 1 L carton is not one portion');
+    assert.deepEqual(P.amountChoices({ pack_size: 100, serving_size: null } as any), [{ key: 'pack', amount: 100 }]);
+  });
+}
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {

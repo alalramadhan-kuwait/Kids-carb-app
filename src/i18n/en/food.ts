@@ -435,4 +435,7 @@ export const food: Record<string, string> = {
   "لم نجد صورة هذا المنتج في الصفحة. صوّروا العلبة بدلًا منها.": "No picture of this product was found on the page. Take a photo of the box instead.",
   "جارٍ الجلب…": "Fetching…",
   "جلب الصورة من صفحة المنتج": "Get the picture from the product page",
+  "العلبة ({a} {u})": "Pack ({a} {u})",
+  "حصة ({a} {u})": "Serving ({a} {u})",
+  "هذا المنتج غير معتمد: راجعوا الملصق واعتمدوه من «تعديل» قبل تسجيله.": "This product isn’t approved: check its label and approve it from “Edit” before logging it.",
 };

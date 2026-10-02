@@ -1,5 +1,17 @@
 [
   {
+    "date": "2026-10-02",
+    "version": "1.21.0",
+    "notes": [
+      "اضغط أي منتج في «دليل المنتجات»: سجّله أو عدّله.",
+      "عند التسجيل اختاروا الكمية (العلبة، حصة، أو كمية أخرى) والوقت، ويظهر الكارب قبل الحفظ."
+    ],
+    "notes_en": [
+      "Tap any product in Products: log it or edit it.",
+      "When logging, pick the amount (the pack, a serving or your own) and the time; the carbs show before you save."
+    ]
+  },
+  {
     "version": "1.20.1",
     "date": "2026-10-02",
     "notes": [
