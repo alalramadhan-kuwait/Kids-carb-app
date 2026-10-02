@@ -24,7 +24,7 @@ import layanPng from '../assets/layan_peek.png';
 import { useAlerts } from '../hooks/useAlerts';
 import { describeEvent } from '../lib/events';
 import { Card, asset, cx } from '../components/ui';
-import { dir, isEn, t } from '../i18n';
+import { dir, isEn, t, tMaybe } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
 import { units2, useOnBoard } from './Status';
 import { sensorLife } from '../engine/status';
@@ -62,7 +62,13 @@ export default function Now() {
     [settings, history, events, g?.sensor?.started_at]);
   const sensor = g?.sensor?.started_at ? sensorLife(g.sensor.started_at, settings.sensor_days ?? 14, Date.now()) : null;
 
-  const lastMeal = history.find((h) => h.kind === 'meal');
+  // the last thing she ate: a meal or snack, or carbs logged on their own (e.g. with a dose), whichever is newest
+  const lastMeal = useMemo(() => {
+    const h = history.find((x) => x.total_carbs > 0 || x.lines.length > 0) ?? null;
+    const c = events.find((e) => !e.deleted_at && e.kind === 'carbs' && e.carbs_g) ?? null;
+    if (c && (!h || Date.parse(c.occurred_at) > Date.parse(h.eaten_at))) return { name: c.note || t('كارب'), total_carbs: c.carbs_g!, eaten_at: c.occurred_at };
+    return h ? { name: h.name, total_carbs: h.total_carbs, eaten_at: h.eaten_at } : null;
+  }, [history, events]);
   const lastInsulin = events.find((e) => e.kind === 'insulin');
   const lastTreatment = events.find((e) => e.kind === 'treatment' && Date.now() - new Date(e.occurred_at).getTime() < 3 * 3600000);
 
@@ -141,8 +147,8 @@ export default function Now() {
             </Link>
           )}
           <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
-            <Line icon="meals" tone={KIND_STYLE.meal.icon} text={lastMeal ? <><bdi>{lastMeal.name}</bdi> · {t('{g} غ', { g: fmt(lastMeal.total_carbs) })}</> : t('لا توجد وجبة مسجّلة')} when={lastMeal?.eaten_at} />
-            <Line icon="insulin" tone={KIND_STYLE.insulin.icon} text={lastInsulin ? describeEvent(lastInsulin) : t('لا يوجد إنسولين مسجّل')} when={lastInsulin?.occurred_at} who={lastInsulin ? nameOf(lastInsulin.created_by) : ''} />
+            <Line icon="meals" tone={KIND_STYLE.meal.icon} text={lastMeal ? <><span className="text-slate-500">{t('آخر أكل:')}</span> <bdi>{tMaybe(lastMeal.name)}</bdi> · {t('{g} غ', { g: fmt(lastMeal.total_carbs) })}</> : t('لا توجد وجبة مسجّلة')} when={lastMeal?.eaten_at} />
+            <Line icon="insulin" tone={KIND_STYLE.insulin.icon} text={lastInsulin ? <><span className="text-slate-500">{t('آخر جرعة:')}</span> {describeEvent(lastInsulin)}</> : t('لا يوجد إنسولين مسجّل')} when={lastInsulin?.occurred_at} who={lastInsulin ? nameOf(lastInsulin.created_by) : ''} />
             {lastTreatment && <Line icon="treatment" tone={KIND_STYLE.treatment.icon} text={describeEvent(lastTreatment)} when={lastTreatment.occurred_at} who={nameOf(lastTreatment.created_by)} />}
             <SchoolLine />
           </ul>

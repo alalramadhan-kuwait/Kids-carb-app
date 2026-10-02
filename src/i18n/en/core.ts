@@ -270,4 +270,6 @@ export const core: Record<string, string> = {
   "يمكن إعطاء إنسولين الآن إذا احتاجت": "Insulin can be given now if she needs it",
   "ما زالت تعمل": "still working",
   "مرّت {h}": "{h} ago",
+  "آخر أكل:": "Last food:",
+  "آخر جرعة:": "Last dose:",
 };
