@@ -438,4 +438,5 @@ export const food: Record<string, string> = {
   "العلبة ({a} {u})": "Pack ({a} {u})",
   "حصة ({a} {u})": "Serving ({a} {u})",
   "هذا المنتج غير معتمد: راجعوا الملصق واعتمدوه من «تعديل» قبل تسجيله.": "This product isn’t approved: check its label and approve it from “Edit” before logging it.",
+  "حلويات": "Sweets",
 };
