@@ -1,8 +1,9 @@
 // Fetches each product's picture from the maker's page it came from (products.source_url) and keeps a copy in
 // the app's own photo storage, so it loads fast and survives the maker changing its site. Members only (or the
-// database with the cron secret). Never overwrites a photo the family took.
+// database with the cron secret). Never overwrites a photo the family took. Only the maker's own sites
+// (kddc.com, eshop.kddc.com) are read; only the picture columns are written, never nutrition.
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { pickImage, pictures, shareImage } from './lib.ts';
+import { allowedHost, pickImage, pictures, shareImage, toHttps } from './lib.ts';
 
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret' };
 const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
@@ -25,12 +26,14 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({})) as { ids?: string[] };
   // look only: the pictures a page offers (to see why one was not matched)
   if ((body as { inspect?: string }).inspect) {
-    const u = (body as { inspect: string }).inspect;
-    const { data: known } = await db.from('products').select('id').eq('source_url', u).limit(1);
-    if (!known?.length) return json({ error: 'unknown_page' }, 400);   // only pages a product came from
+    const u = toHttps((body as { inspect: string }).inspect);
+    if (!allowedHost(u)) return json({ error: 'not_a_maker_page' }, 400);   // the maker's own sites only
     const r = await fetch(u, { headers: { 'User-Agent': UA, Accept: 'text/html' }, signal: AbortSignal.timeout(15000) }).catch(() => null);
     const html = r && r.ok ? await r.text() : '';
-    return json({ status: r?.status ?? 0, share: shareImage(html, u), pictures: pictures(html, u).slice(0, 80) });
+    const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&nbsp;|&#160;/g, ' ').replace(/\s+/g, ' ');
+    const at = text.search(/nutrition|calories|energy/i);
+    const title = /<title>([^<]*)<\/title>/i.exec(html)?.[1]?.trim() ?? null;
+    return json({ status: r?.status ?? 0, title, share: shareImage(html, u), pictures: pictures(html, u).slice(0, 80), nutrition: at < 0 ? null : text.slice(Math.max(0, at - 200), at + 1500) });
   }
 
   let q = db.from('products').select('id,name,source_url,image_path').not('source_url', 'is', null);
@@ -53,12 +56,15 @@ Deno.serve(async (req) => {
   const results = [];
   for (const p of all) {
     if (p.image_path && !body.ids?.length) continue;           // a family photo is never replaced
-    const html = await page(p.source_url);
+    const src = toHttps(p.source_url);
+    if (!allowedHost(src)) { results.push({ name: p.name, ok: false, why: 'not_a_maker_page' }); continue; }
+    const html = await page(src);
     if (!html) { results.push({ name: p.name, ok: false, why: 'page_unreachable' }); continue; }
-    const img = pickImage(html, p.source_url, p.name, (count.get(p.source_url) ?? 0) > 1);
+    const img = pickImage(html, src, p.name, (count.get(p.source_url) ?? 0) > 1);
     if (!img) { results.push({ name: p.name, ok: false, why: 'no_matching_picture' }); continue; }
     try {
-      const r = await fetch(img, { headers: { 'User-Agent': UA, Referer: p.source_url }, signal: AbortSignal.timeout(15000) });
+      if (!allowedHost(img)) { results.push({ name: p.name, ok: false, why: 'not_a_maker_picture' }); continue; }
+      const r = await fetch(img, { headers: { 'User-Agent': UA, Referer: src }, signal: AbortSignal.timeout(15000) });
       const type = (r.headers.get('content-type') ?? '').split(';')[0].trim();
       const buf = new Uint8Array(await r.arrayBuffer());
       if (!r.ok || !EXT[type] || buf.length > 2_000_000 || buf.length < 2000) { results.push({ name: p.name, ok: false, why: `bad_image:${type}:${buf.length}`, img }); continue; }
