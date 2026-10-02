@@ -17,6 +17,8 @@ import { supabase } from '../lib/supabase';
 import { checkMinutes } from '../engine/predict';
 import { LogSheet } from '../components/LogSheet';
 import { EditEntry } from '../components/EditEntry';
+import { useQuickItems } from '../lib/quick';
+import { brandsOf, sameBrand } from '../lib/brand';
 import type { PredictionRow } from '../lib/predictions';
 
 const DAY = 86400000;
@@ -30,6 +32,8 @@ type Item = { t: number; key: string; h?: HistoryEntry; e?: EventRow };
 export default function History() {
   const { history, events, reload, settings, nameOf, me } = useData();
   const [kind, setKind] = useState<Kind>('all');
+  const [brand, setBrand] = useState<string | null>(null);
+  const quick = useQuickItems();
   const [days, setDays] = useState(7);
   const [open, setOpen] = useState<Item | null>(null);
   const [logOpen, setLogOpen] = useState(false);
@@ -44,8 +48,16 @@ export default function History() {
     ...history.map((h) => ({ t: Date.parse(h.eaten_at), key: 'h' + h.id, h })),
     ...events.map((e) => ({ t: Date.parse(e.occurred_at), key: 'e' + e.id, e })),
   ].sort((a, b) => b.t - a.t), [history, events]);
-  const match = (it: Item) => kind === 'all' || (kind === 'meals' ? !!it.h
-    : !!it.e && (kind === 'insulin' ? it.e.kind === 'insulin' : kind === 'treatment' ? it.e.kind === 'treatment' : it.e.kind !== 'insulin' && it.e.kind !== 'treatment'));
+  // brands: from logged meals and frequent foods; an older entry without a brand still matches by its food's name
+  const brands = useMemo(() => brandsOf([...history.map((h) => ({ brand: h.brand ?? null })), ...quick.items]), [history, quick.items]);
+  const ofBrand = useMemo(() => {
+    if (!brand) return null;
+    const names = quick.items.filter((q) => sameBrand(q.brand, brand)).map((q) => q.name.toLowerCase());
+    const b = brand.toLowerCase();
+    return (h: HistoryEntry) => sameBrand(h.brand, brand) || h.name.toLowerCase().includes(b) || names.some((n) => h.name.toLowerCase().includes(n));
+  }, [brand, quick.items]);
+  const match = (it: Item) => (ofBrand ? !!it.h && ofBrand(it.h) : true) && (kind === 'all' || (kind === 'meals' ? !!it.h
+    : !!it.e && (kind === 'insulin' ? it.e.kind === 'insulin' : kind === 'treatment' ? it.e.kind === 'treatment' : it.e.kind !== 'insulin' && it.e.kind !== 'treatment')));
   const shown = all.filter((it) => it.t >= since && match(it));
   const older = all.some((it) => it.t < since && match(it));
 
@@ -69,8 +81,15 @@ export default function History() {
   return (
     <Page title={t('السجل')}>
       <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
-        {KINDS.map(([k, l]) => <Chip key={k} active={kind === k} onClick={() => setKind(k)}>{l}</Chip>)}
+        {KINDS.map(([k, l]) => <Chip key={k} active={kind === k} onClick={() => { setKind(k); if (k !== 'all' && k !== 'meals') setBrand(null); }}>{l}</Chip>)}
       </div>
+      {brands.length > 0 && (
+        <div className="-mx-4 -mt-2 mb-4 flex items-center gap-1.5 overflow-x-auto px-4">
+          <span className="shrink-0 text-xs font-medium text-slate-500">{t('البراند')}</span>
+          <Chip active={!brand} onClick={() => setBrand(null)}>{t('الكل')}</Chip>
+          {brands.map((b) => <Chip key={b} active={sameBrand(brand, b)} onClick={() => { setBrand(b); if (kind !== 'all' && kind !== 'meals') setKind('all'); }}><bdi>{b}</bdi></Chip>)}
+        </div>
+      )}
 
       <div className="space-y-5">
         {groups.map(([day, items]) => {
@@ -87,7 +106,7 @@ export default function History() {
             </section>
           );
         })}
-        {!groups.length && <Card><p className="text-slate-500">{t('لا يوجد شيء في هذه الفترة.')}</p></Card>}
+        {!groups.length && <Card><p className="text-slate-500">{brand ? t('لا يوجد أكل من {b} في هذه الفترة.', { b: brand }) : t('لا يوجد شيء في هذه الفترة.')}</p></Card>}
         {older && <Btn block kind="ghost" onClick={() => setDays(days + 7)}>{t('عرض أيام أقدم')}</Btn>}
         <div className="h-16" aria-hidden />{/* room so the Log button never covers the last entry */}
       </div>

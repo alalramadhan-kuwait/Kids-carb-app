@@ -248,4 +248,5 @@ export const core: Record<string, string> = {
   "قيمة الوخز غير معقولة": "That finger-prick value is not plausible",
   "المدة بين 1 و600 دقيقة": "Duration must be 1–600 minutes",
   "اكتبوا اسم الوجبة": "Enter the meal name",
+  "لا يوجد أكل من {b} في هذه الفترة.": "Nothing from {b} in this period.",
 };
