@@ -9,8 +9,9 @@ export const openedFromRecovery = typeof location !== 'undefined' && /type=recov
 /** Everything this app owns lives in the `carb` schema; nothing here touches `public`. */
 export const supabase = createClient(url, key, { db: { schema: 'carb' }, auth: { persistSession: true } });
 
+/** A stored photo, or a picture link as given (e.g. a maker's product image from an imported list). */
 export const photoUrl = (path: string | null | undefined) =>
-  path ? supabase.storage.from('carb-photos').getPublicUrl(path).data.publicUrl : null;
+  !path ? null : /^https:\/\//.test(path) ? path : supabase.storage.from('carb-photos').getPublicUrl(path).data.publicUrl;
 
 /** Shrink a photo on the phone before upload: full-size camera shots are 4 MB+. */
 export async function resizeImage(file: File, max = 900): Promise<Blob> {
