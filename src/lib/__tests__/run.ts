@@ -1423,10 +1423,13 @@ console.log('graph forecasts');
     assert.equal(F.onboardForecast(last, T, [], [], iob, 180, ratio), null, 'nothing on board: no curve');
     assert.equal(F.onboardForecast(last, T, [{ t: last.t, units: 2 }], [], null, 180, ratio), null, 'no care-team numbers: no curve');
 
-    const rows = [{ key: 'h:a', t0: new Date(T - 3 * 60 * M).toISOString(), curve: [120, 150, 170, 160, 140] }, { key: 'h:b', t0: new Date(T - 30 * 60 * M).toISOString(), curve: [100, 110] }];
+    const rows = [{ key: 'h:a', t0: new Date(T - 3 * 60 * M).toISOString(), curve: [120, 150, 170, 160, 140] }, { key: 'h:c', t0: new Date(T - 60 * M).toISOString(), curve: [130, 140] },
+      { key: 'h:b', t0: new Date(T - 30 * 60 * M).toISOString(), curve: [100, 110] }, { key: 'h:d', t0: new Date(T - 5 * 60 * M).toISOString(), curve: Array(25).fill(150) }];
     const past = F.pastForecasts(rows, T - 4 * 60 * M, T);
-    assert.equal(past.length, 1);
-    assert.equal(past[0].pts[2].t, T - 3 * 60 * M + 30 * M);
+    assert.equal(past.length, 1, 'one line only: the latest meal in view');
+    assert.equal(past[0].key, 'ph:c');
+    assert.equal(past[0].pts[1].t, T - 60 * M + 15 * M);
+    assert.deepEqual(F.pastForecasts(rows.slice(3), T - 4 * 60 * M, T), [], 'a curve from a meal before the view is not drawn');
   });
 }
 

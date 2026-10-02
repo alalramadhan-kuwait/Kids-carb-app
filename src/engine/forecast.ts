@@ -34,13 +34,13 @@ export function onboardForecast(last: Pt | null, now: number, doses: Dose[], car
   return pts.length > 1 ? { kind: 'onboard', key: 'onboard', pts } : null;
 }
 
-/** The curves frozen at past meals (every 15 min from the meal), for the ones that overlap the view. */
+/** The curve frozen at the latest meal or dose that starts inside the view (one line, so the graph stays readable). */
 export function pastForecasts(rows: { key: string; t0: string; curve: number[] }[], start: number, end: number): Forecast[] {
-  const out: Forecast[] = [];
+  let best: { key: string; t0: number; curve: number[] } | null = null;
   for (const r of rows) {
     const t0 = Date.parse(r.t0);
-    if (!r.curve?.length || t0 > end || t0 + (r.curve.length - 1) * 15 * MIN < start) continue;
-    out.push({ kind: 'past', key: 'p' + r.key, pts: r.curve.map((v, k) => ({ t: t0 + k * 15 * MIN, v })) });
+    if (!r.curve?.length || t0 < start || t0 > end) continue;
+    if (!best || t0 > best.t0) best = { key: r.key, t0, curve: r.curve };
   }
-  return out;
+  return best ? [{ kind: 'past', key: 'p' + best.key, pts: best.curve.map((v, k) => ({ t: best!.t0 + k * 15 * MIN, v })) }] : [];
 }

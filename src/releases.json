@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-02",
+    "version": "1.24.1",
+    "notes": [
+      "رسم التحليل أوضح: يظهر توقّع آخر وجبة فقط بدل خطوط كل الوجبات السابقة."
+    ],
+    "notes_en": [
+      "Clearer Analysis graph: only the last meal’s prediction is drawn instead of lines for every earlier meal."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "version": "1.24.0",
     "notes": [
       "رسم الصفحة الرئيسية: شريطان تحت الرسم للإنسولين النشط (IOB) والكارب النشط (COB)، مع ما تبقّى منهما للساعات القادمة.",

@@ -9,7 +9,7 @@ export function ForecastKey({ past }: { past?: boolean }) {
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 pt-1 text-[11px] text-slate-500">
       <span className="flex items-center gap-1"><Dash d="6 4" />{t('التقدير مع ما في الجسم')}</span>
       <span className="flex items-center gap-1"><Dash d="2 4" />{t('الاتجاه 30 د')}</span>
-      {past && <span className="flex items-center gap-1"><Dash d="4 4" faint />{t('توقع الوجبات السابقة')}</span>}
+      {past && <span className="flex items-center gap-1"><Dash d="4 4" faint />{t('توقع آخر وجبة')}</span>}
       <span>{t('للعرض فقط، ليس للجرعة')}</span>
     </div>
   );
