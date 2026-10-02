@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.18.0",
+    "date": "2026-10-02",
+    "notes": [
+      "دليل المنتجات: فلتر البراند تحت التصنيفات.",
+      "منتجات KDD وحليب فانزو (KD Cow) صارت في دليل المنتجات أيضًا، وتُستخدم في الوصفات."
+    ],
+    "notes_en": [
+      "Products: a brand filter under the categories.",
+      "KDD products and the Fanzo milk (KD Cow) are now in Products too, for use in recipes."
+    ]
+  },
+  {
     "version": "1.17.1",
     "date": "2026-10-02",
     "notes": [
