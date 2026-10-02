@@ -7,11 +7,12 @@ import { LEVEL_TEXT, describeEvent, sleepWindow } from '../lib/events';
 import type { EventKind } from '../lib/types';
 import { Icon } from './Icon';
 import type { IconName } from '../icons/defs';
-import { Alert, Btn, Field, NumInput, Sheet, cx, inputCls, toast } from './ui';
+import { Alert, Btn, Chip, Field, NumInput, Sheet, cx, inputCls, toast } from './ui';
 import { t, tMaybe } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
 import { DoseCalculator } from './DoseCalculator';
 import { logQuick, useQuickItems } from '../lib/quick';
+import { brandsOf, sameBrand } from '../lib/brand';
 import { deleteHistory } from '../lib/api';
 import { startComparison, syncComparisons } from '../lib/fingerprick';
 import { toMgdl, unitLabel } from '../lib/glucose';
@@ -55,12 +56,15 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
   const [bg, setBg] = useState<number | null>(null);          // finger-prick, in the family's unit
   const [clean, setClean] = useState(true);                     // hands washed and dried
   const quick = useQuickItems();
+  const [brandPick, setBrandPick] = useState<string | null>(null);   // frequent foods of one brand only
+  const brands = useMemo(() => brandsOf(quick.items), [quick.items]);
+  const quickShown = brandPick ? quick.items.filter((q) => sameBrand(q.brand, brandPick)) : quick.items.slice(0, 10);
 
   const reset = () => {
     setKind(null); setClientId(crypto.randomUUID()); setUnits(null); setType('rapid'); setPurpose(null);
     setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault()); setCalc(null); setBg(null); setClean(true);
   };
-  const close = () => { reset(); onClose(); };
+  const close = () => { reset(); setBrandPick(null); onClose(); };
 
   const draft: NewEvent | null = useMemo(() => {
     if (!kind) return null;
@@ -118,8 +122,14 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
           {quick.items.length > 0 && (
             <div>
               <div className="mb-1.5 text-sm font-medium text-slate-600">{t('أكل متكرر')}</div>
-              <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-                {quick.items.slice(0, 10).map((q) => (
+              {brands.length > 0 && (
+                <div className="-mx-4 mb-2 flex gap-1.5 overflow-x-auto px-4">
+                  <Chip active={!brandPick} onClick={() => setBrandPick(null)}>{t('الأكثر')}</Chip>
+                  {brands.map((b) => <Chip key={b} active={sameBrand(brandPick, b)} onClick={() => setBrandPick(b)}><bdi>{b}</bdi></Chip>)}
+                </div>
+              )}
+              <div className={cx('-mx-4 flex gap-2 px-4 pb-1', brandPick ? 'flex-wrap' : 'overflow-x-auto')}>
+                {quickShown.map((q) => (
                   <button key={q.id} disabled={busy} className={cx('flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium', KIND_STYLE.meal.soft)}
                     onClick={async () => {
                       setBusy(true);

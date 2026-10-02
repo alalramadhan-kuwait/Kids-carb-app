@@ -1311,6 +1311,19 @@ console.log('editing entries');
     assert.equal(Ed.editProblem('bg_check', { t, bg: 10 }, now), 'bg');
     assert.equal(Ed.editProblem('note', { t: now + 3600000 }, now), 'future');
     assert.equal(Ed.editProblem('note', { t: null }, now), 'time');
+    assert.equal(Ed.editProblem('meal', { t, carbs: 19, name: 'KDD', fat: 2.5, protein: 5, kcal: 135 }, now), null);
+    assert.equal(Ed.editProblem('meal', { t, carbs: 19, name: 'KDD', fat: -1 }, now), 'nutrition');
+  });
+}
+
+console.log('brands');
+
+{
+  const B = await import('../brand');
+  test('one brand however it was typed, most used first', () => {
+    assert.equal(B.normBrand('  KDD  '), 'KDD'); assert.equal(B.normBrand(' '), null);
+    assert.ok(B.sameBrand('kdd', 'KDD ')); assert.ok(!B.sameBrand('KDD', 'Almarai'));
+    assert.deepEqual(B.brandsOf([{ brand: 'KDD', uses: 3 }, { brand: 'kdd', uses: 1 }, { brand: 'Almarai', uses: 2 }, { brand: null }, { brand: 'KDD', uses: 1 }]), ['KDD', 'Almarai']);
   });
 }
 

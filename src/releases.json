@@ -1,5 +1,19 @@
 [
   {
+    "version": "1.15.0",
+    "date": "2026-10-02",
+    "notes": [
+      "تعديل الوجبة صار يشمل الاسم والبراند والقيم الغذائية (كارب، دهون، بروتين، ألياف، سعرات).",
+      "حقل «البراند» (مثل KDD): عند التسجيل اختاروا البراند من «أكل متكرر» فتظهر كل منتجاته وتُضاف بلمسة.",
+      "عند تعديل وجبة يمكن إضافتها إلى «أكل متكرر» أو تحديثها هناك مباشرة."
+    ],
+    "notes_en": [
+      "Editing a meal now covers its name, brand and nutrition (carbs, fat, protein, fiber, calories).",
+      "New Brand field (e.g. KDD): when logging, pick the brand under Frequent foods to see all its products and add one with a tap.",
+      "When editing a meal you can add it to Frequent foods, or update it there, in the same step."
+    ]
+  },
+  {
     "version": "1.14.0",
     "date": "2026-10-02",
     "notes": [

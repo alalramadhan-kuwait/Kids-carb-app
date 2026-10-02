@@ -144,6 +144,8 @@ export interface HistoryEntry {
   notes: string | null;
   /** imported from another app (e.g. 'gluroo'); needs_review: next to an entry the parents have not decided on */
   source?: string | null; needs_review?: boolean;
+  /** the maker, e.g. KDD, so the family can find all of one brand's products */
+  brand?: string | null;
 }
 
 export interface PlanRow {
