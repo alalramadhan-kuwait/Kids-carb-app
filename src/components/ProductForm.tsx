@@ -70,6 +70,7 @@ export function ProductForm({ q, brands, onDone, onLog }: { q: QuickItem | null;
           </div>
         </L>
       </div>
+      {q?.note && <p className="text-xs text-slate-500" dir="auto">{q.note}</p>}
       {problem && (name.trim() || problem !== 'name') && problem !== 'carbs' && <Alert tone="near">{PROBLEM[problem]}</Alert>}
       {q ? (
         <div className="grid grid-cols-[1fr_2fr] gap-2">

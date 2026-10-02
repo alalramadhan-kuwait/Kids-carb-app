@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.17.1",
+    "date": "2026-10-02",
+    "notes": [
+      "منتجات KDD (12 منتجًا) صارت في «أكل متكرر» تحت تبويب KDD.",
+      "ملاحظة المنتج (المصدر أو «تحقق من الملصق») تظهر عند فتحه."
+    ],
+    "notes_en": [
+      "KDD products (12) are now under Frequent foods, in the KDD tab.",
+      "A product's note (its source, or “check the label”) shows when you open it."
+    ]
+  },
+  {
     "version": "1.17.0",
     "date": "2026-10-02",
     "notes": [
