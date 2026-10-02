@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-02",
+    "version": "1.22.0",
+    "notes": [
+      "في الصفحة الرئيسية: متى الجرعة السريعة التالية (بعد ساعتين من آخر جرعة)، مع العد التنازلي وآخر جرعة.",
+      "دليل المنتجات: أُضيفت منتجات KDD من متجرها مع صورها وقيمها الغذائية."
+    ],
+    "notes_en": [
+      "On the home screen: when the next rapid dose is due (2 hours after the last one), with a countdown and the last dose.",
+      "Products: KDD products added from its shop, with pictures and nutrition."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "version": "1.21.0",
     "notes": [
       "اضغط أي منتج في «دليل المنتجات»: سجّله أو عدّله.",

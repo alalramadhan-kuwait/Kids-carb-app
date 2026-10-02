@@ -263,4 +263,9 @@ export const core: Record<string, string> = {
   "−1 يوم": "−1 day",
   "+1 يوم": "+1 day",
   "د": "m",
+  "آخر جرعة سريعة {u} وحدة · {time}": "Last rapid dose {u} u · {time}",
+  "الجرعة التالية بعد": "Next dose after",
+  "باقي {time}": "{time} to go",
+  "مرّت {h} على آخر جرعة سريعة": "{h} since the last rapid dose",
+  "الوقت منذ آخر جرعة": "Time since the last dose",
 };

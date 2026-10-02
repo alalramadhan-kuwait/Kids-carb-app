@@ -31,6 +31,7 @@ import { sensorLife } from '../engine/status';
 import { syncPredictions } from '../lib/predictions';
 import { trendFrom, libreOf } from '../engine/trend';
 import { TrendArrow, TrendLine } from '../components/Trend';
+import { NextDose } from '../components/NextDose';
 import { arrowSource, shownLevel } from '../lib/arrowChoice';
 
 const TONE_DOT: Record<Tone, string> = { ok: 'bg-ok-fill', low: 'bg-over-fill', urgent: 'bg-over', high: 'bg-near-fill', warn: 'bg-near-fill', plain: 'bg-slate-300' };
@@ -110,6 +111,7 @@ export default function Now() {
               <p className="mt-1 text-sm text-near">{t('آخر قراءة')} <span className="num font-bold">{formatGlucose(latest.mg_dl, unit)}</span> {sinceText(latest.taken_at)}. {t('تحقق من جوال ليان والحساس.')}</p>
             ) : null}
             {g?.error && <p className="mt-1 text-sm text-over">{GLUCOSE_ERRORS[g.error] ?? g.error} <button className="min-h-[44px] underline" onClick={reload}>{t('إعادة')}</button></p>}
+            <NextDose />
             {/* what is on board, and the sensor when it is nearly done: details on the Status page */}
             <Link to="/status" className="-mx-1 mt-1 flex min-h-[44px] items-center gap-2 border-t border-slate-100 px-1 pt-1 text-sm text-slate-600">
               <span className="min-w-0 flex-1 truncate">

@@ -1398,6 +1398,24 @@ console.log('product pictures');
   });
 }
 
+console.log('next dose');
+
+{
+  const D = await import('../../engine/dose');
+  test('the gap between rapid doses counts from the last one; a dose in parts counts as one', () => {
+    const T = Date.parse('2026-10-02T10:00:00Z'), M = 60000;
+    assert.equal(D.doseGap([], T, 120), null);
+    assert.equal(D.doseGap([{ t: T - 7 * 60 * M, units: 2 }], T, 120), null, 'nothing in the last 6 hours: no line');
+    const g = D.doseGap([{ t: T - 150 * M, units: 2 }, { t: T - 30 * M, units: 2 }, { t: T - 25 * M, units: 1 }], T, 120)!;
+    assert.equal(g.lastAt, T - 25 * M); assert.equal(g.lastUnits, 3); assert.equal(g.until, T + 95 * M); assert.equal(g.left, 95 * M);
+    assert.ok(Math.abs(g.frac - 25 / 120) < 1e-9);
+    const done = D.doseGap([{ t: T - 130 * M, units: 3 }], T, 120)!;
+    assert.equal(done.left, 0); assert.equal(done.frac, 1);
+    assert.equal(D.doseGap([{ t: T + 10 * M, units: 3 }], T, 120), null, 'a dose logged ahead is not counted yet');
+    assert.equal(D.doseGap([{ t: T - 30 * M, units: 3 }], T, 0), null, 'gap switched off');
+  });
+}
+
 console.log('maker labels');
 
 {

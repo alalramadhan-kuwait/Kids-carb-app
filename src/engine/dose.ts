@@ -47,3 +47,16 @@ export function suggestDose(p: DoseInput): DoseResult {
   const dose = Math.floor(raw / p.step + 1e-9) * p.step; // always down to the pen's step
   return { block: null, food, correction, iobUsed, raw, dose };
 }
+
+export interface DoseGap { lastAt: number; lastUnits: number; until: number; left: number; frac: number }
+/** The care plan's gap between rapid doses, for the Now screen: when the last rapid dose was and when the gap ends.
+ *  Null when there is no rapid dose in the last 6 hours (or the gap is off). Says nothing about whether to dose. */
+export function doseGap(doses: { t: number; units: number }[], now: number, gapMin: number): DoseGap | null {
+  if (!(gapMin > 0)) return null;
+  const last = doses.filter((d) => d.t <= now).reduce<{ t: number; units: number } | null>((m, d) => (!m || d.t > m.t ? d : m), null);
+  if (!last || now - last.t > Math.max(6 * 60, gapMin) * MIN) return null;
+  // doses a few minutes apart are one dose given in parts: the gap runs from the last of them, the units add up
+  const units = doses.filter((d) => d.t <= now && last.t - d.t <= 15 * MIN).reduce((s, d) => s + d.units, 0);
+  const until = last.t + gapMin * MIN;
+  return { lastAt: last.t, lastUnits: units, until, left: Math.max(0, until - now), frac: Math.min(1, (now - last.t) / (gapMin * MIN)) };
+}
