@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useData } from '../lib/data';
 import { editProblem, type EditDraft, type EditProblem } from '../lib/edit';
-import { updateEvent, updateMeal } from '../lib/editSave';
+import { carbsToMeal, updateEvent, updateMeal } from '../lib/editSave';
 import { formatGlucose, toMgdl, unitLabel } from '../lib/glucose';
 import type { EventRow, HistoryEntry } from '../lib/types';
 import { Alert, Btn, NumInput, Toggle, cx, toast } from './ui';
@@ -22,7 +22,10 @@ export function EditEntry({ e, h, onDone, onCancel }: { e?: EventRow; h?: Histor
   const { me, settings, reload, products } = useData();
   const quick = useQuickItems();
   const unit = settings.glucose_unit;
-  const kind = h ? 'meal' : e!.kind;
+  // a carbs-only entry can be given a name and nutrition: it is then edited (and saved) as a food entry
+  const [asMeal, setAsMeal] = useState(false);
+  const kind = h || asMeal ? 'meal' : e!.kind;
+  const food = !!h || asMeal;
   const [whenMs, setWhenMs] = useState(Date.parse(h ? h.eaten_at : e!.occurred_at));
   const [units, setUnits] = useState<number | null>(e?.insulin_units ?? null);
   const [carbs, setCarbs] = useState<number | null>(h ? h.total_carbs : e?.carbs_g ?? null);
@@ -31,23 +34,23 @@ export function EditEntry({ e, h, onDone, onCancel }: { e?: EventRow; h?: Histor
   const [name, setName] = useState(h?.name ?? '');
   const [note, setNote] = useState((h ? h.notes : e!.note) ?? '');
   const [brand, setBrand] = useState(h?.brand ?? '');
-  const [n, setN] = useState<NutrState>(() => nutrStateFrom({ carbs: h?.total_carbs ?? null, fat: h?.total_fat ?? null, protein: h?.total_protein ?? null, fiber: h?.total_fiber ?? null, kcal: h?.total_kcal ?? null }));
+  const [n, setN] = useState<NutrState>(() => nutrStateFrom({ carbs: h?.total_carbs ?? e?.carbs_g ?? null, fat: h?.total_fat ?? null, protein: h?.total_protein ?? null, fiber: h?.total_fiber ?? null, kcal: h?.total_kcal ?? null }));
   const tot = totalsOf(n);
   const inQuick = !!h && quick.items.some((q) => q.name === h.name);
   const [toQuick, setToQuick] = useState<boolean | null>(null);           // null: follow the default below
-  const keep = toQuick ?? (inQuick || !!brand.trim());                    // a branded product is worth keeping one tap away
+  const keep = toQuick ?? (asMeal ? false : inQuick || !!brand.trim());                    // a branded product is worth keeping one tap away
   const brands = brandsOf([...quick.items, ...products.map((p) => ({ brand: p.brand }))]);
   const [busy, setBusy] = useState(false);
-  const draft: EditDraft = { t: whenMs, units, carbs, bg: bg === null ? null : toMgdl(bg, unit), minutes, name, note, ...(h ? { carbs: tot.carbs, brand, fat: tot.fat, protein: tot.protein, fiber: tot.fiber, kcal: tot.kcal, toQuick: keep,
+  const draft: EditDraft = { t: whenMs, units, carbs, bg: bg === null ? null : toMgdl(bg, unit), minutes, name, note, ...(food ? { carbs: tot.carbs, brand, fat: tot.fat, protein: tot.protein, fiber: tot.fiber, kcal: tot.kcal, toQuick: keep,
     label: n.mode === 'per100' ? { per100: n.per100, amount: n.amount, unit: n.unit } : null } : {}) };
-  const np = h ? nutrProblem(n) : null;
+  const np = food ? nutrProblem(n) : null;
   const problem: EditProblem | null = np ? (np === 'carbs' ? 'carbs' : 'nutrition') : editProblem(kind, draft, Date.now());
 
   const save = async () => {
     if (problem) return;
     setBusy(true);
     try {
-      if (h) await updateMeal(h, draft, me); else await updateEvent(e!, draft, me);
+      if (h) await updateMeal(h, draft, me); else if (asMeal) await carbsToMeal(e!, draft, me); else await updateEvent(e!, draft, me);
       await reload(); toast(t('تم التعديل ✓')); onDone();
     } catch (x) { toast((x as Error).message); } finally { setBusy(false); }
   };
@@ -77,6 +80,11 @@ export function EditEntry({ e, h, onDone, onCancel }: { e?: EventRow; h?: Histor
       {kind === 'meal' && <NutritionFields s={n} set={setN} />}
       {kind === 'meal' && (h?.lines.length ?? 0) > 1 && <p className="-mt-1 text-[11px] text-slate-500">{t('وجبة من عدة أصناف: يتغير المجموع فقط.')}</p>}
       {(kind === 'carbs' || kind === 'treatment') && <L label={t('الكارب (غ)')}><NumInput className={num} value={carbs} onChange={setCarbs} /></L>}
+      {kind === 'carbs' && (
+        <button type="button" onClick={() => { setN(nutrStateFrom({ carbs, fat: null, protein: null, fiber: null, kcal: null })); setAsMeal(true); }}
+          className="-mt-1 min-h-[40px] text-sm font-bold text-brand">{t('+ اسم وقيم غذائية (دهون، بروتين…)')}</button>
+      )}
+      {asMeal && <p className="-mt-1 text-[11px] text-slate-500">{t('يُحفظ كأكل باسمه وقيمه بدل «كارب» فقط، في نفس الوقت.')}</p>}
       {kind === 'bg_check' && <L label={t('وخز الإصبع ({unit})', { unit: unitLabel(unit) })}><NumInput className={num} value={bg} onChange={setBg} /></L>}
       {kind === 'exercise' && <L label={t('المدة (دقيقة)')}><NumInput className={num} value={minutes} onChange={setMinutes} /></L>}
       {kind !== 'note' && <L label={t('ملاحظة')}><input className={box} dir="auto" value={note} maxLength={300} onChange={(x) => setNote(x.target.value)} /></L>}

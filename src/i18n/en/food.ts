@@ -439,4 +439,6 @@ export const food: Record<string, string> = {
   "حصة ({a} {u})": "Serving ({a} {u})",
   "هذا المنتج غير معتمد: راجعوا الملصق واعتمدوه من «تعديل» قبل تسجيله.": "This product isn’t approved: check its label and approve it from “Edit” before logging it.",
   "حلويات": "Sweets",
+  "+ اسم وقيم غذائية (دهون، بروتين…)": "+ Name and nutrition (fat, protein…)",
+  "يُحفظ كأكل باسمه وقيمه بدل «كارب» فقط، في نفس الوقت.": "Saved as a food with its name and values instead of “carbs” only, at the same time.",
 };
