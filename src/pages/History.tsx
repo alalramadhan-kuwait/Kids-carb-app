@@ -136,7 +136,7 @@ function MealDetail({ h, n, unit }: { h: HistoryEntry; n: number; unit: 'mmol' |
       </ul>
       {h.total_kcal !== null && <p className="num text-xs text-slate-500">{t('دهون {fat}غ • ألياف {fiber}غ • بروتين {protein}غ • {kcal} سعرة', { fat: fmt(h.total_fat), fiber: fmt(h.total_fiber), protein: fmt(h.total_protein), kcal: h.total_kcal })}</p>}
       <p className="text-xs text-slate-500">{t('اختيرت {n} مرة', { n })}{h.modified ? ' · ' + t('معدّلة') : ''}</p>
-      {h.needs_review && <Link to="/import" className="block rounded-xl bg-near-soft p-2.5 text-sm font-medium text-near">{t('سُجّل جزء منها مرتين في Gluroo. قرّروا في صفحة الاستيراد.')}</Link>}
+      {h.needs_review && <Link to="/import" className="block rounded-xl bg-near-soft p-2.5 text-sm font-medium text-near">{t('ربما سُجّل جزء منها مرتين في Gluroo، فهي مستبعدة من البحث تلقائيًا. لا يلزم شيء منكم.')}</Link>}
       <MealPrediction id={h.id} unit={unit} />
     </div>
   );

@@ -1193,6 +1193,94 @@ console.log('research scoring');
     const tr = Rz.score(s2, 'trend');
     assert.ok(tr.mae15 < 1e-6); assert.equal(tr.rise.caught, tr.rise.truth); assert.ok(Rz.score(s2, 'none').mae15 > 30);
     assert.equal(Rz.samples(rise, ctx, [[T, T + 90 * M]]).kept.length, 0, 'excluded windows are left out');
+    const r = Rz.samples(rise, ctx, [[T, T + 30 * M, 'uncertain_entry']]);
+    assert.ok(r.excludedBy.uncertain_entry > 0 && r.excludedBy.uncertain_entry === r.excluded, 'each exclusion keeps its reason');
+  });
+}
+
+console.log('research lab');
+
+{
+  const L = await import('../../engine/lab');
+  const M = 60000, H = 60 * M, D = 24 * H;
+  const T0 = Date.UTC(2026, 9, 10, 6, 0); // 09:00 Kuwait
+  const ctx = { doses: [] as { t: number; u: number }[], carbs: [] as { t: number; g: number }[], iob: { dia: 360, peak: 65 }, absorb: 180, cr: 15, isf: 54 };
+  const clues = { uncertain: [] as number[], sensorStarts: [] as number[], fingerpricks: [] as { t: number; cause: string }[], exercise: [] as number[] };
+  // synthetic: steady 110, then a rise over 30 min, then steady at the new level
+  const bump = (start: number, delta: number) => Array.from({ length: 240 }, (_, k) => {
+    const t = start + k * M, x = Math.min(1, Math.max(0, (k - 60) / 30));
+    return { t, v: Math.round(110 + delta * x), a: 3 };
+  });
+  test('a rise nothing logged explains is found, called a missing event, and can be asked about', () => {
+    const r = bump(T0, 60);
+    const eps = L.findUnexplained(r, ctx, T0, T0 + 4 * H);
+    assert.equal(eps.length, 1); assert.equal(eps[0].dir, 'rise');
+    const c = L.classifyEpisode(eps[0], r, ctx, clues);
+    assert.equal(c.cause, 'missing_event'); assert.ok(c.askable); assert.ok(c.evidence.includes('no_carbs_logged'));
+    assert.ok(L.infoValue(c, eps[0].end + H) >= L.QUESTION_RULES.minInfo, 'fresh, big: worth a question');
+    assert.equal(L.infoValue(c, eps[0].end + 3 * D), 0, 'too old to remember: never asked');
+  });
+  test('the same rise after logged carbs is the model\'s error, not a question; logged carbs it matches are not flagged', () => {
+    const r = bump(T0, 60);
+    const fed = { ...ctx, carbs: [{ t: T0 + 50 * M, g: 5 }] };
+    const e = L.findUnexplained(r, fed, T0, T0 + 4 * H)[0];
+    const c = L.classifyEpisode(e, r, fed, clues);
+    assert.equal(c.cause, 'model_error'); assert.equal(c.askable, false);
+    // 45 g at the doctor's ratios explains 162 mg/dL over 3 h; a matching slow rise is not a surprise
+    const slow = Array.from({ length: 300 }, (_, k) => ({ t: T0 + k * M, v: 110 + Math.min(162, (162 * Math.max(0, k - 30)) / 180), a: 3 }));
+    assert.equal(L.findUnexplained(slow, { ...ctx, carbs: [{ t: T0 + 30 * M, g: 45 }] }, T0, T0 + 5 * H).length, 0);
+  });
+  test('data problems are named without asking: a set-aside entry, a new sensor, a night dip that bounces back', () => {
+    const r = bump(T0, 60);
+    const e = L.findUnexplained(r, ctx, T0, T0 + 4 * H)[0];
+    assert.equal(L.classifyEpisode(e, r, ctx, { ...clues, uncertain: [T0 + 40 * M] }).cause, 'bad_input');
+    assert.equal(L.classifyEpisode(e, r, ctx, { ...clues, sensorStarts: [T0 - 2 * H] }).cause, 'cgm');
+    const night = Date.UTC(2026, 9, 10, 0, 0); // 03:00 Kuwait
+    const dip = Array.from({ length: 180 }, (_, k) => ({ t: night + k * M, v: k < 40 ? 120 : k < 60 ? 120 - 3 * (k - 40) : k < 80 ? 60 + 3 * (k - 60) : 120, a: 3 }));
+    const de = L.findUnexplained(dip, ctx, night, night + 3 * H).find((x) => x.dir === 'fall')!;
+    const dc = L.classifyEpisode(de, dip, ctx, clues);
+    assert.equal(dc.cause, 'cgm'); assert.ok(dc.evidence.includes('compression_shape')); assert.equal(dc.askable, false);
+  });
+  test('a parent answer overrides the automatic cause and closes the question', () => {
+    const r = bump(T0, 60);
+    const e = L.findUnexplained(r, ctx, T0, T0 + 4 * H)[0];
+    const a = L.classifyEpisode(e, r, ctx, clues, 'sensor');
+    assert.equal(a.cause, 'cgm'); assert.equal(a.autoCause, 'missing_event'); assert.equal(a.askable, false);
+    assert.equal(L.classifyEpisode(e, r, ctx, clues, 'unknown').cause, 'missing_event', '"don\'t know" keeps the automatic cause');
+  });
+  test('questions: at most 3 a day, the biggest first, a double entry only on a quiet day', () => {
+    const c = (info: number, kind: 'unexplained' | 'duplicate' = 'unexplained') => ({ kind, ref: String(info) + kind, info });
+    assert.deepEqual(L.pickQuestions([c(3), c(5), c(4), c(6), c(1)], []).map((q) => q.info), [6, 5, 4]);
+    assert.equal(L.pickQuestions([c(3), c(5)], [{ kind: 'unexplained' }, { kind: 'unexplained' }]).length, 1);
+    assert.equal(L.pickQuestions([c(9)], [{ kind: 'a' }, { kind: 'b' }, { kind: 'c' }]).length, 0);
+    assert.deepEqual(L.pickQuestions([c(2, 'duplicate'), c(3, 'duplicate')], []).map((q) => q.info), [3], 'one double entry a day');
+    assert.equal(L.pickQuestions([c(3, 'duplicate'), c(4)], []).filter((q) => q.kind === 'duplicate').length, 0);
+    assert.equal(L.pickQuestions([c(1.2)], []).length, 0, 'small surprises are not worth asking');
+  });
+  test('walk-forward only uses earlier days, and the verdict goes collecting / not better / ready / rejected', () => {
+    // a slow wave: the damped trend should beat no-change; days 1–2 train, day 3 on is unseen
+    const start = Date.UTC(2026, 9, 1, 21, 0); // 00:00 Kuwait
+    const r = Array.from({ length: 5 * 1440 }, (_, k) => ({ t: start + k * M, v: 140 + 40 * Math.sin((2 * Math.PI * k) / 240), a: 3 }));
+    const res = L.runLab({ readings: r, ctx, clues, uncertain: [], answers: {}, baselineEnd: start + 2 * D, production: 'libre', now: start + 5 * D });
+    assert.ok(res.choices.damped.length >= 2 && res.choices.damped.every((c) => c.day >= start + 2 * D), 'chosen per unseen day');
+    assert.ok(res.unseen.all.damped.mae15 < res.unseen.all.none.mae15);
+    assert.equal(res.data.unseen, res.unseen.all.none.n, 'every model on the same moments');
+    const s = (mae15: number, mae30: number, n = 1200, caught = 3, fa = 2) => ({ n, mae15, mae30, bias15: 0, direction: 0, arrow: 0, fall: { truth: 5, caught, falseAlarms: fa }, rise: { truth: 5, caught: 0, falseAlarms: 0 } });
+    const prod = s(16, 27), none = s(15, 23);
+    assert.equal(L.verdict(s(10, 20, 200), prod, none, 10).verdict, 'collecting');
+    assert.equal(L.verdict(s(14.5, 22), prod, none, 10).verdict, 'not_better', 'needs 10 % better than both');
+    assert.equal(L.verdict(s(12, 22), prod, none, 10).verdict, 'ready');
+    assert.equal(L.verdict(s(12, 22), prod, none, 4).verdict, 'collecting', 'promising, but not enough days yet');
+    assert.equal(L.verdict(s(12, 22, 1200, 1), prod, none, 10).verdict, 'not_better', 'never misses more fast falls');
+    assert.equal(L.verdict(s(17, 26), prod, none, 10).verdict, 'rejected');
+    assert.equal(L.verdict(s(12, 22, 1200, 3, 30), prod, none, 10).verdict, 'rejected', 'too many false fall alarms');
+  });
+  test('set-aside entries are kept out with a reason, and their cost to the research is measured', () => {
+    const start = Date.UTC(2026, 9, 1, 21, 0);
+    const r = Array.from({ length: 3 * 1440 }, (_, k) => ({ t: start + k * M, v: 120, a: 3 }));
+    const res = L.runLab({ readings: r, ctx, clues, uncertain: [{ id: 'x', t: start + D }], answers: {}, baselineEnd: start, production: 'libre', now: start + 3 * D });
+    assert.ok(res.data.excludedBy.uncertain_entry > 30);
+    assert.ok(res.duplicates[0].moments >= 36);
   });
 }
 

@@ -15,6 +15,7 @@ import { usePredictions } from '../lib/predictions';
 import { rememberSensor } from '../lib/fingerprick';
 import { PredictionAccuracy } from '../components/PredictionAccuracy';
 import { ArrowAccuracy } from '../components/ArrowAccuracy';
+import { useLab } from '../lib/lab';
 import { trendFrom } from '../engine/trend';
 import { TrendArrow, TrendLine } from '../components/Trend';
 
@@ -99,6 +100,8 @@ export default function Status() {
 
         <ArrowAccuracy />
 
+        <ResearchCard />
+
         <SensorCard startedAt={g?.sensor?.started_at ?? null} days={s.sensor_days ?? 14} connected={!!g?.connected} />
 
         <Card className="space-y-2">
@@ -174,5 +177,24 @@ function SensorCard({ startedAt, days, connected }: { startedAt: string | null; 
       <p className="text-xs text-slate-500">{t('من LibreLinkUp. نوع الحساس (14 أو 15 يومًا) من الإعدادات.')}</p>
       <Link to="/sensor-accuracy" className="flex min-h-[44px] items-center justify-between text-sm font-bold text-brand">{t('دقة الحساس مقابل وخز الإصبع')}<span>{isEn() ? '›' : '‹'}</span></Link>
     </Card>
+  );
+}
+
+/** The lab in one line: when it last ran, and a candidate only when it is clearly better than the arrow shown. */
+function ResearchCard() {
+  const { runs, models } = useLab();
+  const last = runs?.find((r) => r.status === 'done' && r.trigger !== 'baseline');
+  const ready = models.filter((m) => m.status === 'ready').length;
+  return (
+    <Link to="/research" className="flex min-h-[56px] items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-2.5">
+      <span className="min-w-0 flex-1">
+        <span className="block font-bold">{t('البحث')}</span>
+        <span className="block text-xs text-slate-500">
+          {ready ? t('طريقة توقع أفضل بوضوح تنتظر قراركم') : last ? t('آخر تشغيل تلقائي {when}', { when: sinceText(last.finished_at ?? last.started_at) }) : t('يعمل تلقائيًا كل 12 ساعة')}
+        </span>
+      </span>
+      {ready > 0 && <span className="h-2.5 w-2.5 rounded-full bg-brand" />}
+      <span className="text-slate-300">{isEn() ? '›' : '‹'}</span>
+    </Link>
   );
 }

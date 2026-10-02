@@ -25,6 +25,24 @@ export function physEffect(ctx: RContext, t0: number, t1: number): number {
   return fx;
 }
 
+/** Carbs and insulin over the horizon (doctor's ratios), plus a share `w` of the trend they do not explain. */
+export function contextModel(w: number, absorb?: number): Predictor {
+  return (i, t, v, _a, c) => {
+    const ctx = absorb ? { ...c, absorb } : c;
+    const r = rateBetween(t, v, t[i] - 20 * MIN, t[i]);
+    if (r === null) return null;
+    const now = t[i];
+    const physNow = physEffect(ctx, now - 5 * MIN, now) / 5;               // what carbs and insulin explain right now (per min)
+    const resid = r - physNow;                                             // the part of the trend they do not explain
+    const p15 = physEffect(ctx, now, now + 15 * MIN), p30 = physEffect(ctx, now, now + 30 * MIN);
+    return { v15: v[i] + p15 + w * resid * 15, v30: v[i] + p30 + w * resid * 30, rate: (p15 + w * resid * 15) / 15 };
+  };
+}
+/** The 20-minute trend, scaled by k (k < 1: assume the movement slows down). */
+export function dampedTrend(k: number): Predictor {
+  return (i, t, v) => { const r = rateBetween(t, v, t[i] - 20 * MIN, t[i]); return r === null ? null : { v15: v[i] + k * r * 15, v30: v[i] + k * r * 30, rate: k * r }; };
+}
+
 export const MODELS: Record<string, { name: string; note: string; f: Predictor }> = {
   none: { name: 'No change', note: 'glucose stays where it is', f: (i, _t, v) => ({ v15: v[i], v30: v[i], rate: 0 }) },
   libre: {
@@ -35,44 +53,47 @@ export const MODELS: Record<string, { name: string; note: string; f: Predictor }
     name: 'App trend', note: 'least-squares rate over the last 20 min, carried forward',
     f: (i, t, v) => { const r = rateBetween(t, v, t[i] - 20 * MIN, t[i]); return r === null ? null : { v15: v[i] + r * 15, v30: v[i] + r * 30, rate: r }; },
   },
-  context: {
-    name: 'Context v1 (carbs + insulin)', note: 'logged carbs and insulin with the doctor\'s ratios, plus half of the trend they do not explain; not tuned',
-    f: (i, t, v, _a, ctx) => {
-      const r = rateBetween(t, v, t[i] - 20 * MIN, t[i]);
-      if (r === null) return null;
-      const now = t[i];
-      const physNow = (physEffect(ctx, now - 5 * MIN, now)) / 5;           // what carbs and insulin explain right now (per min)
-      const resid = r - physNow;                                            // the part of the trend they do not explain
-      const p15 = physEffect(ctx, now, now + 15 * MIN), p30 = physEffect(ctx, now, now + 30 * MIN);
-      return { v15: v[i] + p15 + 0.5 * resid * 15, v30: v[i] + p30 + 0.5 * resid * 30, rate: (p15 + 0.5 * resid * 15) / 15 };
-    },
-  },
+  context: { name: 'Context v1 (carbs + insulin)', note: 'logged carbs and insulin with the doctor\'s ratios, plus half of the trend they do not explain; not tuned', f: contextModel(0.5) },
 };
 
 export type Situation = 'night' | 'after_food' | 'after_insulin' | 'other';
 export interface Sample { t: number; v: number; truth15: number; truth30: number; truthRate: number; situation: Situation; libreArrow: number | null; preds: Record<string, Prediction | null> }
 
-/** Moments every 5 minutes with Libre's arrow, a trend, and readings 15 and 30 minutes later. */
-export function samples(all: RReading[], ctx: RContext, exclude: [number, number][], models = MODELS): { kept: Sample[]; excluded: number } {
+export type Exclusion = [number, number] | [number, number, string];  // from, to, reason
+
+/** Moments every 5 minutes with Libre's arrow, a trend, and readings 15 and 30 minutes later. Each model sees only
+ *  the carbs and insulin logged up to the moment (and, for speed, only those of the last 8 hours). */
+export function samples(all: RReading[], ctx: RContext, exclude: Exclusion[], models: Record<string, { f: Predictor }> = MODELS): { kept: Sample[]; excluded: number; excludedBy: Record<string, number> } {
   const keep = minuteOnly(all.map((r) => r.t), all.map((r) => r.a), all);
   const t = keep.map((r) => r.t), v = keep.map((r) => r.v), a = keep.map((r) => r.a);
-  const at = (x: number) => { let b = -1; for (let k = 0; k < t.length; k++) if (Math.abs(t[k] - x) <= 3 * MIN && (b < 0 || Math.abs(t[k] - x) < Math.abs(t[b] - x))) b = k; return b < 0 ? null : v[b]; };
+  const at = (x: number) => {
+    let lo = 0, hi = t.length - 1;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (t[m] < x) lo = m + 1; else hi = m; }
+    let b = -1;
+    for (const k of [lo - 1, lo]) if (k >= 0 && k < t.length && Math.abs(t[k] - x) <= 3 * MIN && (b < 0 || Math.abs(t[k] - x) < Math.abs(t[b] - x))) b = k;
+    return b < 0 ? null : v[b];
+  };
+  const doses = [...ctx.doses].sort((x, y) => x.t - y.t), carbs = [...ctx.carbs].sort((x, y) => x.t - y.t);
+  const recent = <T extends { t: number }>(list: T[], now: number) => list.filter((e) => e.t <= now && e.t > now - 8 * 3600000);
   const out: Sample[] = []; let last = -Infinity, excluded = 0;
+  const excludedBy: Record<string, number> = {};
   for (let i = 0; i < t.length; i++) {
     if (a[i] === null || t[i] - last < 5 * MIN) continue;
     const f15 = at(t[i] + 15 * MIN), f30 = at(t[i] + 30 * MIN), tr = rateBetween(t, v, t[i], t[i] + 15 * MIN, 3, 10);
     if (f15 === null || f30 === null || tr === null) continue;
     last = t[i];
-    if (exclude.some(([x, y]) => t[i] >= x && t[i] <= y)) { excluded++; continue; }
+    const ex = exclude.find(([x, y]) => t[i] >= x && t[i] <= y);
+    if (ex) { excluded++; const why = ex[2] ?? 'excluded'; excludedBy[why] = (excludedBy[why] ?? 0) + 1; continue; }
     const kh = new Date(t[i] + KW).getUTCHours();
-    const food = ctx.carbs.some((c) => c.g >= 10 && t[i] - c.t >= 0 && t[i] - c.t <= 3 * 3600000);
-    const ins = ctx.doses.some((d) => t[i] - d.t >= 0 && t[i] - d.t <= 3 * 3600000);
+    const food = carbs.some((c) => c.g >= 10 && t[i] - c.t >= 0 && t[i] - c.t <= 3 * 3600000);
+    const ins = doses.some((d) => t[i] - d.t >= 0 && t[i] - d.t <= 3 * 3600000);
     const situation: Situation = kh >= 22 || kh < 7 ? 'night' : food ? 'after_food' : ins ? 'after_insulin' : 'other';
+    const c = { ...ctx, doses: recent(doses, t[i]), carbs: recent(carbs, t[i]) };
     const preds: Record<string, Prediction | null> = {};
-    for (const [k, m] of Object.entries(models)) preds[k] = m.f(i, t, v, a, ctx);
+    for (const [k, m] of Object.entries(models)) preds[k] = m.f(i, t, v, a, c);
     out.push({ t: t[i], v: v[i], truth15: f15, truth30: f30, truthRate: tr, situation, libreArrow: a[i], preds });
   }
-  return { kept: out, excluded };
+  return { kept: out, excluded, excludedBy };
 }
 
 export interface Score {

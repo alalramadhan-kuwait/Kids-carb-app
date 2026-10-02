@@ -1,5 +1,23 @@
 [
   {
+    "version": "1.13.0",
+    "date": "2026-10-02",
+    "notes": [
+      "صفحة «البحث» جديدة: كل 12 ساعة يقارن التطبيق وحده طرق توقع السكر على بيانات جديدة، ويرفض الضعيف منها، ويحتفظ بسجل كل تشغيل.",
+      "التغيرات غير المفسَّرة تُصنَّف تلقائيًا (خطأ النموذج، حدث غير مسجَّل، الحساس، تسجيل غير مؤكد).",
+      "سؤال سريع أحيانًا على الشاشة الرئيسية عمّا لا تعرفه البيانات، 3 أسئلة في اليوم على الأكثر، ويمكن تخطيه.",
+      "سطور Gluroo غير المؤكدة لم تعد تنتظر قراركم: تُحفظ جانبًا وتُستبعد من البحث تلقائيًا.",
+      "لا شيء من البحث يغيّر الجرعات أو القراءات أو التنبيهات."
+    ],
+    "notes_en": [
+      "New Research page: every 12 hours the app compares glucose prediction methods on new data by itself, rejects weak ones, and keeps a record of every run.",
+      "Unexplained glucose changes are sorted automatically (model error, missing event, sensor, uncertain entry).",
+      "An occasional quick question on the home screen about what the data cannot tell — at most 3 a day, and you can skip it.",
+      "Uncertain Gluroo lines no longer wait for your decision: they are kept aside and left out of the research automatically.",
+      "Nothing from the research changes doses, readings or alerts."
+    ]
+  },
+  {
     "version": "1.12.0",
     "date": "2026-10-02",
     "notes": [

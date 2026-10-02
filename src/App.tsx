@@ -17,6 +17,8 @@ import Cgm from './pages/Cgm';
 import Status from './pages/Status';
 import ImportPage from './pages/Import';
 import SensorAccuracy from './pages/SensorAccuracy';
+import Research from './pages/Research';
+import { useLabRunner } from './lib/lab';
 import AlertsPage from './pages/Alerts';
 import CarePlanPage from './pages/CarePlan';
 import Night from './pages/Night';
@@ -175,8 +177,10 @@ function NightTheme() {
 }
 
 function Shell() {
-  const { loading, error } = useData();
+  const { loading, error, settings, events, history } = useData();
   const { pathname } = useLocation();
+  // the research lab runs by itself every 12 hours (one phone per slot); it never touches doses or readings
+  useLabRunner({ loading: loading || !!error, settings, events, history });
   if (loading) return <Centered><p className="text-center text-slate-500">{t('جاري التحميل…')}</p></Centered>;
   if (error) return <Centered><Alert tone="over">{t('تعذّر تحميل البيانات: {e}', { e: error })}</Alert></Centered>;
   return (
@@ -202,6 +206,7 @@ function Shell() {
         <Route path="/status" element={<Status />} />
         <Route path="/import" element={<ImportPage />} />
         <Route path="/sensor-accuracy" element={<SensorAccuracy />} />
+        <Route path="/research" element={<Research />} />
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/care-plan" element={<CarePlanPage />} />
         <Route path="/night" element={<Night />} />

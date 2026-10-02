@@ -15,6 +15,7 @@ import type { IconName } from '../icons/defs';
 import { Icon, TREND_ICON, TREND_WORDS } from '../components/Icon';
 import { LogSheet } from '../components/LogSheet';
 import { AlertStrip } from '../components/AlertStrip';
+import { ResearchQuestion } from '../components/ResearchQuestion';
 import { VersionTag } from '../components/Version';
 import { isNight, schoolWindow } from '../lib/schedule';
 // imported (not from /public) so every new artwork gets a new hashed file name and phones never keep an old copy
@@ -145,7 +146,10 @@ export default function Now() {
           </ul>
         </section>
 
-        {/* 3 · Secondary: setup, as a single reminder line */}
+        {/* 3 · Secondary: a research question only the parents can answer (at most 3 a day), then setup */}
+        <ResearchQuestion unit={unit} />
+
+        {/* setup, as a single reminder line */}
         {left.length > 0 && (
           <Link to={left[0].to} className={cx('flex min-h-[52px] items-center gap-3 rounded-2xl px-4 py-2', left.length === 1 ? 'bg-brand-soft text-brand' : 'border border-slate-100 bg-white text-slate-600')}>
             <SetupRing done={setup.length - left.length} total={setup.length} />

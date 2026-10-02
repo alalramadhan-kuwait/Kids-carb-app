@@ -33,8 +33,9 @@ const label = (e: ImportEntry) =>
   : e.raw.text?.slice(0, 60) || e.type;
 
 /**
- * استيراد من Gluroo. Every exported entry is kept with the importer's decision; nothing is thrown away. Undecided
- * entries come first for the parents; any decision can be changed later, and the cleaned meals follow at once.
+ * استيراد من Gluroo. Every exported entry is kept with the importer's decision; nothing is thrown away. Entries it
+ * cannot decide are set aside on their own (kept, left out of the research); nothing waits for the parents. The app
+ * asks about one only when the answer would give the research back hours of data. Any decision can still be changed.
  */
 export default function ImportPage() {
   const nav = useNavigate();
@@ -64,7 +65,7 @@ export default function ImportPage() {
     <Page title={t('استيراد من Gluroo')} back={() => nav(-1)}>
       <div className="space-y-4">
         <Card className="space-y-3">
-          <p className="text-sm text-slate-600">{t('في Gluroo: القائمة ← تصدير البيانات. اختاروا الملف هنا (zip أو csv). يُحفظ كل سطر كما هو، ومع كل سطر قرار يمكنكم تغييره. الاستيراد مرة ثانية لا يكرر شيئًا ويحتفظ بقراراتكم.')}</p>
+          <p className="text-sm text-slate-600">{t('في Gluroo: القائمة ← تصدير البيانات. اختاروا الملف هنا (zip أو csv). يُحفظ كل سطر كما هو، والتطبيق يقرر الباقي وحده. الاستيراد مرة ثانية لا يكرر شيئًا.')}</p>
           <input ref={file} type="file" accept=".zip,.csv,text/csv,application/zip" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
           <Btn kind={plan ? 'ghost' : 'primary'} block onClick={() => file.current?.click()}>{plan ? t('اختيار ملف آخر') : t('اختيار ملف التصدير')}</Btn>
           {err && <Alert tone="near">{err}</Alert>}
@@ -102,14 +103,14 @@ function PlanCard({ plan, busy, onImport }: { plan: Preview; busy: boolean; onIm
         {(['accepted', 'low_treatment', 'replaced', 'probable_duplicate', 'uncertain', 'info'] as EntryStatus[]).map((s) => <Row key={s} label={`· ${STATUS[s]}`} value={String(by(s))} />)}
         <Row label={t('الوجبات بعد التنظيف')} value={String(d.meals.length)} hint={t('ما سُجّل خلال 20 دقيقة يصبح وجبة واحدة')} />
       </Card>
-      {by('uncertain') > 0 && <Alert tone="near">{t('{n} سطور غير مؤكدة ستنتظر قراركم بعد الاستيراد، ولا تدخل في الحسابات ولا في البحث حتى تقرروا.', { n: by('uncertain') })}</Alert>}
+      {by('uncertain') > 0 && <Alert tone="info">{t('{n} سطور غير مؤكدة تُحفظ جانبًا تلقائيًا: لا تدخل في الوجبات ولا في البحث، ولا تنتظر شيئًا منكم. إذا كان أحدها مهمًا للبحث سيسألكم التطبيق عنه مرة واحدة.', { n: by('uncertain') })}</Alert>}
       <Btn kind="primary" block disabled={busy} onClick={onImport}>{busy ? t('جارٍ الاستيراد…') : t('استيراد')}</Btn>
     </>
   );
 }
 
 function Review({ entries, onChange }: { entries: StoredEntry[]; onChange: () => Promise<void> }) {
-  const [filter, setFilter] = useState<EntryStatus | 'all'>('uncertain');
+  const [filter, setFilter] = useState<EntryStatus | 'all'>('all');
   const [open, setOpen] = useState<StoredEntry | null>(null);
   const [busy, setBusy] = useState(false);
   const byKey = useMemo(() => new Map(entries.map((e) => [e.key, e])), [entries]);
@@ -119,11 +120,11 @@ function Review({ entries, onChange }: { entries: StoredEntry[]; onChange: () =>
     setBusy(true);
     try { await decide(e.id, s); await onChange(); toast(t('تم الحفظ ✓')); setOpen(null); } catch (x) { toast((x as Error).message); } finally { setBusy(false); }
   };
-  const chips: (EntryStatus | 'all')[] = ['uncertain', 'all', 'accepted', 'low_treatment', 'replaced', 'probable_duplicate', 'info'];
+  const chips: (EntryStatus | 'all')[] = ['all', 'uncertain', 'accepted', 'low_treatment', 'replaced', 'probable_duplicate', 'info'];
   return (
     <Card className="space-y-3">
       <h2 className="font-bold">{t('السطور المستوردة')}</h2>
-      {count('uncertain') > 0 ? <p className="text-sm font-medium">{t('{n} تحتاج قراركم.', { n: count('uncertain') })}</p> : <p className="text-sm text-slate-600">{t('لا شيء ينتظر قراركم. يمكن تغيير أي قرار من القائمة.')}</p>}
+      <p className="text-sm text-slate-600">{count('uncertain') > 0 ? t('{n} غير مؤكدة محفوظة جانبًا ومستبعدة من البحث. لا شيء ينتظركم؛ يمكن تغيير أي قرار بلمسه.', { n: count('uncertain') }) : t('لا شيء ينتظر قراركم. يمكن تغيير أي قرار من القائمة.')}</p>
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
         {chips.map((c) => <Chip key={c} active={filter === c} onClick={() => setFilter(c)}>{c === 'all' ? t('الكل') : `${STATUS[c]} (${count(c)})`}</Chip>)}
       </div>
@@ -140,12 +141,6 @@ function Review({ entries, onChange }: { entries: StoredEntry[]; onChange: () =>
                 <div className="text-xs text-slate-500">{when(e.t)} · <bdi>{GLUROO_SENDERS[e.sender] ?? e.sender}</bdi>{e.reason && REASON[e.reason] ? ` · ${REASON[e.reason]}` : ''}</div>
                 {rel && <div className="text-xs text-slate-500">{t('مقابل: {x} · {when}', { x: label(rel), when: when(rel.t) })}</div>}
               </button>
-              {e.status === 'uncertain' && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Btn kind="ghost" disabled={busy} onClick={() => set(e, 'probable_duplicate')}>{e.reason === 'second_basal' ? t('جرعة واحدة (مكرر)') : t('نفس الأكل (مكرر)')}</Btn>
-                  <Btn disabled={busy} onClick={() => set(e, 'accepted')}>{e.reason === 'second_basal' ? t('جرعتان') : t('أكل منفصل (يُضاف)')}</Btn>
-                </div>
-              )}
             </li>
           );
         })}
