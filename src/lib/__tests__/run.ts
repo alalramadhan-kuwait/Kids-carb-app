@@ -1123,6 +1123,11 @@ console.log('gluroo import');
     assert.equal(d.events.filter((e) => e.kind === 'treatment').length, 1);
     assert.equal(readings.length, 50); assert.equal(readings[0].tr, 4);
   });
+  test('Gluroo import: an intervention snack (Gluroo\'s low-prevention sweet) is a low treatment with its carbs', () => {
+    const e3 = G.classify(G.parseCsv([H, msg(0, '422380', 'INTERVENTION_SNACK', { text: '5g Sugar (White Toffee)', g: 5, desc: 'White Toffee' })].join('\n')), [], []);
+    assert.deepEqual([e3[0].status, e3[0].carbs, e3[0].food_name], ['low_treatment', 5, 'White Toffee']);
+    assert.equal(G.derive(e3, []).events.filter((e) => e.kind === 'treatment').length, 1);
+  });
   test('Gluroo import: the same amount again 10–30 min later is uncertain; a changed amount is a corrected estimate', () => {
     const rows2 = G.parseCsv([H,
       msg(0, '422389', 'ANNOUNCE_MEAL', { text: 'Made from juice concentrate', g: 15 }),

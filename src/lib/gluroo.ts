@@ -126,7 +126,7 @@ export function classify(rows: Record<string, string>[], readings: Reading[], ex
       else e.status = 'accepted';
       if (long && e.status === 'accepted') lastBasal = e;
     } else if (r.msgType === 'BGL_FP_READING' && num(r.fpBgl)) e.status = 'accepted';
-    else if (r.msgType === 'INTERVENTION') Object.assign(e, { status: 'low_treatment', reason: 'intervention', food_key: 'sweet', food_name: r.description || 'حلاوة', carbs: num(r.foodG) ?? 0 }); // i18n-ok: stored
+    else if (r.msgType.startsWith('INTERVENTION')) Object.assign(e, { status: 'low_treatment', reason: 'intervention', food_key: 'sweet', food_name: r.description || 'حلاوة', carbs: num(r.foodG) ?? 0 }); // i18n-ok: stored
     else if (r.msgType === 'ANNOUNCE_MEAL' && num(r.foodG) !== null) {
       const f = foodOf(r.text, r.description);
       Object.assign(e, { food_key: f.key, food_name: f.name, status: 'accepted' });

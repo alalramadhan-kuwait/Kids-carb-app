@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.13.1",
+    "date": "2026-10-02",
+    "notes": [
+      "سجل Gluroo (28 سبتمبر – 2 أكتوبر) صار في التطبيق: الوجبات والإنسولين ووخز الإصبع والعلاج والقراءات، بدون تكرار.",
+      "حلاوة «منع الانخفاض» في Gluroo تُحسب الآن علاج انخفاض بكاربها."
+    ],
+    "notes_en": [
+      "Gluroo history (28 Sep – 2 Oct) is now in the app: meals, insulin, finger-pricks, treatments and readings, without duplicates.",
+      "Gluroo's low-prevention sweets now count as a low treatment with their carbs."
+    ]
+  },
+  {
     "version": "1.13.0",
     "date": "2026-10-02",
     "notes": [
