@@ -264,8 +264,10 @@ export const core: Record<string, string> = {
   "+1 يوم": "+1 day",
   "د": "m",
   "آخر جرعة سريعة {u} وحدة · {time}": "Last rapid dose {u} u · {time}",
-  "الجرعة التالية بعد": "Next dose after",
   "باقي {time}": "{time} to go",
-  "مرّت {h} على آخر جرعة سريعة": "{h} since the last rapid dose",
   "الوقت منذ آخر جرعة": "Time since the last dose",
+  "يمكن إعطاء إنسولين مرة أخرى من": "Insulin can be given again from",
+  "يمكن إعطاء إنسولين الآن إذا احتاجت": "Insulin can be given now if she needs it",
+  "ما زالت تعمل": "still working",
+  "مرّت {h}": "{h} ago",
 };

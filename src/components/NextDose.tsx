@@ -13,8 +13,9 @@ const span = (ms: number) => {
   return h > 0 && m > 0 ? t('{h} س {m} د', { h, m }) : h > 0 ? t('{h} س', { h }) : t('{m} د', { m: Math.max(1, m) });
 };
 
-/** The care plan's gap between rapid doses (2 hours by default): when the last one was and when the next may be
- *  given, counting down. Only the gap; the dose calculator checks the glucose and everything else. */
+/** The care plan's gap between rapid doses (2 hours by default): the last dose is still working until then, so
+ *  insulin may be given again only from that time. Counts down. Only the gap; the dose calculator checks the
+ *  glucose and everything else before any dose. */
 export function NextDose() {
   const { settings: s, events } = useData();
   const [now, setNow] = useState(Date.now());
@@ -23,18 +24,19 @@ export function NextDose() {
   const g = doseGap(doses, now, s.dose_gap_min ?? 120);
   if (!g) return null;
   const waiting = g.left > 0;
-  const last = t('آخر جرعة سريعة {u} وحدة · {time}', { u: g.lastUnits, time: fmtTime(new Date(g.lastAt)) });
+  const last = t('آخر جرعة سريعة {u} وحدة · {time}', { u: g.lastUnits, time: fmtTime(new Date(g.lastAt)) })
+    + ' · ' + (waiting ? t('ما زالت تعمل') : t('مرّت {h}', { h: span((s.dose_gap_min ?? 120) * MIN) }));
   return (
     <div className={cx('mt-2 rounded-xl px-3 py-2', waiting ? 'bg-kins-soft' : 'bg-ok-soft')}>
       <div className="flex items-center gap-2">
         <Icon name="clock" size={18} className={waiting ? 'text-kins' : 'text-ok'} />
         {waiting ? (
           <p className="min-w-0 flex-1 text-sm text-slate-700">
-            {t('الجرعة التالية بعد')} <b className="text-slate-900">{fmtTime(new Date(g.until))}</b>
+            {t('يمكن إعطاء إنسولين مرة أخرى من')} <b className="text-slate-900">{fmtTime(new Date(g.until))}</b>
             <span className="text-slate-500"> · {t('باقي {time}', { time: span(g.left) })}</span>
           </p>
         ) : (
-          <p className="min-w-0 flex-1 text-sm font-medium text-ok">{t('مرّت {h} على آخر جرعة سريعة', { h: span((s.dose_gap_min ?? 120) * MIN) })}</p>
+          <p className="min-w-0 flex-1 text-sm font-medium text-ok">{t('يمكن إعطاء إنسولين الآن إذا احتاجت')}</p>
         )}
       </div>
       {waiting && (
