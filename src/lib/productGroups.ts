@@ -6,8 +6,8 @@ export interface ProductGroup { key: string; label: string; emoji: string; cats:
 export const PRODUCT_GROUPS: ProductGroup[] = [
   { key: 'dairy', label: 'ألبان', emoji: '🥛', cats: ['حليب', 'لبن', 'روب', 'جبن', 'كريمة طبخ'] }, // i18n-ok: stored values
   { key: 'drinks', label: 'مشروبات', emoji: '🧃', cats: ['مشروبات'] }, // i18n-ok: stored values
-  { key: 'sweets', label: 'حلويات وآيس كريم', emoji: '🍦', cats: ['حلويات', 'آيس كريم'] }, // i18n-ok: stored values
-  { key: 'starch', label: 'نشويات وخبز', emoji: '🍞', cats: ['توست', 'صمون', 'نشويات', 'باستا', 'بطاط مجمد'] }, // i18n-ok: stored values
+  { key: 'sweets', label: 'حلويات وكيك وآيس كريم', emoji: '🍦', cats: ['حلويات', 'آيس كريم', 'كيك', 'بسكويت'] }, // i18n-ok: stored values
+  { key: 'starch', label: 'نشويات وخبز', emoji: '🍞', cats: ['توست', 'خبز', 'صمون', 'معجنات', 'سندويشات', 'نشويات', 'باستا', 'طحين', 'بطاط مجمد'] }, // i18n-ok: stored values
   { key: 'protein', label: 'لحوم ودجاج وبيض', emoji: '🍗', cats: ['لحوم ودجاج', 'ناجت', 'برغر لحم', 'بيض'] }, // i18n-ok: stored values
   { key: 'produce', label: 'فواكه وخضار', emoji: '🍎', cats: ['فواكه', 'خضار', 'ملوخية'] }, // i18n-ok: stored values
   { key: 'sauces', label: 'صلصات', emoji: '🥫', cats: ['صلصة', 'كاتشب', 'مايونيز'] }, // i18n-ok: stored values

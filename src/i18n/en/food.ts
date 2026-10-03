@@ -535,4 +535,10 @@ export const food: Record<string, string> = {
   "صورة {name}": "Photo of {name}",
   "لا توجد نتائج. أضيفوا منتجًا جديدًا من «المنتجات».": "No results. Add a new product from “Products”.",
   "حُفظت الصورة ✓": "Photo saved ✓",
+  "خبز": "Bread",
+  "معجنات": "Pastries",
+  "كيك": "Cakes",
+  "سندويشات": "Sandwiches",
+  "طحين": "Flour",
+  "حلويات وكيك وآيس كريم": "Sweets, cakes and ice cream",
 };

@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.7.0",
+    "notes": [
+      "منتجات جديدة بالصور: المطاحن (154 منتجًا: خبز، توست، معجنات، كيك، بسكويت، معكرونة، طحين، سندويشات) ولوزين (40 منتجًا)، من مواقع الشركتين.",
+      "أنواع جديدة في المنتجات: خبز، معجنات، كيك، بسكويت، سندويشات، طحين."
+    ],
+    "notes_en": [
+      "New products with pictures: KFMB (154 products: bread, toast, pastries, cakes, biscuits, pasta, flour, sandwiches) and L’usine (40 products), from the makers’ own sites.",
+      "New product types: bread, pastries, cakes, biscuits, sandwiches, flour."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.6.0",
     "notes": [
       "صفحة الوجبات: شريط بحث واحد للوصفات والسناكات والمنتجات والأكل المتكرر، بالصور والكارب. يتجاهل الفرق بين أ وا وة وه.",
