@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.10.1",
+    "notes": [
+      "الآن: كلام أقل. الإنسولين والكارب في بطاقة واحدة بالأرقام فقط (الباقي / الكل، ووقت البداية والنهاية)، وسطور أقصر تحت القراءة، وبدون مساحة فارغة تحت الرسم."
+    ],
+    "notes_en": [
+      "Now: less text. Insulin and carbs share one card with numbers only (left / total, start and end time), shorter lines under the reading, and no empty space under the graph."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.10.0",
     "notes": [
       "الآن: تحت الرسم شريطان واضحان بدل IOB/COB: «إنسولين نشط» و«كارب يُمتص»، فيهما كم باقٍ من كم، ومتى أُعطي أو أُكل، ومتى ينتهي تقريبًا.",

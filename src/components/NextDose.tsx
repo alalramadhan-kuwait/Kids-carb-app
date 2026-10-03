@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useData } from '../lib/data';
 import { dosesFrom } from '../engine/iob';
 import { doseGap } from '../engine/dose';
-import { fmtTime } from '../lib/constants';
 import { Icon } from './Icon';
 import { dur } from './OnBoardLanes';
 import { t } from '../i18n';
@@ -20,7 +19,7 @@ export function NextDose() {
   return (
     <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
       <Icon name="clock" size={14} className="shrink-0" />
-      <span>{t('فاصل خطة العلاج بين الجرعات السريعة: باقي {time}، حتى {until}', { time: dur(g.left), until: fmtTime(new Date(g.until)) })}</span>
+      <span>{t('فاصل الجرعات حسب الخطة: باقي {time}', { time: dur(g.left) })}</span>
     </p>
   );
 }

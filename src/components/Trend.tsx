@@ -31,17 +31,18 @@ export function LevelArrow({ level, size }: { level: Level; size: number }) {
 }
 
 /** "Falling slowly · −0.8 in 15 min · ≈ 5.6 at 1:15", and the other arrow when it says something else. */
-export function TrendLine({ trend, libre, unit, className }: { trend: Trend | null; libre: number | null; unit: GlucoseUnit; className?: string }) {
+/** `compact`: without the direction word and the other source's arrow (the Now card already says both). */
+export function TrendLine({ trend, libre, unit, className, compact }: { trend: Trend | null; libre: number | null; unit: GlucoseUnit; className?: string; compact?: boolean }) {
   const { source } = useArrowChoice();
   const s = shownLevel(trend, libre, source);
   if (s.level === null) return null;
   const sign = trend && trend.change15 >= 0 ? '+' : '−';
   return (
     <p className={className}>
-      <span className="font-medium">{LEVEL_WORDS[s.level]}</span>
-      {trend && <>{' · '}<span className="num">{sign}{formatGlucose(Math.abs(trend.change15), unit)}</span> {t('خلال 15 د')}</>}
+      {!compact && <span className="font-medium">{LEVEL_WORDS[s.level]}</span>}
+      {trend && <>{compact ? '' : ' · '}<span className="num">{sign}{formatGlucose(Math.abs(trend.change15), unit)}</span> {t('خلال 15 د')}</>}
       {trend?.projected30 != null && <>{' · '}{t('≈ {v} عند {time}', { v: formatGlucose(trend.projected30, unit), time: clock(trend.at + 30 * 60000) })}</>}
-      {s.other && <span className="text-slate-400">{' · '}{s.other.from === 'libre' ? t('Libre: {a}', { a: ARROW[s.other.level] }) : t('التطبيق: {a}', { a: ARROW[s.other.level] })}</span>}
+      {!compact && s.other && <span className="text-slate-400">{' · '}{s.other.from === 'libre' ? t('Libre: {a}', { a: ARROW[s.other.level] }) : t('التطبيق: {a}', { a: ARROW[s.other.level] })}</span>}
     </p>
   );
 }

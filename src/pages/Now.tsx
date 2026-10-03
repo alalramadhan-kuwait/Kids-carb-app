@@ -115,7 +115,7 @@ export default function Now() {
                 <span className="self-end pb-2 text-sm text-slate-500">{unitLabel(unit)}</span>
               </div>
             ) : null}
-            {latest && age?.state === 'fresh' && <TrendLine trend={trend} libre={latest.trend} unit={unit} className="mt-1 text-sm text-slate-600" />}
+            {latest && age?.state === 'fresh' && <TrendLine compact trend={trend} libre={latest.trend} unit={unit} className="mt-1 text-sm text-slate-600" />}
             {latest && age?.state === 'stale' ? (
               <p className="mt-1 text-sm text-near">{t('آخر قراءة')} <span className="num font-bold">{formatGlucose(latest.mg_dl, unit)}</span> {sinceText(latest.taken_at)}. {t('تحقق من جوال ليان والحساس.')}</p>
             ) : null}
@@ -133,7 +133,7 @@ export default function Now() {
         {/* the graph runs edge to edge with no box around it, so it can use the whole width and plenty of height */}
         {g?.connected && <HomeChart live={g.readings} />}
         {/* insulin and carbs still working, as two thin timelines: how much is left, from what, for how long */}
-        {!notConnected && <OnBoardLanes />}
+        {!notConnected && <OnBoardLanes statusLink={!(sensor && sensor.state !== 'ok')} />}
 
         {/* 2 · Supporting: today in one line (details in Analysis), then what was last logged */}
         <section aria-label={t('اليوم')} className="space-y-1">

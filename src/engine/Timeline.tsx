@@ -477,13 +477,14 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
   const valueTone = (v: number) => (range.low !== null && v < range.low ? 'text-over' : range.high !== null && v > range.high ? 'text-near' : 'text-ok');
 
   return (
-    <div ref={wrap} className="relative select-none" style={{ height: total }} dir="ltr">
+    // the readout strip under the plot takes room only while a point is being read
+    <div ref={wrap} className="relative select-none" style={{ height: inspect ? total : height }} dir="ltr">
       <canvas
         ref={canvas} style={{ width: '100%', height, touchAction: 'pan-y' }}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onCancel} onWheel={onWheel}
         role="img" aria-label={t('رسم السكر {from}–{to}، {state}', { from: clock(view.end - view.span), to: clock(view.end), state: freshness(lastT, now) === 'live' ? t('مباشر') : t('غير محدّث') })}
       />
-      <div className="flex h-12 items-center gap-2.5 overflow-hidden border-t border-slate-100 px-3 text-sm" dir={dir()} aria-live="polite">
+      <div className={cx('flex items-center gap-2.5 overflow-hidden px-3 text-sm', inspect && 'h-12 border-t border-slate-100')} dir={dir()} aria-live="polite">
         {inspect ? (
           <>
             <button onClick={() => setInspect(null)} aria-label={t('إغلاق')} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg text-slate-500 active:bg-slate-50">✕</button>
@@ -500,7 +501,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
               <span key={k} className="whitespace-nowrap text-xs text-slate-500">{k === 'iob' ? 'IOB' : 'COB'} <b className="num text-slate-800">{k === 'iob' ? t('{v} و', { v: tracks![k]!(at).toFixed(1) }) : t('{v} غ', { v: Math.round(tracks![k]!(at)) })}</b></span>
             ); })}
           </>
-        ) : <span className="px-1 text-xs text-slate-400">{t('اضغط مطوّلًا على الرسم لقراءة أي نقطة')}</span>}
+        ) : null /* long-press to read a point: explained behind the graph's ⓘ */}
       </div>
     </div>
   );
