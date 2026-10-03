@@ -17,6 +17,9 @@ export async function saveProduct(p: Partial<Product> & { name: string; category
 }
 
 export const deleteProduct = async (id: string) => ok(await supabase.from('products').delete().eq('id', id));
+/** Links one recipe ingredient to a chosen product, or back to "any product of its category" (null). */
+export const setIngredientProduct = async (id: string, productId: string | null) =>
+  ok(await supabase.from('recipe_ingredients').update({ product_id: productId }).eq('id', id));
 
 export const setAvailable = async (id: string, available: boolean) =>
   ok(await supabase.from('products').update({ available }).eq('id', id));

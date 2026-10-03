@@ -541,4 +541,9 @@ export const food: Record<string, string> = {
   "سندويشات": "Sandwiches",
   "طحين": "Flour",
   "حلويات وكيك وآيس كريم": "Sweets, cakes and ice cream",
+  "اختاروا المنتج الذي تستعملونه لهذا المكوّن، فتُحسب قيمه الغذائية منه. يُحفظ في الوصفة.": "Choose the product you use for this ingredient; its nutrition is worked out from it. Saved in the recipe.",
+  "اختيار منتج": "Choose a product",
+  "تلقائي: أي منتج من «{cat}» موجود بالبيت": "Automatic: any “{cat}” product at home",
+  "تم ربط المنتج ✓": "Product linked ✓",
+  "منتج «{name}»": "Product for “{name}”",
 };

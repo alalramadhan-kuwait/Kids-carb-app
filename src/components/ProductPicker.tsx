@@ -7,7 +7,8 @@ import { Chip, Photo, cx, inputCls } from './ui';
 import { t, tMaybe } from '../i18n';
 
 /** The products catalogue as a quick list to log from: search, brand chips, what is at home first. */
-export function ProductPicker({ onPick }: { onPick: (p: Product) => void }) {
+/** `category`: the ingredient's category, listed first (choosing a product for a recipe line). */
+export function ProductPicker({ onPick, category }: { onPick: (p: Product) => void; category?: string | null }) {
   const { products } = useData();
   const [q, setQ] = useState('');
   const [brand, setBrand] = useState<string | null>(null);
@@ -16,9 +17,9 @@ export function ProductPicker({ onPick }: { onPick: (p: Product) => void }) {
     const s = q.trim().toLowerCase();
     return products
       .filter((p) => (!brand || sameBrand(p.brand, brand)) && (!s || (p.name + ' ' + (p.brand ?? '') + ' ' + (p.category ?? '')).toLowerCase().includes(s)))
-      .sort((a, b) => Number(b.available) - Number(a.available) || Number(b.approved) - Number(a.approved) || a.name.localeCompare(b.name))
+      .sort((a, b) => Number(b.category === category) - Number(a.category === category) || Number(b.available) - Number(a.available) || Number(b.approved) - Number(a.approved) || a.name.localeCompare(b.name))
       .slice(0, 60);
-  }, [products, q, brand]);
+  }, [products, q, brand, category]);
   const u = (p: Product) => (p.unit === 'ml' ? t('مل') : t('غ'));
   return (
     <div>

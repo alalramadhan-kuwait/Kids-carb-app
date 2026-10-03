@@ -4,10 +4,11 @@ import { useData } from '../lib/data';
 import { Icon } from '../components/Icon';
 import { computeMeal, fmt, problemText, unitText } from '../lib/carbs';
 import { blocker } from '../lib/suggest';
-import { acceptTotal, setFavorite, setRecipeImage } from '../lib/api';
+import { acceptTotal, setFavorite, setIngredientProduct, setRecipeImage } from '../lib/api';
+import { ProductPicker } from '../components/ProductPicker';
 import { uploadPhoto } from '../lib/supabase';
 import type { Ingredient } from '../lib/types';
-import { Alert, Badge, Btn, CarbBadge, Card, Chip, Nutrition, NumInput, Page, Photo, recipeArt, toast } from '../components/ui';
+import { Alert, Badge, Btn, CarbBadge, Card, Chip, Nutrition, NumInput, Page, Photo, Sheet, cx, recipeArt, toast } from '../components/ui';
 import { lineName, useChoose } from '../components/meal';
 import { isEn, t, tMaybe } from '../i18n';
 
@@ -58,6 +59,13 @@ export function RecipeView() {
   const ings: Ingredient[] = useMemo(() => base.map((i) => (over[i.id] !== undefined ? { ...i, quantity: over[i.id] } : i)), [base, over]);
   const meal = useMemo(() => computeMeal(ings, products, settings), [ings, products, settings]);
   const { choose, busy } = useChoose();
+  const [linking, setLinking] = useState<Ingredient | null>(null);
+  const link = async (productId: string | null) => {
+    if (!linking) return;
+    try { await setIngredientProduct(linking.id, productId); await reload(); toast(t('تم ربط المنتج ✓')); }
+    catch (e) { toast(t('تعذّر الحفظ: {e}', { e: (e as Error).message })); }
+    setLinking(null);
+  };
   if (!recipe) return <Page title={t('الوصفة')} back={() => nav(-1)}><Card>{t('الوصفة غير موجودة.')}</Card></Page>;
 
   const modified = Object.keys(over).some((k) => over[k] !== base.find((i) => i.id === k)?.quantity);
@@ -126,10 +134,15 @@ export function RecipeView() {
                   <li key={l.ing.id} className="flex items-center gap-2 py-2">
                     <div className="min-w-0 flex-1">
                       <div className="font-medium">{lineName(l)}</div>
-                      <div className="truncate text-xs text-slate-500">
-                        {l.product ? [l.product.name, l.product.brand].filter(Boolean).join(' — ') : '—'}
-                        {l.product && !l.product.available && l.product.kind === 'commercial' ? ` • ${t('غير موجود بالبيت')}` : ''}
-                      </div>
+                      {/* the product behind this line: tap to choose another one, or to go back to "any of the category" */}
+                      <button onClick={() => setLinking(l.ing)} className="flex max-w-full items-center gap-1 text-start text-xs text-brand">
+                        <span className="truncate">
+                          {l.product ? [l.product.name, l.product.brand].filter(Boolean).join(' — ') : t('اختيار منتج')}
+                          {l.product && !l.product.available && l.product.kind === 'commercial' ? ` • ${t('غير موجود بالبيت')}` : ''}
+                          {l.product && !l.ing.product_id ? ` • ${t('تلقائي')}` : ''}
+                        </span>
+                        <Icon name="edit" size={13} />
+                      </button>
                       <div className="mt-0.5 flex flex-wrap gap-1">
                         {l.ing.state !== 'as_is' && <Badge tone={l.ing.state === 'cooked' ? 'brand' : 'gray'}>{l.ing.state === 'cooked' ? t('الوزن بعد الطبخ') : t('الوزن قبل الطبخ')}</Badge>}
                         {!l.ing.qty_confirmed && <Badge tone="near">{t('كمية مبدئية')}</Badge>}
@@ -148,6 +161,20 @@ export function RecipeView() {
         {!hasDrink && <p className="mt-2 text-sm text-slate-500">{t('المشروب: ماء')}</p>}
         {modified && <div className="mt-2"><Alert tone="info">{t('عدّلتم الكميات لهذه المرة فقط. ستُسجَّل الوجبة كـ"معدّلة".')}</Alert> <Btn kind="ghost" className="mt-2" onClick={() => setOver({})}>{t('إرجاع الكميات الأصلية')}</Btn></div>}
       </Card>
+
+      <Sheet open={!!linking} onClose={() => setLinking(null)} title={t('منتج «{name}»', { name: linking ? (linking.label ?? tMaybe(linking.slot_category ?? '')) : '' })}>
+        {linking && (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">{t('اختاروا المنتج الذي تستعملونه لهذا المكوّن، فتُحسب قيمه الغذائية منه. يُحفظ في الوصفة.')}</p>
+            {linking.slot_category && (
+              <button onClick={() => link(null)} className={cx('w-full rounded-xl px-3 py-2.5 text-start text-sm font-medium ring-1', !linking.product_id ? 'bg-brand-soft text-brand ring-brand' : 'bg-white ring-slate-200')}>
+                {t('تلقائي: أي منتج من «{cat}» موجود بالبيت', { cat: tMaybe(linking.slot_category) })}
+              </button>
+            )}
+            <ProductPicker category={linking.slot_category ?? products.find((p) => p.id === linking.product_id)?.category} onPick={(p) => link(p.id)} />
+          </div>
+        )}
+      </Sheet>
 
       {recipe.instructions && <Card className="mb-3"><h2 className="mb-1 font-bold">{t('طريقة التحضير')}</h2><p className="whitespace-pre-line leading-loose text-slate-700">{recipe.instructions}</p></Card>}
       {recipe.notes && <Card className="mb-3"><h2 className="mb-1 font-bold">{t('ملاحظات')}</h2><p className="whitespace-pre-line text-slate-700">{recipe.notes}</p></Card>}
