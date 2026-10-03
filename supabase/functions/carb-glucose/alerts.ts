@@ -2,15 +2,18 @@
 // Thresholds come from the parents; a threshold left empty switches that alert off (urgent low included —
 // the app has no built-in medical numbers). Messages state facts only: never a dose, never grams to give.
 
-export type AlertKind = 'urgent_low' | 'low' | 'high' | 'no_data' | 'rapid_fall' | 'rapid_rise';
+export type AlertKind = 'urgent_low' | 'low' | 'predicted_low' | 'high' | 'no_data' | 'rapid_fall' | 'rapid_rise';
 export type AlertState = 'pending' | 'active' | 'acknowledged';
 export type Profile = 'day' | 'night' | 'school';
-export const ALERT_KINDS: AlertKind[] = ['urgent_low', 'low', 'high', 'no_data', 'rapid_fall', 'rapid_rise'];
+export const ALERT_KINDS: AlertKind[] = ['urgent_low', 'low', 'predicted_low', 'high', 'no_data', 'rapid_fall', 'rapid_rise'];
 
 export interface AlertCfg {
   urgentLow: number | null; low: number | null; high: number | null; // mg/dL (day profile)
   lowDelay: number; highDelay: number; noDataMin: number; renotify: number; highRenotify: number; // minutes
-  rapidRate?: number | null;   // mg/dL per minute; null = rapid alerts off
+  rapidRate?: number | null;   // mg/dL per minute, both directions (older setting); null = rapid alerts off
+  fallRate?: number | null;    // mg/dL per minute for falling fast; overrides rapidRate when set
+  riseRate?: number | null;    // mg/dL per minute for rising fast; overrides rapidRate when set
+  predictLowMin?: number | null; // "low expected": warn when the current fall would reach the low limit within this many minutes
   escalateMin?: number;        // minutes without "I'm on it" before the backup parent is told
   night?: { start: string; end: string; low: number | null; high: number | null; highSilent: boolean } | null;
   school?: { days: number[]; start: string; end: string; low: number | null; high: number | null } | null;
@@ -34,7 +37,7 @@ export interface Step {
 const MIN = 60000;
 export const FRESH_MIN = 15;
 const GAP = 20 * MIN;
-const HOLD: Record<AlertKind, number> = { urgent_low: 10, low: 15, high: 15, no_data: 0, rapid_fall: 5, rapid_rise: 5 }; // minutes clear before resolving
+const HOLD: Record<AlertKind, number> = { urgent_low: 10, low: 15, predicted_low: 5, high: 15, no_data: 0, rapid_fall: 5, rapid_rise: 5 }; // minutes clear before resolving
 const iso = (t: number) => new Date(t).toISOString();
 const ms = (s: string | null | undefined) => (s ? Date.parse(s) : NaN);
 
@@ -82,7 +85,10 @@ export function evaluate(now: number, readings: Reading[], cfg: AlertCfg, open: 
   const high = profile === 'night' ? cfg.night?.high ?? cfg.high : profile === 'school' ? cfg.school?.high ?? cfg.high : cfg.high;
   const highSilent = profile === 'night' && !!cfg.night?.highSilent;
   const rate = fresh ? rate15(readings) : null;
-  const R = cfg.rapidRate ?? null;
+  const RF = cfg.fallRate ?? cfg.rapidRate ?? null, RR = cfg.riseRate ?? cfg.rapidRate ?? null;
+  const P = cfg.predictLowMin ?? null;
+  // where the last 15 minutes' fall leads in P minutes (a straight line: the trend, not a forecast of food or insulin)
+  const ahead = fresh && v !== null && rate !== null && P !== null ? v + rate * P : null;
   const byKind = new Map(open.map((a) => [a.kind, a]));
   const urgentOpen = byKind.get('urgent_low');
   const urgentSounding = !!urgentOpen && urgentOpen.state !== 'pending';
@@ -101,12 +107,17 @@ export function evaluate(now: number, readings: Reading[], cfg: AlertCfg, open: 
       case 'high':
         enabled = high !== null; delay = cfg.highDelay; renotify = cfg.highRenotify;
         cond = fresh && v! >= high!; clear = fresh && v! <= high! - 20; break;
+      case 'predicted_low':
+        // still above the low limit but heading below it within P minutes; once she is low, the low alert takes over
+        enabled = low !== null && P !== null; delay = 2; renotify = 24 * 60;
+        cond = ahead !== null && rate! < 0 && v! > low! && ahead <= low!;
+        clear = fresh && (v! <= low! || ahead === null || ahead > low! + 5); break;
       case 'rapid_fall':
-        enabled = R !== null; delay = 2; renotify = 24 * 60;
-        cond = rate !== null && rate <= -R!; clear = rate !== null && rate > -R! * 0.6; break;
+        enabled = RF !== null; delay = 2; renotify = 24 * 60;
+        cond = rate !== null && rate <= -RF!; clear = rate !== null && rate > -RF! * 0.6; break;
       case 'rapid_rise':
-        enabled = R !== null; delay = 2; renotify = 24 * 60;
-        cond = rate !== null && rate >= R!; clear = rate !== null && rate < R! * 0.6; break;
+        enabled = RR !== null; delay = 2; renotify = 24 * 60;
+        cond = rate !== null && rate >= RR!; clear = rate !== null && rate < RR! * 0.6; break;
       default:
         enabled = cgmConnected; delay = 0; renotify = Math.max(cfg.renotify, 15);
         cond = age > cfg.noDataMin; clear = !cond;
@@ -114,7 +125,8 @@ export function evaluate(now: number, readings: Reading[], cfg: AlertCfg, open: 
     const silent = kind === 'high' && highSilent;
     const worst = (w: number | null) => (v === null || kind === 'no_data' ? w : w === null ? v : kind === 'high' || kind === 'rapid_rise' ? Math.max(w, v) : Math.min(w, v));
     const value = kind === 'no_data' ? null : fresh ? v : a?.value_mgdl ?? null;
-    const quietLow = kind === 'low' && urgentSounding;
+    const lowSounding = ['low', 'urgent_low'].some((k) => { const o = byKind.get(k as AlertKind); return !!o && o.state !== 'pending'; });
+    const quietLow = (kind === 'low' && urgentSounding) || (kind === 'predicted_low' && lowSounding);
 
     if (!a) {
       if (!enabled || !cond) continue;
@@ -136,7 +148,7 @@ export function evaluate(now: number, readings: Reading[], cfg: AlertCfg, open: 
     if (clear) {
       const since = a.clear_since ? ms(a.clear_since) : now;
       if (now - since >= HOLD[kind] * MIN) {
-        const quietResolve = kind === 'high' || kind === 'rapid_fall' || kind === 'rapid_rise';
+        const quietResolve = kind === 'high' || kind === 'rapid_fall' || kind === 'rapid_rise' || kind === 'predicted_low';
         steps.push({ kind, op: 'resolve', id: a.id, patch: { resolved_at: iso(now), value_mgdl: value }, notify: quietResolve ? undefined : 'resolved' });
       } else steps.push({ kind, op: 'update', id: a.id, patch: { clear_since: iso(since), value_mgdl: value, worst_mgdl: worst(a.worst_mgdl) } });
       continue;
@@ -168,17 +180,17 @@ const ARROW: Record<number, string> = { 1: '↓', 2: '↘', 3: '→', 4: '↗', 
 const fmt = (mg: number, unit: 'mgdl' | 'mmol') => (unit === 'mmol' ? (Math.round((mg / 18.016) * 10) / 10).toFixed(1) : String(Math.round(mg)));
 export type Lang = 'ar' | 'en';
 export const ALERT_NAME: Record<AlertKind, string> = {
-  urgent_low: 'منخفض جدًا', low: 'منخفض', high: 'مرتفع', no_data: 'لا توجد قراءة', rapid_fall: 'نزول سريع', rapid_rise: 'صعود سريع',
+  urgent_low: 'منخفض جدًا', low: 'منخفض', predicted_low: 'منخفض متوقع', high: 'مرتفع', no_data: 'لا توجد قراءة', rapid_fall: 'نزول سريع', rapid_rise: 'صعود سريع',
 };
 const ALERT_NAME_EN: Record<AlertKind, string> = {
-  urgent_low: 'Very low', low: 'Low', high: 'High', no_data: 'No reading', rapid_fall: 'Falling fast', rapid_rise: 'Rising fast',
+  urgent_low: 'Very low', low: 'Low', predicted_low: 'Low expected', high: 'High', no_data: 'No reading', rapid_fall: 'Falling fast', rapid_rise: 'Rising fast',
 };
 /** The stored child name is Arabic; English alerts write her name in English. */
 const childName = (child: string, lang: Lang) => (lang === 'en' && child === 'ليان' ? 'Layan' : child);
 
 /** Push wording, in each parent's app language (carb.members.lang). */
 export function alertMessage(
-  kind: AlertKind, notify: Notify, o: { child: string; value: number | null; trend: number | null; unit: 'mgdl' | 'mmol'; minutes: number }, lang: Lang = 'ar',
+  kind: AlertKind, notify: Notify, o: { child: string; value: number | null; trend: number | null; unit: 'mgdl' | 'mmol'; minutes: number; ahead?: number | null }, lang: Lang = 'ar',
 ) {
   const en = lang === 'en', child = childName(o.child, lang);
   const val = o.value !== null ? `${fmt(o.value, o.unit)}${o.trend ? ' ' + ARROW[o.trend] : ''}` : '';
@@ -194,6 +206,8 @@ export function alertMessage(
     : `${head}${child}: ${(en ? ALERT_NAME_EN : ALERT_NAME)[kind]} ${val}`;
   const body = kind === 'no_data'
     ? (en ? `Check the sensor and the reading phone · ${plan}` : `تأكد من الحساس وجوال القراءة · ${plan}`)
+    : kind === 'predicted_low'
+    ? (en ? `Falling: may go low within ~${o.ahead ?? 20} min · ${plan}` : `ينزل: قد يصير منخفضًا خلال ~${o.ahead ?? 20} د · ${plan}`)
     : `${notify === 'repeat' ? (en ? 'Still · ' : 'ما زال · ') : ''}${since} · ${plan}`;
   return { title, body, urgency: kind === 'high' || kind === 'rapid_rise' ? ('normal' as const) : ('high' as const) };
 }

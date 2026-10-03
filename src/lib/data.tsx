@@ -74,7 +74,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         max_meal_carbs: Number((s.data as any).max_meal_carbs), preferred_min: Number((s.data as any).preferred_min),
         preferred_max: Number((s.data as any).preferred_max), tbsp_size: Number((s.data as any).tbsp_size),
         glucose_low_mgdl: num((s.data as any).glucose_low_mgdl), glucose_high_mgdl: num((s.data as any).glucose_high_mgdl),
-        alert_rapid_rate: num((s.data as any).alert_rapid_rate), pen_step: Number((s.data as any).pen_step ?? 1) } : DEFAULT_SETTINGS,
+        alert_rapid_rate: num((s.data as any).alert_rapid_rate), alert_fall_rate: num((s.data as any).alert_fall_rate), alert_rise_rate: num((s.data as any).alert_rise_rate), pen_step: Number((s.data as any).pen_step ?? 1) } : DEFAULT_SETTINGS,
       products: (p.data ?? []).map(fixProduct),
       recipes: (r.data ?? []).map((x: any) => ({ ...x, saved_total_carbs: num(x.saved_total_carbs) })),
       snacks: (sn.data ?? []).map((x: any) => ({ ...x, quantity: Number(x.quantity) })),

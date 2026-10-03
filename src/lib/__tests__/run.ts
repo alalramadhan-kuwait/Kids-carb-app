@@ -415,6 +415,30 @@ test('low waits its delay, then notifies once; a brief dip that recovers never n
   assert.equal(s[0].op, 'delete');
 });
 
+test('low expected: a steady fall heading below the low limit warns ahead of time; not once she is low', () => {
+  const cfg: AlertCfg = { ...CFG, predictLowMin: 20 };
+  const fall = (end: number, from: number) => Array.from({ length: 15 }, (_, i) => rd(end - 14 + i, from - 2 * i)); // 2 mg/dL a minute down
+  let s = evaluate(at(14), fall(14, 128), cfg, [], true);                     // now 100, heading to ~60 in 20 min
+  assert.deepEqual(s.map((x) => [x.kind, x.patch.state]), [['predicted_low', 'pending']]);
+  const pend = { ...open({ state: 'pending', active_at: null, last_notified_at: null }), kind: 'predicted_low' as const, id: 'p' };
+  s = evaluate(at(16), fall(16, 128), cfg, [pend], true);                     // still heading low 2 min later: told once
+  assert.equal(s.find((x) => x.kind === 'predicted_low')!.notify, 'alert');
+  s = evaluate(at(14), fall(14, 96), cfg, [], true);                          // already 68, below the limit: the low alert's job
+  assert.equal(s.find((x) => x.kind === 'predicted_low'), undefined);
+  assert.ok(s.find((x) => x.kind === 'low'));
+  s = evaluate(at(14), Array.from({ length: 15 }, (_, i) => rd(i, 140)), cfg, [], true);
+  assert.equal(s.length, 0, 'steady: nothing');
+  assert.equal(evaluate(at(14), fall(14, 128), CFG, [], true).length, 0, 'off unless set');
+});
+
+test('fast fall and fast rise have their own thresholds', () => {
+  const cfg: AlertCfg = { ...CFG, fallRate: 1.8, riseRate: null };
+  const line = (slope: number) => Array.from({ length: 15 }, (_, i) => rd(i, 150 + slope * i));
+  assert.deepEqual(evaluate(at(14), line(-2), cfg, [], true).filter((x) => x.kind.startsWith('rapid')).map((x) => x.kind), ['rapid_fall']);
+  assert.deepEqual(evaluate(at(14), line(2), cfg, [], true).filter((x) => x.kind.startsWith('rapid')).map((x) => x.kind), [], 'rise off');
+  assert.deepEqual(evaluate(at(14), line(2), { ...CFG, rapidRate: 1.8 }, [], true).filter((x) => x.kind.startsWith('rapid')).map((x) => x.kind), ['rapid_rise'], 'the older shared setting still works');
+});
+
 test('urgent low notifies at once; the plain low stays quiet while it sounds', () => {
   const s = evaluate(at(0), [rd(0, 50)], CFG, [], true);
   assert.deepEqual(s.map((x) => [x.kind, x.patch.state, x.notify]), [['urgent_low', 'active', 'alert'], ['low', 'pending', undefined]]);

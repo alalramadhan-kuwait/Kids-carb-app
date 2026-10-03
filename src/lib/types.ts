@@ -100,6 +100,9 @@ export interface Settings {
   alert_high_renotify_min: number;
   child_name: string;
   alert_rapid_rate: number | null;
+  alert_fall_rate: number | null;    // mg/dL per minute
+  alert_rise_rate: number | null;    // mg/dL per minute
+  alert_predict_low_min: number | null;
   night_start: string | null; night_end: string | null;
   night_low_mgdl: number | null; night_high_mgdl: number | null;
   night_high_silent: boolean; night_theme: boolean;
@@ -181,6 +184,9 @@ export const DEFAULT_SETTINGS: Settings = {
   alert_high_renotify_min: 60,
   child_name: 'ليان', // i18n-ok: stored name; shown through t() where it is the default
   alert_rapid_rate: null,
+  alert_fall_rate: null,
+  alert_rise_rate: null,
+  alert_predict_low_min: null,
   night_start: null, night_end: null, night_low_mgdl: null, night_high_mgdl: null, night_high_silent: false, night_theme: true,
   school_days: [0, 1, 2, 3, 4], school_start: null, school_end: null, school_low_mgdl: null, school_high_mgdl: null,
   escalate_min: 10,
@@ -190,7 +196,7 @@ export const DEFAULT_SETTINGS: Settings = {
   rapid_insulin: null, basal_insulin: null,
 };
 
-export type AlertKind = 'urgent_low' | 'low' | 'high' | 'no_data' | 'rapid_fall' | 'rapid_rise';
+export type AlertKind = 'urgent_low' | 'low' | 'predicted_low' | 'high' | 'no_data' | 'rapid_fall' | 'rapid_rise';
 export interface AlertRow {
   id: string;
   kind: AlertKind;

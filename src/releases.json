@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.14.0",
+    "notes": [
+      "التنبيهات: تكرار المنخفض وتكرار المرتفع صارا إعدادين منفصلين.",
+      "النزول السريع والصعود السريع لكل منهما حد خاص.",
+      "تنبيه جديد «منخفض متوقع»: إذا استمر النزول الحالي ووصل حد المنخفض خلال الدقائق المحددة، يصل تنبيه قبل أن تنخفض."
+    ],
+    "notes_en": [
+      "Alerts: repeating a low and repeating a high are now separate settings.",
+      "Falling fast and rising fast each have their own threshold.",
+      "New “Low expected” alert: if the current fall would reach the low limit within the set minutes, you are told before she goes low."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.13.1",
     "notes": [
       "أزرار «أكلت» (½ ¾…) صارت تغيّر كل أصناف الوجبة (الكمية والكارب لكل صنف)، لا المجموع فقط."

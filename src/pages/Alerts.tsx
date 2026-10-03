@@ -14,7 +14,7 @@ import { isEn, t } from '../i18n';
 
 type Sub = { id: string; user_id: string; device_label: string | null; last_ok_at: string | null; last_error: string | null; endpoint: string };
 const KEYS = ['alert_urgent_low_mgdl', 'alert_low_mgdl', 'alert_high_mgdl', 'alert_low_delay_min', 'alert_high_delay_min', 'alert_nodata_min', 'alert_renotify_min',
-  'alert_rapid_rate', 'night_start', 'night_end', 'night_low_mgdl', 'night_high_mgdl', 'night_high_silent', 'night_theme',
+  'alert_high_renotify_min', 'alert_rapid_rate', 'alert_fall_rate', 'alert_rise_rate', 'alert_predict_low_min', 'night_start', 'night_end', 'night_low_mgdl', 'night_high_mgdl', 'night_high_silent', 'night_theme',
   'school_days', 'school_start', 'school_end', 'school_low_mgdl', 'school_high_mgdl', 'escalate_min'] as const;
 // Arabic labels; translated with t() where shown.
 const WEEK = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']; // i18n-ok
@@ -42,9 +42,14 @@ export default function AlertsPage() {
   type GKey = 'alert_urgent_low_mgdl' | 'alert_low_mgdl' | 'alert_high_mgdl' | 'night_low_mgdl' | 'night_high_mgdl' | 'school_low_mgdl' | 'school_high_mgdl';
   const g = (k: GKey) => (s[k] === null ? null : Number(formatGlucose(s[k]!, unit)));
   const setG = (k: GKey) => (v: number | null) => setS({ ...s, [k]: v === null ? null : toMgdl(v, unit) });
-  // rapid change is stored in mg/dL per minute and shown in the parents' unit per minute
-  const rate = s.alert_rapid_rate === null ? null : unit === 'mmol' ? Math.round((s.alert_rapid_rate / 18.016) * 100) / 100 : s.alert_rapid_rate;
-  const setRate = (v: number | null) => setS({ ...s, alert_rapid_rate: v === null ? null : Math.round((unit === 'mmol' ? v * 18.016 : v) * 10) / 10 });
+  // fast fall and fast rise are stored in mg/dL per minute and shown in the parents' unit per minute; each has its own
+  // threshold (the older shared one is cleared once either is saved)
+  const shown = (mg: number | null) => (mg === null ? null : unit === 'mmol' ? Math.round((mg / 18.016) * 100) / 100 : mg);
+  const stored = (v: number | null) => (v === null ? null : Math.round((unit === 'mmol' ? v * 18.016 : v) * 10) / 10);
+  const fall = shown(s.alert_fall_rate ?? s.alert_rapid_rate), rise = shown(s.alert_rise_rate ?? s.alert_rapid_rate);
+  const setFall = (v: number | null) => setS({ ...s, alert_fall_rate: stored(v), alert_rise_rate: s.alert_rise_rate ?? s.alert_rapid_rate, alert_rapid_rate: null });
+  const setRise = (v: number | null) => setS({ ...s, alert_rise_rate: stored(v), alert_fall_rate: s.alert_fall_rate ?? s.alert_rapid_rate, alert_rapid_rate: null });
+  const rateOk = (r: number | null) => r === null || (r >= 1 && r <= 6);
   const time = (k: 'night_start' | 'night_end' | 'school_start' | 'school_end') => (
     <input type="time" dir="ltr" className={inputCls} value={hhmm(s[k])} onChange={(e) => setS({ ...s, [k]: e.target.value || null })} />
   );
@@ -59,7 +64,10 @@ export default function AlertsPage() {
     h !== null && (h < 120 || h > 450) ? t('المرتفع خارج المعقول') :
     u !== null && l !== null && u >= l ? t('المنخفض جدًا يجب أن يكون أقل من المنخفض') :
     l !== null && h !== null && l >= h ? t('المنخفض يجب أن يكون أقل من المرتفع') :
-    s.alert_rapid_rate !== null && (s.alert_rapid_rate < 1 || s.alert_rapid_rate > 6) ? t('سرعة التغيّر خارج المعقول') :
+    !rateOk(s.alert_rapid_rate) || !rateOk(s.alert_fall_rate) || !rateOk(s.alert_rise_rate) ? t('سرعة التغيّر خارج المعقول') :
+    s.alert_renotify_min < 5 || s.alert_renotify_min > 60 ? t('تكرار المنخفض بين 5 و60 دقيقة') :
+    s.alert_high_renotify_min < 15 || s.alert_high_renotify_min > 240 ? t('تكرار المرتفع بين 15 و240 دقيقة') :
+    s.alert_predict_low_min !== null && (s.alert_predict_low_min < 10 || s.alert_predict_low_min > 40) ? t('المنخفض المتوقع بين 10 و40 دقيقة') :
     (s.night_start === null) !== (s.night_end === null) ? t('اكتب بداية ونهاية الليل') :
     (s.school_start === null) !== (s.school_end === null) ? t('اكتب بداية ونهاية المدرسة') : '';
 
@@ -105,7 +113,8 @@ export default function AlertsPage() {
             <Field label={t('انتظار المنخفض')}><NumInput value={s.alert_low_delay_min} onChange={(v) => setS({ ...s, alert_low_delay_min: v ?? 5 })} /></Field>
             <Field label={t('انتظار المرتفع')}><NumInput value={s.alert_high_delay_min} onChange={(v) => setS({ ...s, alert_high_delay_min: v ?? 30 })} /></Field>
             <Field label={t('بدون قراءة بعد')}><NumInput value={s.alert_nodata_min} onChange={(v) => setS({ ...s, alert_nodata_min: v ?? 20 })} /></Field>
-            <Field label={t('تكرار كل')}><NumInput value={s.alert_renotify_min} onChange={(v) => setS({ ...s, alert_renotify_min: v ?? 10 })} /></Field>
+            <Field label={t('تكرار المنخفض كل')}><NumInput value={s.alert_renotify_min} onChange={(v) => setS({ ...s, alert_renotify_min: v ?? 15 })} /></Field>
+            <Field label={t('تكرار المرتفع كل')}><NumInput value={s.alert_high_renotify_min} onChange={(v) => setS({ ...s, alert_high_renotify_min: v ?? 60 })} /></Field>
           </div>
           {problem && <Alert tone="near">{problem}</Alert>}
           <Btn kind="primary" block disabled={!!problem} onClick={save}>{t('حفظ')}</Btn>
@@ -113,9 +122,15 @@ export default function AlertsPage() {
 
         <Card className="space-y-3">
           <h2 className="font-bold">{t('النزول أو الصعود السريع')}</h2>
-          <Field label={t('أسرع من ({unit} بالدقيقة)', { unit: unitLabel(unit) })} hint={t('فارغ = متوقف. من الطبيب.')}>
-            <NumInput value={rate} onChange={setRate} />
+          <p className="text-sm text-slate-600">{t('{unit} بالدقيقة. فارغ = متوقف. من الطبيب.', { unit: unitLabel(unit) })}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label={t('نزول أسرع من')}><NumInput value={fall} onChange={setFall} /></Field>
+            <Field label={t('صعود أسرع من')}><NumInput value={rise} onChange={setRise} /></Field>
+          </div>
+          <Field label={t('منخفض متوقع: نبّه قبل (دقائق)')} hint={t('إذا استمر النزول الحالي ووصل حد المنخفض خلال هذه المدة. فارغ = متوقف.')}>
+            <NumInput value={s.alert_predict_low_min} onChange={(v) => setS({ ...s, alert_predict_low_min: v })} />
           </Field>
+          <Btn kind="primary" block disabled={!!problem} onClick={save}>{t('حفظ')}</Btn>
         </Card>
 
         <Card className="space-y-3">

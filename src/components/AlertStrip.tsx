@@ -8,9 +8,9 @@ import type { AlertKind, AlertRow } from '../lib/types';
 import { Btn, cx, toast } from './ui';
 import { locale, t, tr } from '../i18n';
 
-export const ALERT_NAME: Record<AlertKind, string> = tr({ urgent_low: 'منخفض جدًا', low: 'منخفض', high: 'مرتفع', no_data: 'لا توجد قراءة', rapid_fall: 'نزول سريع', rapid_rise: 'صعود سريع' }); // i18n-ok
+export const ALERT_NAME: Record<AlertKind, string> = tr({ urgent_low: 'منخفض جدًا', low: 'منخفض', predicted_low: 'منخفض متوقع', high: 'مرتفع', no_data: 'لا توجد قراءة', rapid_fall: 'نزول سريع', rapid_rise: 'صعود سريع' }); // i18n-ok
 const STYLE: Record<AlertKind, string> = {
-  urgent_low: 'bg-over text-white', low: 'bg-over-soft text-over', high: 'bg-near-soft text-near', no_data: 'bg-slate-100 text-slate-700',
+  urgent_low: 'bg-over text-white', low: 'bg-over-soft text-over', predicted_low: 'bg-over-soft text-over', high: 'bg-near-soft text-near', no_data: 'bg-slate-100 text-slate-700',
   rapid_fall: 'bg-over-soft text-over', rapid_rise: 'bg-near-soft text-near',
 };
 const clock = (iso: string) => new Date(iso).toLocaleTimeString(locale() + '-u-nu-latn', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kuwait' });

@@ -143,6 +143,8 @@ async function runAlerts(db: Db, now: number) {
   const cfg: AlertCfg = { urgentLow: s.alert_urgent_low_mgdl, low: s.alert_low_mgdl, high: s.alert_high_mgdl, lowDelay: s.alert_low_delay_min,
     highDelay: s.alert_high_delay_min, noDataMin: s.alert_nodata_min, renotify: s.alert_renotify_min, highRenotify: s.alert_high_renotify_min,
     rapidRate: s.alert_rapid_rate === null ? null : Number(s.alert_rapid_rate), escalateMin: s.escalate_min,
+    fallRate: s.alert_fall_rate == null ? null : Number(s.alert_fall_rate), riseRate: s.alert_rise_rate == null ? null : Number(s.alert_rise_rate),
+    predictLowMin: s.alert_predict_low_min ?? null,
     night: s.night_start && s.night_end ? { start: s.night_start, end: s.night_end, low: s.night_low_mgdl, high: s.night_high_mgdl, highSilent: s.night_high_silent } : null,
     school: s.school_start && s.school_end ? { days: s.school_days ?? [], start: s.school_start, end: s.school_end, low: s.school_low_mgdl, high: s.school_high_mgdl } : null };
   const members = (mem.data ?? []) as { user_id: string; alert_role: string }[];
@@ -162,7 +164,7 @@ async function runAlerts(db: Db, now: number) {
       ? (latest ? (now - Date.parse(latest.taken_at)) / 60000 : 0)
       : (now - Date.parse(startedAt)) / 60000;
     const value = step.kind === 'no_data' ? null : (latest?.mg_dl ?? null);
-    const msg = (lang: Lang) => alertMessage(step.kind, step.notify!, { child: s.child_name, value, trend: latest?.trend ?? null, unit: s.glucose_unit === 'mmol' ? 'mmol' : 'mgdl', minutes }, lang);
+    const msg = (lang: Lang) => alertMessage(step.kind, step.notify!, { child: s.child_name, value, trend: latest?.trend ?? null, unit: s.glucose_unit === 'mmol' ? 'mmol' : 'mgdl', minutes, ahead: s.alert_predict_low_min ?? null }, lang);
     await pushAll(db, (lang) => { const m = msg(lang); return { title: m.title, body: m.body, tag: `alert-${step.kind}`, url: './#/', kind: step.kind, sticky: step.kind === 'urgent_low' && step.notify !== 'resolved' }; },
       { kind: step.notify, alertId: id, urgency: msg('ar').urgency, users: recipients(members, step.notify) });
   }
