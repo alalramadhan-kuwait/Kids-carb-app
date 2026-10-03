@@ -460,4 +460,12 @@ export const analysis: Record<string, string> = {
   "{n} من {need} لحظة · {d} من {days} يوم": "{n} of {need} moments · {d} of {days} days",
   "المعروض {a}% · {name} {b}%": "Shown {a}% · {name} {b}%",
   "{name}: أدق بـ {x}%": "{name}: {x}% more accurate",
+  "تنعيم Holt": "Holt smoothing",
+  "مرشّح Kalman": "Kalman filter",
+  "انحدار ذاتي (AR)": "Autoregressive (AR)",
+  "AR + إنسولين + أكل (ARX)": "AR + insulin + food (ARX)",
+  "أقرب أشكال سابقة": "Nearest past shapes",
+  "بطريقة Loop": "Loop-style",
+  "بطريقة OpenAPS (UAM)": "OpenAPS-style (UAM)",
+  "متوسط أفضل ثلاثة": "Best three, averaged",
 };

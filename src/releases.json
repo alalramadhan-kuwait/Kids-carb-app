@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.16.0",
+    "notes": [
+      "المختبر: 8 طرق توقع جديدة من الأبحاث، صار المجموع 14: تنعيم Holt، مرشّح Kalman، الانحدار الذاتي AR و ARX (يتعلم من أيامها السابقة مع الإنسولين والأكل)، أقرب أشكال سابقة، بطريقة Loop، بطريقة OpenAPS، ومتوسط أفضل ثلاثة. كلها للقياس فقط."
+    ],
+    "notes_en": [
+      "Lab: 8 new prediction methods from the research, 14 in all: Holt smoothing, Kalman filter, autoregressive AR and ARX (learns from her earlier days with insulin and food), nearest past shapes, Loop-style, OpenAPS-style, and the best three averaged. All measured only."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.15.1",
     "notes": [
       "المختبر: السهم يُقاس الآن فقط عندما يتحرك السكر فعلًا. قبلها كان «بدون تغيير» يبدو مثل Libre لأن السكر ثابت أغلب الوقت، فوصل الهدف الرابع إلى 100% بلا معنى."

@@ -9,6 +9,7 @@
 //    materially better than what the app shows. Nothing here changes a dose, a displayed reading or a rule.
 import { iobFraction } from './iob';
 import { minuteOnly } from './trend';
+import { analogModel, arModel, arxModel, holt, kalman, loopStyle, uam } from './forecasters';
 import { FAT_WINDOW, MODELS, SIMILAR, contextModel, dampedTrend, samples, similarMeals, score, type Exclusion, type Predictor, type RContext, type RReading, type Sample, type Score, type Situation } from './research';
 
 const MIN = 60000, HOUR = 3600000, DAY = 86400000, KW = 3 * HOUR;
@@ -24,6 +25,8 @@ const FIT_W = [0, 0.25, 0.5, 0.75], FIT_ABSORB = [120, 180, 240], DAMP_K = [0.25
 const FAT_K = [0, 2, 4, 6];
 // basal drift (2026-10-02): a steady fall in mg/dL per hour, tried with the fat bump; 0 / 0 = Context v1
 const DRIFT = [0, -3, -6, -9], DRIFT_FAT_K = [0, 2, 4];
+// more families from the literature (2026-10-03)
+const HOLT_A = [0.3, 0.5, 0.8], HOLT_B = [0.1, 0.3, 0.6], KALMAN_Q = [0.0005, 0.002, 0.008, 0.03], UAM_FADE = [30, 60, 90, 120];
 /** Every model the lab knows, with its version. A changed definition gets a new version; old ones stay in the history. */
 export const REGISTRY: ModelDef[] = [
   { key: 'none', version: 1, name: 'No change', note: 'glucose stays where it is', role: 'reference', params: null },
@@ -34,6 +37,14 @@ export const REGISTRY: ModelDef[] = [
   { key: 'damped', version: 1, name: 'Damped trend', note: 'the app trend scaled down, the scale chosen each day from older days only', role: 'candidate', params: { k: DAMP_K } },
   { key: 'fat_bump', version: 1, name: 'Context + late fat bump', note: 'Context v1, plus a late effect of fat and protein (k g of carbs per 100 kcal of fat+protein, arriving 2–5 h after the meal); k chosen each day from older days only, 0 allowed', role: 'candidate', params: { w: 0.5, k: FAT_K, window_min: [FAT_WINDOW.from, FAT_WINDOW.to] } },
   { key: 'drift_fat', version: 1, name: 'Context + basal drift + late fat bump', note: 'Context v1 with a steady drift (mg/dL per hour, e.g. a strong basal) and the late fat bump; both chosen each day from older days only, 0 / 0 allowed', role: 'candidate', params: { w: 0.5, drift_mgdl_h: DRIFT, k: DRIFT_FAT_K, window_min: [FAT_WINDOW.from, FAT_WINDOW.to] } },
+  { key: 'holt', version: 1, name: 'Holt smoothing', note: 'level and slope smoothed over the last hour (double exponential smoothing); both weights chosen each day from older days only', role: 'candidate', params: { alpha: HOLT_A, beta: HOLT_B } },
+  { key: 'kalman', version: 1, name: 'Kalman filter', note: 'glucose and its speed tracked by a Kalman filter over the last hour, carried forward; how freely speed changes chosen each day from older days only', role: 'candidate', params: { q: KALMAN_Q, sensor_sd: 5 } },
+  { key: 'ar', version: 1, name: 'Autoregressive (AR)', note: 'the next 15 and 30 min from the last six 5-min changes, weights fitted each day on up to 14 earlier days (ridge)', role: 'candidate', params: { lags: 6, lambda: 0.01 } },
+  { key: 'arx', version: 1, name: 'AR + insulin + carbs (ARX)', note: 'AR plus the doctor\'s-ratio effects of logged insulin and carbs and the level, weights fitted each day on earlier days', role: 'candidate', params: { lags: 6, lambda: 0.01 } },
+  { key: 'analog', version: 1, name: 'Nearest past shapes', note: 'the median of what followed the 15 moments of earlier days whose last 30 min looked most like now', role: 'candidate', params: { k: 15 } },
+  { key: 'loop', version: 1, name: 'Loop-style', note: 'as Loop predicts: the trend fading over 15 min into carbs + insulin, plus the last 30 min\'s unexplained change fading over an hour', role: 'candidate', params: { momentum_min: 15, rc_window_min: 30, rc_fade_min: 60 } },
+  { key: 'uam', version: 1, name: 'oref0 UAM-style', note: 'as OpenAPS\'s unannounced-meal line: insulin only, plus the current deviation fading to nothing; fade time chosen each day from older days only', role: 'candidate', params: { fade_min: UAM_FADE } },
+  { key: 'ensemble', version: 1, name: 'Best three, averaged', note: 'each day, the average of the three candidates with the lowest error on the days before', role: 'candidate', params: { top: 3 } },
   { key: 'similar_meals', version: 1, name: 'Similar meals', note: 'after a meal, the median of what her most similar past meals did next (carbs, fat+protein, dose cover, start glucose), only minutes already seen; at least 3 of them, else Context v1; judged after food', role: 'candidate', params: { ...SIMILAR }, situation: 'after_food' },
 ];
 export const CANDIDATES = REGISTRY.filter((m) => m.role === 'candidate').map((m) => m.key);
@@ -45,6 +56,9 @@ export function gridModels(): Record<string, { f: Predictor }> {
   for (const k of DAMP_K) g[`damped|${k}`] = { f: dampedTrend(k) };
   for (const k of FAT_K) g[`fat_bump|${k}`] = { f: contextModel(0.5, undefined, { k, ...FAT_WINDOW }) };
   for (const d of DRIFT) for (const k of DRIFT_FAT_K) g[`drift_fat|${d}|${k}`] = { f: contextModel(0.5, undefined, { k, ...FAT_WINDOW }, d) };
+  for (const a of HOLT_A) for (const b of HOLT_B) g[`holt|${a}|${b}`] = { f: holt(a, b) };
+  for (const q of KALMAN_Q) g[`kalman|${q}`] = { f: kalman(q) };
+  for (const f of UAM_FADE) g[`uam|${f}`] = { f: uam(f) };
   return g;
 }
 
@@ -73,6 +87,23 @@ export function walkForward(rows: Sample[], family: string, testFrom: number, mi
     for (const r of rows) if (r.t >= Math.max(day, testFrom) && r.t < day + DAY) r.preds[family] = r.preds[best];
   }
   return choices;
+}
+
+/** Each day from `testFrom`: the average of the `top` candidates with the lowest error on all earlier moments. */
+export function ensemble(rows: Sample[], keys: string[], testFrom: number, top = 3): { day: number; key: string }[] {
+  const out: { day: number; key: string }[] = [];
+  const days = [...new Set(rows.filter((r) => r.t >= testFrom).map((r) => kuwaitDay(r.t)))].sort((a, b) => a - b);
+  for (const day of days) {
+    const train = rows.filter((r) => r.t < day);
+    const ranked = keys.map((k) => ({ k, s: score(train, k) })).filter((x) => x.s.n >= 100).sort((a, b) => (a.s.mae15 + 0.5 * a.s.mae30) - (b.s.mae15 + 0.5 * b.s.mae30)).slice(0, top).map((x) => x.k);
+    if (ranked.length < top) continue;
+    out.push({ day, key: ranked.join('+') });
+    for (const r of rows) if (r.t >= Math.max(day, testFrom) && r.t < day + DAY) {
+      const ps = ranked.map((k) => r.preds[k]);
+      r.preds.ensemble = ps.every(Boolean) ? { v15: ps.reduce((a, p) => a + p!.v15, 0) / top, v30: ps.reduce((a, p) => a + p!.v30, 0) / top, rate: ps.reduce((a, p) => a + p!.rate, 0) / top } : null;
+    }
+  }
+  return out;
 }
 
 export type Verdict = 'collecting' | 'rejected' | 'not_better' | 'ready';
@@ -308,11 +339,13 @@ export function runLab(p: LabInput): LabResult {
     ...episodes.filter((e) => e.cause === 'cgm').map((e): Exclusion => [e.start, e.end, 'questionable_cgm']),
     ...episodes.filter((e) => e.cause === 'bad_input' && !e.evidence.includes('uncertain_entry')).map((e): Exclusion => [e.start, e.end, 'bad_input']),
   ];
-  const models = { ...MODELS, ...gridModels(), similar_meals: { f: similarMeals(p.ctx, contextModel(0.5)) } };
+  const models = { ...MODELS, ...gridModels(), similar_meals: { f: similarMeals(p.ctx, contextModel(0.5)) },
+    ar: { f: arModel(p.ctx) }, arx: { f: arxModel(p.ctx) }, analog: { f: analogModel(p.ctx) }, loop: { f: loopStyle } };
   const { kept, excluded, excludedBy } = samples(R, p.ctx, ex, models);
   // 3. candidates that choose settings from older days only
   const choices: LabResult['choices'] = {};
-  for (const fam of ['context_fit', 'damped', 'fat_bump', 'drift_fat']) choices[fam] = walkForward(kept, fam, p.baselineEnd);
+  for (const fam of ['context_fit', 'damped', 'fat_bump', 'drift_fat', 'holt', 'kalman', 'uam']) choices[fam] = walkForward(kept, fam, p.baselineEnd);
+  choices.ensemble = ensemble(kept, CANDIDATES.filter((k) => k !== 'ensemble'), p.baselineEnd);
   // 4. same unseen moments for everything compared
   const keys = [...new Set(['none', 'libre', 'trend', p.production, ...CANDIDATES])];
   const unseen = kept.filter((s) => s.t >= p.baselineEnd && keys.every((k) => s.preds[k]));

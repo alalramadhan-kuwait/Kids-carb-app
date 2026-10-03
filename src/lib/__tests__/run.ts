@@ -1367,6 +1367,21 @@ console.log('research lab');
     close(none.arrow, 0.6); close(none.arrowMoving!, 0);
     close(x.arrowMoving!, 0.5);
   });
+  test('more forecasters: smoothing follows a steady ramp, learned ones fit only on earlier days, the best three are averaged', async () => {
+    const F = await import('../../engine/forecasters');
+    const ramp = Array.from({ length: 120 }, (_, k) => T0 + k * M), rv = ramp.map((_, k) => 100 + k), na = ramp.map(() => 3);
+    for (const f of [F.holt(0.5, 0.3), F.kalman(0.002)]) { const p = f(119, ramp, rv, na, ctx)!; close(p.v15, 234, 2); close(p.v30, 249, 3); }
+    // a wave every 4 h: AR learns it from earlier days and beats no change; on the first two days it does not predict
+    const start = Date.UTC(2026, 9, 1, 21, 0);
+    const r = Array.from({ length: 5 * 1440 }, (_, k) => ({ t: start + k * M, v: 140 + 40 * Math.sin((2 * Math.PI * k) / 240), a: 3 }));
+    const { kept } = Rz.samples(r, ctx, [], { ar: { f: F.arModel(ctx) }, none: { f: (i: number, _t: number[], v: number[]) => ({ v15: v[i], v30: v[i], rate: 0 }) } });
+    assert.ok(kept.filter((x) => x.t < start + 2 * D).every((x) => x.preds.ar === null));
+    const later = kept.filter((x) => x.t >= start + 3 * D);
+    assert.ok(Rz.score(later, 'ar').mae15 < 0.2 * Rz.score(later, 'none').mae15);
+    const res = L.runLab({ readings: r, ctx, clues, uncertain: [], answers: {}, baselineEnd: start + 2 * D, production: 'libre', now: start + 5 * D });
+    assert.ok(res.choices.ensemble.length >= 2 && res.choices.ensemble.every((c) => c.key.split('+').length === 3));
+    assert.ok(res.unseen.all.ensemble.mae15 < res.unseen.all.none.mae15);
+  });
   test('goals: progress toward enough data, 10 % better than the shown line, after meals, and the arrow', () => {
     const sc = (mae15: number, arrowMoving = 0.5) => ({ n: 500, mae15, mae30: 20, bias15: 0, direction: 0.6, arrow: 0.55, arrowMoving, fall: { truth: 0, caught: 0, falseAlarms: 0 }, rise: { truth: 0, caught: 0, falseAlarms: 0 } });
     const all = { none: sc(15), libre: sc(16, 0.6), context: sc(14.25, 0.66), damped: sc(16) };
