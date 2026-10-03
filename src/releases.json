@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.14.1",
+    "notes": [
+      "الآن: بطاقة الإنسولين والكارب تبدأ بالأهم: «1.5 وحدة نشط · آخر جرعة قبل 1 س 42 د» و«54 غ نشط · آخر أكل قبل 1 س». وقت الانتهاء صار صغيرًا بجانب الشريط («حتى ~11:02 م»)."
+    ],
+    "notes_en": [
+      "Now: the insulin and carbs card starts with what matters: “1.5 U active · last dose 1 h 42 min ago” and “54 g active · last food 1 h ago”. The end time is small beside the bar (“until ~11:02 pm”)."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.14.0",
     "notes": [
       "التنبيهات: تكرار المنخفض وتكرار المرتفع صارا إعدادين منفصلين.",
