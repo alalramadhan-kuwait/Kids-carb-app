@@ -70,3 +70,25 @@ export function recentFatty(history: { name: string; eaten_at: string; total_fat
   }
   return best;
 }
+
+/**
+ * What is still on board, told as a timeline (the Now screen): how much is left of how much, from which doses or
+ * meals, when the first and last of them were, and when the model says the last of it is done (the care team's
+ * duration of action, or absorption time, after the last one). Null when nothing is left. Display only.
+ */
+export interface OnBoardLane { left: number; total: number; n: number; first: number; last: number; end: number }
+export function insulinLane(doses: Dose[], now: number, p: IobParams): OnBoardLane | null {
+  const act = doses.filter((d) => d.t <= now && now - d.t < p.dia * MIN);
+  const left = iobAt(now, act, p);
+  return act.length && left >= 0.05 ? lane(act.map((d) => ({ t: d.t, v: d.units })), left, p.dia) : null;
+}
+export function carbLane(carbs: CarbEntry[], now: number, absorbMin: number): OnBoardLane | null {
+  const act = carbs.filter((c) => c.t <= now && now - c.t < absorbMin * MIN && c.grams > 0);
+  const left = cobAt(now, act, absorbMin);
+  return act.length && left >= 0.5 ? lane(act.map((c) => ({ t: c.t, v: c.grams })), left, absorbMin) : null;
+}
+function lane(xs: { t: number; v: number }[], left: number, durMin: number): OnBoardLane {
+  const ts = xs.map((x) => x.t);
+  const first = Math.min(...ts), last = Math.max(...ts);
+  return { left, total: xs.reduce((s, x) => s + x.v, 0), n: xs.length, first, last, end: last + durMin * MIN };
+}

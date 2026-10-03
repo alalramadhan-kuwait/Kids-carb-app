@@ -1,6 +1,22 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.10.0",
+    "notes": [
+      "الآن: تحت الرسم شريطان واضحان بدل IOB/COB: «إنسولين نشط» و«كارب يُمتص»، فيهما كم باقٍ من كم، ومتى أُعطي أو أُكل، ومتى ينتهي تقريبًا.",
+      "بطاقة السكر أصغر، وسطر «نشط:» أُزيل. فاصل خطة العلاج بين الجرعات صار سطرًا هادئًا يظهر فقط أثناء الفاصل، ولم يعد يقول «يمكن إعطاء إنسولين الآن».",
+      "الرسم يتكيّف مع القراءات (مثلًا 3 إلى 12 بدل 2 إلى 17)، فتظهر الحركة بوضوح، مع بقاء حدود النطاق.",
+      "زر التسجيل صار دائرة «+» صغيرة لا تغطي الرسم."
+    ],
+    "notes_en": [
+      "Now: two clear timelines under the graph replace IOB/COB: “Insulin on board” and “Carbs absorbing”, showing how much is left of how much, when it was given or eaten, and roughly when it ends.",
+      "The glucose card is smaller and the “Active:” line is gone. The care-plan gap between doses is a quiet line shown only while it runs, and no longer says “insulin can be given now”.",
+      "The graph fits the readings (e.g. 3 to 12 instead of 2 to 17), so movement is easy to see; the range lines stay.",
+      "The Log button is now a small round “+” that covers less of the graph."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.9.4",
     "notes": [
       "الرسم البياني: سحب الصفحة لفوق أو لتحت والإصبع على الرسم صار سلسًا، بدون تعليق أو اهتزاز."

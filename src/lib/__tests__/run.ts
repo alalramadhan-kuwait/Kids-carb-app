@@ -16,11 +16,11 @@ import { seriesStats } from '../../engine/stats';
 import { buildCsv } from '../export';
 import { adrrBand, grid, hbgiBand, lbgiBand, riskF, variability } from '../../engine/variability';
 import { findPatterns, visible } from '../../engine/patterns';
-import { cobAt, dosesFrom, iobAt, iobFraction, iobParamsOk } from '../../engine/iob';
+import { carbLane, cobAt, dosesFrom, insulinLane, iobAt, iobFraction, iobParamsOk } from '../../engine/iob';
 import { GRID, alignCurve, buildOccurrence, coverage, medianCurve, notClean, summary, windowSeries } from '../../engine/meals';
 import { ackMessage, alertMessage, evaluate, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
-import { PERIODS, delta15, freshness, gapsIn, mergeSeries, emptySeries, nearest, rateAt, runsFor, timeTicks, tickLabel, zoomAt } from '../../engine/series';
+import { PERIODS, delta15, freshness, gapsIn, mergeSeries, emptySeries, nearest, rateAt, runsFor, timeTicks, tickLabel, yDomain, yGrid, zoomAt } from '../../engine/series';
 import { findDuplicate, gmi, hoursOfDay, kuwaitDayStart, sinceText, statusSentence } from '../now';
 import { DEFAULT_SETTINGS, type HistoryEntry, type Ingredient, type Product, type Recipe, type Settings } from '../types';
 
@@ -773,6 +773,33 @@ test('IOB follows the exponential model (1 at the dose, 0 at DIA, falling); COB 
   const doses = dosesFrom([evr({ insulin_units: 3, insulin_type: 'rapid', occurred_at: '2026-10-01T10:00:00Z' }), evr({ id: 'l', insulin_units: 12, insulin_type: 'long', occurred_at: '2026-10-01T10:00:00Z' })] as any);
   assert.equal(doses.length, 1); assert.equal(iobAt(t0, doses, p), 3); assert.equal(iobAt(t0 - 60000, doses, p), 0);
   assert.equal(cobAt(t0 + 90 * M, [{ t: t0, grams: 45 }], 180), 22.5); assert.equal(cobAt(t0 + 200 * M, [{ t: t0, grams: 45 }], 180), 0);
+});
+
+test('on-board timelines: left of how much, from what, ending at the last one + the duration; nothing when used up', () => {
+  const p = { dia: 360, peak: 65 }, t0 = Date.parse('2026-10-01T13:27:00Z'), now = t0 + 112 * M;
+  const ins = insulinLane([{ t: t0, units: 2 }, { t: t0 - 7 * 60 * M, units: 5 }], now, p)!;
+  assert.equal(ins.total, 2, 'a dose older than the duration is not counted'); assert.equal(ins.n, 1);
+  assert.equal(ins.first, t0); assert.equal(ins.end, t0 + 360 * M);
+  assert.ok(Math.abs(ins.left - iobAt(now, [{ t: t0, units: 2 }], p)) < 1e-9 && ins.left < 2 && ins.left > 0);
+  const two = insulinLane([{ t: t0, units: 2 }, { t: t0 + 60 * M, units: 1 }], now, p)!;
+  assert.equal(two.total, 3); assert.equal(two.n, 2); assert.equal(two.last, t0 + 60 * M); assert.equal(two.end, t0 + 420 * M);
+  assert.equal(insulinLane([{ t: now + 5 * M, units: 2 }], now, p), null, 'a dose logged ahead does not count yet');
+  assert.equal(insulinLane([{ t: t0, units: 2 }], t0 + 359.9 * M, p), null, 'almost nothing left: no lane');
+  const c = carbLane([{ t: t0, grams: 27.5 }], now, 180)!;
+  assert.equal(c.total, 27.5); assert.equal(c.end, t0 + 180 * M); assert.ok(Math.abs(c.left - 27.5 * (1 - 112 / 180)) < 1e-9);
+  assert.equal(carbLane([{ t: t0, grams: 27.5 }], t0 + 181 * M, 180), null);
+});
+
+test('graph axis fits the readings: 3 mmol/L up to 2 above the high limit, more only when a reading needs it', () => {
+  const mm = (x: number) => x * 18.016;
+  const [a0, a1] = yDomain(mm(8), mm(5), 180);
+  assert.equal(a0, 54); assert.equal(a1, 216, 'a 5–8 day: 3 to 12 mmol/L, not 2.2 to 16.7');
+  assert.ok(yDomain(mm(15), mm(5), 180)[1] >= mm(15) + 18, 'a high reading always fits with room');
+  assert.equal(yDomain(mm(2.4), mm(2.4), 180)[0], 36, 'a very low reading lowers the floor (2 mmol/L at most)');
+  assert.equal(yDomain(500, 60, 180)[1], 400, 'capped');
+  assert.equal(yDomain(mm(8.1), mm(5), 180)[1], yDomain(mm(8.6), mm(5), 180)[1], 'small changes do not move the top');
+  assert.deepEqual(yGrid(54, 216, 'mmol').map((v) => Math.round(v / 18.016)), [4, 6, 8, 10], 'short axis: every 2 mmol/L');
+  assert.deepEqual(yGrid(40, 400, 'mmol').map((v) => Math.round(v / 18.016)), [4, 8, 12, 16, 20]);
 });
 
 console.log('variability and pattern cards');

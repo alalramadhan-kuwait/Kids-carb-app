@@ -169,7 +169,23 @@ export function tickLabel(t: number, step: number) {
   return `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
 }
 
-/** Glucose axis (mg/dL): stable bounds that only grow when the data needs it, so the trace does not jump while panning. */
-export function yDomain(maxVisible: number | null): [number, number] {
-  return [40, maxVisible !== null && maxVisible > 280 ? 400 : 300];
+/**
+ * Glucose axis (mg/dL), fitted to what is in view so a day around 5–8 mmol/L does not look flat: from 3 mmol/L (lower
+ * only when a reading is) to 2 mmol/L above the high limit or 1 mmol/L above the highest reading, whichever is more.
+ * The top moves in 2 mmol/L steps, so the trace does not jump at every small change while panning.
+ */
+export function yDomain(maxVisible: number | null, minVisible: number | null = null, high: number | null = 180): [number, number] {
+  const STEP = 36; // 2 mmol/L
+  const y0 = Math.min(54, Math.max(36, (minVisible ?? 54) - 8));
+  const want = Math.max((high ?? 180) + STEP, (maxVisible ?? 0) + 18);
+  return [y0, Math.min(400, Math.ceil(want / STEP) * STEP)];
+}
+
+/** Grid lines for the axis: every 4 mmol/L (100 mg/dL), or every 2 (50) when the axis is short. */
+export function yGrid(y0: number, y1: number, unit: 'mmol' | 'mgdl'): number[] {
+  const short = y1 - y0 <= 12 * 18.016;
+  const out: number[] = [];
+  if (unit === 'mmol') for (let m = short ? 2 : 4; m <= 22; m += short ? 2 : 4) out.push(m * 18.016);
+  else for (let v = short ? 50 : 100; v <= 400; v += short ? 50 : 100) out.push(v);
+  return out.filter((v) => v > y0 && v < y1);
 }

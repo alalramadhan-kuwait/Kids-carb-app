@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { formatGlucose, unitLabel, type GlucoseUnit } from '../lib/glucose';
 import {
-  PERIODS, delta15, freshness, gapsIn, limitEnd, nearest, rateAt, runsFor, tickLabel, timeTicks, yDomain, zoomAt,
+  PERIODS, delta15, freshness, gapsIn, limitEnd, nearest, rateAt, runsFor, tickLabel, timeTicks, yDomain, yGrid, zoomAt,
   type Series, type View,
 } from './series';
 import { cx } from '../components/ui';
@@ -86,9 +86,9 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
     const groups = hasRail ? groupMarks(marks, layers!, start, end, width) : [];
     groupsRef.current = groups;
     const runs = runsFor(series, start, end, width);
-    let maxV: number | null = null;
-    for (const r of runs) for (const v of r.v) if (maxV === null || v > maxV) maxV = v;
-    const [y0, y1] = yDomain(maxV);
+    let maxV: number | null = null, minV: number | null = null;
+    for (const r of runs) for (const v of r.v) { if (maxV === null || v > maxV) maxV = v; if (minV === null || v < minV) minV = v; }
+    const [y0, y1] = yDomain(maxV, minV, range.high);
     const Y = (v: number) => PAD_T + plotH - ((Math.min(Math.max(v, y0), y1) - y0) / (y1 - y0)) * plotH;
     const X = (t: number) => ((t - start) / span) * width;
 
@@ -123,7 +123,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
 
     // glucose grid labels (right edge), in the parents' unit
     g.font = '11px Rubik, system-ui, sans-serif'; g.fillStyle = css('--text-3'); g.textAlign = 'right'; g.textBaseline = 'middle'; g.direction = 'ltr';
-    const grid = unit === 'mmol' ? [4, 8, 12, 16, 20].map((m) => m * 18.016) : [100, 200, 300];
+    const grid = yGrid(y0, y1, unit === 'mmol' ? 'mmol' : 'mgdl');
     g.strokeStyle = css('--border'); g.lineWidth = 1;
     const gridYs: [number, string][] = [];
     for (const v of grid) if (v > y0 && v < y1) {

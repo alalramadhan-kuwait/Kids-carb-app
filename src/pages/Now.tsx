@@ -26,7 +26,6 @@ import { describeEvent } from '../lib/events';
 import { Card, asset, cx } from '../components/ui';
 import { dir, isEn, t, tMaybe } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
-import { units2, useOnBoard } from './Status';
 import { sensorLife } from '../engine/status';
 import { syncPredictions } from '../lib/predictions';
 import { trendFrom, libreOf } from '../engine/trend';
@@ -36,6 +35,7 @@ import { recentFatty } from '../engine/iob';
 import { GraphHelp } from '../components/ForecastKey';
 import { TrendArrow, TrendLine } from '../components/Trend';
 import { NextDose } from '../components/NextDose';
+import { OnBoardLanes } from '../components/OnBoardLanes';
 import { arrowSource, shownLevel } from '../lib/arrowChoice';
 
 const TONE_DOT: Record<Tone, string> = { ok: 'bg-ok-fill', low: 'bg-over-fill', urgent: 'bg-over', high: 'bg-near-fill', warn: 'bg-near-fill', plain: 'bg-slate-300' };
@@ -60,7 +60,6 @@ export default function Now() {
   const trend = useMemo(() => (g ? trendFrom(g.readings, Date.now()) : null), [g]);
   const sentence = statusSentence({ hasReading: !!latest, age: age?.state ?? null, status, trend: (() => { const l = shownLevel(trend, latest?.trend ?? null, arrowSource()).level; return l === null ? null : libreOf(l); })() });
   const notConnected = !!g && !g.connected;
-  const ob = useOnBoard(latest);
   // keep prediction tracking up to date in the background (at most every 5 minutes)
   useEffect(() => { syncPredictions(settings, history, events, g?.sensor?.started_at ? Date.parse(g.sensor.started_at) : null).catch(() => {}); },
     [settings, history, events, g?.sensor?.started_at]);
@@ -111,7 +110,7 @@ export default function Now() {
             </div>
             {latest && age?.state !== 'stale' ? (
               <div className={cx('mt-1 flex items-center gap-3', age?.state === 'old' && 'opacity-50')}>
-                <span className="num text-[60px] font-bold leading-none text-brand-num">{formatGlucose(latest.mg_dl, unit)}</span>
+                <span className="num text-[56px] font-bold leading-none text-brand-num">{formatGlucose(latest.mg_dl, unit)}</span>
                 <span className="text-brand-num"><TrendArrow trend={trend} libre={latest.trend} size={36} /></span>
                 <span className="self-end pb-2 text-sm text-slate-500">{unitLabel(unit)}</span>
               </div>
@@ -122,20 +121,19 @@ export default function Now() {
             ) : null}
             {g?.error && <p className="mt-1 text-sm text-over">{GLUCOSE_ERRORS[g.error] ?? g.error} <button className="min-h-[44px] underline" onClick={reload}>{t('إعادة')}</button></p>}
             <NextDose />
-            {/* what is on board, and the sensor when it is nearly done: details on the Status page */}
-            <Link to="/status" className="-mx-1 mt-1 flex min-h-[44px] items-center gap-2 border-t border-slate-100 px-1 pt-1 text-sm text-slate-600">
-              <span className="min-w-0 flex-1 truncate">
-                {sensor && sensor.state !== 'ok'
-                  ? <b className="text-slate-900">{sensor.state === 'ended' ? t('انتهى الحساس') : t('الحساس ينتهي {time}', { time: sinceUntil(sensor.left) })}</b>
-                  : ob.ready ? <>{t('نشط:')} {[ob.iob !== null ? t('{u} وحدة', { u: units2(ob.iob) }) : '', ob.cob !== null ? t('{g} غ', { g: fmt(ob.cob) }) : ''].filter(Boolean).join(' · ')}</>
-                  : t('الحالة والحساس')}
-              </span>
-              <span className="shrink-0 font-bold text-brand">{t('الحالة')} {isEn() ? '›' : '‹'}</span>
-            </Link>
+            {/* the sensor only when it is nearly done; what is still on board is told under the graph */}
+            {sensor && sensor.state !== 'ok' && (
+              <Link to="/status" className="-mx-1 mt-1 flex min-h-[44px] items-center gap-2 border-t border-slate-100 px-1 pt-1 text-sm text-slate-600">
+                <b className="min-w-0 flex-1 truncate text-slate-900">{sensor.state === 'ended' ? t('انتهى الحساس') : t('الحساس ينتهي {time}', { time: sinceUntil(sensor.left) })}</b>
+                <span className="shrink-0 font-bold text-brand">{t('الحالة')} {isEn() ? '›' : '‹'}</span>
+              </Link>
+            )}
           </Card>
         )}
         {/* the graph runs edge to edge with no box around it, so it can use the whole width and plenty of height */}
         {g?.connected && <HomeChart live={g.readings} />}
+        {/* insulin and carbs still working, as two thin timelines: how much is left, from what, for how long */}
+        {!notConnected && <OnBoardLanes />}
 
         {/* 2 · Supporting: today in one line (details in Analysis), then what was last logged */}
         <section aria-label={t('اليوم')} className="space-y-1">
@@ -180,11 +178,11 @@ export default function Now() {
         </footer>
       </div>
 
-      {/* Fitts: the one primary action, big, in the thumb zone above the tab bar */}
-      <div className={cx('pointer-events-none fixed inset-x-0 bottom-[calc(66px+env(safe-area-inset-bottom))] z-30 px-4', logOpen && 'hidden')}>
+      {/* the one primary action in the thumb zone above the tab bar: a round + that covers as little of the graph as it can */}
+      <div className={cx('pointer-events-none fixed inset-x-0 bottom-[calc(74px+env(safe-area-inset-bottom))] z-30 px-4', logOpen && 'hidden')}>
         <div className="mx-auto flex max-w-2xl justify-start">
-          <button onClick={() => setLogOpen(true)} className="pointer-events-auto flex min-h-[50px] items-center gap-2 rounded-full bg-brand pe-5 ps-4 text-base font-bold text-white shadow-[0_8px_24px_rgba(91,72,214,0.30)] active:scale-[0.98]">
-            <Icon name="plus" size={24} /> {t('سجّل')}
+          <button onClick={() => setLogOpen(true)} aria-label={t('سجّل')} className="pointer-events-auto grid h-14 w-14 place-items-center rounded-full bg-brand text-white shadow-[0_8px_24px_rgba(91,72,214,0.30)] active:scale-[0.96]">
+            <Icon name="plus" size={28} />
           </button>
         </div>
       </div>
@@ -283,7 +281,8 @@ function HomeChart({ live }: { live: Reading[] }) {
   const layers = useMemo(() => defaultLayers(), []);
   const projected30 = useMemo(() => trendFrom(live, now)?.projected30 ?? null, [live, now]);
   // IOB and COB as two thin strips under the graph, and where glucose heads from here (display only)
-  const { tracks, forecasts } = useGraphExtras({ series, now, iob: true, cob: true, forecast: true, projected30, start: view.end - view.span, end: view.end });
+  // insulin and carbs on board are told under the graph in words (OnBoardLanes), so the graph keeps only glucose
+  const { tracks, forecasts } = useGraphExtras({ series, now, iob: false, cob: false, forecast: true, projected30, start: view.end - view.span, end: view.end });
   const height = useMemo(() => Math.round(Math.min(440, Math.max(240, window.innerHeight * 0.36)) + 48) + (tracks ? 68 : 0), [!!tracks]); // eslint-disable-line react-hooks/exhaustive-deps
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
   return (
