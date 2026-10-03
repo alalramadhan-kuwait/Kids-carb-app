@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.6.0",
+    "notes": [
+      "صفحة الوجبات: شريط بحث واحد للوصفات والسناكات والمنتجات والأكل المتكرر، بالصور والكارب. يتجاهل الفرق بين أ وا وة وه.",
+      "السناكات: اضغطوا على صورة السناك (📷) لتصويره أو اختيار صورة."
+    ],
+    "notes_en": [
+      "Meals: one search bar for recipes, snacks, products and frequent foods, with pictures and carbs. It ignores Arabic letter-form differences.",
+      "Snacks: tap a snack’s picture (📷) to take or choose a photo."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.5.0",
     "notes": [
       "تقرير السكر وجدول أخصائية التغذية: زر «مشاركة PDF» بدل الطباعة. يصنع ملف PDF ويفتح المشاركة مباشرة (واتساب، الملفات، البريد).",

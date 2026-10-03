@@ -1570,6 +1570,19 @@ console.log('low treatments');
   });
 }
 
+console.log('search');
+{
+  const { matches } = await import('../search');
+  test('search: every word must match; Arabic letter forms, diacritics and case do not matter', () => {
+    assert.ok(matches(['شاورما دجاج (لحم فقط)', null], 'شاورما'));
+    assert.ok(matches(['أرز أبيض مطبوخ'], 'ارز'));
+    assert.ok(matches(['عصير علبة'], 'علبه'));
+    assert.ok(matches(['Chicken Nuggets', 'Americana'], 'nugg amer'));
+    assert.ok(!matches(['Chicken Nuggets'], 'nuggets fries'));
+    assert.ok(matches(['anything'], '  '));
+  });
+}
+
 console.log('dietitian sheet');
 {
   const D = await import('../dietSheet');

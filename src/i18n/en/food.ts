@@ -529,4 +529,10 @@ export const food: Record<string, string> = {
   "مشاركة PDF": "Share PDF",
   "{n} صفحة · صفحة لكل يوم": "{n} pages · one page per day",
   "ملف PDF بصفحة A4 أفقية لكل يوم. «مشاركة PDF» تفتح المشاركة: واتساب، الملفات، البريد…": "A PDF with one A4 landscape page per day. “Share PDF” opens sharing: WhatsApp, Files, Mail…",
+  "{g} غ لكل 100": "{g} g per 100",
+  "ابحث: وصفة، سناك، منتج، أكل متكرر": "Search: recipe, snack, product, frequent food",
+  "بحث": "Search",
+  "صورة {name}": "Photo of {name}",
+  "لا توجد نتائج. أضيفوا منتجًا جديدًا من «المنتجات».": "No results. Add a new product from “Products”.",
+  "حُفظت الصورة ✓": "Photo saved ✓",
 };
