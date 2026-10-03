@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.15.1",
+    "notes": [
+      "المختبر: السهم يُقاس الآن فقط عندما يتحرك السكر فعلًا. قبلها كان «بدون تغيير» يبدو مثل Libre لأن السكر ثابت أغلب الوقت، فوصل الهدف الرابع إلى 100% بلا معنى."
+    ],
+    "notes_en": [
+      "Lab: the arrow is now scored only while glucose is really moving. Before, “no change” looked as good as Libre because glucose is steady most of the time, so goal 4 reached 100% without meaning anything."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.15.0",
     "notes": [
       "المختبر: بطاقة «الأهداف» بنسبة تقدّم لكل هدف: بيانات كافية، توقع أدق من المعروض، الهبوط ثم الارتفاع بعد الأكل، وسرعة السهم مقارنة بـ Libre.",

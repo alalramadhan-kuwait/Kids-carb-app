@@ -173,6 +173,8 @@ export function samples(all: RReading[], ctx: RContext, exclude: Exclusion[], mo
 
 export interface Score {
   n: number; mae15: number; mae30: number; bias15: number; direction: number; arrow: number;
+  /** the arrow (5 levels) right while glucose was really moving (|speed| ≥ 1 mg/dL/min): "no change" scores 0 here */
+  arrowMoving?: number;
   fall: { truth: number; caught: number; falseAlarms: number }; rise: { truth: number; caught: number; falseAlarms: number };
 }
 const dir3 = (r: number) => (r <= -1 ? -1 : r >= 1 ? 1 : 0);
@@ -187,6 +189,7 @@ export function score(rows: Sample[], key: string): Score {
   return {
     n, mae15: m((s) => Math.abs(p(s).v15 - s.truth15)), mae30: m((s) => Math.abs(p(s).v30 - s.truth30)), bias15: m((s) => p(s).v15 - s.truth15),
     direction: m((s) => (dir3(p(s).rate) === dir3(s.truthRate) ? 1 : 0)), arrow: m((s) => (five(p(s).rate) === five(s.truthRate) ? 1 : 0)),
+    arrowMoving: (() => { const mv = r.filter((s) => Math.abs(s.truthRate) >= 1); return mv.length ? mv.filter((s) => five(p(s).rate) === five(s.truthRate)).length / mv.length : NaN; })(),
     fall: { truth: cnt((s) => s.truthRate <= -2), caught: cnt((s) => s.truthRate <= -2 && p(s).rate <= -2), falseAlarms: cnt((s) => p(s).rate <= -2 && s.truthRate > -1) },
     rise: { truth: cnt((s) => s.truthRate >= 2), caught: cnt((s) => s.truthRate >= 2 && p(s).rate >= 2), falseAlarms: cnt((s) => p(s).rate >= 2 && s.truthRate < 1) },
   };

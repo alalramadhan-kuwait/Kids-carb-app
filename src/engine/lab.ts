@@ -102,7 +102,7 @@ const clamp01 = (x: number) => (Number.isFinite(x) ? Math.max(0, Math.min(1, x))
  * The lab's four goals as 0–1 progress, from one run. data: unseen moments and days toward "ready".
  * beat_shown: the best candidate's 15-min error gain over the shown line (and no change), 10 % = done.
  * after_meals: the same for Similar meals on after-food moments. arrow: the best candidate's speed band
- * (5 levels, as Libre's arrows) against how often the shown arrow was right; a = shown %, b = best %.
+ * (5 levels, as Libre's arrows) while glucose is moving, against the shown arrow; a = shown %, b = best %.
  */
 export function goals(all: Record<string, ModelScore>, bySit: LabResult['unseen']['bySituation'], data: { unseen: number; unseenDays: number }, production: string): Goal[] {
   const R = VERDICT_RULES, need = 1 - R.better;
@@ -114,9 +114,11 @@ export function goals(all: Record<string, ModelScore>, bySit: LabResult['unseen'
     return { best, g: best ? g : 0 };
   };
   const b1 = gain(all, CANDIDATES), b2 = gain(bySit.after_food, ['similar_meals']);
-  const shown = all[production]?.arrow ?? 0;
+  // the arrow only counts while glucose is moving: when it is steady any flat guess is "right", even no change
+  const mv = (k: string) => all[k]?.arrowMoving ?? 0;
+  const shown = mv(production);
   let bestArrow: string | null = null, arrow = 0;
-  for (const k of CANDIDATES) if ((all[k]?.arrow ?? 0) > arrow) { arrow = all[k].arrow; bestArrow = k; }
+  for (const k of CANDIDATES) if (mv(k) > arrow) { arrow = mv(k); bestArrow = k; }
   return [
     { key: 'data', pct: Math.min(clamp01(data.unseen / R.readyN), clamp01(data.unseenDays / R.readyDays)), best: null, a: data.unseen, b: data.unseenDays },
     { key: 'beat_shown', pct: clamp01(b1.g / need), best: b1.best, a: Math.round(b1.g * 100), b: Math.round(need * 100) },
@@ -275,7 +277,7 @@ export interface LabInput {
   production: 'libre' | 'trend';
   now: number;
 }
-export interface ModelScore { n: number; mae15: number; mae30: number; bias15: number; direction: number; arrow: number; fall: Score['fall']; rise: Score['rise'] }
+export interface ModelScore { n: number; mae15: number; mae30: number; bias15: number; direction: number; arrow: number; arrowMoving?: number; fall: Score['fall']; rise: Score['rise'] }
 export interface LabResult {
   window: { from: number; to: number };
   data: { readings: number; moments: number; excluded: number; excludedBy: Record<string, number>; unseen: number; unseenDays: number };
@@ -288,7 +290,7 @@ export interface LabResult {
 
 const round = (s: Score): ModelScore => {
   const r = (x: number) => (Number.isFinite(x) ? Math.round(x * 100) / 100 : 0);
-  return { n: s.n, mae15: r(s.mae15), mae30: r(s.mae30), bias15: r(s.bias15), direction: r(s.direction), arrow: r(s.arrow), fall: s.fall, rise: s.rise };
+  return { n: s.n, mae15: r(s.mae15), mae30: r(s.mae30), bias15: r(s.bias15), direction: r(s.direction), arrow: r(s.arrow), arrowMoving: r(s.arrowMoving ?? NaN), fall: s.fall, rise: s.rise };
 };
 
 export function runLab(p: LabInput): LabResult {

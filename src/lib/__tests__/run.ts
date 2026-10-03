@@ -1360,14 +1360,23 @@ console.log('research lab');
     const first = Rz.samples(r.slice(0, 1440), fed, [], { s: { f: Rz.similarMeals(fed, Rz.contextModel(0.5)) }, c: { f: Rz.contextModel(0.5) } }).kept.filter((x) => x.t > meals[0] && x.t < meals[1]);
     assert.ok(first.length > 20 && first.every((x) => x.preds.s!.v15 === x.preds.c!.v15));
   });
+  test('arrow while moving: a flat guess is never right while glucose really moves', () => {
+    const row = (truthRate: number, rate: number) => ({ t: 0, v: 100, truth15: 100, truth30: 100, truthRate, situation: 'other' as const, libreArrow: 3, preds: { none: { v15: 100, v30: 100, rate: 0 }, x: { v15: 100, v30: 100, rate } } });
+    const rows = [row(0, 0), row(0, 0), row(0.2, 0), row(-1.5, -1.4), row(2.5, 1.2)];
+    const none = Rz.score(rows, 'none'), x = Rz.score(rows, 'x');
+    close(none.arrow, 0.6); close(none.arrowMoving!, 0);
+    close(x.arrowMoving!, 0.5);
+  });
   test('goals: progress toward enough data, 10 % better than the shown line, after meals, and the arrow', () => {
-    const sc = (mae15: number, arrow = 0.5) => ({ n: 500, mae15, mae30: 20, bias15: 0, direction: 0.6, arrow, fall: { truth: 0, caught: 0, falseAlarms: 0 }, rise: { truth: 0, caught: 0, falseAlarms: 0 } });
+    const sc = (mae15: number, arrowMoving = 0.5) => ({ n: 500, mae15, mae30: 20, bias15: 0, direction: 0.6, arrow: 0.55, arrowMoving, fall: { truth: 0, caught: 0, falseAlarms: 0 }, rise: { truth: 0, caught: 0, falseAlarms: 0 } });
     const all = { none: sc(15), libre: sc(16, 0.6), context: sc(14.25, 0.66), damped: sc(16) };
     const [data, beat, meals, arrow] = L.goals(all, { after_food: { none: sc(20), libre: sc(22), similar_meals: sc(17) } }, { unseen: 500, unseenDays: 7 }, 'libre');
     close(data.pct, 0.5);
     assert.equal(beat.best, 'context'); close(beat.pct, 0.5); // 5 % of the 10 % needed
     assert.equal(meals.best, 'similar_meals'); close(meals.pct, 1); // 15 % better after food
     assert.equal(arrow.best, 'context'); assert.equal(arrow.a, 60); close(arrow.pct, 1);
+    const flat = L.goals({ none: sc(15, 0), libre: sc(16, 0.6), damped: sc(16, 0.3) }, {}, { unseen: 500, unseenDays: 7 }, 'libre')[3];
+    close(flat.pct, 0.5, 0.01); // half as often right as Libre while moving: 50 %, however often it is right when steady
     assert.equal(L.goals({ none: sc(15), libre: sc(16) }, {}, { unseen: 0, unseenDays: 0 }, 'libre')[2].pct, 0, 'no data yet: 0, never NaN');
   });
   test('set-aside entries are kept out with a reason, and their cost to the research is measured', () => {

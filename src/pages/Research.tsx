@@ -37,7 +37,7 @@ const SIT: Record<string, string> = tr({ night: 'الليل', after_food: 'بع�
 const sep = () => (isEn() ? ', ' : '، '); // i18n-ok: punctuation
 const ORDER = ['libre', 'none', 'trend', 'context', 'context_fit', 'damped', 'fat_bump', 'drift_fat', 'similar_meals'];
 const GOAL: Record<Goal['key'], string> = tr({ // i18n-ok: values translated when read
-  data: 'بيانات جديدة كافية', beat_shown: 'توقع أدق من المعروض بـ 10%', after_meals: 'بعد الأكل: الهبوط ثم الارتفاع', arrow: 'سرعة السهم مثل Libre أو أدق', // i18n-ok
+  data: 'بيانات جديدة كافية', beat_shown: 'توقع أدق من المعروض بـ 10%', after_meals: 'بعد الأكل: الهبوط ثم الارتفاع', arrow: 'السهم أثناء الحركة: مثل Libre أو أدق', // i18n-ok
 });
 
 /**
@@ -125,7 +125,7 @@ function ScoreList({ scores, models, verdicts, unit }: { scores: Record<string, 
               <Cell l={t('خطأ 15 د')} v={`±${formatGlucose(s.mae15, unit)}`} />
               <Cell l={t('خطأ 30 د')} v={`±${formatGlucose(s.mae30, unit)}`} />
               <Cell l={t('الاتجاه')} v={`${Math.round(s.direction * 100)}%`} />
-              <Cell l={t('السهم')} v={`${Math.round(s.arrow * 100)}%`} />
+              <Cell l={t('السهم')} v={s.arrowMoving === undefined ? '—' : `${Math.round(s.arrowMoving * 100)}%`} />
               <Cell l={t('نزول سريع')} v={`${s.fall.caught}/${s.fall.truth}`} sub={t('{n} خاطئ', { n: s.fall.falseAlarms })} />
             </div>
             {v && v.why && <p className="text-xs text-slate-500">{WHY[v.why] ?? v.why}</p>}

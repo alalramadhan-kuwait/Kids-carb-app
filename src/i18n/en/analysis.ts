@@ -453,7 +453,7 @@ export const analysis: Record<string, string> = {
   "بيانات جديدة كافية": "Enough new data",
   "توقع أدق من المعروض بـ 10%": "10% more accurate than what is shown",
   "بعد الأكل: الهبوط ثم الارتفاع": "After meals: the dip, then the bump",
-  "سرعة السهم مثل Libre أو أدق": "Arrow speed as good as Libre's or better",
+  "السهم أثناء الحركة: مثل Libre أو أدق": "Arrow while moving: as good as Libre's or better",
   "الأهداف": "Goals",
   "للقياس فقط: لا يغيّر الجرعات ولا القراءات ولا التنبيهات.": "Measurement only: it does not change doses, readings or alerts.",
   "السهم": "Arrow",
