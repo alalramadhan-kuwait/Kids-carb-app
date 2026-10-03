@@ -1328,6 +1328,10 @@ console.log('editing entries');
 
 {
   const Ed = await import('../edit');
+  test('editing: she ate ¾ of a meal, so every item scales with it', () => {
+    const lines = [{ name: 'عسل', quantity: 25, unit: 'g', carbs: 20.5 }, { name: 'bread', quantity: 1, unit: 'serving', carbs: 28 }];
+    assert.deepEqual(Ed.scaleLines(lines, 0.75), [{ name: 'عسل', quantity: 18.75, unit: 'g', carbs: 15.4 }, { name: 'bread', quantity: 0.75, unit: 'serving', carbs: 21 }]);
+  });
   const now = Date.UTC(2026, 9, 2, 7, 0);
   test('the time picker shows the same clock as the log and reads it back exactly', () => {
     const t = new Date(2026, 9, 2, 0, 21).getTime();

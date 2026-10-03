@@ -50,7 +50,7 @@ export function EditEntry({ e, h, onDone, onCancel }: { e?: EventRow; h?: Histor
   const keep = toQuick ?? (asMeal || part !== 1 ? false : inQuick || !!brand.trim());                    // a branded product is worth keeping one tap away
   const brands = brandsOf([...quick.items, ...products.map((p) => ({ brand: p.brand }))]);
   const [busy, setBusy] = useState(false);
-  const draft: EditDraft = { t: whenMs, units, carbs, bg: bg === null ? null : toMgdl(bg, unit), minutes, name, note, ...(food ? { carbs: tot.carbs, brand, fat: tot.fat, protein: tot.protein, fiber: tot.fiber, kcal: tot.kcal, toQuick: keep,
+  const draft: EditDraft = { t: whenMs, units, carbs, bg: bg === null ? null : toMgdl(bg, unit), minutes, name, note, ...(food ? { carbs: tot.carbs, brand, fat: tot.fat, protein: tot.protein, fiber: tot.fiber, kcal: tot.kcal, toQuick: keep, part: part !== 1 ? part : undefined,
     label: n.mode === 'per100' ? { per100: n.per100, amount: n.amount, unit: n.unit } : null } : {}) };
   const np = food ? nutrProblem(n) : null;
   const problem: EditProblem | null = np ? (np === 'carbs' ? 'carbs' : 'nutrition') : editProblem(kind, draft, Date.now());
@@ -98,7 +98,7 @@ export function EditEntry({ e, h, onDone, onCancel }: { e?: EventRow; h?: Histor
           </div>
         </div>
       )}
-      {kind === 'meal' && (h?.lines.length ?? 0) > 1 && <p className="-mt-1 text-[11px] text-slate-500">{t('وجبة من عدة أصناف: يتغير المجموع فقط.')}</p>}
+      {kind === 'meal' && (h?.lines.length ?? 0) > 1 && <p className="-mt-1 text-[11px] text-slate-500">{t('وجبة من عدة أصناف: أزرار «أكلت» تغيّر كل الأصناف، والكتابة تغيّر المجموع فقط.')}</p>}
       {(kind === 'carbs' || kind === 'treatment') && <L label={t('الكارب (غ)')}><NumInput className={num} value={carbs} onChange={setCarbs} /></L>}
       {kind === 'carbs' && (
         <button type="button" onClick={() => { setN(nutrStateFrom({ carbs, fat: null, protein: null, fiber: null, kcal: null })); setAsMeal(true); }}

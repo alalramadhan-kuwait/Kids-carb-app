@@ -429,7 +429,7 @@ export const food: Record<string, string> = {
   "الأكثر": "Most used",
   "القيم الغذائية غير معقولة": "Those nutrition values are not plausible",
   "البراند": "Brand",
-  "وجبة من عدة أصناف: يتغير المجموع فقط.": "A meal of several items: only the total changes.",
+  'وجبة من عدة أصناف: أزرار «أكلت» تغيّر كل الأصناف، والكتابة تغيّر المجموع فقط.': 'A meal of several items: the “She ate” buttons change every item; typing changes only the total.',
   "للحصة": "Per serving",
   "لكل 100 من الملصق": "Per 100 (label)",
   "للحصة ({a} {u}):": "Serving ({a} {u}):",

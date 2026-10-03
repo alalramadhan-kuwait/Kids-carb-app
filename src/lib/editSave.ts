@@ -1,6 +1,6 @@
 // Saving an edited entry (who and when are recorded). The checks are in edit.ts.
 import { supabase } from './supabase';
-import type { EditDraft } from './edit';
+import { scaleLines, type EditDraft } from './edit';
 import { quickFromMeal } from './quick';
 import { normBrand } from './brand';
 import type { EventRow, HistoryEntry } from './types';
@@ -27,8 +27,11 @@ export async function updateMeal(h: HistoryEntry, d: EditDraft, me: string | nul
     modified: true, edited_by: me, edited_at: new Date().toISOString(),
   };
   if (d.note !== undefined) patch.notes = d.note.trim() || null;
-  // a one-item meal keeps its line in step with the total; a mixed meal keeps its lines and is marked as changed
-  if (h.lines?.length === 1) patch.lines = [{ ...h.lines[0], carbs: d.carbs }];
+  // a part portion (½, ¾…) scales every item with the total, against what was saved; otherwise a one-item meal keeps
+  // its line in step with the total, and a mixed meal keeps its lines and is marked as changed
+  const f = d.part && d.part !== 1 && h.total_carbs > 0 && d.carbs != null ? d.carbs / h.total_carbs : null;
+  if (f !== null && h.lines?.length) patch.lines = scaleLines(h.lines, f);
+  else if (h.lines?.length === 1) patch.lines = [{ ...h.lines[0], carbs: d.carbs }];
   const { error } = await supabase.from('meal_history').update(patch).eq('id', h.id);
   if (error) throw new Error(error.message);
   if (d.toQuick) await quickFromMeal(h.name, { name: d.name!.trim(), brand: d.brand ?? null, kind: h.kind === 'meal' ? 'meal' : 'snack', carbs: d.carbs!, fat: d.fat ?? null, protein: d.protein ?? null, kcal: d.kcal ?? null, fiber: d.fiber ?? null, at: patch.eaten_at as string, label: d.label ?? null });

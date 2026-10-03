@@ -18,6 +18,14 @@ export interface EditDraft {
   t: number | null; units?: number | null; carbs?: number | null; bg?: number | null; minutes?: number | null; name?: string; note?: string;
   fat?: number | null; protein?: number | null; fiber?: number | null; kcal?: number | null; brand?: string; toQuick?: boolean;
   label?: { per100: import('./per100').Nutr; amount: number | null; unit: 'ml' | 'g' } | null;
+  /** the part of the portion she ate (½, ¾…), when chosen: the meal's items are scaled with it */
+  part?: number;
+}
+
+/** The items of a meal when she ate only part of it (or more): each amount and its carbs scale by the same factor. */
+export function scaleLines<L extends { quantity?: number | null; carbs?: number | null }>(lines: L[], f: number): L[] {
+  const r = (x: number) => Math.round(x * 100) / 100;
+  return lines.map((l) => ({ ...l, quantity: l.quantity == null ? l.quantity : r(l.quantity * f), carbs: l.carbs == null ? l.carbs : Math.round(l.carbs * f * 10) / 10 }));
 }
 export type EditProblem = 'time' | 'future' | 'units' | 'carbs' | 'bg' | 'minutes' | 'name' | 'nutrition';
 /** What is wrong with the draft, if anything (a typo must not reach the log or the dose calculator). */
