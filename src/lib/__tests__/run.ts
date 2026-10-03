@@ -1570,6 +1570,60 @@ console.log('low treatments');
   });
 }
 
+console.log('dietitian sheet');
+{
+  const D = await import('../dietSheet');
+  // a made-up day (Kuwait midnight = 21:00 UTC the day before): readings every 5 minutes
+  const day = Date.UTC(2026, 0, 9, 21), M = 60000, at = (h: number, m = 0) => day + (h * 60 + m) * M;
+  const pts: [number, number][] = [];
+  for (let k = 0; k < 288; k++) {
+    const t = day + k * 5 * M, h = k / 12;
+    // breakfast at 7:00 rises to 180 at 8:00, back to 110 by 10:00; dinner at 19:00 dips, then a late rise from 22:00 to 23:00
+    let v = 110;
+    if (h >= 7 && h < 10) v = h < 8 ? 110 + (h - 7) * 70 : 180 - (h - 8) * 35;
+    if (h >= 19 && h < 24) v = h < 21 ? 110 - (h - 19) * 20 : h < 22 ? 70 : h < 23 ? 70 + (h - 22) * 60 : 130;
+    if (h >= 2 && h < 2.5) v = 62;   // a 30-minute low at night
+    pts.push([t, v]);
+  }
+  const series = { t: Float64Array.from(pts.map((p) => p[0])), v: Float64Array.from(pts.map((p) => p[1])) };
+  const food = (t: number, name: string, carbs: number, fat: number | null = null, protein: number | null = null) => ({ t, name, detail: null, carbs, fat, protein, kcal: null, fiber: null });
+  const sheet = D.buildDay(day, D.DEFAULT_STARTS, {
+    foods: [food(at(7), 'Toast', 30, 3, 5), food(at(7, 5), 'Milk', 12, 4, 4), food(at(15), 'Rice', 45), food(at(19), 'Nuggets + fries', 58, 31, 19), food(at(0, 30), 'Late snack', 10)],
+    doses: [{ t: at(6, 50), units: 3, type: 'rapid', purpose: 'meal' }, { t: at(18, 55), units: 4, type: 'rapid', purpose: 'meal' }, { t: at(13), units: 1, type: 'rapid', purpose: 'correction' }, { t: at(19, 0), units: 11, type: 'long', purpose: null }],
+    pricks: [{ t: at(6, 55), mg: 104 }], treatments: [{ t: at(2, 10), name: 'Juice', carbs: 15 }], activities: [{ t: at(17), text: 'Swimming 30 min' }],
+    series, low: 70, high: 180,
+  });
+  const s = Object.fromEntries(sheet.slots.map((x) => [x.key, x]));
+  test('dietitian sheet: foods go to their column by time; night food and low treatments are kept apart', () => {
+    assert.deepEqual(s.breakfast.foods.map((f) => f.name), ['Toast', 'Milk']); assert.equal(s.breakfast.carbs, 42);
+    assert.deepEqual(s.lunch.foods.map((f) => f.name), ['Rice']); assert.equal(s.snack1.foods.length, 0);
+    assert.deepEqual(sheet.night.map((f) => f.name), ['Late snack']);
+    assert.deepEqual(sheet.treatments.map((x) => x.name), ['Juice']);
+    assert.equal(sheet.totals.carbs, 42 + 45 + 58 + 10, 'low treatments are not counted as food');
+  });
+  test('dietitian sheet: before eating prefers a finger-prick; after = the reading 2 hours after the meal starts', () => {
+    assert.deepEqual(s.breakfast.before, { mg: 104, t: at(6, 55), prick: true });
+    assert.equal(s.breakfast.after!.t, at(9)); assert.equal(Math.round(s.breakfast.after!.mg), 145);
+    assert.equal(s.lunch.before!.prick, false);
+  });
+  test('dietitian sheet: insulin goes with its meal; the rest (corrections) and Tresiba are listed apart', () => {
+    assert.deepEqual(s.breakfast.doses.map((x) => x.units), [3]); assert.deepEqual(s.dinner.doses.map((x) => x.units), [4]);
+    assert.deepEqual(s.lunch.doses, [], 'the 13:00 dose is 2 hours before lunch');
+    assert.deepEqual(sheet.otherDoses.map((x) => x.units), [1]); assert.equal(sheet.totals.basal, 11); assert.equal(sheet.totals.rapid, 8);
+  });
+  test('dietitian sheet: fatty meal noted, missing fat said so, and a late rise found 2–5 h after', () => {
+    assert.equal(s.dinner.fatty, true); assert.equal(s.breakfast.fatty, false); assert.equal(s.lunch.noFatData, true);
+    assert.ok(s.dinner.bump, 'dinner had a late rise'); assert.ok(s.dinner.bump!.rise >= 36); assert.ok(s.dinner.bump!.peakAt > at(22) && s.dinner.bump!.peakAt <= at(24));
+    assert.equal(s.breakfast.bump, null, 'falling after breakfast is no late rise');
+    assert.equal(D.lateBump(series, at(19), [at(21)]), null, 'food eaten before the rise explains it');
+  });
+  test('dietitian sheet: the day\'s glucose and its lows', () => {
+    assert.equal(sheet.lows.length, 1); assert.equal(sheet.lows[0].nadir, 62); assert.ok(sheet.lows[0].minutes >= 25);
+    assert.ok(sheet.glucose.inRange! > 80); assert.equal(sheet.glucose.min, 62);
+    assert.equal(D.slotOf(4 * 60 + 59, D.DEFAULT_STARTS), null); assert.equal(D.slotOf(16 * 60, D.DEFAULT_STARTS), 'snack2');
+  });
+}
+
 console.log('short names');
 {
   const { shortName } = await import('../shortName');

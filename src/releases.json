@@ -1,6 +1,22 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.4.0",
+    "notes": [
+      "جديد: جدول أخصائية التغذية (المزيد). كل يوم في صفحة A4 أفقية بشعار ليان: الإفطار وسناك 1 والغداء وسناك 2 والعشاء، مع الوجبة والكارب والسكر قبل الأكل وبعد ساعتين والإنسولين.",
+      "ملاحظات تلقائية: وجبة دسمة (الدهون والبروتين)، وارتفاع متأخر بين ساعتين وخمس ساعات بعد الوجبة.",
+      "أسفل كل صفحة: رسم السكر لليوم، ومجموع الكارب والدهون والبروتين والسعرات، والإنسولين السريع والطويل، والانخفاضات وعلاجها، والنشاط.",
+      "تختارون الأيام وأوقات الوجبات، ثم «حفظ PDF»."
+    ],
+    "notes_en": [
+      "New: Dietitian sheet (More). One A4 landscape page per day with Layan’s logo: breakfast, snack 1, lunch, snack 2 and dinner, with the meal, carbs, glucose before eating and 2 hours after, and insulin.",
+      "Automatic notes: fatty meal (fat and protein), and a late rise 2 to 5 hours after the meal.",
+      "At the bottom of each page: the day’s glucose graph, total carbs, fat, protein and calories, rapid and long-acting insulin, lows and their treatment, and activity.",
+      "Choose the days and meal times, then “Save PDF”."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.3.1",
     "notes": [
       "«أكل متكرر»: أسماء أقصر على البطاقات (بدون Kids وملاحظات السكر، وحجم الكوب للعبوات الكبيرة). الاسم الكامل يبقى في السجل والمنتجات."
