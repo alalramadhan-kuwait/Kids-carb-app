@@ -25,6 +25,8 @@ export function useQuickItems() {
   return { items, reload: load };
 }
 
+export { rankQuick } from './quickRank';
+
 /** Logs one serving as a meal or snack entry (with the glucose at the time if it is recent). Returns the entry id. */
 export async function logQuick(q: QuickItem): Promise<string> {
   const { data: g } = await supabase.from('glucose_readings').select('taken_at,mg_dl,trend').order('taken_at', { ascending: false }).limit(1).maybeSingle();

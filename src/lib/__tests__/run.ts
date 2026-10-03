@@ -1570,6 +1570,17 @@ console.log('low treatments');
   });
 }
 
+console.log('frequent foods');
+{
+  const { rankQuick } = await import('../quickRank');
+  test('frequent foods: most logged first (history or one-tap uses), then most recent, then name', () => {
+    const q = (name: string, uses: number, last_used: string | null = null) => ({ name, uses, last_used });
+    const items = [q('B juice', 0), q('A milk', 0), q('Cocktail', 1), q('Sandwich', 4), q('C bar', 0, '2026-10-02T10:00:00Z')];
+    const history = [{ name: 'Cocktail' }, { name: 'Cocktail' }, { name: 'Cocktail' }, { name: 'Sandwich' }, { name: 'Rice' }];
+    assert.deepEqual(rankQuick(items, history).map((x) => x.name), ['Sandwich', 'Cocktail', 'C bar', 'A milk', 'B juice']);
+  });
+}
+
 console.log('iphone widget');
 {
   const { widgetLoader } = await import('../widgetScript');

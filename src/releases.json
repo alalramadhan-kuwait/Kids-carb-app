@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.2.3",
+    "notes": [
+      "«أكل متكرر» مرتّب دائمًا من الأكثر تسجيلًا، في شبكة مرتبة: الاسم على سطرين كحد أقصى والكارب كبير في نفس المكان دائمًا."
+    ],
+    "notes_en": [
+      "“Frequent foods” is always sorted by most logged, in a tidy grid: the name on up to two lines and the carbs large, always in the same place."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.2.2",
     "notes": [
       "الويدجت: الرسم يملأ العرض من الطرف إلى الطرف، وصورة ليان واسمها والإنسولين والكارب الفعّالان في الأعلى بجانب القراءة."

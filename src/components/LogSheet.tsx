@@ -12,7 +12,7 @@ import { t, tMaybe } from '../i18n';
 import { KIND_STYLE, type KindKey } from '../lib/kinds';
 import { usualLowTreatments } from '../lib/lowUsual';
 import { DoseCalculator } from './DoseCalculator';
-import { logQuick, useQuickItems } from '../lib/quick';
+import { logQuick, rankQuick, useQuickItems } from '../lib/quick';
 import { brandsOf, sameBrand } from '../lib/brand';
 import { ProductForm } from './ProductForm';
 import { ProductPicker } from './ProductPicker';
@@ -74,7 +74,8 @@ export function LogSheet({ open, onClose, low = false }: { open: boolean; onClos
   const [picked, setPicked] = useState<Product | null>(null);
   const [newProduct, setNewProduct] = useState(false);              // entering a product from the box in hand   // frequent foods of one brand only
   const brands = useMemo(() => brandsOf(quick.items), [quick.items]);
-  const quickShown = brandPick ? quick.items.filter((q) => sameBrand(q.brand, brandPick)) : quick.items.slice(0, 10);
+  const ranked = useMemo(() => rankQuick(quick.items, history), [quick.items, history]);
+  const quickShown = brandPick ? ranked.filter((q) => sameBrand(q.brand, brandPick)) : ranked.slice(0, 6);
   const usualLow = useMemo(() => usualLowTreatments(history, events), [history, events]);
 
   const reset = () => {
@@ -167,9 +168,10 @@ export function LogSheet({ open, onClose, low = false }: { open: boolean; onClos
                   {brands.map((b) => <Chip key={b} active={sameBrand(brandPick, b)} onClick={() => setBrandPick(b)}><bdi>{b}</bdi></Chip>)}
                 </div>
               )}
-              <div className={cx('-mx-4 flex gap-2 px-4 pb-1', brandPick ? 'flex-wrap' : 'overflow-x-auto')}>
+              {/* an even grid, most used first: the name on up to two lines, the carbs always in the same place */}
+              <div className="grid grid-cols-2 gap-2">
                 {quickShown.map((q) => (
-                  <button key={q.id} disabled={busy} className={cx('flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium', KIND_STYLE.meal.soft)}
+                  <button key={q.id} disabled={busy} className={cx('flex min-h-[60px] min-w-0 items-center gap-2 rounded-2xl px-3 py-2 text-start active:opacity-80', KIND_STYLE.meal.soft)}
                     onClick={async () => {
                       setBusy(true);
                       try {
@@ -177,7 +179,8 @@ export function LogSheet({ open, onClose, low = false }: { open: boolean; onClos
                         toast(t('تم التسجيل: {x}', { x: `${tMaybe(q.name)} · ${t('{g} غ', { g: fmt(q.carbs) })}` }), { label: t('تراجع'), run: async () => { await deleteHistory(id); await reload(); } });
                       } catch (e) { toast(t('تعذّر الحفظ: {e}', { e: (e as Error).message })); } finally { setBusy(false); }
                     }}>
-                    <bdi>{tMaybe(q.name)}</bdi><span className="num opacity-70">{fmt(q.carbs)}</span>
+                    <span className="line-clamp-2 min-w-0 flex-1 text-[13px] font-medium leading-snug"><bdi>{tMaybe(q.name)}</bdi></span>
+                    <span className="flex w-12 shrink-0 flex-col items-center leading-none"><b className="num text-lg">{fmt(q.carbs)}</b><span className="mt-0.5 text-[10px] font-medium opacity-70">{t('غ كارب')}</span></span>
                   </button>
                 ))}
               </div>
