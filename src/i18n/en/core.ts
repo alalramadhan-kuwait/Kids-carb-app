@@ -145,6 +145,8 @@ export const core: Record<string, string> = {
   'عند الاستيقاظ': 'At waking',
   'غ': 'g',
   'وحدة': 'U',
+  'كلها': 'All',
+  'أكلت:': 'She ate:',
   'غ كارب': 'g carbs',
   'في نهايتها': 'At the end',
   'كارب غير مكتمل': 'Carbs incomplete',

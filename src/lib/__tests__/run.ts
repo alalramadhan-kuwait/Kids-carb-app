@@ -1370,6 +1370,12 @@ console.log('label per 100');
   test('a 135 ml box from the per-100 ml label', () => {
     assert.deepEqual(P.fromPer100(label, 135), { carbs: 12.7, fat: 2.7, protein: 4.1, fiber: 0, kcal: 86 });
     assert.deepEqual(P.fromPer100(label, null), P.EMPTY, 'no amount, no serving');
+    // half of it: every value halves; on a label (per 100) the amount halves and the printed values stay
+    const apple = { mode: 'serving' as const, serving: { carbs: 13.8, fat: 0.2, protein: 0.3, fiber: 2.4, kcal: 52 }, per100: P.EMPTY, amount: null, unit: 'g' as const };
+    assert.deepEqual(P.scaled(apple, 0.5).serving, { carbs: 6.9, fat: 0.1, protein: 0.2, fiber: 1.2, kcal: 26 });
+    const box = { mode: 'per100' as const, serving: P.EMPTY, per100: label, amount: 200, unit: 'ml' as const };
+    assert.equal(P.scaled(box, 0.5).amount, 100); assert.deepEqual(P.scaled(box, 0.5).per100, label);
+    assert.equal(P.totalsOf(P.scaled(apple, 2)).carbs, 27.6);
   });
   test('per-100 values over 100 g are refused (a serving typed in the wrong box); the amount is required', () => {
     const s = { mode: 'per100' as const, serving: P.EMPTY, per100: label, amount: 135, unit: 'ml' as const };

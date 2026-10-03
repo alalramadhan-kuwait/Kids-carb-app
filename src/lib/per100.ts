@@ -27,3 +27,12 @@ export function nutrProblem(s: NutrState): 'carbs' | 'per100' | 'amount' | 'valu
   if (![t.carbs, t.fat, t.protein, t.fiber].every((v) => ok(v, 300)) || !ok(t.kcal, 3000)) return 'values';
   return null;
 }
+
+/** The part of it she ate (½ of a portion, 2 portions…): every value scales together; per-100 values stay as printed
+ *  and the amount scales instead. */
+export function scaled(s: NutrState, part: number): NutrState {
+  if (s.mode === 'per100') return { ...s, amount: s.amount === null ? null : r1(s.amount * part) };
+  const g = (v: number | null) => (v === null ? null : r1(v * part));
+  const v = s.serving;
+  return { ...s, serving: { carbs: g(v.carbs), fat: g(v.fat), protein: g(v.protein), fiber: g(v.fiber), kcal: v.kcal === null ? null : Math.round(v.kcal * part) } };
+}

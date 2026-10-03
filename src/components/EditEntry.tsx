@@ -7,7 +7,7 @@ import type { EventRow, HistoryEntry } from '../lib/types';
 import { Alert, Btn, NumInput, Toggle, cx, toast } from './ui';
 import { useQuickItems } from '../lib/quick';
 import { brandsOf } from '../lib/brand';
-import { nutrProblem, totalsOf, type NutrState } from '../lib/per100';
+import { nutrProblem, scaled, totalsOf, type NutrState } from '../lib/per100';
 import { NutritionFields, nutrStateFrom } from './NutritionFields';
 import { TimePicker } from './TimePicker';
 import { t, tr } from '../i18n';
@@ -18,6 +18,9 @@ const PROBLEM: Record<EditProblem, string> = tr({ // i18n-ok: values translated 
 });
 
 /** Change a logged entry: time, amount and note; for a meal also its name, brand and nutrition. Recorded (who and when). */
+// the part of the portion she ate
+const PARTS: [number, () => string][] = [[0.25, () => '¼'], [0.5, () => '½'], [0.75, () => '¾'], [1, () => t('كلها')], [1.5, () => '1½'], [2, () => '2×']];
+
 export function EditEntry({ e, h, onDone, onCancel }: { e?: EventRow; h?: HistoryEntry; onDone: () => void; onCancel: () => void }) {
   const { me, settings, reload, products } = useData();
   const quick = useQuickItems();
@@ -35,10 +38,16 @@ export function EditEntry({ e, h, onDone, onCancel }: { e?: EventRow; h?: Histor
   const [note, setNote] = useState((h ? h.notes : e!.note) ?? '');
   const [brand, setBrand] = useState(h?.brand ?? '');
   const [n, setN] = useState<NutrState>(() => nutrStateFrom({ carbs: h?.total_carbs ?? e?.carbs_g ?? null, fat: h?.total_fat ?? null, protein: h?.total_protein ?? null, fiber: h?.total_fiber ?? null, kcal: h?.total_kcal ?? null }));
+  // how much of it she ate: the values as they were before choosing (or as last typed) times the part
+  const [base, setBase] = useState<NutrState>(n);
+  const [part, setPart] = useState(1);
+  const typeIn = (v: NutrState) => { setN(v); setBase(v); setPart(1); };
+  const eat = (f: number) => { setPart(f); setN(scaled(base, f)); };
   const tot = totalsOf(n);
   const inQuick = !!h && quick.items.some((q) => q.name === h.name);
   const [toQuick, setToQuick] = useState<boolean | null>(null);           // null: follow the default below
-  const keep = toQuick ?? (asMeal ? false : inQuick || !!brand.trim());                    // a branded product is worth keeping one tap away
+  // a part portion is not what the frequent food is: it is not saved there unless asked
+  const keep = toQuick ?? (asMeal || part !== 1 ? false : inQuick || !!brand.trim());                    // a branded product is worth keeping one tap away
   const brands = brandsOf([...quick.items, ...products.map((p) => ({ brand: p.brand }))]);
   const [busy, setBusy] = useState(false);
   const draft: EditDraft = { t: whenMs, units, carbs, bg: bg === null ? null : toMgdl(bg, unit), minutes, name, note, ...(food ? { carbs: tot.carbs, brand, fat: tot.fat, protein: tot.protein, fiber: tot.fiber, kcal: tot.kcal, toQuick: keep,
@@ -77,7 +86,18 @@ export function EditEntry({ e, h, onDone, onCancel }: { e?: EventRow; h?: Histor
         </div>
       )}
       {kind === 'insulin' && <L label={e?.insulin_type === 'long' ? t('وحدات الإنسولين الطويل') : t('وحدات الإنسولين السريع')}><NumInput className={num} value={units} onChange={setUnits} /></L>}
-      {kind === 'meal' && <NutritionFields s={n} set={setN} />}
+      {kind === 'meal' && <NutritionFields s={n} set={typeIn} />}
+      {kind === 'meal' && (
+        <div className="flex items-center gap-1.5">
+          <span className="shrink-0 text-sm text-slate-600">{t('أكلت:')}</span>
+          <div className="flex min-w-0 flex-1 gap-1">
+            {PARTS.map(([f, l]) => (
+              <button key={f} type="button" onClick={() => eat(f)} aria-pressed={part === f}
+                className={cx('min-h-[36px] flex-1 rounded-lg text-sm font-bold', part === f ? 'bg-brand text-white' : 'bg-slate-50 text-slate-600')}>{l()}</button>
+            ))}
+          </div>
+        </div>
+      )}
       {kind === 'meal' && (h?.lines.length ?? 0) > 1 && <p className="-mt-1 text-[11px] text-slate-500">{t('وجبة من عدة أصناف: يتغير المجموع فقط.')}</p>}
       {(kind === 'carbs' || kind === 'treatment') && <L label={t('الكارب (غ)')}><NumInput className={num} value={carbs} onChange={setCarbs} /></L>}
       {kind === 'carbs' && (
