@@ -168,7 +168,7 @@ export function RecipeView() {
                       </div>
                     </div>
                     <div className="w-20 shrink-0"><NumInput aria-label={t('كمية {name}', { name: lineName(l) })} value={l.ing.quantity} onChange={(v) => v && setOver((o) => ({ ...o, [l.ing.id]: v }))} /></div>
-                    <div className="w-10 shrink-0 text-xs text-slate-500">{unitText(l.ing.unit)}</div>
+                    <div className="w-12 shrink-0 text-xs leading-tight text-slate-500">{l.ing.unit === 'serving' && l.product?.serving_size ? t('× {n} {u}', { n: fmt(l.product.serving_size), u: unitText(l.product.unit) }) : unitText(l.ing.unit)}</div>
                     <div className="num w-14 shrink-0 text-end text-lg font-bold">{fmt(l.carbs)}</div>
                   </li>
                 ))}

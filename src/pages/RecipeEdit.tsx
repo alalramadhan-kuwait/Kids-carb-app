@@ -13,6 +13,10 @@ import { ProductPicker } from '../components/ProductPicker';
 interface Row { key: string; role: Role; pick: string; label: string; quantity: number | null; unit: Unit; state: State; qty_confirmed: boolean; note: string }
 let k = 0;
 const UNIT_WORD: Record<Unit, () => string> = { g: () => t('غ'), ml: () => t('مل'), serving: () => t('حبة/حصة'), tbsp: () => t('ملعقة كبيرة') };
+// foods counted in pieces (a slice, a croissant, a nugget): a new line starts at 1 piece. Everything else (spreads,
+// cream, honey, drinks, rice) starts in grams or ml, so a typed 50 means 50 g, never 50 servings.
+const PIECE_CATS = new Set(['توست', 'خبز', 'صمون', 'معجنات', 'كيك', 'بسكويت', 'سندويشات', 'ناجت', 'برغر لحم', 'بيض']); // i18n-ok: stored values
+const byPiece = (p: { serving_size: number | null; category: string | null; unit: string }) => !!p.serving_size && p.unit === 'g' && PIECE_CATS.has(p.category ?? '');
 /** A small toggle for the ingredient card (the page's chips are too big for three rows of them). */
 const Mini = ({ on, click, children }: { on: boolean; click: () => void; children: React.ReactNode }) => (
   <button type="button" onClick={click} aria-pressed={on}
@@ -65,11 +69,11 @@ export default function RecipeEdit() {
     const p = pick.startsWith('prod:') ? products.find((x) => x.id === pick.slice(5)) : null;
     if (picking === 'new') {
       const r = blank();
-      setRows((rs) => [...rs, { ...r, pick, ...(p?.serving_size ? { unit: 'serving' as Unit, quantity: 1 } : p ? { unit: p.unit } : {}) }]);
+      setRows((rs) => [...rs, { ...r, pick, ...(p && byPiece(p) ? { unit: 'serving' as Unit, quantity: 1 } : p ? { unit: p.unit } : {}) }]);
     } else if (picking) {
       const cur = rows.find((r) => r.key === picking);
       const fits = !p || !cur || cur.unit === 'tbsp' || (cur.unit === 'serving' ? !!p.serving_size : cur.unit === p.unit);
-      set(picking, { pick, ...(fits ? {} : p?.serving_size ? { unit: 'serving' as Unit, quantity: 1 } : { unit: p!.unit }) });
+      set(picking, { pick, ...(fits ? {} : p && byPiece(p) ? { unit: 'serving' as Unit, quantity: 1 } : { unit: p!.unit }) });
     }
     setPicking(null);
   };
@@ -142,9 +146,19 @@ export default function RecipeEdit() {
                 <div className="flex items-center gap-2">
                   <div className="w-20 shrink-0"><NumInput aria-label={t('الكمية')} placeholder={t('الكمية')} value={r.quantity} onChange={(v) => set(r.key, { quantity: v, qty_confirmed: true })} /></div>
                   <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
-                    {units.map((u) => <Mini key={u} on={r.unit === u} click={() => set(r.key, { unit: u })}>{UNIT_WORD[u]()}</Mini>)}
+                    {/* a serving says what it is (a 15 ml spoon is not a "piece") */}
+                    {units.map((u) => <Mini key={u} on={r.unit === u} click={() => set(r.key, { unit: u })}>
+                      {u === 'serving' && p?.serving_size ? t('حصة {n} {u}', { n: fmt(p.serving_size), u: UNIT_WORD[p.unit]() }) : UNIT_WORD[u]()}
+                    </Mini>)}
                   </div>
                 </div>
+                {/* "50" with servings selected is almost always 50 g or ml: say what it adds up to, offer the switch */}
+                {p && r.unit === 'serving' && p.serving_size && (r.quantity ?? 0) > 6 && (
+                  <div className="flex items-center gap-2 rounded-lg bg-near-soft px-2 py-1.5 text-xs text-slate-700">
+                    <span className="min-w-0 flex-1">{t('{n} حصص = {total}. هل تقصد {amount}؟', { n: fmt(r.quantity!), total: `${fmt(r.quantity! * p.serving_size)} ${UNIT_WORD[p.unit]()}`, amount: `${fmt(r.quantity!)} ${UNIT_WORD[p.unit]()}` })}</span>
+                    <button className="shrink-0 rounded-full bg-white px-3 py-1 font-bold text-brand ring-1 ring-brand" onClick={() => set(r.key, { unit: p.unit })}>{t('نعم، {u}', { u: UNIT_WORD[p.unit]() })}</button>
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center gap-1.5">
                   {(['main', 'drink', 'snack'] as Role[]).map((ro) => <Mini key={ro} on={r.role === ro} click={() => set(r.key, { role: ro })}>{ROLE_WORD[ro]()}</Mini>)}
                   {cookable && <>
@@ -183,9 +197,11 @@ export default function RecipeEdit() {
         </Card>
 
         {existing && <Btn kind="danger" block onClick={async () => { if (confirm(t('حذف الوصفة نهائيًا؟ سجل الوجبات السابقة يبقى كما هو.'))) { await deleteRecipe(existing.id); await reload(); nav('/recipes', { replace: true }); } }}>{t('حذف الوصفة')}</Btn>}
+        {/* room for the save bar, so the last field is never hidden under it */}
+        <div className="h-28" aria-hidden />
       </div>
 
-      <div className="fixed inset-x-0 bottom-[68px] z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-[calc(68px+env(safe-area-inset-bottom))] z-30 border-t border-slate-200 bg-white/95 p-3 backdrop-blur">
         <div className="mx-auto max-w-2xl space-y-2">
           {meal.complete && meal.level === 'over' && <Alert tone="over">{t('تحذير: تتجاوز {max}غ كارب. يمكنك الحفظ لكنها لن تُقترح.', { max: settings.max_meal_carbs })}</Alert>}
           {meal.complete && prev !== null && Math.abs(prev - meal.total.carbs) >= 0.05 && (

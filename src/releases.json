@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.11.1",
+    "notes": [
+      "الوصفات: القشطة والعسل والمشروبات تبدأ بالغرام أو المل لا بالحصة، فرقم 50 يعني 50 مل. زر الحصة يكتب حجمها (مثل «حصة 15 مل»)، وإن كتبتم رقمًا كبيرًا مع الحصة يسألكم «هل تقصد 50 مل؟» بزر للتحويل.",
+      "صفحة الوصفة تعرض حجم الحصة بجانب الكمية (× 15 مل) بدل كلمة طويلة تغطي الكارب، وزر الحفظ لم يعد يختفي تحت شريط التطبيق."
+    ],
+    "notes_en": [
+      "Recipes: cream, honey and drinks start in grams or ml, not servings, so 50 means 50 ml. The serving button shows its size (e.g. “serving 15 ml”), and a large number with servings asks “Did you mean 50 ml?” with a button to switch.",
+      "The recipe page shows the serving size next to the amount (× 15 ml) instead of a long word over the carbs, and the save bar no longer hides under the app’s tab bar."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.11.0",
     "notes": [
       "إضافة وصفة صارت أسهل: «+ إضافة مكوّن» يفتح قائمة المنتجات بالصور والبحث والشركات بدل القائمة الطويلة، وكل مكوّن بطاقة صغيرة فيها الكمية وأزرار الوحدة والوجبة/مشروب/سناك والكارب مباشرة. الحبة تُختار تلقائيًا إن كان لها وزن معروف، وزر «قبل/بعد الطبخ» يظهر فقط للأرز والباستا."
