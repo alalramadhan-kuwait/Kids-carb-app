@@ -1744,6 +1744,8 @@ console.log('iphone widget');
     const got = /IOB ([\d.]+)u  COB (\d+)g/.exec(m.texts);
     assert.ok(got, m.texts);
     assert.ok(Math.abs(Number(got![1]) - iob) <= 0.051 && Math.abs(Number(got![2]) - cob) <= 0.51, `${got![0]} vs IOB ${iob} COB ${cob}`);
+    const circ = (await run('accessoryCircular', { ...data, onboard: ob })).texts;
+    assert.ok(circ.includes(got![1] + 'u') && circ.includes(got![2] + 'g') && /6\.1/.test(circ), 'the lock-screen circle shows both: ' + circ);
     const med = (await run('medium', { ...data, onboard: ob })).texts;
     assert.ok(med.includes(got![1] + 'u') && med.includes(got![2] + 'g'), 'the side panel shows both: ' + med);
     assert.doesNotMatch((await run('medium', { ...data, onboard: { ...ob, dia: null, peak: null, absorb: null } })).texts, /IOB|COB/, 'nothing when the care team has not set the parameters');

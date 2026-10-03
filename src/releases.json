@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.9.2",
+    "notes": [
+      "ودجت شاشة القفل الدائرية: تعرض الآن الأنسولين الفعّال (IOB) والكارب المتبقي (COB) تحت القراءة."
+    ],
+    "notes_en": [
+      "Round lock-screen widget: now shows insulin on board (IOB) and carbs on board (COB) under the reading."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.9.1",
     "notes": [
       "الوصفات: زر «مع المشروب» أيضًا، لإلغاء المشروب هذه المرة فقط إذا ما شربته."

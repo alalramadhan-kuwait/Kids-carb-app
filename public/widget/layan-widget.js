@@ -231,8 +231,20 @@ if (fam === "accessoryInline") {
   text(w, v ? name + " " + v.value + " " + v.arrow + " · " + v.age : name + " —", 12);
 } else if (fam === "accessoryCircular") {
   w.addAccessoryWidgetBackground = true;
-  text(w, v ? v.value : "—", 18, { bold: true }).centerAlignText();
-  text(w, v ? v.arrow || v.age : "", 11).centerAlignText();
+  const ob = v && v.onboard;
+  if (ob && (ob.iob || ob.cob)) {
+    // a small circle: the value and arrow on one line, then insulin and carbs on board, each on its own line
+    text(w, v.value + (v.arrow ? " " + v.arrow : ""), 15, { bold: true }).centerAlignText();
+    for (const [icon, val] of [["syringe.fill", ob.iob], ["fork.knife", ob.cob]]) {
+      if (!val) continue;
+      const r = w.addStack();
+      r.centerAlignContent();
+      r.addSpacer(); symbol(r, icon, "#ffffff", 9); r.addSpacer(2); text(r, val, 10, { medium: true }); r.addSpacer();
+    }
+  } else {
+    text(w, v ? v.value : "—", 18, { bold: true }).centerAlignText();
+    text(w, v ? v.arrow || v.age : "", 11).centerAlignText();
+  }
 } else if (fam === "accessoryRectangular") {
   text(w, v ? v.value + " " + v.arrow : name + " —", 22, { bold: true });
   text(w, v ? v.age + (v.stale ? "" : " · " + v.word) : d && d.error === "invalid" ? W.expired : W.noReading, 11);
