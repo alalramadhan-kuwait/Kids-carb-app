@@ -11,6 +11,7 @@ import { Alert, Btn, Chip, Field, NumInput, Sheet, cx, inputCls, toast } from '.
 import { t, tMaybe } from '../i18n';
 import { KIND_STYLE, type KindKey } from '../lib/kinds';
 import { usualLowTreatments } from '../lib/lowUsual';
+import { shortName } from '../lib/shortName';
 import { DoseCalculator } from './DoseCalculator';
 import { logQuick, rankQuick, useQuickItems } from '../lib/quick';
 import { brandsOf, sameBrand } from '../lib/brand';
@@ -179,7 +180,7 @@ export function LogSheet({ open, onClose, low = false }: { open: boolean; onClos
                         toast(t('تم التسجيل: {x}', { x: `${tMaybe(q.name)} · ${t('{g} غ', { g: fmt(q.carbs) })}` }), { label: t('تراجع'), run: async () => { await deleteHistory(id); await reload(); } });
                       } catch (e) { toast(t('تعذّر الحفظ: {e}', { e: (e as Error).message })); } finally { setBusy(false); }
                     }}>
-                    <span className="line-clamp-2 min-w-0 flex-1 text-[13px] font-medium leading-snug"><bdi>{tMaybe(q.name)}</bdi></span>
+                    <span className="line-clamp-2 min-w-0 flex-1 text-[13px] font-medium leading-snug" title={tMaybe(q.name)}><bdi>{shortName(tMaybe(q.name))}</bdi></span>
                     <span className="flex w-12 shrink-0 flex-col items-center leading-none"><b className="num text-lg">{fmt(q.carbs)}</b><span className="mt-0.5 text-[10px] font-medium opacity-70">{t('غ كارب')}</span></span>
                   </button>
                 ))}

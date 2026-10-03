@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.3.1",
+    "notes": [
+      "«أكل متكرر»: أسماء أقصر على البطاقات (بدون Kids وملاحظات السكر، وحجم الكوب للعبوات الكبيرة). الاسم الكامل يبقى في السجل والمنتجات."
+    ],
+    "notes_en": [
+      "“Frequent foods”: shorter names on the cards (no Kids or sugar notes, the cup size for big packs). The full name stays in History and Products."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.3.0",
     "notes": [
       "دليل المنتجات: اختاروا البراند ثم المجموعة (ألبان، مشروبات، حلويات وآيس كريم…) مع عدد المنتجات في كل منها، ثم النوع داخلها (حليب، لبن، روب…)."

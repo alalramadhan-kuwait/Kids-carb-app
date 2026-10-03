@@ -1570,6 +1570,26 @@ console.log('low treatments');
   });
 }
 
+console.log('short names');
+{
+  const { shortName } = await import('../shortName');
+  test('short names on food cards: no kids/sugar/flavour notes, the cup size for big packs, the full name when nothing is left', () => {
+    const cases: [string, string][] = [
+      ['1.2.3 Full Cream Milk (Kids) 125ml', '1.2.3 Milk 125ml'],
+      ['Apple Juice 1 LTR (كوب 200 مل)', 'Apple Juice 200ml'],
+      ['Mojito (lemon & mint) Beverage (0% Sugar) 250ml', 'Mojito 250ml'],
+      ['Premium Chocolate Milk (No Added Sugar) 250ML', 'Chocolate Milk 250ml'],
+      ['Strawberry Ice Cream Cups (No Added Sugar) (كوب 94 غ)', 'Strawberry Ice Cream 94g'],
+      ['Lactose Free - Full Cream Milk 1LTR (كوب 200 مل)', 'Lactose-free Milk 200ml'],
+      ['سناك بار / بسكويت (101 سعرة)', 'سناك بار / بسكويت'],
+      ['Ritz Crackers 39.6g (12 pcs)', 'Ritz Crackers 39.6g (12 pcs)'],
+      ['عصير علبة', 'عصير علبة'],
+      ['(Kids)', '(Kids)'],
+    ];
+    for (const [a, b] of cases) assert.equal(shortName(a), b, a);
+  });
+}
+
 console.log('product groups');
 {
   const { groupOf, groupsIn, typesIn } = await import('../productGroups');
