@@ -166,11 +166,14 @@ async function logo() {
   try { const img = await new Request(APP + "icons/apple-touch-icon.png").loadImage(); fm.writeImage(p, img); return img; } catch (e) { return null; }
 }
 
+// the lock screen draws widgets in one tint and turns dark colours nearly transparent: text there is white
+let LOCK = false;
+
 function text(stack, s, size, opts) {
   const o = opts || {};
   const t = stack.addText(s);
   t.font = o.bold ? Font.boldRoundedSystemFont(size) : o.medium ? Font.mediumSystemFont(size) : Font.systemFont(size);
-  t.textColor = new Color(o.color || C.ink);
+  t.textColor = new Color(LOCK ? "#ffffff" : o.color || C.ink);
   t.lineLimit = 1;
   t.minimumScaleFactor = 0.6;
   return t;
@@ -221,6 +224,7 @@ function headline(r, v, big, showDelta) {
 
 const d = await load();
 const fam = config.widgetFamily || "medium";
+LOCK = fam.startsWith("accessory");
 const w = new ListWidget();
 w.url = APP;
 w.refreshAfterDate = new Date(Date.now() + 5 * MIN);

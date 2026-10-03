@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.9.3",
+    "notes": [
+      "ودجت شاشة القفل: الأرقام صارت بيضاء وواضحة بدل الباهتة."
+    ],
+    "notes_en": [
+      "Lock-screen widget: the numbers are now bright white instead of faint."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.9.2",
     "notes": [
       "ودجت شاشة القفل الدائرية: تعرض الآن الأنسولين الفعّال (IOB) والكارب المتبقي (COB) تحت القراءة."
