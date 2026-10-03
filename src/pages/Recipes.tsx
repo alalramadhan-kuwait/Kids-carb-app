@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { matches } from '../lib/search';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { backTo } from '../lib/nav';
 import { useData } from '../lib/data';
@@ -18,7 +19,7 @@ export function RecipeList() {
   const [cat, setCat] = useState('');
   const [q, setQ] = useState('');
   const cats = [...new Set(candidates.map((c) => c.recipe.category).filter(Boolean))] as string[];
-  const rows = candidates.filter((c) => (!cat || c.recipe.category === cat) && c.recipe.name.includes(q));
+  const rows = candidates.filter((c) => (!cat || c.recipe.category === cat) && matches([c.recipe.name, c.recipe.category], q));
   const nav = useNavigate();
   return (
     <Page title={t('الوصفات')} back={() => backTo(nav, '/meals')} action={<Link to="/recipes/new" className="grid min-h-[44px] place-items-center rounded-xl bg-brand px-4 font-medium text-white">{t('+ إضافة وصفة')}</Link>}>

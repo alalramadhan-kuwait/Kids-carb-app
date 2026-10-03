@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { matches } from '../lib/search';
 import { useData } from '../lib/data';
 import { brandsOf, sameBrand } from '../lib/brand';
 import { fmt } from '../lib/carbs';
@@ -14,9 +15,8 @@ export function ProductPicker({ onPick, category }: { onPick: (p: Product) => vo
   const [brand, setBrand] = useState<string | null>(null);
   const brands = useMemo(() => brandsOf(products), [products]);
   const rows = useMemo(() => {
-    const s = q.trim().toLowerCase();
     return products
-      .filter((p) => (!brand || sameBrand(p.brand, brand)) && (!s || (p.name + ' ' + (p.brand ?? '') + ' ' + (p.category ?? '')).toLowerCase().includes(s)))
+      .filter((p) => (!brand || sameBrand(p.brand, brand)) && matches([p.name, p.brand, p.category], q))
       .sort((a, b) => Number(b.category === category) - Number(a.category === category) || Number(b.available) - Number(a.available) || Number(b.approved) - Number(a.approved) || a.name.localeCompare(b.name))
       .slice(0, 60);
   }, [products, q, brand, category]);

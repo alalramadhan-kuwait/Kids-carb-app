@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { matches } from '../lib/search';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useData } from '../lib/data';
@@ -38,7 +39,7 @@ export function MealResponse() {
 
   const pick = (id: string | null) => setParams(id ? { mode: 'meals', recipe: id } : { mode: 'meals' }, { replace: true });
   if (!recipeId) {
-    const list = recipes.filter((r) => !q.trim() || r.name.includes(q.trim()));
+    const list = recipes.filter((r) => matches([r.name], q));
     return (
       <div className="space-y-3 pb-4">
         <input className={inputCls} placeholder={t('ابحث عن وصفة')} value={q} onChange={(e) => setQ(e.target.value)} />

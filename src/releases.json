@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.12.0",
+    "notes": [
+      "البحث بالعربي أو الإنجليزي في كل مكان (الوجبات، المنتجات، الوصفات، اختيار المنتج): «توست» تجد Milk Toast، و«honey» تجد العسل، و«المطاحن» أو «KFMB» تجد منتجاتها. يبحث من بداية الكلمة، ويتجاهل «ال» و«و» و«ب»، وطريقة كتابة الهمزة والتاء المربوطة."
+    ],
+    "notes_en": [
+      "Search in Arabic or English everywhere (Meals, Products, Recipes, the product picker): «توست» finds Milk Toast, “honey” finds عسل, and «المطاحن» or “KFMB” finds their products. It matches from the start of a word and ignores «ال», «و», «ب» and how hamza or taa marbuta are written."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.11.3",
     "notes": [
       "صفحتا الوصفات والمنتجات فيهما سهم رجوع إلى الوجبات، مثل باقي الصفحات."

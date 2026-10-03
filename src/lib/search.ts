@@ -1,12 +1,90 @@
-// Search that forgives how a word was typed: case, Arabic letter forms (أ إ آ → ا, ة → ه, ى → ي) and diacritics.
-// Every word typed must appear somewhere in the item's text. Pure, tested in Node.
+// Search that forgives how a word was typed: case, Arabic letter forms (أ إ آ → ا, ة → ه, ى → ي) and diacritics,
+// and which language it was typed in: a food or brand word found in an item also counts in the other language
+// (Milk Toast is found by «توست», «عسل» by "honey"). Every word typed must appear somewhere. Pure, tested in Node.
 
 export const norm = (s: string) => s.toLowerCase()
   .replace(/[ً-ْـ]/g, '') // i18n-ok: regex (diacritics, tatweel, letter forms)
   .replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي') // i18n-ok: regex (diacritics, tatweel, letter forms)
+  .replace(/[’'`]/g, '')
   .replace(/\s+/g, ' ').trim();
 
-export function matches(hay: (string | null | undefined)[], query: string): boolean {
+/**
+ * The same thing in Arabic and English (and common spellings). When an item's text contains one of a group as a
+ * word, the whole group is added to what the item can be found by. Brand names are here too. In Kuwait «عيش» is rice.
+ */
+const SAME: string[][] = [ // i18n-ok: data (search words in both languages)
+  ['toast', 'توست'], ['bread', 'خبز'], ['samoon', 'صمون'], ['arabic bread', 'pita', 'خبز عربي'], // i18n-ok: data
+  ['croissant', 'croissants', 'كرواسون', 'كرواسان'], ['puff', 'puffs', 'فطيره', 'فطاير'], // i18n-ok: data
+  ['cake', 'cakes', 'كيك', 'كيكه'], ['biscuit', 'biscuits', 'cookie', 'cookies', 'بسكويت'], ['cracker', 'crackers', 'كراكر'], // i18n-ok: data
+  ['sandwich', 'sandwiches', 'سندويش', 'سندويشات', 'سندويتش', 'ساندويتش'], ['flour', 'طحين'], // i18n-ok: data
+  ['pasta', 'باستا', 'معكرونه', 'مكرونه'], ['spaghetti', 'سباغيتي', 'اسباجيتي'], ['noodles', 'نودلز', 'اندومي'], // i18n-ok: data
+  ['rice', 'رز', 'ارز', 'عيش'], ['potato', 'potatoes', 'بطاط', 'بطاطا', 'بطاطس'], ['fries', 'french fries', 'فرايز'], // i18n-ok: data
+  ['nugget', 'nuggets', 'ناجت', 'ناغيت'], ['burger', 'burgers', 'برغر', 'برجر'], ['pizza', 'بيتزا'], ['shawarma', 'شاورما'], // i18n-ok: data
+  ['chicken', 'دجاج'], ['meat', 'beef', 'لحم'], ['fish', 'سمك'], ['egg', 'eggs', 'بيض', 'بيضه'], // i18n-ok: data
+  ['milk', 'حليب'], ['laban', 'لبن'], ['labneh', 'لبنه'], ['yoghurt', 'yogurt', 'روب', 'زبادي'], // i18n-ok: data
+  ['cheese', 'جبن', 'جبنه'], ['cream cheese', 'جبن كريمي', 'جبنه كريمي'], ['cream', 'قشطه', 'كريمه', 'قيمر'], // i18n-ok: data
+  ['thick cream', 'قشطه', 'قيمر'], ['butter', 'زبده'], ['ice cream', 'ايس كريم', 'ايسكريم', 'بوظه'], // i18n-ok: data
+  ['honey', 'عسل'], ['sugar', 'سكر'], ['chocolate', 'شوكولاته', 'شوكولا', 'شوكلت'], ['dates', 'date', 'تمر'], ['jam', 'مربى'], // i18n-ok: data
+  ['juice', 'عصير'], ['nectar', 'نكتار'], ['water', 'ماء', 'مويه', 'ماي'], ['drink', 'drinks', 'مشروب', 'مشروبات'], ['tea', 'شاي'], // i18n-ok: data
+  ['apple', 'apples', 'تفاح'], ['banana', 'bananas', 'موز'], ['orange', 'oranges', 'برتقال'], ['mango', 'مانجو', 'منجا'], // i18n-ok: data
+  ['strawberry', 'strawberries', 'فراوله'], ['grape', 'grapes', 'عنب'], ['watermelon', 'بطيخ'], ['pineapple', 'اناناس'], // i18n-ok: data
+  ['lemon', 'ليمون'], ['vanilla', 'فانيلا'], ['cocktail', 'كوكتيل'], ['fruit', 'fruits', 'فواكه', 'فاكهه'], ['vegetables', 'خضار'], // i18n-ok: data
+  ['sauce', 'صلصه'], ['ketchup', 'كاتشب'], ['mayonnaise', 'mayo', 'مايونيز'], ['garlic', 'ثوم'], ['zaatar', 'thyme', 'زعتر'], // i18n-ok: data
+  ['white', 'ابيض'], ['brown', 'اسمر'], ['wholemeal', 'whole wheat', 'قمح كامل'], ['kids', 'اطفال'], // i18n-ok: data
+  ['snack', 'snacks', 'سناك', 'سناكات'], ['breakfast', 'فطور', 'ريوق'], ['lunch', 'غدا', 'غداء'], ['dinner', 'عشا', 'عشاء'], // i18n-ok: data
+  ['kdd', 'كي دي دي'], ['kfmb', 'المطاحن', 'مطاحن', 'kuwait flour mills'], ['lusine', 'لوزين'], // i18n-ok: data
+  ['cupcake', 'cupcakes', 'cup cake', 'cup cakes', 'كب كيك', 'كاب كيك'], ['muffin', 'muffins', 'مافن', 'مفن'], ['brownie', 'براوني'], // i18n-ok: data
+  ['wrap', 'wraps', 'tortilla', 'تورتيلا', 'راب'], ['bun', 'buns', 'burger buns', 'خبز برغر'], ['roll', 'rolls', 'رول'], ['hot dog', 'hotdog', 'هوت دوق', 'هوت دوج'], // i18n-ok: data
+  ['ogaily', 'عقيلي'], ['rugag', 'رقاق'], ['shaboura', 'شابوره'], ['logaimat', 'لقيمات'], ['chappati', 'chapati', 'جباتي'], ['tannur', 'تنور'], // i18n-ok: data
+  ['lasagna', 'لازانيا'], ['vermicelli', 'شعيريه'], ['pancake', 'pancakes', 'بان كيك', 'بانكيك'], ['falafel', 'فلافل'], // i18n-ok: data
+  ['halloumi', 'حلوم'], ['feta', 'فيتا'], ['coconut', 'جوز هند'], ['caramel', 'كراميل'], ['coffee', 'latte', 'mocha', 'espresso', 'قهوه'], // i18n-ok: data
+  ['grapefruit', 'جريب فروت'], ['guava', 'جوافه'], ['peach', 'خوخ'], ['pomegranate', 'رمان'], ['apricot', 'مشمش'], ['cherry', 'كرز'], // i18n-ok: data
+  ['raspberry', 'blueberry', 'cranberry', 'توت'], ['tomato', 'طماط', 'طماطم'], ['onion', 'بصل'], ['olive oil', 'زيت زيتون'], // i18n-ok: data
+  ['semolina', 'سميد'], ['wheat', 'قمح'], ['bran', 'نخاله'], ['barley', 'شعير'], ['sesame', 'سمسم'], ['lolly', 'مصاصه'], // i18n-ok: data
+  ['evaporated milk', 'حليب مبخر'], ['pistachio', 'فستق'], ['almond', 'almonds', 'لوز'], // i18n-ok: data
+  ['americana', 'امريكانا'], ['mcdonalds', 'ماكدونالدز', 'ماك'], ['almarai', 'المراعي'], ['ritz', 'ريتز'], // i18n-ok: data
+].map((g) => g.map(norm));
+
+// words that only look like a group's word: "full cream milk" is milk, not cream (قشطة)
+const UNLESS: Record<string, string[]> = { cream: ['full cream', 'half cream', 'ice cream', 'cream cheese', 'cream filled', 'sour cream'] };
+
+const LATIN = /^[a-z0-9 ]+$/;
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// a word of the group standing on its own in the item's text (an Arabic word may carry «و», «ب» or «ال» in front)
+const finders = SAME.map((g) => g.map((w) => LATIN.test(w)
+  ? new RegExp(`(^|[^a-z0-9])${esc(w)}($|[^a-z0-9])`)
+  : new RegExp(`(^|[^\\u0600-\\u06ff])(و|ب)?(ال)?${esc(w)}($|[^\\u0600-\\u06ff])`))); // i18n-ok: regex
+
+const cache = new Map<string, string>();
+/** The item's text, normalised, with the other language's words for what it contains added. */
+export function searchText(hay: (string | null | undefined)[]): string {
+  const key = hay.filter(Boolean).join('\u0001');
+  let out = cache.get(key);
+  if (out !== undefined) return out;
   const h = norm(hay.filter(Boolean).join(' '));
-  return norm(query).split(' ').filter(Boolean).every((w) => h.includes(w));
+  const extra: string[] = [];
+  SAME.forEach((g, i) => {
+    const hh = (UNLESS[g[0]] ?? []).reduce((x, phrase) => x.split(phrase).join(' '), h);
+    if (finders[i].some((re) => re.test(hh))) extra.push(...g);
+  });
+  out = extra.length ? `${h} ${extra.join(' ')}` : h;
+  if (cache.size > 5000) cache.clear();
+  cache.set(key, out);
+  return out;
+}
+
+// the start of a word: typing "ice" finds ice cream, not rice or juice; an Arabic word may carry «ال», «و» or «ب»
+const AR_LEAD = /^(وال|بال|ال|و|ب)/; // i18n-ok: regex
+const tokens = (s: string) => s.split(/[^a-z0-9\u0600-\u06ff]+/).filter(Boolean); // i18n-ok: regex
+
+/** Every word typed must start a word of the item (in either language). */
+export function matches(hay: (string | null | undefined)[], query: string): boolean {
+  const words = tokens(norm(query));
+  if (!words.length) return true;
+  const ts = tokens(searchText(hay));
+  return words.every((w) => {
+    const bare = w.replace(AR_LEAD, '');
+    const ws = bare.length >= 2 && bare !== w ? [w, bare] : [w]; // «الخبز» also as «خبز»
+    return ts.some((x) => ws.some((v) => x.startsWith(v) || x.replace(AR_LEAD, '').startsWith(v)));
+  });
 }

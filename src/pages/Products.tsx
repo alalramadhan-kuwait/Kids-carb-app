@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { matches } from '../lib/search';
 import { Link, useNavigate } from 'react-router-dom';
 import { backTo } from '../lib/nav';
 import { useData } from '../lib/data';
@@ -26,7 +27,7 @@ export function ProductList() {
   const types = g ? typesIn(ofBrand, g) : [];
   const c = types.some((x) => x.cat === cat) ? cat : '';
   const pickBrand = (b: string | null) => { setBrand(b); setGroup(null); setCat(''); };
-  const rows = ofBrand.filter((p) => (!g || groupOf(p.category).key === g) && (!c || p.category === c) && (!onlyHome || p.available) && (p.name + (p.brand ?? '')).toLowerCase().includes(q.toLowerCase()));
+  const rows = ofBrand.filter((p) => (!g || groupOf(p.category).key === g) && (!c || p.category === c) && (!onlyHome || p.available) && matches([p.name, p.brand, p.category], q));
 
   const nav = useNavigate();
   return (

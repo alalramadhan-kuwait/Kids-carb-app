@@ -1616,6 +1616,30 @@ console.log('search');
     assert.ok(!matches(['Chicken Nuggets'], 'nuggets fries'));
     assert.ok(matches(['anything'], '  '));
   });
+  test('search: either language finds the item (foods, types and brands), whole words only', () => {
+    assert.ok(matches(['Milk Toast With Vitamin D3', 'المطاحن', 'توست'], 'توست'));
+    assert.ok(matches(['Milk Toast With Vitamin D3', 'المطاحن'], 'توست المطاحن'));
+    assert.ok(matches(['White Soft Bread', 'المطاحن', 'خبز'], 'kfmb bread'));
+    assert.ok(matches(['عسل', null, 'حلويات'], 'honey'));
+    assert.ok(matches(['قشطة قيمر (Thick Cream)', 'KDD'], 'قشطه'));
+    assert.ok(matches(['قشطة قيمر (Thick Cream)', 'KDD'], 'cream'));
+    assert.ok(matches(['Chocolate Ice Cream 5 LTR', 'KDD'], 'ايس كريم'));
+    assert.ok(matches(['Chicken Nuggets', 'Americana', 'ناجت'], 'دجاج'));
+    assert.ok(matches(['مرق دجاج كويتي مع عيش'], 'rice'), 'in Kuwait «عيش» is rice');
+    assert.ok(matches(['Sliced White Bread', 'لوزين'], 'lusine'));
+    assert.ok(matches(['شاورما دجاج بدون خبز + ثوم'], 'shawarma'));
+    assert.ok(matches(['Royale Yoghurt(Fresh Full Cream) 180 GRM'], 'روب'));
+    // part of another word does not count: "ice" is not in "rice", «لبن» (laban) is not «لبنة» (labneh)
+    assert.ok(!matches(['أرز أبيض مطبوخ'], 'ice cream'));
+    assert.ok(!matches(['Labneh ( Full Fat ) 250 GRM'], 'laban'));
+    assert.ok(!matches(['Orange Juice'], 'تفاح'));
+    assert.ok(!matches(['أرز أبيض مطبوخ', 'Apple Juice'], 'ice'), 'a word is matched from its start');
+    assert.ok(matches(['Chocolate Ice Cream Cups'], 'ice'));
+    assert.ok(matches(['Toast'], 'توس'), 'while typing');
+    assert.ok(matches(['White Soft Bread'], 'الخبز'));
+    assert.ok(!matches(['1.2.3 Full Cream Milk (Kids)', 'KDD'], 'قشطه'), 'full cream milk is milk, not قشطة');
+    assert.ok(!matches(['Ritz Crackers 39.6g (12 pcs)'], '1.2.3'));
+  });
 }
 
 console.log('dietitian sheet');
