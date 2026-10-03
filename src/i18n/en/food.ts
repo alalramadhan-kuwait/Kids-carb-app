@@ -464,4 +464,11 @@ export const food: Record<string, string> = {
   "الكارب الذي تقدّرونه": "Carbs you estimate",
   "تُحفظ مع الكارب الذي تقدّرونه": "Saved with the carbs you estimate",
   "التقدير بالذكاء الاصطناعي متوقف حاليًا. صوّروا الأكل واكتبوا الكارب الذي تقدّرونه: تُحفظ الصورة مع التسجيل لنعيد تقدير الكارب لاحقًا إذا احتجنا. باركود المنتج ما زال يُقرأ.": "The AI estimate is on hold for now. Photograph the food and type the carbs you estimate: the photo is kept with the entry so the carbs can be estimated again later if needed. Product barcodes are still read.",
+  "المجموعة": "Group",
+  "ألبان": "Dairy",
+  "حلويات وآيس كريم": "Sweets and ice cream",
+  "نشويات وخبز": "Starches and bread",
+  "لحوم ودجاج وبيض": "Meat, chicken and eggs",
+  "فواكه وخضار": "Fruit and vegetables",
+  "صلصات": "Sauces",
 };

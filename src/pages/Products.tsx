@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { fmt, targetMiss } from '../lib/carbs';
 import { setAvailable } from '../lib/api';
-import { PRODUCT_CATEGORIES } from '../lib/constants';
+import { groupOf, groupsIn, typesIn } from '../lib/productGroups';
 import { t, tMaybe } from '../i18n';
 import { Badge, Card, Chip, Page, Photo, Toggle, toast } from '../components/ui';
 import { brandsOf, sameBrand } from '../lib/brand';
@@ -12,27 +12,44 @@ import type { Product } from '../lib/types';
 
 export function ProductList() {
   const { products, settings, reload } = useData();
-  const [cat, setCat] = useState('');
+  const [group, setGroup] = useState<string | null>(null);   // dairy, drinks… (within the brand, when one is picked)
+  const [cat, setCat] = useState('');                         // a type inside the group: milk, laban…
   const [q, setQ] = useState('');
   const [onlyHome, setOnlyHome] = useState(false);
   const [brand, setBrand] = useState<string | null>(null);
   const [picked, setPicked] = useState<Product | null>(null);
   const brands = brandsOf(products.map((p) => ({ brand: p.brand })));
-  const cats = [...new Set([...PRODUCT_CATEGORIES.filter((c) => products.some((p) => p.category === c)), ...products.map((p) => p.category)])];
-  const rows = products.filter((p) => (!cat || p.category === cat) && (!brand || sameBrand(p.brand, brand)) && (!onlyHome || p.available) && (p.name + (p.brand ?? '')).toLowerCase().includes(q.toLowerCase()));
+  const ofBrand = products.filter((p) => !brand || sameBrand(p.brand, brand));
+  const groups = groupsIn(ofBrand);
+  const g = groups.some((x) => x.group.key === group) ? group : null;   // a group the brand does not have is ignored
+  const types = g ? typesIn(ofBrand, g) : [];
+  const c = types.some((x) => x.cat === cat) ? cat : '';
+  const pickBrand = (b: string | null) => { setBrand(b); setGroup(null); setCat(''); };
+  const rows = ofBrand.filter((p) => (!g || groupOf(p.category).key === g) && (!c || p.category === c) && (!onlyHome || p.available) && (p.name + (p.brand ?? '')).toLowerCase().includes(q.toLowerCase()));
 
   return (
     <Page title={t('دليل المنتجات')} action={<Link to="/products/new" className="grid min-h-[44px] place-items-center rounded-xl bg-brand px-4 font-medium text-white">{t('+ منتج')}</Link>}>
       <input className="mb-3 min-h-[44px] w-full rounded-xl border border-slate-200 bg-white px-3" placeholder={t('ابحث عن منتج أو شركة')} value={q} onChange={(e) => setQ(e.target.value)} />
-      <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4">
-        <Chip active={!cat} onClick={() => setCat('')}>{t('الكل')}</Chip>
-        {cats.map((c) => <Chip key={c} active={cat === c} onClick={() => setCat(c)}>{tMaybe(c)}</Chip>)}
-      </div>
+      {/* brand first, then its groups (only the ones it has, with counts), then the types inside the chosen group */}
       {brands.length > 0 && (
-        <div className="-mx-4 mb-3 flex items-center gap-1.5 overflow-x-auto px-4">
+        <div className="-mx-4 mb-2 flex items-center gap-1.5 overflow-x-auto px-4">
           <span className="shrink-0 text-xs font-medium text-slate-500">{t('البراند')}</span>
-          <Chip active={!brand} onClick={() => setBrand(null)}>{t('الكل')}</Chip>
-          {brands.map((b) => <Chip key={b} active={sameBrand(brand, b)} onClick={() => setBrand(b)}><bdi>{b}</bdi></Chip>)}
+          <Chip active={!brand} onClick={() => pickBrand(null)}>{t('الكل')}</Chip>
+          {brands.map((b) => <Chip key={b} active={sameBrand(brand, b)} onClick={() => pickBrand(b)}><bdi>{b}</bdi></Chip>)}
+        </div>
+      )}
+      {groups.length > 1 && (
+        <div className="-mx-4 mb-2 flex items-center gap-1.5 overflow-x-auto px-4">
+          <span className="shrink-0 text-xs font-medium text-slate-500">{t('المجموعة')}</span>
+          <Chip active={!g} onClick={() => { setGroup(null); setCat(''); }}>{t('الكل')} <span className="num opacity-60">{ofBrand.length}</span></Chip>
+          {groups.map(({ group: x, n }) => <Chip key={x.key} active={g === x.key} onClick={() => { setGroup(x.key); setCat(''); }}>{x.emoji} {tMaybe(x.label)} <span className="num opacity-60">{n}</span></Chip>)}
+        </div>
+      )}
+      {types.length > 1 && (
+        <div className="-mx-4 mb-2 flex items-center gap-1.5 overflow-x-auto px-4">
+          <span className="shrink-0 text-xs font-medium text-slate-500">{t('النوع')}</span>
+          <Chip active={!c} onClick={() => setCat('')}>{t('الكل')}</Chip>
+          {types.map((x) => <Chip key={x.cat} active={c === x.cat} onClick={() => setCat(x.cat)}>{tMaybe(x.cat)} <span className="num opacity-60">{x.n}</span></Chip>)}
         </div>
       )}
       <label className="mb-3 flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" className="h-5 w-5" checked={onlyHome} onChange={(e) => setOnlyHome(e.target.checked)} /> {t('الموجود بالبيت فقط')}</label>

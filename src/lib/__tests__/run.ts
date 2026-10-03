@@ -1570,6 +1570,17 @@ console.log('low treatments');
   });
 }
 
+console.log('product groups');
+{
+  const { groupOf, groupsIn, typesIn } = await import('../productGroups');
+  test('product groups: categories gather into groups; a brand shows only its groups, with counts, then the types inside', () => {
+    assert.equal(groupOf('روب').key, 'dairy'); assert.equal(groupOf('آيس كريم').key, 'sweets'); assert.equal(groupOf('شيء جديد').key, 'other'); assert.equal(groupOf(null).key, 'other');
+    const kdd = [{ category: 'حليب' }, { category: 'حليب' }, { category: 'لبن' }, { category: 'مشروبات' }, { category: 'آيس كريم' }, { category: 'غريب' }];
+    assert.deepEqual(groupsIn(kdd).map((x) => [x.group.key, x.n]), [['dairy', 3], ['drinks', 1], ['sweets', 1], ['other', 1]]);
+    assert.deepEqual(typesIn(kdd, 'dairy'), [{ cat: 'حليب', n: 2 }, { cat: 'لبن', n: 1 }]);
+  });
+}
+
 console.log('frequent foods');
 {
   const { rankQuick } = await import('../quickRank');

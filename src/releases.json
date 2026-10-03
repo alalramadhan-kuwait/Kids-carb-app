@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.3.0",
+    "notes": [
+      "دليل المنتجات: اختاروا البراند ثم المجموعة (ألبان، مشروبات، حلويات وآيس كريم…) مع عدد المنتجات في كل منها، ثم النوع داخلها (حليب، لبن، روب…)."
+    ],
+    "notes_en": [
+      "Products: pick a brand, then a group (Dairy, Drinks, Sweets and ice cream…) with how many products each has, then a type inside it (Milk, Laban, Yogurt…)."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.2.3",
     "notes": [
       "«أكل متكرر» مرتّب دائمًا من الأكثر تسجيلًا، في شبكة مرتبة: الاسم على سطرين كحد أقصى والكارب كبير في نفس المكان دائمًا."
