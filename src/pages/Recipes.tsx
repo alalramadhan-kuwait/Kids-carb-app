@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { backTo } from '../lib/nav';
 import { useData } from '../lib/data';
 import { Icon } from '../components/Icon';
 import { computeMeal, fmt, problemText, unitText } from '../lib/carbs';
@@ -18,8 +19,9 @@ export function RecipeList() {
   const [q, setQ] = useState('');
   const cats = [...new Set(candidates.map((c) => c.recipe.category).filter(Boolean))] as string[];
   const rows = candidates.filter((c) => (!cat || c.recipe.category === cat) && c.recipe.name.includes(q));
+  const nav = useNavigate();
   return (
-    <Page title={t('الوصفات')} action={<Link to="/recipes/new" className="grid min-h-[44px] place-items-center rounded-xl bg-brand px-4 font-medium text-white">{t('+ إضافة وصفة')}</Link>}>
+    <Page title={t('الوصفات')} back={() => backTo(nav, '/meals')} action={<Link to="/recipes/new" className="grid min-h-[44px] place-items-center rounded-xl bg-brand px-4 font-medium text-white">{t('+ إضافة وصفة')}</Link>}>
       <input className="mb-3 min-h-[44px] w-full rounded-xl border border-slate-200 bg-white px-3" placeholder={t('ابحث عن وصفة')} value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4">
         <Chip active={!cat} onClick={() => setCat('')}>{t('الكل')}</Chip>

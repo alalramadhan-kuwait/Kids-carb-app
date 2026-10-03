@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { backTo } from '../lib/nav';
 import { useData } from '../lib/data';
 import { fmt, targetMiss } from '../lib/carbs';
 import { setAvailable } from '../lib/api';
@@ -27,8 +28,9 @@ export function ProductList() {
   const pickBrand = (b: string | null) => { setBrand(b); setGroup(null); setCat(''); };
   const rows = ofBrand.filter((p) => (!g || groupOf(p.category).key === g) && (!c || p.category === c) && (!onlyHome || p.available) && (p.name + (p.brand ?? '')).toLowerCase().includes(q.toLowerCase()));
 
+  const nav = useNavigate();
   return (
-    <Page title={t('دليل المنتجات')} action={<Link to="/products/new" className="grid min-h-[44px] place-items-center rounded-xl bg-brand px-4 font-medium text-white">{t('+ منتج')}</Link>}>
+    <Page title={t('دليل المنتجات')} back={() => backTo(nav, '/meals')} action={<Link to="/products/new" className="grid min-h-[44px] place-items-center rounded-xl bg-brand px-4 font-medium text-white">{t('+ منتج')}</Link>}>
       <input className="mb-3 min-h-[44px] w-full rounded-xl border border-slate-200 bg-white px-3" placeholder={t('ابحث عن منتج أو شركة')} value={q} onChange={(e) => setQ(e.target.value)} />
       {/* brand first, then its groups (only the ones it has, with counts), then the types inside the chosen group */}
       {brands.length > 0 && (
