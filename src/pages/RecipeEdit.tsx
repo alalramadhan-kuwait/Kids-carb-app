@@ -7,10 +7,18 @@ import { uploadPhoto } from '../lib/supabase';
 import { PRODUCT_CATEGORIES, RECIPE_CATEGORIES } from '../lib/constants';
 import type { Ingredient, Role, State, Unit } from '../lib/types';
 import { isEn, t, tMaybe } from '../i18n';
-import { Alert, Btn, CarbBadge, Card, Field, NumInput, Page, Photo, inputCls, recipeArt, toast } from '../components/ui';
+import { Alert, Btn, CarbBadge, Card, Chip, Field, NumInput, Page, Photo, Sheet, cx, inputCls, recipeArt, toast } from '../components/ui';
+import { ProductPicker } from '../components/ProductPicker';
 
 interface Row { key: string; role: Role; pick: string; label: string; quantity: number | null; unit: Unit; state: State; qty_confirmed: boolean; note: string }
 let k = 0;
+const UNIT_WORD: Record<Unit, () => string> = { g: () => t('غ'), ml: () => t('مل'), serving: () => t('حبة/حصة'), tbsp: () => t('ملعقة كبيرة') };
+/** A small toggle for the ingredient card (the page's chips are too big for three rows of them). */
+const Mini = ({ on, click, children }: { on: boolean; click: () => void; children: React.ReactNode }) => (
+  <button type="button" onClick={click} aria-pressed={on}
+    className={cx('min-h-[32px] rounded-full px-3 text-sm font-medium', on ? 'bg-brand text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200')}>{children}</button>
+);
+const ROLE_WORD: Record<Role, () => string> = { main: () => t('الوجبة'), drink: () => t('مشروب'), snack: () => t('سناك') };
 const blank = (): Row => ({ key: `n${++k}`, role: 'main', pick: '', label: '', quantity: null, unit: 'g', state: 'as_is', qty_confirmed: true, note: '' });
 
 export default function RecipeEdit() {
@@ -33,9 +41,11 @@ export default function RecipeEdit() {
           key: i.id, role: i.role, pick: i.product_id ? `prod:${i.product_id}` : `slot:${i.slot_category}`,
           label: i.label ?? '', quantity: i.quantity, unit: i.unit, state: i.state, qty_confirmed: i.qty_confirmed, note: i.note ?? '',
         }))
-      : [blank()],
+      : [],
   );
   const [busy, setBusy] = useState(false);
+  const [picking, setPicking] = useState<string | null>(null); // a row's key, or 'new'
+  const [noteOpen, setNoteOpen] = useState<string | null>(null);
 
   const slots = useMemo(() => [...new Set([...PRODUCT_CATEGORIES, ...products.map((p) => p.category)])], [products]);
 
@@ -49,9 +59,19 @@ export default function RecipeEdit() {
   const prev = existing?.saved_total_carbs ?? null;
 
   const set = (key: string, patch: Partial<Row>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
-  const pickProduct = (key: string, pick: string) => {
+  // a new line starts at one piece when the label says what a piece weighs (carbs show at once), otherwise in the
+  // product's own unit with the amount to type; changing the product keeps the amount unless the unit no longer fits
+  const choose = (pick: string) => {
     const p = pick.startsWith('prod:') ? products.find((x) => x.id === pick.slice(5)) : null;
-    set(key, { pick, ...(p && (['g', 'ml'] as string[]).includes(rows.find((r) => r.key === key)!.unit) ? { unit: p.unit } : {}) });
+    if (picking === 'new') {
+      const r = blank();
+      setRows((rs) => [...rs, { ...r, pick, ...(p?.serving_size ? { unit: 'serving' as Unit, quantity: 1 } : p ? { unit: p.unit } : {}) }]);
+    } else if (picking) {
+      const cur = rows.find((r) => r.key === picking);
+      const fits = !p || !cur || cur.unit === 'tbsp' || (cur.unit === 'serving' ? !!p.serving_size : cur.unit === p.unit);
+      set(picking, { pick, ...(fits ? {} : p?.serving_size ? { unit: 'serving' as Unit, quantity: 1 } : { unit: p!.unit }) });
+    }
+    setPicking(null);
   };
 
   const save = async () => {
@@ -93,50 +113,66 @@ export default function RecipeEdit() {
 
         <Card className="space-y-3">
           <h2 className="font-bold">{t('المكونات')}</h2>
-          {rows.map((r, idx) => {
+          {rows.map((r) => {
             const line = meal.lines.find((l) => l.ing.id === r.key);
+            const p = line?.product ?? (r.pick.startsWith('prod:') ? products.find((x) => x.id === r.pick.slice(5)) ?? null : null);
+            const slot = r.pick.startsWith('slot:') ? r.pick.slice(5) : null;
+            // only the units that make sense for this product; "piece" only when the label says what one piece weighs
+            const units: Unit[] = p ? [p.unit, ...(p.serving_size ? ['serving' as Unit] : []), 'tbsp'] : ['g', 'ml', 'serving', 'tbsp'];
+            if (!units.includes(r.unit)) units.push(r.unit);
+            const cookable = !!p?.cooked_yield || r.state !== 'as_is';
             return (
-              <div key={r.key} className="space-y-2 rounded-xl bg-slate-50 p-3">
-                <div className="flex gap-2">
-                  <select aria-label={t('المكوّن')} className={inputCls} value={r.pick} onChange={(e) => pickProduct(r.key, e.target.value)}>
-                    <option value="">{t('اختر مكوّنًا…')}</option>
-                    <optgroup label={t('أي منتج مسجّل من الفئة (يفضّل الموجود بالبيت)')}>
-                      {slots.map((s) => <option key={s} value={`slot:${s}`}>{tMaybe(s)}</option>)}
-                    </optgroup>
-                    <optgroup label={t('منتج محدد')}>
-                      {products.map((p) => <option key={p.id} value={`prod:${p.id}`}>{p.name}{p.brand ? ` — ${p.brand}` : ''}</option>)}
-                    </optgroup>
-                  </select>
-                  <button aria-label={t('حذف المكوّن')} className="w-11 shrink-0 rounded-xl bg-slate-100 text-slate-500" onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}>✕</button>
+              <div key={r.key} className="space-y-2.5 rounded-2xl border border-slate-100 bg-slate-50/60 p-2.5">
+                <div className="flex items-center gap-2.5">
+                  <button onClick={() => setPicking(r.key)} className="flex min-w-0 flex-1 items-center gap-2.5 text-start" aria-label={t('تغيير المكوّن')}>
+                    <Photo path={p?.image_path} category={p?.category ?? slot} className="h-11 w-11 shrink-0 rounded-xl" />
+                    <span className="min-w-0 flex-1">
+                      <bdi className="block truncate font-medium">{p ? tMaybe(p.name) : slot ? tMaybe(slot) : t('اختر مكوّنًا')}</bdi>
+                      <span className="block truncate text-xs text-slate-500">
+                        {slot ? t('أي منتج من النوع') + (p ? ` · ${tMaybe(p.name)}` : '') : [p?.brand, p ? tMaybe(p.category) : null].filter(Boolean).join(' · ')}
+                      </span>
+                    </span>
+                  </button>
+                  <span className="shrink-0 text-end">
+                    {line && !line.problem ? <><b className="num text-lg">{fmt(line.carbs)}</b> <span className="text-xs text-slate-500">{t('غ')}</span></> : <span className="text-slate-300">—</span>}
+                  </span>
+                  <button aria-label={t('حذف المكوّن')} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-slate-400 active:bg-slate-100" onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}>✕</button>
                 </div>
-                <div className="grid grid-cols-[1fr_1fr_1fr] gap-2">
-                  <NumInput aria-label={t('الكمية')} placeholder={t('الكمية')} value={r.quantity} onChange={(v) => set(r.key, { quantity: v, qty_confirmed: true })} />
-                  <select aria-label={t('الوحدة')} className={inputCls} value={r.unit} onChange={(e) => set(r.key, { unit: e.target.value as Unit })}>
-                    <option value="g">{t('غرام')}</option><option value="ml">{t('مل')}</option><option value="serving">{t('حبة/حصة')}</option><option value="tbsp">{t('ملعقة كبيرة')}</option>
-                  </select>
-                  <select aria-label={t('الوزن قبل أو بعد الطبخ')} className={inputCls} value={r.state} onChange={(e) => set(r.key, { state: e.target.value as State })}>
-                    <option value="as_is">{t('كما في العبوة')}</option><option value="raw">{t('قبل الطبخ')}</option><option value="cooked">{t('بعد الطبخ')}</option>
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <select aria-label={t('النوع')} className={inputCls} value={r.role} onChange={(e) => set(r.key, { role: e.target.value as Role })}>
-                    <option value="main">{t('الوجبة')}</option><option value="drink">{t('مشروب')}</option><option value="snack">{t('سناك')}</option>
-                  </select>
-                  <input className={inputCls} placeholder={t('ملاحظة (اختياري)')} value={r.note} onChange={(e) => set(r.key, { note: e.target.value })} />
-                </div>
-                {line && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">{line.product?.name ?? ''}</span>
-                    {line.problem ? <span className="font-medium text-brand">{problemText(line.problem)}</span> : <span className="num font-bold">{t('{n}غ كارب', { n: fmt(line.carbs) })}</span>}
+                {line?.problem && <p className="rounded-lg bg-over-soft px-2 py-1 text-xs font-medium text-over">{problemText(line.problem)}</p>}
+                <div className="flex items-center gap-2">
+                  <div className="w-20 shrink-0"><NumInput aria-label={t('الكمية')} placeholder={t('الكمية')} value={r.quantity} onChange={(v) => set(r.key, { quantity: v, qty_confirmed: true })} /></div>
+                  <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+                    {units.map((u) => <Mini key={u} on={r.unit === u} click={() => set(r.key, { unit: u })}>{UNIT_WORD[u]()}</Mini>)}
                   </div>
-                )}
-                {idx === rows.length - 1 && null}
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {(['main', 'drink', 'snack'] as Role[]).map((ro) => <Mini key={ro} on={r.role === ro} click={() => set(r.key, { role: ro })}>{ROLE_WORD[ro]()}</Mini>)}
+                  {cookable && <>
+                    <span className="mx-0.5 h-5 w-px bg-slate-200" />
+                    <Mini on={r.state !== 'cooked'} click={() => set(r.key, { state: 'as_is' })}>{t('قبل الطبخ')}</Mini>
+                    <Mini on={r.state === 'cooked'} click={() => set(r.key, { state: 'cooked' })}>{t('بعد الطبخ')}</Mini>
+                  </>}
+                  {!r.note && noteOpen !== r.key && <button className="ms-auto min-h-[32px] px-1 text-xs text-slate-500 underline" onClick={() => setNoteOpen(r.key)}>{t('+ ملاحظة')}</button>}
+                </div>
+                {(r.note || noteOpen === r.key) && <input className={inputCls} autoFocus={noteOpen === r.key} placeholder={t('ملاحظة (اختياري)')} value={r.note} onChange={(e) => set(r.key, { note: e.target.value })} />}
               </div>
             );
           })}
-          <Btn kind="ghost" block onClick={() => setRows((rs) => [...rs, blank()])}>{t('+ إضافة مكوّن')}</Btn>
-          <p className="text-xs text-slate-500">{t('الأرز والباستا: اختر "بعد الطبخ" واكتب الوزن بعد الطبخ. لا يوجد كارب مخمَّن: المنتج غير المسجّل لا يُحسب.')}</p>
+          <Btn kind="primary" block onClick={() => setPicking('new')}>{t('+ إضافة مكوّن')}</Btn>
+          {rows.some((r) => products.find((x) => `prod:${x.id}` === r.pick)?.cooked_yield) && <p className="text-xs text-slate-500">{t('الأرز والباستا: «بعد الطبخ» مع الوزن بعد الطبخ.')}</p>}
         </Card>
+
+        <Sheet open={!!picking} onClose={() => setPicking(null)} title={picking === 'new' ? t('إضافة مكوّن') : t('تغيير المكوّن')}>
+          <div className="space-y-3">
+            <details className="rounded-xl bg-brand-soft/50 px-3 py-2">
+              <summary className="cursor-pointer text-sm font-medium text-brand">{t('أو: أي منتج من نوع (تلقائي)')}</summary>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {slots.map((c) => <Chip key={c} onClick={() => choose(`slot:${c}`)}>{tMaybe(c)}</Chip>)}
+              </div>
+            </details>
+            <ProductPicker onPick={(p) => choose(`prod:${p.id}`)} />
+          </div>
+        </Sheet>
 
         <Card className="space-y-3">
           <Field label={t('طريقة التحضير')}><textarea className={inputCls} rows={5} value={instructions} onChange={(e) => setInstructions(e.target.value)} /></Field>

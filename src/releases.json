@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.11.0",
+    "notes": [
+      "إضافة وصفة صارت أسهل: «+ إضافة مكوّن» يفتح قائمة المنتجات بالصور والبحث والشركات بدل القائمة الطويلة، وكل مكوّن بطاقة صغيرة فيها الكمية وأزرار الوحدة والوجبة/مشروب/سناك والكارب مباشرة. الحبة تُختار تلقائيًا إن كان لها وزن معروف، وزر «قبل/بعد الطبخ» يظهر فقط للأرز والباستا."
+    ],
+    "notes_en": [
+      "Making a recipe is easier: “+ Add ingredient” opens the product list with pictures, search and brands instead of the long dropdown, and each ingredient is a small card with the amount, unit buttons, meal/drink/snack and its carbs right away. Pieces are picked automatically when their weight is known, and “before/after cooking” shows only for rice and pasta."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.10.1",
     "notes": [
       "الآن: كلام أقل. الإنسولين والكارب في بطاقة واحدة بالأرقام فقط (الباقي / الكل، ووقت البداية والنهاية)، وسطور أقصر تحت القراءة، وبدون مساحة فارغة تحت الرسم."
