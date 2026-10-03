@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.2.0",
+    "notes": [
+      "الويدجت يعرض الإنسولين والكارب الفعّالين (IOB وCOB) بنفس حساب التطبيق.",
+      "الويدجت يتحدّث بنفسه من الآن: ألصقوه مرة واحدة أخيرة من المزيد ← ويدجت الآيفون."
+    ],
+    "notes_en": [
+      "The widget shows insulin and carbs on board (IOB and COB), worked out the same way as in the app.",
+      "The widget now updates itself: paste it one last time from More → iPhone widget."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.1.0",
     "notes": [
       "ويدجت للآيفون: السكر الآن والسهم وعمر القراءة على الشاشة الرئيسية وشاشة القفل، مع رسم آخر 3 ساعات. من المزيد ← ويدجت الآيفون (بتطبيق Scriptable المجاني)."

@@ -1572,33 +1572,69 @@ console.log('low treatments');
 
 console.log('iphone widget');
 {
-  const { widgetScript } = await import('../widgetScript');
+  const { widgetLoader } = await import('../widgetScript');
+  const body = readFileSync(new URL('../../../public/widget/layan-widget.js', import.meta.url), 'utf8');
   // a stand-in for Scriptable: every object accepts anything; texts added to the widget are recorded
   const U: any = new Proxy(function () {}, { get: (_t, p) => (p === 'then' ? undefined : U), apply: () => U, construct: () => U, set: () => true });
-  const run = async (family: string, reply: unknown, opts: { throws?: boolean; cache?: unknown; en?: boolean } = {}) => {
-    const texts: string[] = []; let shown = false; let req: any = null;
+  type Opts = { throws?: boolean; cache?: unknown; en?: boolean; code?: string | null; savedCode?: string };
+  // Scriptable's API is global, so widget runs take turns (the tests themselves run side by side)
+  let turn: Promise<unknown> = Promise.resolve();
+  const run = (family: string, reply: unknown, opts: Opts = {}) => { const r = turn.then(() => runOne(family, reply, opts)); turn = r.catch(() => {}); return r; };
+  const runOne = async (family: string, reply: unknown, opts: Opts) => {
+    const texts: string[] = []; let shown = false; let req: any = null; const files = new Map<string, string>();
+    if (opts.cache !== undefined) files.set('d/layan-widget.json', JSON.stringify(opts.cache));
+    if (opts.savedCode) files.set('d/layan-widget-code.js', opts.savedCode);
     const node = (): any => new Proxy({}, { set: () => true, get: (_t, p) => p === 'then' ? undefined : p === 'addText' ? (x: string) => { texts.push(String(x)); return U; } : p === 'addStack' ? () => node() : U });
-    function Request(this: any, url: string) { req = this; this.url = url; this.loadJSON = async () => { if (opts.throws) throw new Error('offline'); return reply; }; }
-    const fm = { joinPath: () => 'c', cacheDirectory: () => 'd', fileExists: () => opts.cache !== undefined, readString: () => JSON.stringify(opts.cache), writeString: () => {} };
-    const script = widgetScript({ url: 'https://x.supabase.co', key: 'pk', token: 'tok"en', app: 'https://app/', lang: opts.en ? 'en' : 'ar' });
+    function Request(this: any, url: string) {
+      this.url = url;
+      if (url.endsWith('/widget/layan-widget.js')) {
+        this.loadString = async () => { if (opts.code === null) throw new Error('offline'); this.response = { statusCode: 200 }; return opts.code ?? body; };
+      } else {
+        req = this;
+        this.loadJSON = async () => { if (opts.throws) throw new Error('offline'); return reply; };
+      }
+    }
+    const fm = { joinPath: (a: string, b: string) => a + '/' + b, cacheDirectory: () => 'd', fileExists: (p: string) => files.has(p), readString: (p: string) => files.get(p), writeString: (p: string, v: string) => { files.set(p, v); } };
+    const script = widgetLoader({ url: 'https://x.supabase.co', key: 'pk', token: 'tok"en', app: 'https://app/', lang: opts.en ? 'en' : 'ar' });
     const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
-    await new AsyncFn('Request', 'FileManager', 'ListWidget', 'DrawContext', 'Color', 'Font', 'Size', 'Rect', 'Script', 'config', 'args', script)(
-      Request, { local: () => fm }, function () { return node(); }, U, U, U, U, U, { setWidget: () => { shown = true; }, complete: () => {} },
-      { widgetFamily: family, runsInWidget: true }, { widgetParameter: null });
-    return { texts: texts.join(' | '), shown, req };
+    const g = globalThis as any;
+    Object.assign(g, { Request, FileManager: { local: () => fm }, ListWidget: function () { return node(); }, DrawContext: U, Color: U, Font: U, Size: U, Rect: U,
+      Script: { setWidget: () => { shown = true; }, complete: () => {} }, config: { widgetFamily: family, runsInWidget: true }, args: { widgetParameter: null } });
+    try { await new AsyncFn(script)(); } finally { for (const k of ['Request', 'FileManager', 'ListWidget', 'DrawContext', 'Color', 'Font', 'Size', 'Rect', 'Script', 'config', 'args']) delete g[k]; }
+    return { texts: texts.join(' | '), shown, req, files };
   };
   const now = Date.now(), at = (m: number) => new Date(now - m * 60000).toISOString();
   const data = { child: 'ليان', unit: 'mmol', low: 70, high: 180, readings: [{ t: at(30), v: 150, trend: 3 }, { t: at(15), v: 120, trend: 2 }, { t: at(2), v: 110, trend: 2 }] };
-  test('widget: value, arrow, age and range word; the link and the publishable key only; every size draws', async () => {
+  test('widget: the loader fetches the widget from the app and runs it; value, arrow, age, range word; every size draws', async () => {
+    assert.ok(body.startsWith('// LAYAN_WIDGET'), 'the served widget starts with the mark the loader checks');
     const m = await run('medium', data);
     assert.ok(m.shown);
     assert.match(m.texts, /6\.1/); assert.match(m.texts, /↘/); assert.match(m.texts, /قبل 2 د/); assert.match(m.texts, /ضمن النطاق/); assert.match(m.texts, /−0\.6 خلال 15 د/);
     assert.equal(m.req.url, 'https://x.supabase.co/rest/v1/rpc/share_view');
     assert.deepEqual(JSON.parse(m.req.body), { p_token: 'tok"en' }, 'the token is embedded safely');
     assert.equal(m.req.headers['Content-Profile'], 'carb');
+    assert.equal(m.files.get('d/layan-widget-code.js'), body, 'the widget is kept for offline use');
     for (const f of ['small', 'large', 'accessoryInline', 'accessoryCircular', 'accessoryRectangular']) assert.match((await run(f, data)).texts, /6\.1/, f);
   });
-  test('widget: low, old reading, revoked link, offline with and without a saved copy', async () => {
+  test('widget: offline uses the kept widget; a page that is not the widget is never run; nothing kept says so', async () => {
+    assert.match((await run('small', data, { code: null, savedCode: body })).texts, /6\.1/);
+    assert.match((await run('small', data, { code: '<html>not found</html>' })).texts, /تعذّر تحميل الويدجت/);
+    assert.match((await run('small', data, { code: null })).texts, /تعذّر تحميل الويدجت/);
+  });
+  test('widget: IOB and COB match the app (engine/iob.ts) for the same doses and carbs', async () => {
+    const ob = { dia: 360, peak: 65, absorb: 180, doses: [{ t: at(50), u: 3 }, { t: at(200), u: 4 }, { t: at(400), u: 2 }], carbs: [{ t: at(50), g: 45 }, { t: at(120), g: 15 }, { t: at(200), g: 30 }] };
+    const P = { dia: 360, peak: 65 };
+    const iob = iobAt(now, ob.doses.map((d) => ({ t: Date.parse(d.t), units: d.u })), P);
+    const cob = cobAt(now, ob.carbs.map((c) => ({ t: Date.parse(c.t), grams: c.g })), 180);
+    const m = await run('medium', { ...data, onboard: ob });
+    const got = /IOB ([\d.]+)u  COB (\d+)g/.exec(m.texts);
+    assert.ok(got, m.texts);
+    assert.ok(Math.abs(Number(got![1]) - iob) <= 0.051 && Math.abs(Number(got![2]) - cob) <= 0.51, `${got![0]} vs IOB ${iob} COB ${cob}`);
+    assert.match((await run('accessoryRectangular', { ...data, onboard: ob })).texts, /IOB .*COB/);
+    assert.doesNotMatch((await run('medium', { ...data, onboard: { ...ob, dia: null, peak: null, absorb: null } })).texts, /IOB|COB/, 'nothing when the care team has not set the parameters');
+    assert.doesNotMatch((await run('medium', data)).texts, /IOB/, 'family links carry no onboard data');
+  });
+  test('widget: low, old reading, revoked link, offline with and without a saved copy, English', async () => {
     assert.match((await run('small', { ...data, readings: [{ t: at(1), v: 62, trend: 1 }] })).texts, /منخفض.*3\.4.*⇊/);
     const old = (await run('small', { ...data, readings: [{ t: at(40), v: 120, trend: 3 }] })).texts;
     assert.match(old, /قراءة قديمة/); assert.doesNotMatch(old, /→/, 'no arrow on an old reading');

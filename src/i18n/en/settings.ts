@@ -347,10 +347,10 @@ export const settings: Record<string, string> = {
   "اضغطوا «أنشئ الويدجت وانسخ السكربت» هنا.": "Tap “Create the widget and copy the script” here.",
   "في Scriptable: اضغطوا +، الصقوا السكربت، وسمّوه «ليان»، ثم «تم».": "In Scriptable: tap +, paste the script, name it “Layan”, then Done.",
   "اضغطوا مطوّلًا على الشاشة الرئيسية ← + ← Scriptable، واختاروا الحجم. ثم اضغطوا على الويدجت ← Script ← «ليان».": "Long-press the Home Screen → + → Scriptable, and choose a size. Then tap the widget → Script → “Layan”.",
-  "السكر الآن والسهم وعمر القراءة على الشاشة الرئيسية أو شاشة القفل، مع رسم آخر 3 ساعات في الحجم المتوسط.": "Glucose now, the arrow and the reading’s age on the Home Screen or Lock Screen, with the last 3 hours drawn on the medium size.",
   "Scriptable في App Store ←": "Scriptable on the App Store →",
   "أنشئ الويدجت وانسخ السكربت": "Create the widget and copy the script",
   "نُسخ السكربت. فيه رابط خاص بالويدجت يظهر مرة واحدة فقط: لا ترسلوه لأحد.": "Script copied. It holds a link made for the widget that is shown only once: don’t send it to anyone.",
   "نسخ مرة أخرى": "Copy again",
   "الويدجت يقرأ فقط ولا يسجّل شيئًا. الآيفون يحدّثه كل 5 إلى 15 دقيقة تقريبًا، فقد يتأخر عن التطبيق: التنبيهات تبقى من التطبيق. الرابط صالح سنة، ويمكن إيقافه من": "The widget only reads and logs nothing. The iPhone refreshes it about every 5 to 15 minutes, so it can lag behind the app: alerts still come from the app. The link lasts a year and can be stopped from",
+  "السكر الآن والسهم وعمر القراءة، والإنسولين والكارب الفعّالان (IOB وCOB)، على الشاشة الرئيسية أو شاشة القفل، مع رسم آخر 3 ساعات في الحجم المتوسط. يتحدّث الويدجت بنفسه عند تحديث التطبيق.": "Glucose now, the arrow and the reading’s age, plus insulin and carbs on board (IOB and COB), on the Home Screen or Lock Screen, with the last 3 hours drawn on the medium size. The widget updates itself when the app does.",
 };
