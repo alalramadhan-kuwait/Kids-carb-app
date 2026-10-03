@@ -45,6 +45,8 @@ export interface MealResult {
   total: Nutrition;
   /** some line lacks fat/fiber/protein/kcal data, so those totals are partial */
   nutritionPartial: boolean;
+  /** which of them are partial: each total is shown (and saved) on its own when every line has it */
+  missing: Record<'fat' | 'fiber' | 'protein' | 'kcal', boolean>;
   byRole: Record<Role, number>;
   level: Level;
 }
@@ -116,7 +118,9 @@ export function computeLine(
     fat: per(product.fat_per_100),
     fiber: per(product.fiber_per_100),
     protein: per(product.protein_per_100),
-    kcal: per(product.kcal_per_100),
+    // calories the label does not give are worked out from its carbs, fat and protein (4 / 9 / 4 kcal per gram)
+    kcal: per(product.kcal_per_100 ?? (product.fat_per_100 !== null && product.protein_per_100 !== null
+      ? product.carbs_per_100 * 4 + product.fat_per_100 * 9 + product.protein_per_100 * 4 : null)),
   };
 }
 
@@ -136,18 +140,19 @@ export function computeMeal<T extends Computable>(
   const lines = ings.map((ing) => ({ ing, ...computeLine(ing, products, settings) })) as (Line & { ing: T })[];
   const total: Nutrition = { carbs: 0, fat: 0, fiber: 0, protein: 0, kcal: 0 };
   const byRole: Record<Role, number> = { main: 0, drink: 0, snack: 0 };
-  let nutritionPartial = false;
+  const missing = { fat: false, fiber: false, protein: false, kcal: false };
   for (const l of lines) {
     if (l.carbs === null) continue;
     total.carbs += l.carbs;
     byRole[l.ing.role] += l.carbs;
     for (const k of ['fat', 'fiber', 'protein', 'kcal'] as const) {
-      if (l[k] === null) nutritionPartial = true;
+      if (l[k] === null) missing[k] = true;
       else total[k] += l[k] as number;
     }
   }
   const complete = lines.length > 0 && lines.every((l) => l.carbs !== null);
-  return { lines, complete, total, nutritionPartial, byRole, level: levelFor(total.carbs, settings) };
+  const nutritionPartial = Object.values(missing).some(Boolean);
+  return { lines, complete, total, nutritionPartial, missing, byRole, level: levelFor(total.carbs, settings) };
 }
 
 export function computeSnack(s: Snack, products: Product[], settings: Settings) {

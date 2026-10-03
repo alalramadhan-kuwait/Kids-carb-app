@@ -79,10 +79,11 @@ export async function logMeal(input: {
     glucose_mgdl: fresh ? g.mg_dl : null, glucose_trend: fresh ? g.trend : null, glucose_at: fresh ? g.taken_at : null,
     kind: input.kind, recipe_id: input.recipe_id, name: input.name, category: input.category,
     total_carbs: r(meal.total.carbs),
-    total_fat: meal.nutritionPartial ? null : r(meal.total.fat),
-    total_fiber: meal.nutritionPartial ? null : r(meal.total.fiber),
-    total_protein: meal.nutritionPartial ? null : r(meal.total.protein),
-    total_kcal: meal.nutritionPartial ? null : Math.round(meal.total.kcal),
+    // each one on its own: a missing calorie figure must not hide the fat (the fatty-meal notes read it)
+    total_fat: meal.missing.fat ? null : r(meal.total.fat),
+    total_fiber: meal.missing.fiber ? null : r(meal.total.fiber),
+    total_protein: meal.missing.protein ? null : r(meal.total.protein),
+    total_kcal: meal.missing.kcal ? null : Math.round(meal.total.kcal),
     modified: input.modified, lines, notes: input.notes ?? null,
   }));
 }

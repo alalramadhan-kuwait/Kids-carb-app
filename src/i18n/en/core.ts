@@ -132,7 +132,7 @@ export const core: Record<string, string> = {
   'بعد {m} د': 'after {m} min',
   'بعد الأكل بـ': 'After eating by',
   'قبل الأكل بـ': 'Before eating by',
-  'بعض المكونات ليس لها دهون/ألياف/بروتين/سعرات مسجلة، لذلك لا تُعرض هذه الأرقام حتى لا تكون ناقصة.': 'Some ingredients have no fat/fibre/protein/calories recorded, so those numbers aren\'t shown rather than shown incomplete.',
+  '«—»: أحد المكونات بلا هذا الرقم في ملصقه.': '“—”: an ingredient’s label has no figure for this.',
   'تصحيح': 'Correction',
   'تعذّر: {e}': 'Failed: {e}',
   'تمّ التحقق': 'Checked',

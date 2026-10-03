@@ -101,7 +101,7 @@ export function RecipeView() {
           <CarbBadge carbs={meal.total.carbs} level={meal.level} size="lg" unknown={!meal.complete} />
           <div className="text-end text-sm text-slate-500">{recipe.approved ? <Badge tone="ok">{t('معتمدة')}</Badge> : <Badge tone="near">{t('تحت المراجعة')}</Badge>}</div>
         </div>
-        {meal.complete && <Nutrition n={meal.total} partial={meal.nutritionPartial} />}
+        {meal.complete && <Nutrition n={meal.total} missing={meal.missing} />}
         {meal.complete && meal.level === 'near' && <Alert tone="near">{t('قريبة من الحد الأقصى ({max}غ).', { max: settings.max_meal_carbs })}</Alert>}
         {meal.complete && meal.level === 'over' && <Alert tone="over">{t('تحذير: الكارب {carbs}غ يتجاوز الحد ({max}غ). يمكن تسجيلها بعد تأكيد.', { carbs: fmt(meal.total.carbs), max: settings.max_meal_carbs })}</Alert>}
         {recipe.carb_pending && <Alert tone="near">{recipe.pending_note ?? t('الكارب غير مكتمل.')}</Alert>}

@@ -217,17 +217,20 @@ export function NumInput({ value, onChange, ...p }: { value: number | null | und
   );
 }
 
-export function Nutrition({ n, partial }: { n: { carbs: number; fat: number; fiber: number; protein: number; kcal: number }; partial?: boolean }) {
+/** `missing`: the totals some ingredient has no figure for; only those show «—». (`partial`: all four, the old way.) */
+export function Nutrition({ n, partial, missing }: { n: { carbs: number; fat: number; fiber: number; protein: number; kcal: number }; partial?: boolean; missing?: Partial<Record<'fat' | 'fiber' | 'protein' | 'kcal', boolean>> }) {
   const cell = (label: string, v: string, unit: string) => (
     <div className="rounded-xl bg-slate-50 p-2 text-center"><div className="num text-lg font-bold">{v}</div><div className="text-xs text-slate-500">{label} <span className="num">{unit}</span></div></div>
   );
-  const p = (v: number) => (partial ? '—' : fmt(v));
+  const gone = (k: 'fat' | 'fiber' | 'protein' | 'kcal') => (missing ? !!missing[k] : !!partial);
+  const p = (v: number, k: 'fat' | 'fiber' | 'protein') => (gone(k) ? '—' : fmt(v));
+  const any = missing ? Object.values(missing).some(Boolean) : !!partial;
   return (
     <div>
       <div className="grid grid-cols-5 gap-1.5">
-        {cell(t('كارب'), fmt(n.carbs), t('غ'))}{cell(t('دهون'), p(n.fat), t('غ'))}{cell(t('ألياف'), p(n.fiber), t('غ'))}{cell(t('بروتين'), p(n.protein), t('غ'))}{cell(t('سعرات'), partial ? '—' : String(Math.round(n.kcal)), '')}
+        {cell(t('كارب'), fmt(n.carbs), t('غ'))}{cell(t('دهون'), p(n.fat, 'fat'), t('غ'))}{cell(t('ألياف'), p(n.fiber, 'fiber'), t('غ'))}{cell(t('بروتين'), p(n.protein, 'protein'), t('غ'))}{cell(t('سعرات'), gone('kcal') ? '—' : String(Math.round(n.kcal)), '')}
       </div>
-      {partial && <p className="mt-1 text-xs text-slate-500">{t('بعض المكونات ليس لها دهون/ألياف/بروتين/سعرات مسجلة، لذلك لا تُعرض هذه الأرقام حتى لا تكون ناقصة.')}</p>}
+      {any && <p className="mt-1 text-xs text-slate-500">{t('«—»: أحد المكونات بلا هذا الرقم في ملصقه.')}</p>}
     </div>
   );
 }

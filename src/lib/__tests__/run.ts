@@ -117,6 +117,14 @@ test('meal total, roles, completeness and nutrition', () => {
   close(m.byRole.snack, 13.8);
   close(m.total.kcal, 182);
   assert.equal(m.nutritionPartial, true);
+  // each total on its own: bread with fat, fibre and protein but no calories on its label still gives fat, fibre and
+  // protein totals, and its calories are worked out from carbs, fat and protein (4 / 9 / 4)
+  const bread = prod({ kind: 'natural', carbs_per_100: 50, fat_per_100: 2, fiber_per_100: 2, protein_per_100: 10, kcal_per_100: null });
+  const b = computeMeal([ing({ product_id: rice.id, quantity: 100 }), ing({ product_id: bread.id, quantity: 100 })], [rice, bread], S);
+  assert.deepEqual(b.missing, { fat: false, fiber: false, protein: false, kcal: false });
+  close(b.total.fat, 2.3); close(b.total.kcal, 130 + (50 * 4 + 2 * 9 + 10 * 4));
+  const c = computeMeal([ing({ product_id: rice.id, quantity: 100 }), ing({ product_id: apple.id })], [rice, apple], S);
+  assert.deepEqual(c.missing, { fat: true, fiber: true, protein: true, kcal: true }, 'no macros at all: nothing is worked out');
   const missing = computeMeal([ing({ product_id: rice.id }), ing({ slot_category: 'جبن' })], [rice], S);
   assert.equal(missing.complete, false);
 });
