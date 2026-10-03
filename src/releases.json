@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.9.1",
+    "notes": [
+      "الوصفات: زر «مع المشروب» أيضًا، لإلغاء المشروب هذه المرة فقط إذا ما شربته."
+    ],
+    "notes_en": [
+      "Recipes: a “With drink” button too, to leave the drink out this time only if she didn’t have it."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.9.0",
     "notes": [
       "الوصفات: زر «مع السناك» لإلغاء السناك هذه المرة فقط إذا ما أكلته، فلا يُحسب كاربه في الوجبة."

@@ -57,10 +57,12 @@ export function RecipeView() {
   // quantities can be changed for this meal only; that logs as a modified meal
   const [over, setOver] = useState<Record<string, number>>({});
   const ings: Ingredient[] = useMemo(() => base.map((i) => (over[i.id] !== undefined ? { ...i, quantity: over[i.id] } : i)), [base, over]);
-  // the snack can be left out for this meal only (she skipped it); the lines stay visible, greyed, and do not count
-  const [noSnack, setNoSnack] = useState(false);
+  // the drink or the snack can be left out for this meal only (she skipped it); the lines stay visible, greyed, and do not count
+  const [skip, setSkip] = useState<{ drink: boolean; snack: boolean }>({ drink: false, snack: false });
   const shown = useMemo(() => computeMeal(ings, products, settings), [ings, products, settings]);
-  const meal = useMemo(() => (noSnack ? computeMeal(ings.filter((i) => i.role !== 'snack'), products, settings) : shown), [noSnack, ings, products, settings, shown]);
+  const meal = useMemo(() => (skip.drink || skip.snack
+    ? computeMeal(ings.filter((i) => !(i.role === 'drink' && skip.drink) && !(i.role === 'snack' && skip.snack)), products, settings)
+    : shown), [skip, ings, products, settings, shown]);
   const { choose, busy } = useChoose();
   const [linking, setLinking] = useState<Ingredient | null>(null);
   const link = async (productId: string | null) => {
@@ -72,7 +74,7 @@ export function RecipeView() {
   if (!recipe) return <Page title={t('الوصفة')} back={() => nav(-1)}><Card>{t('الوصفة غير موجودة.')}</Card></Page>;
 
   const qtyChanged = Object.keys(over).some((k) => over[k] !== base.find((i) => i.id === k)?.quantity);
-  const modified = qtyChanged || noSnack;
+  const modified = qtyChanged || skip.drink || skip.snack;
   const drift = recipe.saved_total_carbs !== null && meal.complete && !modified && Math.abs(meal.total.carbs - recipe.saved_total_carbs) >= 0.05;
   const problems = meal.lines.filter((l) => l.problem);
   const roles = { main: t('الوجبة'), drink: t('المشروب'), snack: t('السناك') } as const;
@@ -130,16 +132,16 @@ export function RecipeView() {
         {(['main', 'drink', 'snack'] as const).map((role) => {
           const ls = shown.lines.filter((l) => l.ing.role === role);
           if (!ls.length) return null;
-          const off = role === 'snack' && noSnack;
+          const off = role !== 'main' && skip[role];
           return (
             <div key={role} className="mb-3 last:mb-0">
               <div className="mb-1 flex items-center justify-between gap-2 text-sm font-medium text-slate-500">
                 <span className={cx(off && 'line-through')}>{roles[role]}</span>
                 <span className="flex items-center gap-2">
-                  {role === 'snack' && (
-                    <button onClick={() => setNoSnack((v) => !v)} aria-pressed={!off}
+                  {role !== 'main' && (
+                    <button onClick={() => setSkip((v) => ({ ...v, [role]: !v[role] }))} aria-pressed={!off}
                       className={cx('rounded-full px-3 py-1 text-xs font-semibold ring-1', off ? 'bg-white text-slate-500 ring-slate-300' : 'bg-brand-soft text-brand ring-brand')}>
-                      {off ? t('بدون سناك هذه المرة') : t('مع السناك')}
+                      {role === 'snack' ? (off ? t('بدون سناك هذه المرة') : t('مع السناك')) : (off ? t('بدون مشروب هذه المرة') : t('مع المشروب'))}
                     </button>
                   )}
                   <span className={cx(off && 'line-through')}><span className="num">{fmt(shown.byRole[role])}</span> {t('غ')}</span>
@@ -175,7 +177,8 @@ export function RecipeView() {
           );
         })}
         {!hasDrink && <p className="mt-2 text-sm text-slate-500">{t('المشروب: ماء')}</p>}
-        {noSnack && <div className="mt-2"><Alert tone="info">{t('السناك غير محسوب هذه المرة فقط. ستُسجَّل الوجبة كـ"معدّلة".')}</Alert></div>}
+        {skip.snack && <div className="mt-2"><Alert tone="info">{t('السناك غير محسوب هذه المرة فقط. ستُسجَّل الوجبة كـ"معدّلة".')}</Alert></div>}
+        {skip.drink && <div className="mt-2"><Alert tone="info">{t('المشروب غير محسوب هذه المرة فقط. ستُسجَّل الوجبة كـ"معدّلة".')}</Alert></div>}
         {qtyChanged && <div className="mt-2"><Alert tone="info">{t('عدّلتم الكميات لهذه المرة فقط. ستُسجَّل الوجبة كـ"معدّلة".')}</Alert> <Btn kind="ghost" className="mt-2" onClick={() => setOver({})}>{t('إرجاع الكميات الأصلية')}</Btn></div>}
       </Card>
 
