@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.15.0",
+    "notes": [
+      "المختبر: بطاقة «الأهداف» بنسبة تقدّم لكل هدف: بيانات كافية، توقع أدق من المعروض، الهبوط ثم الارتفاع بعد الأكل، وسرعة السهم مقارنة بـ Libre.",
+      "المختبر: طريقة جديدة «وجبات مشابهة» تتعلم من وجباتها السابقة المشابهة (الكارب، الدهون والبروتين، تغطية الجرعة، السكر عند البداية). للقياس فقط حتى تثبت أنها أدق.",
+      "المختبر: عمود «السهم» يبيّن كم مرة كان السهم صحيحًا."
+    ],
+    "notes_en": [
+      "Lab: a Goals card with progress for each goal: enough data, more accurate than what is shown, the dip then the bump after meals, and arrow speed against Libre.",
+      "Lab: a new “Similar meals” method that learns from her similar past meals (carbs, fat and protein, dose cover, starting glucose). Measured only until it proves more accurate.",
+      "Lab: an “Arrow” column shows how often the arrow was right."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.14.1",
     "notes": [
       "الآن: بطاقة الإنسولين والكارب تبدأ بالأهم: «1.5 وحدة نشط · آخر جرعة قبل 1 س 42 د» و«54 غ نشط · آخر أكل قبل 1 س». وقت الانتهاء صار صغيرًا بجانب الشريط («حتى ~11:02 م»)."

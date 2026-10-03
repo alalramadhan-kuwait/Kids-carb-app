@@ -1266,6 +1266,7 @@ console.log('research lab');
 
 {
   const L = await import('../../engine/lab');
+  const Rz = await import('../../engine/research');
   const M = 60000, H = 60 * M, D = 24 * H;
   const T0 = Date.UTC(2026, 9, 10, 6, 0); // 09:00 Kuwait
   const ctx = { doses: [] as { t: number; u: number }[], carbs: [] as { t: number; g: number }[], iob: { dia: 360, peak: 65 }, absorb: 180, cr: 15, isf: 54 };
@@ -1338,6 +1339,36 @@ console.log('research lab');
     assert.equal(L.verdict(s(12, 22, 1200, 1), prod, none, 10).verdict, 'not_better', 'never misses more fast falls');
     assert.equal(L.verdict(s(17, 26), prod, none, 10).verdict, 'rejected');
     assert.equal(L.verdict(s(12, 22, 1200, 3, 30), prod, none, 10).verdict, 'rejected', 'too many false fall alarms');
+  });
+  test('similar meals: learns a dip then a bump from earlier meals only, and is judged after food', () => {
+    // synthetic: three fully covered meals a day, each dips ~50 at 70 min then bumps ~60 at 3.5 h
+    const start = Date.UTC(2026, 9, 1, 21, 0), days = 7;
+    const g = (x: number, c: number, w: number) => Math.exp(-(((x - c) / w) ** 2));
+    const meals = Array.from({ length: days * 3 }, (_, j) => start + Math.floor(j / 3) * D + [8, 13, 18][j % 3] * H);
+    const r = Array.from({ length: days * 1440 }, (_, k) => {
+      const t = start + k * M;
+      const v = 120 + meals.reduce((s, m) => s + (t >= m ? -50 * g((t - m) / M, 70, 35) + 60 * g((t - m) / M, 210, 45) : 0), 0);
+      return { t, v, a: 3 };
+    });
+    const fed = { ...ctx, carbs: meals.map((t) => ({ t, g: 40, fpu: 1, meal: true })), doses: meals.map((t) => ({ t, u: 2.7 })) };
+    const res = L.runLab({ readings: r, ctx: fed, clues, uncertain: [], answers: {}, baselineEnd: start + 2 * D, production: 'libre', now: start + days * D });
+    const af = res.unseen.bySituation.after_food!;
+    assert.ok(af.similar_meals.mae15 < 0.5 * af.context.mae15, `${af.similar_meals.mae15} vs ${af.context.mae15}`);
+    assert.ok(af.similar_meals.mae15 < af.libre.mae15);
+    assert.ok(res.verdicts.similar_meals.verdict !== 'rejected');
+    // the first meal has nothing earlier to learn from: it is Context v1 there
+    const first = Rz.samples(r.slice(0, 1440), fed, [], { s: { f: Rz.similarMeals(fed, Rz.contextModel(0.5)) }, c: { f: Rz.contextModel(0.5) } }).kept.filter((x) => x.t > meals[0] && x.t < meals[1]);
+    assert.ok(first.length > 20 && first.every((x) => x.preds.s!.v15 === x.preds.c!.v15));
+  });
+  test('goals: progress toward enough data, 10 % better than the shown line, after meals, and the arrow', () => {
+    const sc = (mae15: number, arrow = 0.5) => ({ n: 500, mae15, mae30: 20, bias15: 0, direction: 0.6, arrow, fall: { truth: 0, caught: 0, falseAlarms: 0 }, rise: { truth: 0, caught: 0, falseAlarms: 0 } });
+    const all = { none: sc(15), libre: sc(16, 0.6), context: sc(14.25, 0.66), damped: sc(16) };
+    const [data, beat, meals, arrow] = L.goals(all, { after_food: { none: sc(20), libre: sc(22), similar_meals: sc(17) } }, { unseen: 500, unseenDays: 7 }, 'libre');
+    close(data.pct, 0.5);
+    assert.equal(beat.best, 'context'); close(beat.pct, 0.5); // 5 % of the 10 % needed
+    assert.equal(meals.best, 'similar_meals'); close(meals.pct, 1); // 15 % better after food
+    assert.equal(arrow.best, 'context'); assert.equal(arrow.a, 60); close(arrow.pct, 1);
+    assert.equal(L.goals({ none: sc(15), libre: sc(16) }, {}, { unseen: 0, unseenDays: 0 }, 'libre')[2].pct, 0, 'no data yet: 0, never NaN');
   });
   test('set-aside entries are kept out with a reason, and their cost to the research is measured', () => {
     const start = Date.UTC(2026, 9, 1, 21, 0);

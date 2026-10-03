@@ -3,12 +3,13 @@
 // known up to that moment, then compared with what the sensor showed 15 and 30 minutes later.
 import { iobFraction, type IobParams } from './iob';
 import { levelOf, minuteOnly, rateBetween } from './trend';
+import { median } from './meals';
 
 const MIN = 60000, KW = 3 * 3600000;
 
 export interface RReading { t: number; v: number; a: number | null }
 export interface RDose { t: number; u: number }
-export interface RCarb { t: number; g: number; fpu?: number } // fpu: fat-protein units (100 kcal of fat and protein)
+export interface RCarb { t: number; g: number; fpu?: number; meal?: boolean } // fpu: fat-protein units (100 kcal of fat and protein); meal: a logged meal, not a snack carb or a treatment
 export interface RContext { doses: RDose[]; carbs: RCarb[]; iob: IobParams; absorb: number; cr: number; isf: number }
 export interface Prediction { v15: number; v30: number; rate: number }   // rate: mg/dL per minute over the next 15 min
 export type Predictor = (i: number, t: number[], v: number[], a: (number | null)[], ctx: RContext) => Prediction | null;
@@ -54,6 +55,67 @@ export function contextModel(w: number, absorb?: number, bump?: FatBump, drift =
 /** The 20-minute trend, scaled by k (k < 1: assume the movement slows down). */
 export function dampedTrend(k: number): Predictor {
   return (i, t, v) => { const r = rateBetween(t, v, t[i] - 20 * MIN, t[i]); return r === null ? null : { v15: v[i] + k * r * 15, v30: v[i] + k * r * 30, rate: k * r }; };
+}
+
+/**
+ * Similar meals (2026-10-03): after a meal, what her own most similar past meals did next, so the dip and then the
+ * bump come from her data rather than from the ratios. Similar = carbs, fat+protein (FPU), how much of the meal the
+ * dose covered (units × CR ÷ carbs) and glucose at the start. A past meal only counts for the minutes of it already
+ * seen at the moment of the prediction. Fewer than `minN` similar meals, or no meal in the last 5 hours: `fallback`.
+ */
+export const SIMILAR = { horizon: 300, k: 5, minN: 3, maxDist: 1.5, scale: { g: 20, fpu: 1.5, cover: 0.25, start: 36 } } as const;
+export interface MealCase { t: number; g: number; fpu: number; cover: number; start: number }
+export function mealDistance(a: MealCase, b: MealCase) {
+  const s = SIMILAR.scale;
+  return Math.hypot((a.g - b.g) / s.g, (a.fpu - b.fpu) / s.fpu, (a.cover - b.cover) / s.cover, (a.start - b.start) / s.start);
+}
+export function similarMeals(full: RContext, fallback: Predictor): Predictor {
+  const meals = full.carbs.filter((c) => c.meal && c.g >= 10).sort((x, y) => x.t - y.t);
+  const doses = [...full.doses].sort((x, y) => x.t - y.t);
+  const cache = new WeakMap<number[], { m: RCarb; start: number; curve: (number | null)[]; next: number; c: MealCase }[]>();
+  const near = (t: number[], v: number[], x: number) => {
+    let lo = 0, hi = t.length - 1;
+    while (lo < hi) { const m = (lo + hi) >> 1; if (t[m] < x) lo = m + 1; else hi = m; }
+    let b = -1;
+    for (const k of [lo - 1, lo]) if (k >= 0 && k < t.length && Math.abs(t[k] - x) <= 3 * MIN && (b < 0 || Math.abs(t[k] - x) < Math.abs(t[b] - x))) b = k;
+    return b < 0 ? null : v[b];
+  };
+  const caseOf = (m: RCarb, start: number, now: number): MealCase => {
+    const u = doses.filter((d) => d.t >= m.t - 45 * MIN && d.t <= Math.min(now, m.t + 30 * MIN)).reduce((s, d) => s + d.u, 0);
+    return { t: m.t, g: m.g, fpu: m.fpu ?? 0, cover: (u * full.cr) / m.g, start };
+  };
+  const steps = (SIMILAR.horizon + 30) / 5;
+  // each meal's change from its start, every 5 min, until the next meal (later minutes belong to that one)
+  const library = (t: number[], v: number[]) => {
+    let lib = cache.get(t);
+    if (!lib) {
+      lib = meals.map((m, j) => {
+        const start = near(t, v, m.t), next = meals[j + 1]?.t ?? Infinity;
+        const curve = Array.from({ length: steps + 1 }, (_, k) => { const x = m.t + k * 5 * MIN; if (start === null || x >= next) return null; const y = near(t, v, x); return y === null ? null : y - start; });
+        return { m, start: start ?? NaN, curve, next, c: caseOf(m, start ?? NaN, m.t + 30 * MIN) };
+      }).filter((x) => Number.isFinite(x.start));
+      cache.set(t, lib);
+    }
+    return lib;
+  };
+  return (i, t, v, a, ctx) => {
+    const now = t[i];
+    const lib = library(t, v);
+    let cur: (typeof lib)[number] | undefined;
+    for (const x of lib) { if (x.m.t > now) break; cur = x; }
+    if (!cur || now - cur.m.t < 5 * MIN || now - cur.m.t > SIMILAR.horizon * MIN || now >= cur.next) return fallback(i, t, v, a, ctx);
+    const e = Math.round((now - cur.m.t) / (5 * MIN));
+    const me = caseOf(cur.m, cur.start, now);
+    const ok = lib
+      .filter((x) => x !== cur && x.m.t + (e + 6) * 5 * MIN <= now && x.curve[e] !== null && x.curve[e + 3] !== null && x.curve[e + 6] !== null)
+      .map((x) => ({ x, d: mealDistance(me, x.c) }))
+      .filter((y) => y.d <= SIMILAR.maxDist)
+      .sort((p, q) => p.d - q.d)
+      .slice(0, SIMILAR.k);
+    if (ok.length < SIMILAR.minN) return fallback(i, t, v, a, ctx);
+    const d15 = median(ok.map(({ x }) => x.curve[e + 3]! - x.curve[e]!))!, d30 = median(ok.map(({ x }) => x.curve[e + 6]! - x.curve[e]!))!;
+    return { v15: v[i] + d15, v30: v[i] + d30, rate: d15 / 15 };
+  };
 }
 
 export const MODELS: Record<string, { name: string; note: string; f: Predictor }> = {

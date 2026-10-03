@@ -9,7 +9,7 @@
 //    materially better than what the app shows. Nothing here changes a dose, a displayed reading or a rule.
 import { iobFraction } from './iob';
 import { minuteOnly } from './trend';
-import { FAT_WINDOW, MODELS, contextModel, dampedTrend, samples, score, type Exclusion, type Predictor, type RContext, type RReading, type Sample, type Score, type Situation } from './research';
+import { FAT_WINDOW, MODELS, SIMILAR, contextModel, dampedTrend, samples, similarMeals, score, type Exclusion, type Predictor, type RContext, type RReading, type Sample, type Score, type Situation } from './research';
 
 const MIN = 60000, HOUR = 3600000, DAY = 86400000, KW = 3 * HOUR;
 export const LAB_CODE_VERSION = 1;
@@ -17,7 +17,8 @@ export const LAB_CODE_VERSION = 1;
 /* ------------------------------------------------------------------ models */
 
 export type ModelRole = 'production' | 'reference' | 'candidate';
-export interface ModelDef { key: string; version: number; name: string; note: string; role: ModelRole; params: Record<string, unknown> | null }
+/** `situation`: a model meant for one situation is judged on those moments only (elsewhere it falls back). */
+export interface ModelDef { key: string; version: number; name: string; note: string; role: ModelRole; params: Record<string, unknown> | null; situation?: Situation }
 const FIT_W = [0, 0.25, 0.5, 0.75], FIT_ABSORB = [120, 180, 240], DAMP_K = [0.25, 0.5, 0.75, 1];
 // late fat bump (2026-10-02): grams of carb-equivalent per FPU, 0 = no bump (the family can choose none)
 const FAT_K = [0, 2, 4, 6];
@@ -33,6 +34,7 @@ export const REGISTRY: ModelDef[] = [
   { key: 'damped', version: 1, name: 'Damped trend', note: 'the app trend scaled down, the scale chosen each day from older days only', role: 'candidate', params: { k: DAMP_K } },
   { key: 'fat_bump', version: 1, name: 'Context + late fat bump', note: 'Context v1, plus a late effect of fat and protein (k g of carbs per 100 kcal of fat+protein, arriving 2–5 h after the meal); k chosen each day from older days only, 0 allowed', role: 'candidate', params: { w: 0.5, k: FAT_K, window_min: [FAT_WINDOW.from, FAT_WINDOW.to] } },
   { key: 'drift_fat', version: 1, name: 'Context + basal drift + late fat bump', note: 'Context v1 with a steady drift (mg/dL per hour, e.g. a strong basal) and the late fat bump; both chosen each day from older days only, 0 / 0 allowed', role: 'candidate', params: { w: 0.5, drift_mgdl_h: DRIFT, k: DRIFT_FAT_K, window_min: [FAT_WINDOW.from, FAT_WINDOW.to] } },
+  { key: 'similar_meals', version: 1, name: 'Similar meals', note: 'after a meal, the median of what her most similar past meals did next (carbs, fat+protein, dose cover, start glucose), only minutes already seen; at least 3 of them, else Context v1; judged after food', role: 'candidate', params: { ...SIMILAR }, situation: 'after_food' },
 ];
 export const CANDIDATES = REGISTRY.filter((m) => m.role === 'candidate').map((m) => m.key);
 
@@ -90,6 +92,37 @@ export function verdict(c: Score, prod: Score, none: Score, days: number): { ver
   if (!ok) return { verdict: 'not_better', why: c.mae15 > R.better * ref15 ? 'not_10pct_better' : c.mae30 > ref30 ? 'worse_at_30' : 'misses_falls' };
   if (c.n < R.readyN || days < R.readyDays) return { verdict: 'collecting', why: 'promising_needs_more' };
   return { verdict: 'ready', why: 'materially_better' };
+}
+
+/* ------------------------------------------------------------------- goals */
+
+export interface Goal { key: 'data' | 'beat_shown' | 'after_meals' | 'arrow'; pct: number; best: string | null; a: number; b: number }
+const clamp01 = (x: number) => (Number.isFinite(x) ? Math.max(0, Math.min(1, x)) : 0);
+/**
+ * The lab's four goals as 0–1 progress, from one run. data: unseen moments and days toward "ready".
+ * beat_shown: the best candidate's 15-min error gain over the shown line (and no change), 10 % = done.
+ * after_meals: the same for Similar meals on after-food moments. arrow: the best candidate's speed band
+ * (5 levels, as Libre's arrows) against how often the shown arrow was right; a = shown %, b = best %.
+ */
+export function goals(all: Record<string, ModelScore>, bySit: LabResult['unseen']['bySituation'], data: { unseen: number; unseenDays: number }, production: string): Goal[] {
+  const R = VERDICT_RULES, need = 1 - R.better;
+  const gain = (sc: Record<string, ModelScore> | undefined, keys: string[]) => {
+    if (!sc?.[production] || !sc.none) return { best: null, g: 0 };
+    const ref = Math.min(sc[production].mae15, sc.none.mae15);
+    let best: string | null = null, g = -Infinity;
+    for (const k of keys) if (sc[k]?.n && 1 - sc[k].mae15 / ref > g) { g = 1 - sc[k].mae15 / ref; best = k; }
+    return { best, g: best ? g : 0 };
+  };
+  const b1 = gain(all, CANDIDATES), b2 = gain(bySit.after_food, ['similar_meals']);
+  const shown = all[production]?.arrow ?? 0;
+  let bestArrow: string | null = null, arrow = 0;
+  for (const k of CANDIDATES) if ((all[k]?.arrow ?? 0) > arrow) { arrow = all[k].arrow; bestArrow = k; }
+  return [
+    { key: 'data', pct: Math.min(clamp01(data.unseen / R.readyN), clamp01(data.unseenDays / R.readyDays)), best: null, a: data.unseen, b: data.unseenDays },
+    { key: 'beat_shown', pct: clamp01(b1.g / need), best: b1.best, a: Math.round(b1.g * 100), b: Math.round(need * 100) },
+    { key: 'after_meals', pct: clamp01(b2.g / need), best: b2.best, a: Math.round(b2.g * 100), b: Math.round(need * 100) },
+    { key: 'arrow', pct: shown > 0 ? clamp01(arrow / shown) : 0, best: bestArrow, a: Math.round(shown * 100), b: Math.round(arrow * 100) },
+  ];
 }
 
 /* ------------------------------------------------------- unexplained moves */
@@ -273,7 +306,7 @@ export function runLab(p: LabInput): LabResult {
     ...episodes.filter((e) => e.cause === 'cgm').map((e): Exclusion => [e.start, e.end, 'questionable_cgm']),
     ...episodes.filter((e) => e.cause === 'bad_input' && !e.evidence.includes('uncertain_entry')).map((e): Exclusion => [e.start, e.end, 'bad_input']),
   ];
-  const models = { ...MODELS, ...gridModels() };
+  const models = { ...MODELS, ...gridModels(), similar_meals: { f: similarMeals(p.ctx, contextModel(0.5)) } };
   const { kept, excluded, excludedBy } = samples(R, p.ctx, ex, models);
   // 3. candidates that choose settings from older days only
   const choices: LabResult['choices'] = {};
@@ -290,7 +323,11 @@ export function runLab(p: LabInput): LabResult {
     bySituation[sit] = Object.fromEntries(keys.map((k) => [k, round(score(rows, k))]));
   }
   const verdicts: LabResult['verdicts'] = {};
-  for (const k of CANDIDATES) verdicts[k] = verdict(score(unseen, k), score(unseen, p.production), score(unseen, 'none'), unseenDays);
+  for (const m of REGISTRY.filter((x) => x.role === 'candidate')) {
+    const rows = m.situation ? unseen.filter((s) => s.situation === m.situation) : unseen;
+    const days = rows.length ? (rows[rows.length - 1].t - rows[0].t) / DAY : 0;
+    verdicts[m.key] = verdict(score(rows, m.key), score(rows, p.production), score(rows, 'none'), days);
+  }
   // 5. what each set-aside entry costs the research (moments with readings that nothing else excludes)
   const minuteTimes = series(R).t;
   const duplicates = p.uncertain.map((u) => {

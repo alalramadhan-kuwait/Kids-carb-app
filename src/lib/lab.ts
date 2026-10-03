@@ -54,7 +54,7 @@ async function gather({ settings: s, events, history }: RunInput, now: number) {
     ctx: {
       doses: live.filter((e) => e.kind === 'insulin' && e.insulin_type !== 'long' && e.insulin_units).map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units! })),
       carbs: [
-        ...history.map((h) => ({ t: Date.parse(h.eaten_at), g: h.total_carbs, fpu: ((h.total_fat ?? 0) * 9 + (h.total_protein ?? 0) * 4) / 100 })),
+        ...history.map((h) => ({ t: Date.parse(h.eaten_at), g: h.total_carbs, fpu: ((h.total_fat ?? 0) * 9 + (h.total_protein ?? 0) * 4) / 100, meal: true })),
         ...live.filter((e) => (e.kind === 'carbs' || e.kind === 'treatment') && e.carbs_g).map((e) => ({ t: Date.parse(e.occurred_at), g: e.carbs_g! })),
       ],
       iob: { dia: s.iob_dia_min ?? 360, peak: s.iob_peak_min ?? 65 }, absorb: s.cob_absorb_min ?? 180, cr: ratio.cr, isf: ratio.isf,

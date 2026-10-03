@@ -3,7 +3,8 @@ import { Navigate } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { runLabNow, slotOf, useLab, type ModelRow, type RunRow, type UnexplainedRow } from '../lib/lab';
 import { formatGlucose, unitLabel, type GlucoseUnit } from '../lib/glucose';
-import type { ModelScore } from '../engine/lab';
+import { goals, VERDICT_RULES, type Goal, type ModelScore } from '../engine/lab';
+import { arrowSource } from '../lib/arrowChoice';
 import { answerText } from '../components/ResearchQuestion';
 import { Alert, Btn, Card, Chip, cx, toast } from '../components/ui';
 import { isEn, locale, t, tr } from '../i18n';
@@ -11,7 +12,7 @@ import { isEn, locale, t, tr } from '../i18n';
 const HOUR = 3600000;
 const when = (iso: string | number) => new Date(iso).toLocaleString(locale(), { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true, numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
 const NAME: Record<string, string> = tr({ // i18n-ok: values translated when read
-  none: 'بدون تغيير', libre: 'سهم Libre (المعروض)', trend: 'اتجاه التطبيق', context: 'السياق v1 (أكل + إنسولين)', context_fit: 'السياق، يُعاد ضبطه يوميًا', damped: 'اتجاه مخفَّف', fat_bump: 'السياق + أثر الدهون المتأخر', drift_fat: 'السياق + ميل الإنسولين الطويل + أثر الدهون', // i18n-ok
+  none: 'بدون تغيير', libre: 'سهم Libre (المعروض)', trend: 'اتجاه التطبيق', context: 'السياق v1 (أكل + إنسولين)', context_fit: 'السياق، يُعاد ضبطه يوميًا', damped: 'اتجاه مخفَّف', fat_bump: 'السياق + أثر الدهون المتأخر', drift_fat: 'السياق + ميل الإنسولين الطويل + أثر الدهون', similar_meals: 'وجبات مشابهة', // i18n-ok
 });
 const STATUS: Record<string, string> = tr({ // i18n-ok: values translated when read
   production: 'المستخدم الآن', reference: 'للمقارنة', collecting: 'يجمع بيانات', not_better: 'ليس أفضل بوضوح', ready: 'أفضل بوضوح', rejected: 'مرفوض', retired: 'متقاعد', // i18n-ok
@@ -34,7 +35,10 @@ const EXCL: Record<string, string> = tr({ // i18n-ok: values translated when rea
 });
 const SIT: Record<string, string> = tr({ night: 'الليل', after_food: 'بعد الأكل', after_insulin: 'بعد الإنسولين', other: 'غير ذلك' }); // i18n-ok
 const sep = () => (isEn() ? ', ' : '، '); // i18n-ok: punctuation
-const ORDER = ['libre', 'none', 'trend', 'context', 'context_fit', 'damped', 'fat_bump', 'drift_fat'];
+const ORDER = ['libre', 'none', 'trend', 'context', 'context_fit', 'damped', 'fat_bump', 'drift_fat', 'similar_meals'];
+const GOAL: Record<Goal['key'], string> = tr({ // i18n-ok: values translated when read
+  data: 'بيانات جديدة كافية', beat_shown: 'توقع أدق من المعروض بـ 10%', after_meals: 'بعد الأكل: الهبوط ثم الارتفاع', arrow: 'سرعة السهم مثل Libre أو أدق', // i18n-ok
+});
 
 /**
  * البحث: what the app learns on its own. Every 12 hours it scores the arrow it shows, "no change" and the
@@ -60,7 +64,9 @@ export function ResearchPanel() {
   return (
       <div className="space-y-4">
         <Card className="space-y-2">
-          <p className="text-sm text-slate-600">{t('كل 12 ساعة يقارن التطبيق وحده طرق التوقع على بيانات جديدة لم تُضبط عليها، ويرفض الضعيف منها، ويصنّف التغيرات غير المفسَّرة. لا يغيّر الجرعات ولا القراءات المعروضة ولا التنبيهات.')}</p>
+          <h2 className="font-bold">{t('الأهداف')}</h2>
+          {last?.metrics && last.data ? <Goals list={goals(last.metrics.all, last.metrics.bySituation ?? {}, last.data, arrowSource() === 'ours' ? 'trend' : 'libre')} /> : <p className="text-sm text-slate-500">{t('ستظهر النتائج بعد أول تشغيل.')}</p>}
+          <p className="text-xs text-slate-500">{t('للقياس فقط: لا يغيّر الجرعات ولا القراءات ولا التنبيهات.')}</p>
           <p className="text-xs text-slate-500">
             {last ? t('آخر تشغيل {when}', { when: when(last.finished_at ?? last.started_at) }) : t('لم يكتمل تشغيل بعد')}
             {' · '}{t('التالي بعد {when}', { when: when(slotOf(Date.now()) + 12 * HOUR) })}
@@ -115,10 +121,11 @@ function ScoreList({ scores, models, verdicts, unit }: { scores: Record<string, 
               <span className={cx('font-medium', s.mae15 === best && 'text-brand')}>{NAME[k] ?? k}</span>
               {status && <span className={cx('shrink-0 rounded-full px-2 py-0.5 text-xs', status === 'ready' ? 'bg-ok-soft text-ok' : status === 'rejected' ? 'bg-slate-100 text-slate-400' : 'bg-slate-100 text-slate-600')}>{STATUS[status]}</span>}
             </div>
-            <div className="grid grid-cols-4 gap-1 text-center text-xs">
+            <div className="grid grid-cols-5 gap-1 text-center text-xs">
               <Cell l={t('خطأ 15 د')} v={`±${formatGlucose(s.mae15, unit)}`} />
               <Cell l={t('خطأ 30 د')} v={`±${formatGlucose(s.mae30, unit)}`} />
               <Cell l={t('الاتجاه')} v={`${Math.round(s.direction * 100)}%`} />
+              <Cell l={t('السهم')} v={`${Math.round(s.arrow * 100)}%`} />
               <Cell l={t('نزول سريع')} v={`${s.fall.caught}/${s.fall.truth}`} sub={t('{n} خاطئ', { n: s.fall.falseAlarms })} />
             </div>
             {v && v.why && <p className="text-xs text-slate-500">{WHY[v.why] ?? v.why}</p>}
@@ -128,6 +135,33 @@ function ScoreList({ scores, models, verdicts, unit }: { scores: Record<string, 
     </ul>
   );
 }
+function Goals({ list }: { list: Goal[] }) {
+  const R = VERDICT_RULES;
+  const sub = (g: Goal) =>
+    g.key === 'data' ? t('{n} من {need} لحظة · {d} من {days} يوم', { n: g.a, need: R.readyN, d: g.b, days: R.readyDays })
+      : g.key === 'arrow' ? t('المعروض {a}% · {name} {b}%', { a: g.a, name: g.best ? NAME[g.best] : '—', b: g.b })
+        : g.best ? t('{name}: أدق بـ {x}%', { name: NAME[g.best] ?? g.best, x: g.a }) : t('بيانات جديدة غير كافية بعد');
+  return (
+    <ul className="space-y-3">
+      {list.map((g) => {
+        const pct = Math.round(g.pct * 100);
+        return (
+          <li key={g.key}>
+            <div className="flex items-baseline justify-between gap-2 text-sm">
+              <span className="font-medium">{GOAL[g.key]}</span>
+              <b className={cx('tabular-nums', pct >= 100 ? 'text-ok' : 'text-brand')}><bdi dir="ltr">{pct}%</bdi></b>
+            </div>
+            <div dir="ltr" className="mt-1 h-1.5 rounded-full bg-slate-100" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={GOAL[g.key]}>
+              <div className={cx('h-full rounded-full', pct >= 100 ? 'bg-ok' : 'bg-brand')} style={{ width: `${pct}%` }} />
+            </div>
+            <p className="mt-0.5 text-xs text-slate-500">{sub(g)}</p>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 const Cell = ({ l, v, sub }: { l: string; v: string; sub?: string }) => (
   <span className="rounded-lg bg-slate-50 py-1"><span className="block text-[11px] text-slate-500">{l}</span><span className="num font-medium">{v}</span>{sub && <span className="block text-[11px] text-slate-500">{sub}</span>}</span>
 );
