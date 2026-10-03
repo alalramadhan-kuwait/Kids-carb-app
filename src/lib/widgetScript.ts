@@ -1,0 +1,162 @@
+// The iPhone widget: a Scriptable script (Scriptable is a free App Store app that runs scripts as widgets).
+// It reads the glucose through a read-only share link, the same one the family page uses (carb.share_view):
+// the last 3 hours of readings and the range, nothing else, and the link can be revoked from Share.
+// The script is built here with the family's own link inside, copied, and pasted into Scriptable on the phone.
+
+export interface WidgetConfig { url: string; key: string; token: string; app: string; lang: 'ar' | 'en' }
+
+// the widget's own words, in the language the app was in when the widget was made
+const WORDS = {
+  ar: {
+    child: 'ليان', old: 'قراءة قديمة', urgent: 'منخفض جدًا', low: 'منخفض', high: 'مرتفع', ok: 'ضمن النطاق', now: 'الآن', // i18n-ok: data, the widget's own words (English below)
+    ago: 'قبل {m} د', in15: 'خلال 15 د', expired: 'الرابط انتهى', noReading: 'لا قراءة', // i18n-ok: data, the widget's own words (English below)
+    revoked: 'الرابط انتهى أو أُلغي. أنشئوا ويدجت جديدًا من التطبيق: المزيد ← ويدجت الآيفون.', // i18n-ok: data, the widget's own words (English below)
+    offline: 'لا اتصال الآن. سيحاول مرة أخرى.', none: 'لا توجد قراءات في آخر 3 ساعات.', cached: 'بلا اتصال: آخر نسخة', // i18n-ok: data, the widget's own words (English below)
+  },
+  en: {
+    child: 'Layan', old: 'Old reading', urgent: 'Very low', low: 'Low', high: 'High', ok: 'In range', now: 'now',
+    ago: '{m} min ago', in15: 'in 15 min', expired: 'Link expired', noReading: 'No reading',
+    revoked: 'The link expired or was revoked. Make a new widget in the app: More → iPhone widget.',
+    offline: 'No connection right now. It will try again.', none: 'No readings in the last 3 hours.', cached: 'Offline: last copy',
+  },
+};
+
+export function widgetScript(c: WidgetConfig): string {
+  const J = (v: string) => JSON.stringify(v);
+  return `// Layan · glucose: a read-only widget (a share link from the Layan app). Revoke it from "Sharing and reports".
+const W = ${JSON.stringify(WORDS[c.lang])};
+const SUPABASE = ${J(c.url)};
+const KEY = ${J(c.key)};
+const TOKEN = (args.widgetParameter || "").trim() || ${J(c.token)};
+const APP = ${J(c.app)};
+const MIN = 60000;
+const ARROW = { 1: "⇊", 2: "↘", 3: "→", 4: "↗", 5: "⇈" };
+
+async function load() {
+  const fm = FileManager.local();
+  const cache = fm.joinPath(fm.cacheDirectory(), "layan-widget.json");
+  try {
+    const r = new Request(SUPABASE + "/rest/v1/rpc/share_view");
+    r.method = "POST";
+    r.timeoutInterval = 15;
+    r.headers = { apikey: KEY, "Content-Type": "application/json", "Content-Profile": "carb" };
+    r.body = JSON.stringify({ p_token: TOKEN });
+    const d = await r.loadJSON();
+    if (d && !d.error) fm.writeString(cache, JSON.stringify(d));
+    return d || { error: "offline" };
+  } catch (e) {
+    if (fm.fileExists(cache)) { const d = JSON.parse(fm.readString(cache)); d.offline = true; return d; }
+    return { error: "offline" };
+  }
+}
+
+function view(d) {
+  const rs = (d.readings || []).map((r) => ({ t: Date.parse(r.t), v: r.v, trend: r.trend }));
+  const last = rs[rs.length - 1] || null;
+  if (!last) return null;
+  const mmol = d.unit !== "mgdl";
+  const fmt = (mg) => (mmol ? (mg / 18).toFixed(1) : String(Math.round(mg)));
+  const mins = Math.max(0, Math.round((Date.now() - last.t) / MIN));
+  const stale = mins > 15;
+  const before = rs.filter((r) => r.t <= last.t - 13 * MIN).pop();
+  const delta = before && last.t - before.t <= 20 * MIN ? last.v - before.v : null;
+  const level = last.v < 54 ? "urgent" : last.v < d.low ? "low" : last.v > d.high ? "high" : "ok";
+  const color = stale ? "#8A8A8E" : { urgent: "#B42318", low: "#D92D20", high: "#B54708", ok: "#067647" }[level];
+  const word = stale ? W.old : W[level];
+  return {
+    rs, last, mmol, value: fmt(last.v), arrow: stale ? "" : ARROW[last.trend] || "", unit: mmol ? "mmol/L" : "mg/dL",
+    age: mins < 1 ? W.now : W.ago.replace("{m}", mins), stale, color, word,
+    delta: delta === null || stale ? "" : (delta >= 0 ? "+" : "−") + fmt(Math.abs(delta)) + " " + W.in15,
+  };
+}
+
+function chart(d, v, w, h) {
+  const ctx = new DrawContext();
+  ctx.size = new Size(w, h);
+  ctx.opaque = false;
+  ctx.respectScreenScale = true;
+  const lo = Math.min(54, ...v.rs.map((r) => r.v)), hi = Math.max(220, ...v.rs.map((r) => r.v));
+  const y = (mg) => h - 4 - ((mg - lo) / (hi - lo)) * (h - 8);
+  const t0 = Date.now() - 3 * 60 * MIN, x = (t) => Math.max(0, Math.min(w, ((t - t0) / (3 * 60 * MIN)) * w));
+  ctx.setFillColor(new Color("#067647", 0.12));
+  ctx.fillRect(new Rect(0, y(d.high), w, y(d.low) - y(d.high)));
+  for (const r of v.rs) {
+    const c = r.v < d.low ? "#D92D20" : r.v > d.high ? "#B54708" : "#067647";
+    ctx.setFillColor(new Color(c));
+    ctx.fillEllipse(new Rect(x(r.t) - 1.5, y(r.v) - 1.5, 3, 3));
+  }
+  ctx.setFillColor(new Color(v.color));
+  ctx.fillEllipse(new Rect(x(v.last.t) - 3.5, y(v.last.v) - 3.5, 7, 7));
+  return ctx.getImage();
+}
+
+function text(stack, s, size, opts) {
+  const o = opts || {};
+  const t = stack.addText(s);
+  t.font = o.bold ? Font.boldRoundedSystemFont(size) : Font.systemFont(size);
+  if (o.color) t.textColor = new Color(o.color);
+  else t.textColor = Color.dynamic(new Color("#1C1B4D"), new Color("#F2F2F7"));
+  t.lineLimit = 1;
+  t.minimumScaleFactor = 0.6;
+  return t;
+}
+
+function message(w, s) {
+  text(w, W.child, 14, { bold: true });
+  w.addSpacer(6);
+  text(w, s, 12, { color: "#8A8A8E" }).lineLimit = 3;
+}
+
+const d = await load();
+const fam = config.widgetFamily || "medium";
+const w = new ListWidget();
+w.url = APP;
+w.refreshAfterDate = new Date(Date.now() + 5 * MIN);
+const v = d && !d.error ? view(d) : null;
+const name = (d && d.child) || W.child;
+
+if (fam === "accessoryInline") {
+  text(w, v ? name + " " + v.value + " " + v.arrow + " · " + v.age : name + " —", 12);
+} else if (fam === "accessoryCircular") {
+  w.addAccessoryWidgetBackground = true;
+  text(w, v ? v.value : "—", 18, { bold: true }).centerAlignText();
+  text(w, v ? v.arrow || v.age : "", 11).centerAlignText();
+} else if (fam === "accessoryRectangular") {
+  text(w, name, 12, { bold: true });
+  text(w, v ? v.value + " " + v.arrow : "—", 22, { bold: true });
+  text(w, v ? v.age + (v.stale ? "" : " · " + v.word) : d && d.error === "invalid" ? W.expired : W.noReading, 11);
+} else {
+  w.backgroundColor = Color.dynamic(new Color("#FFFFFF"), new Color("#1C1C1E"));
+  w.setPadding(12, 14, 12, 14);
+  if (!d || d.error === "invalid") message(w, W.revoked);
+  else if (d.error) message(w, W.offline);
+  else if (!v) message(w, W.none);
+  else {
+    const row = w.addStack();
+    row.centerAlignContent();
+    const left = row.addStack();
+    left.layoutVertically();
+    text(left, name + " · " + v.word, 12, { bold: true, color: v.color });
+    left.addSpacer(2);
+    const big = left.addStack();
+    big.centerAlignContent();
+    text(big, v.value, fam === "small" ? 40 : 44, { bold: true, color: v.stale ? "#8A8A8E" : null });
+    big.addSpacer(4);
+    text(big, v.arrow, 26, { bold: true, color: v.color });
+    text(left, v.unit, 10, { color: "#8A8A8E" });
+    left.addSpacer(4);
+    text(left, v.age + (v.delta ? " · " + v.delta : ""), 11, { color: "#8A8A8E" });
+    if (d.offline) text(left, W.cached, 10, { color: "#B54708" });
+    if (fam !== "small" && v.rs.length > 1) {
+      row.addSpacer(10);
+      const img = row.addImage(chart(d, v, 150, 90));
+      img.imageSize = new Size(150, 90);
+    }
+  }
+}
+
+if (config.runsInWidget) Script.setWidget(w);
+else await w.presentMedium();
+Script.complete();
+`;
+}

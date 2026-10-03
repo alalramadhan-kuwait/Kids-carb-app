@@ -1570,6 +1570,46 @@ console.log('low treatments');
   });
 }
 
+console.log('iphone widget');
+{
+  const { widgetScript } = await import('../widgetScript');
+  // a stand-in for Scriptable: every object accepts anything; texts added to the widget are recorded
+  const U: any = new Proxy(function () {}, { get: (_t, p) => (p === 'then' ? undefined : U), apply: () => U, construct: () => U, set: () => true });
+  const run = async (family: string, reply: unknown, opts: { throws?: boolean; cache?: unknown; en?: boolean } = {}) => {
+    const texts: string[] = []; let shown = false; let req: any = null;
+    const node = (): any => new Proxy({}, { set: () => true, get: (_t, p) => p === 'then' ? undefined : p === 'addText' ? (x: string) => { texts.push(String(x)); return U; } : p === 'addStack' ? () => node() : U });
+    function Request(this: any, url: string) { req = this; this.url = url; this.loadJSON = async () => { if (opts.throws) throw new Error('offline'); return reply; }; }
+    const fm = { joinPath: () => 'c', cacheDirectory: () => 'd', fileExists: () => opts.cache !== undefined, readString: () => JSON.stringify(opts.cache), writeString: () => {} };
+    const script = widgetScript({ url: 'https://x.supabase.co', key: 'pk', token: 'tok"en', app: 'https://app/', lang: opts.en ? 'en' : 'ar' });
+    const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
+    await new AsyncFn('Request', 'FileManager', 'ListWidget', 'DrawContext', 'Color', 'Font', 'Size', 'Rect', 'Script', 'config', 'args', script)(
+      Request, { local: () => fm }, function () { return node(); }, U, U, U, U, U, { setWidget: () => { shown = true; }, complete: () => {} },
+      { widgetFamily: family, runsInWidget: true }, { widgetParameter: null });
+    return { texts: texts.join(' | '), shown, req };
+  };
+  const now = Date.now(), at = (m: number) => new Date(now - m * 60000).toISOString();
+  const data = { child: 'ليان', unit: 'mmol', low: 70, high: 180, readings: [{ t: at(30), v: 150, trend: 3 }, { t: at(15), v: 120, trend: 2 }, { t: at(2), v: 110, trend: 2 }] };
+  test('widget: value, arrow, age and range word; the link and the publishable key only; every size draws', async () => {
+    const m = await run('medium', data);
+    assert.ok(m.shown);
+    assert.match(m.texts, /6\.1/); assert.match(m.texts, /↘/); assert.match(m.texts, /قبل 2 د/); assert.match(m.texts, /ضمن النطاق/); assert.match(m.texts, /−0\.6 خلال 15 د/);
+    assert.equal(m.req.url, 'https://x.supabase.co/rest/v1/rpc/share_view');
+    assert.deepEqual(JSON.parse(m.req.body), { p_token: 'tok"en' }, 'the token is embedded safely');
+    assert.equal(m.req.headers['Content-Profile'], 'carb');
+    for (const f of ['small', 'large', 'accessoryInline', 'accessoryCircular', 'accessoryRectangular']) assert.match((await run(f, data)).texts, /6\.1/, f);
+  });
+  test('widget: low, old reading, revoked link, offline with and without a saved copy', async () => {
+    assert.match((await run('small', { ...data, readings: [{ t: at(1), v: 62, trend: 1 }] })).texts, /منخفض.*3\.4.*⇊/);
+    const old = (await run('small', { ...data, readings: [{ t: at(40), v: 120, trend: 3 }] })).texts;
+    assert.match(old, /قراءة قديمة/); assert.doesNotMatch(old, /→/, 'no arrow on an old reading');
+    assert.match((await run('medium', { error: 'invalid' })).texts, /الرابط انتهى/);
+    assert.match((await run('medium', null, { throws: true })).texts, /لا اتصال/);
+    assert.match((await run('medium', null, { throws: true, cache: data })).texts, /بلا اتصال/);
+    assert.match((await run('medium', { ...data, readings: [] })).texts, /لا توجد قراءات/);
+    assert.match((await run('small', data, { en: true })).texts, /In range.*2 min ago/, 'in English when the app is');
+  });
+}
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {

@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.1.0",
+    "notes": [
+      "ويدجت للآيفون: السكر الآن والسهم وعمر القراءة على الشاشة الرئيسية وشاشة القفل، مع رسم آخر 3 ساعات. من المزيد ← ويدجت الآيفون (بتطبيق Scriptable المجاني)."
+    ],
+    "notes_en": [
+      "iPhone widget: glucose now, the arrow and the reading’s age on the Home Screen and Lock Screen, with the last 3 hours drawn. From More → iPhone widget (uses the free Scriptable app)."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.0.0",
     "notes": [
       "شاشة «سجّل» الجديدة: أربعة أزرار ملوّنة كبيرة (أكل، إنسولين، علاج انخفاض، وخز إصبع) وتحت كل زر متى يُستخدم. الملاحظة والرياضة والنوم تحت «أخرى».",

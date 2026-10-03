@@ -24,6 +24,7 @@ import CarePlanPage from './pages/CarePlan';
 import Night from './pages/Night';
 import Shared from './pages/Shared';
 import SharePage from './pages/Share';
+import WidgetPage from './pages/Widget';
 import Report from './pages/Report';
 import Scan from './pages/Scan';
 import { isNight } from './lib/schedule';
@@ -154,7 +155,7 @@ const TABS: { to: string; label: string; icon: IconName; match: string[] }[] = [
   { to: '/timeline', label: 'السجل', icon: 'history', match: ['/timeline'] }, // i18n-ok
   { to: '/meals', label: 'الوجبات', icon: 'meals', match: ['/meals', '/recipes', '/products', '/plan', '/snacks', '/scan'] }, // i18n-ok
   { to: '/analysis', label: 'التحليل', icon: 'advanced', match: ['/analysis', '/advanced'] }, // i18n-ok
-  { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm', '/alerts', '/care-plan', '/share', '/report'] }, // i18n-ok
+  { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm', '/alerts', '/care-plan', '/share', '/widget', '/report'] }, // i18n-ok
 ];
 
 /** Appearance: a fixed day or night choice on this phone, or automatic (night colours in the parents' night window
@@ -211,6 +212,7 @@ function Shell() {
         <Route path="/care-plan" element={<CarePlanPage />} />
         <Route path="/night" element={<Night />} />
         <Route path="/share" element={<SharePage />} />
+        <Route path="/widget" element={<WidgetPage />} />
         <Route path="/report" element={<Report />} />
         <Route path="/snacks" element={<SnacksPage />} />
         <Route path="/settings" element={<SettingsPage />} />
