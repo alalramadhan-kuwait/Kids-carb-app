@@ -178,6 +178,9 @@ export const food: Record<string, string> = {
   'كمية {name}': 'Amount of {name}',
   'المشروب: ماء': 'Drink: water',
   'عدّلتم الكميات لهذه المرة فقط. ستُسجَّل الوجبة كـ"معدّلة".': 'You changed the amounts for this time only. The meal will be logged as “modified”.',
+  'بدون سناك هذه المرة': 'No snack this time',
+  'مع السناك': 'With snack',
+  'السناك غير محسوب هذه المرة فقط. ستُسجَّل الوجبة كـ"معدّلة".': 'The snack is left out for this time only. The meal will be logged as “modified”.',
   'إرجاع الكميات الأصلية': 'Restore original amounts',
   'طريقة التحضير': 'Method',
 

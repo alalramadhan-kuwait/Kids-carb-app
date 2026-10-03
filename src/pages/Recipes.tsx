@@ -57,7 +57,10 @@ export function RecipeView() {
   // quantities can be changed for this meal only; that logs as a modified meal
   const [over, setOver] = useState<Record<string, number>>({});
   const ings: Ingredient[] = useMemo(() => base.map((i) => (over[i.id] !== undefined ? { ...i, quantity: over[i.id] } : i)), [base, over]);
-  const meal = useMemo(() => computeMeal(ings, products, settings), [ings, products, settings]);
+  // the snack can be left out for this meal only (she skipped it); the lines stay visible, greyed, and do not count
+  const [noSnack, setNoSnack] = useState(false);
+  const shown = useMemo(() => computeMeal(ings, products, settings), [ings, products, settings]);
+  const meal = useMemo(() => (noSnack ? computeMeal(ings.filter((i) => i.role !== 'snack'), products, settings) : shown), [noSnack, ings, products, settings, shown]);
   const { choose, busy } = useChoose();
   const [linking, setLinking] = useState<Ingredient | null>(null);
   const link = async (productId: string | null) => {
@@ -68,7 +71,8 @@ export function RecipeView() {
   };
   if (!recipe) return <Page title={t('الوصفة')} back={() => nav(-1)}><Card>{t('الوصفة غير موجودة.')}</Card></Page>;
 
-  const modified = Object.keys(over).some((k) => over[k] !== base.find((i) => i.id === k)?.quantity);
+  const qtyChanged = Object.keys(over).some((k) => over[k] !== base.find((i) => i.id === k)?.quantity);
+  const modified = qtyChanged || noSnack;
   const drift = recipe.saved_total_carbs !== null && meal.complete && !modified && Math.abs(meal.total.carbs - recipe.saved_total_carbs) >= 0.05;
   const problems = meal.lines.filter((l) => l.problem);
   const roles = { main: t('الوجبة'), drink: t('المشروب'), snack: t('السناك') } as const;
@@ -124,12 +128,24 @@ export function RecipeView() {
       <Card className="mb-3">
         <h2 className="mb-2 font-bold">{t('المكونات')}</h2>
         {(['main', 'drink', 'snack'] as const).map((role) => {
-          const ls = meal.lines.filter((l) => l.ing.role === role);
+          const ls = shown.lines.filter((l) => l.ing.role === role);
           if (!ls.length) return null;
+          const off = role === 'snack' && noSnack;
           return (
             <div key={role} className="mb-3 last:mb-0">
-              <div className="mb-1 flex justify-between text-sm font-medium text-slate-500"><span>{roles[role]}</span><span><span className="num">{fmt(meal.byRole[role])}</span> {t('غ')}</span></div>
-              <ul className="divide-y divide-slate-100">
+              <div className="mb-1 flex items-center justify-between gap-2 text-sm font-medium text-slate-500">
+                <span className={cx(off && 'line-through')}>{roles[role]}</span>
+                <span className="flex items-center gap-2">
+                  {role === 'snack' && (
+                    <button onClick={() => setNoSnack((v) => !v)} aria-pressed={!off}
+                      className={cx('rounded-full px-3 py-1 text-xs font-semibold ring-1', off ? 'bg-white text-slate-500 ring-slate-300' : 'bg-brand-soft text-brand ring-brand')}>
+                      {off ? t('بدون سناك هذه المرة') : t('مع السناك')}
+                    </button>
+                  )}
+                  <span className={cx(off && 'line-through')}><span className="num">{fmt(shown.byRole[role])}</span> {t('غ')}</span>
+                </span>
+              </div>
+              <ul className={cx('divide-y divide-slate-100', off && 'pointer-events-none opacity-40')}>
                 {ls.map((l) => (
                   <li key={l.ing.id} className="flex items-center gap-2 py-2">
                     <div className="min-w-0 flex-1">
@@ -159,7 +175,8 @@ export function RecipeView() {
           );
         })}
         {!hasDrink && <p className="mt-2 text-sm text-slate-500">{t('المشروب: ماء')}</p>}
-        {modified && <div className="mt-2"><Alert tone="info">{t('عدّلتم الكميات لهذه المرة فقط. ستُسجَّل الوجبة كـ"معدّلة".')}</Alert> <Btn kind="ghost" className="mt-2" onClick={() => setOver({})}>{t('إرجاع الكميات الأصلية')}</Btn></div>}
+        {noSnack && <div className="mt-2"><Alert tone="info">{t('السناك غير محسوب هذه المرة فقط. ستُسجَّل الوجبة كـ"معدّلة".')}</Alert></div>}
+        {qtyChanged && <div className="mt-2"><Alert tone="info">{t('عدّلتم الكميات لهذه المرة فقط. ستُسجَّل الوجبة كـ"معدّلة".')}</Alert> <Btn kind="ghost" className="mt-2" onClick={() => setOver({})}>{t('إرجاع الكميات الأصلية')}</Btn></div>}
       </Card>
 
       <Sheet open={!!linking} onClose={() => setLinking(null)} title={t('منتج «{name}»', { name: linking ? (linking.label ?? tMaybe(linking.slot_category ?? '')) : '' })}>
