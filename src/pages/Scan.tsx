@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../lib/data';
-import { callFood, findBarcode, logEstimated, lookupBarcode, scaleItem, shrinkPhoto, totals, type EstItem, type Estimate, type FoodStatus, type Packaged } from '../lib/food';
+import { callFood, findBarcode, logEstimated, logPhotoEntry, lookupBarcode, scaleItem, shrinkPhoto, totals, type EstItem, type Estimate, type FoodStatus, type Packaged } from '../lib/food';
 import { fmt } from '../lib/carbs';
 import { Alert, Btn, Card, NumInput, Page, cx, inputCls, toast } from '../components/ui';
+import { uploadPhoto } from '../lib/supabase';
 import { Icon } from '../components/Icon';
 import { isEn, lang, t } from '../i18n';
 
 type Step = { s: 'pick' } | { s: 'working'; url: string; what: 'photo' | 'barcode' } | { s: 'estimate'; url: string; est: Estimate; scanId: string | null }
-  | { s: 'packaged'; url: string; p: Packaged } | { s: 'nofood'; url: string };
+  | { s: 'packaged'; url: string; p: Packaged } | { s: 'nofood'; url: string } | { s: 'manual'; url: string; file: File };
+
+/** The AI photo estimate is on hold: a photo is kept with the parents' own carb count, to re-estimate later. */
+const AI_ON = false;
 
 const ERR: Record<string, string> = { // i18n-ok: shown through t()
   no_key: 'الميزة تحتاج مفتاح Anthropic في الإعدادات.', daily_limit: 'وصلتم لحد الصور اليومي. جرّبوا غدًا أو سجّلوا يدويًا.', // i18n-ok
@@ -17,7 +21,8 @@ const ERR: Record<string, string> = { // i18n-ok: shown through t()
 };
 
 /**
- * صوّر الأكل: one photo. A barcode in it is looked up (Open Food Facts); otherwise the photo is estimated by AI.
+ * صوّر الأكل: one photo. While the AI estimate is on hold (AI_ON), a photo without a barcode is saved with the
+ * carbs the parents count themselves, and kept for reference. A barcode in it is looked up (Open Food Facts); otherwise the photo is estimated by AI.
  * The result is always an editable estimate: nothing is saved until the parents check it and tap save.
  */
 export default function Scan() {
@@ -28,7 +33,7 @@ export default function Scan() {
   const [status, setStatus] = useState<FoodStatus | null>(null);
   const [err, setErr] = useState('');
   const cam = useRef<HTMLInputElement>(null), gallery = useRef<HTMLInputElement>(null);
-  useEffect(() => { callFood<FoodStatus>({ action: 'status' }).then(setStatus).catch(() => setStatus(null)); }, []);
+  useEffect(() => { if (AI_ON) callFood<FoodStatus>({ action: 'status' }).then(setStatus).catch(() => setStatus(null)); }, []);
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
@@ -41,6 +46,7 @@ export default function Scan() {
         const p = await lookupBarcode(code, lang()).catch(() => null);
         if (p) return setStep({ s: 'packaged', url: photo.url, p });
       }
+      if (!AI_ON) return setStep({ s: 'manual', url: photo.url, file });
       if (!status?.configured) { setErr(t(ERR.no_key)); return setStep({ s: 'pick' }); }
       setStep({ s: 'working', url: photo.url, what: 'photo' });
       const r = await callFood<{ estimate: Estimate; scan_id: string | null }>({ action: 'photo', image: photo.data, media_type: photo.media_type, note });
@@ -72,17 +78,18 @@ export default function Scan() {
           {err && <Alert tone="over">{err} {err === t(ERR.no_key) && <Link to="/settings" className="underline">{t('الإعدادات')}</Link>}</Alert>}
           <button onClick={() => cam.current?.click()} className="flex min-h-[136px] w-full flex-col items-center justify-center gap-3 rounded-3xl bg-brand text-white active:opacity-90">
             <Icon name="camera" size={44} /><span className="text-xl font-bold">{t('التقاط صورة')}</span>
-            <span className="text-sm opacity-80">{t('للأكل أو لباركود المنتج')}</span>
+            <span className="text-sm opacity-80">{AI_ON ? t('للأكل أو لباركود المنتج') : t('تُحفظ مع الكارب الذي تقدّرونه')}</span>
           </button>
           <Btn block kind="ghost" onClick={() => gallery.current?.click()}>{t('اختيار من الصور')}</Btn>
-          <label className="block space-y-1.5">
+          {AI_ON && <label className="block space-y-1.5">
             <span className="text-sm font-medium text-slate-600">{t('ملاحظة تساعد التقدير (اختياري)')}</span>
             <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('مثلًا: شاي بملعقتين سكر، نصف الصحن')} />
-          </label>
-          <p className="text-xs leading-relaxed text-slate-500">
+          </label>}
+          {!AI_ON && <Alert tone="info">{t('التقدير بالذكاء الاصطناعي متوقف حاليًا. صوّروا الأكل واكتبوا الكارب الذي تقدّرونه: تُحفظ الصورة مع التسجيل لنعيد تقدير الكارب لاحقًا إذا احتجنا. باركود المنتج ما زال يُقرأ.')}</Alert>}
+          {AI_ON && <p className="text-xs leading-relaxed text-slate-500">
             {t('الصورة تُقدَّر بالذكاء الاصطناعي، والباركود يُقرأ من Open Food Facts. كل الأرقام تقدير تراجعونه قبل الحفظ.')}
             {status && status.configured && <> {t('اليوم {n} من {max} صورة.', { n: status.used, max: status.limit })}</>}
-          </p>
+          </p>}
         </div>
       )}
 
@@ -100,6 +107,8 @@ export default function Scan() {
           <Btn block kind="primary" onClick={() => setStep({ s: 'pick' })}>{t('صورة أخرى')}</Btn>
         </div>
       )}
+
+      {step.s === 'manual' && <PhotoEntry url={step.url} file={step.file} onRetake={() => setStep({ s: 'pick' })} onDone={async () => { await reload(); nav('/'); }} />}
 
       {step.s === 'estimate' && <EstimateReview url={step.url} est={step.est} onRetake={() => setStep({ s: 'pick' })}
         onSave={(name, items, kind) => save(name, items, kind, step.scanId, t('تقدير من صورة'))} />}
@@ -198,6 +207,40 @@ function PackagedReview({ url, p, onSave, onRetake }: { url: string; p: Packaged
       {p.serving && <p className="px-1 text-xs text-slate-500">{t('الحصة على العبوة {g} غ.', { g: fmt(p.serving) })}</p>}
       <p className="px-1 text-xs text-slate-500">{t('البيانات من Open Food Facts وقد تختلف عن الملصق. قارنوها بالعبوة.')}</p>
       <ReviewFooter items={[item]} name={name} setName={setName} onSave={(kind) => onSave(name, [item], kind)} onRetake={onRetake} />
+    </div>
+  );
+}
+
+/** The photo with the parents' own count: name, carbs, meal or snack. The photo is stored with the entry. */
+function PhotoEntry({ url, file, onRetake, onDone }: { url: string; file: File; onRetake: () => void; onDone: () => Promise<void> }) {
+  const [name, setName] = useState('');
+  const [carbs, setCarbs] = useState<number | null>(null);
+  const [kind, setKind] = useState<'meal' | 'snack'>('meal');
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (carbs === null) return;
+    setBusy(true);
+    try {
+      const path = await uploadPhoto(file, 'meals');
+      await logPhotoEntry({ name: name.trim() || t('وجبة مصوّرة'), kind, carbs, photo_path: path, notes: t('مع صورة للمرجع') });
+      toast(t('تم التسجيل مع الصورة ✓')); await onDone();
+    } catch (e) { toast(t('تعذّر التسجيل: {err}', { err: (e as Error).message })); } finally { setBusy(false); }
+  };
+  return (
+    <div className="space-y-4">
+      <img src={url} alt="" className="max-h-[38vh] w-full rounded-2xl object-cover" />
+      <input className={inputCls} dir="auto" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('اسم الأكل (اختياري)')} />
+      <label className="flex items-center justify-between gap-3 px-1">
+        <span className="font-medium">{t('الكارب الذي تقدّرونه')}</span>
+        <span className="flex items-center gap-1.5"><NumInput value={carbs} onChange={setCarbs} className="!w-24 text-center text-lg font-bold" /><span className="text-slate-500">{t('غ')}</span></span>
+      </label>
+      <div className="grid grid-cols-2 gap-1 rounded-full bg-slate-50 p-1">
+        {(['meal', 'snack'] as const).map((k) => (
+          <button key={k} onClick={() => setKind(k)} className={cx('min-h-[44px] rounded-full text-sm font-bold', kind === k ? 'bg-brand text-white' : 'text-slate-600')}>{k === 'meal' ? t('وجبة') : t('سناك')}</button>
+        ))}
+      </div>
+      <Btn block kind="primary" className="min-h-[56px] text-lg" disabled={carbs === null || carbs < 0 || carbs >= 500 || busy} onClick={save}>{carbs === null ? t('اكتبوا الكارب') : t('سجّل {g} غ كارب', { g: fmt(carbs) })}</Btn>
+      <Btn block kind="ghost" onClick={onRetake}>{t('صورة أخرى')}</Btn>
     </div>
   );
 }

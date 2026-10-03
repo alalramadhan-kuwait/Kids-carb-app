@@ -52,6 +52,24 @@ export async function shrinkPhoto(file: Blob, max = 1280): Promise<{ data: strin
 }
 
 // ── saving ──
+/**
+ * The photo kept for reference (AI estimate on hold): the parents' own carb count is logged as one entry and the
+ * photo is stored with it, so the carbs can be estimated again later. Returns the new id.
+ */
+export async function logPhotoEntry(input: { name: string; kind: 'meal' | 'snack'; carbs: number; photo_path: string; notes: string | null }) {
+  const { data: g } = await supabase.from('glucose_readings').select('taken_at,mg_dl,trend').order('taken_at', { ascending: false }).limit(1).maybeSingle();
+  const fresh = g && Date.now() - new Date(g.taken_at).getTime() <= 15 * 60000;
+  const line: HistoryLine = { name: input.name, product: null, quantity: 1, unit: 'serving', state: 'as_is', role: 'main', carbs: input.carbs };
+  const { data, error } = await supabase.from('meal_history').insert({
+    glucose_mgdl: fresh ? g.mg_dl : null, glucose_trend: fresh ? g.trend : null, glucose_at: fresh ? g.taken_at : null,
+    kind: input.kind, recipe_id: null, name: input.name, category: null,
+    total_carbs: input.carbs, total_fat: null, total_fiber: null, total_protein: null, total_kcal: null,
+    modified: false, lines: [line], notes: input.notes, photo_path: input.photo_path,
+  }).select('id').single();
+  if (error) throw new Error(error.message);
+  return (data as { id: string }).id;
+}
+
 /** Logs the checked items as one entry in the meal history, marked as an estimate. Returns the new id. */
 export async function logEstimated(input: { name: string; kind: 'meal' | 'snack'; items: EstItem[]; lang: 'ar' | 'en'; notes: string; scanId?: string | null }) {
   const lines: HistoryLine[] = input.items.map((i) => ({

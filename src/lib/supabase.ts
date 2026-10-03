@@ -11,7 +11,7 @@ export const supabase = createClient(url, key, { db: { schema: 'carb' }, auth: {
 
 /** A stored photo, or a picture link as given (e.g. a maker's product image from an imported list). */
 export const photoUrl = (path: string | null | undefined) =>
-  !path ? null : /^https:\/\//.test(path) ? path : supabase.storage.from('carb-photos').getPublicUrl(path).data.publicUrl;
+  !path ? null : /^https:\/\//.test(path) ? path : path.startsWith('app:') ? import.meta.env.BASE_URL + path.slice(4) : supabase.storage.from('carb-photos').getPublicUrl(path).data.publicUrl;
 
 /** Shrink a photo on the phone before upload: full-size camera shots are 4 MB+. */
 export async function resizeImage(file: File, max = 900): Promise<Blob> {

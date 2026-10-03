@@ -1553,6 +1553,23 @@ console.log('product portions');
   });
 }
 
+console.log('low treatments');
+{
+  const { usualLowTreatments } = await import('../lowUsual');
+  test('what she usually takes for a low: treatments and drinks logged while low, most used first', () => {
+    const h = [
+      { name: 'Juice box', total_carbs: 15, glucose_mgdl: 66 }, { name: 'Juice box', total_carbs: 15, glucose_mgdl: 70 },
+      { name: 'Rice', total_carbs: 45, glucose_mgdl: 60 },            // a meal, not a treatment
+      { name: 'Crackers', total_carbs: 12, glucose_mgdl: 140 },       // not low
+      { name: 'Crackers', total_carbs: 12, glucose_mgdl: null },
+    ];
+    const e = [{ kind: 'treatment', treatment: 'Tablets', carbs_g: 8 }, { kind: 'treatment', treatment: 'Juice box', carbs_g: 15, deleted_at: 'x' }, { kind: 'carbs', treatment: null, carbs_g: 20 }];
+    assert.deepEqual(usualLowTreatments(h, e), [{ name: 'Juice box', carbs: 15, n: 2 }, { name: 'Tablets', carbs: 8, n: 1 }]);
+    assert.equal(usualLowTreatments(h, e, 1).length, 1);
+    assert.deepEqual(usualLowTreatments([], []), []);
+  });
+}
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {

@@ -188,7 +188,7 @@ export default function Now() {
           </button>
         </div>
       </div>
-      <LogSheet open={logOpen} onClose={() => setLogOpen(false)} />
+      <LogSheet open={logOpen} onClose={() => setLogOpen(false)} low={!!latest && Date.now() - Date.parse(latest.taken_at) < 20 * 60000 && latest.mg_dl <= (rng.low ?? 70) + 5} />
     </main>
   );
 }

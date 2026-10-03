@@ -150,6 +150,8 @@ export interface HistoryEntry {
   source?: string | null; needs_review?: boolean;
   /** the maker, e.g. KDD, so the family can find all of one brand's products */
   brand?: string | null;
+  /** a photo of the food kept for reference, to re-estimate the carbs later (carb-photos path) */
+  photo_path?: string | null;
   edited_at?: string | null; edited_by?: string | null;
 }
 

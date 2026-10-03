@@ -14,7 +14,7 @@ import { Btn, Card, Chip, Page, Sheet, cx, toast } from '../components/ui';
 import { dayStartOf, dayTitle, dayTotals } from '../engine/day';
 import { isEn, t, tMaybe } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
-import { supabase } from '../lib/supabase';
+import { photoUrl, supabase } from '../lib/supabase';
 import { checkMinutes } from '../engine/predict';
 import { LogSheet } from '../components/LogSheet';
 import { EditEntry } from '../components/EditEntry';
@@ -151,6 +151,7 @@ function Row({ it, who, onOpen }: { it: Item; who: string; onOpen: () => void })
           <span className="block truncate font-medium">{main}</span>
           {(sub || who) && <span className="block truncate text-xs text-slate-500"><bdi>{[sub, who].filter(Boolean).join(' · ')}</bdi></span>}
         </span>
+        {it.h?.photo_path && <span className="shrink-0" aria-label={t('مع صورة')}>📷</span>}
         {it.h && <span className="num shrink-0 text-lg font-bold text-brand-num">{fmt(it.h.total_carbs)}<span className="text-xs font-medium"> {t('غ')}</span></span>}
         <span className="text-slate-300">{isEn() ? '›' : '‹'}</span>
       </button>
@@ -165,6 +166,7 @@ function MealDetail({ h, n, unit }: { h: HistoryEntry; n: number; unit: 'mmol' |
         <span className="num text-3xl font-bold text-brand-num">{fmt(h.total_carbs)}</span><span className="text-slate-500">{t('غ كارب')}</span>
         <span className="ms-auto text-slate-500">{fmtTime(new Date(h.eaten_at))}</span>
       </div>
+      {h.photo_path && <a href={photoUrl(h.photo_path)!} target="_blank" rel="noreferrer"><img src={photoUrl(h.photo_path)!} alt={t('صورة الأكل')} className="max-h-56 w-full rounded-xl object-cover" /></a>}
       {h.glucose_mgdl !== null && (
         <p className="flex items-center gap-1 text-slate-600">{t('السكر عند التسجيل:')} <b className="num">{formatGlucose(h.glucose_mgdl, unit)}</b> {tMaybe(unitLabel(unit))} {h.glucose_trend ? <Icon name={TREND_ICON[h.glucose_trend]} size={14} label={tMaybe(TREND_WORDS[h.glucose_trend])} /> : null}</p>
       )}

@@ -9,7 +9,8 @@ import { Icon } from './Icon';
 import type { IconName } from '../icons/defs';
 import { Alert, Btn, Chip, Field, NumInput, Sheet, cx, inputCls, toast } from './ui';
 import { t, tMaybe } from '../i18n';
-import { KIND_STYLE } from '../lib/kinds';
+import { KIND_STYLE, type KindKey } from '../lib/kinds';
+import { usualLowTreatments } from '../lib/lowUsual';
 import { DoseCalculator } from './DoseCalculator';
 import { logQuick, useQuickItems } from '../lib/quick';
 import { brandsOf, sameBrand } from '../lib/brand';
@@ -24,6 +25,8 @@ import { toMgdl, unitLabel } from '../lib/glucose';
 import { fmt } from '../lib/carbs';
 import type { DoseCalc } from '../lib/types';
 
+// the less used kinds sit under "أخرى" (from what the family logs: food, insulin, lows and finger-pricks)
+const OTHER: EventKind[] = ['note', 'exercise', 'sleep'];
 const KINDS: { kind: EventKind; label: string; icon: IconName }[] = [
   { kind: 'insulin', label: 'إنسولين', icon: 'insulin' }, // i18n-ok
   { kind: 'carbs', label: 'كارب', icon: 'carbs' }, // i18n-ok
@@ -39,8 +42,12 @@ const hhmm = (t: number) => { const d = new Date(t + KW); return `${String(d.get
 const wakeDefault = () => (new Date(Date.now() + KW).getUTCHours() < 12 ? hhmm(Date.now()) : '06:30');
 const AGO = [0, 15, 30, 60];
 
-/** "سجّل": insulin, carbs, hypo treatment or a note. Rapid insulin shows the dose calculator (doctor's plan); the parent confirms. */
-export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+/**
+ * "سجّل": one colour per kind. Food (products first, then carbs only, a photo, a recipe), insulin, low treatment and
+ * finger-prick up front; note, exercise and sleep under "أخرى". When glucose is low the low treatment comes first.
+ * Rapid insulin shows the dose calculator (doctor's plan); the parent confirms.
+ */
+export function LogSheet({ open, onClose, low = false }: { open: boolean; onClose: () => void; low?: boolean }) {
   const { events, me, nameOf, reload, settings, history } = useData();
   const [kind, setKind] = useState<EventKind | null>(null);
   const [clientId, setClientId] = useState(() => crypto.randomUUID());
@@ -62,17 +69,19 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
   const [clean, setClean] = useState(true);                     // hands washed and dried
   const quick = useQuickItems();
   const [brandPick, setBrandPick] = useState<string | null>(null);
-  const [picking, setPicking] = useState(false);                  // choosing from the products catalogue
+  const [food, setFood] = useState(false);                        // the food screen: products, carbs only, photo, recipe
+  const [more, setMore] = useState(false);                        // note, exercise, sleep shown
   const [picked, setPicked] = useState<Product | null>(null);
   const [newProduct, setNewProduct] = useState(false);              // entering a product from the box in hand   // frequent foods of one brand only
   const brands = useMemo(() => brandsOf(quick.items), [quick.items]);
   const quickShown = brandPick ? quick.items.filter((q) => sameBrand(q.brand, brandPick)) : quick.items.slice(0, 10);
+  const usualLow = useMemo(() => usualLowTreatments(history, events), [history, events]);
 
   const reset = () => {
     setKind(null); setClientId(crypto.randomUUID()); setUnits(null); setType('rapid'); setPurpose(null);
     setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault()); setCalc(null); setBg(null); setClean(true);
   };
-  const close = () => { reset(); setBrandPick(null); setNewProduct(false); setPicking(false); onClose(); };
+  const close = () => { reset(); setBrandPick(null); setNewProduct(false); setFood(false); setMore(false); onClose(); };
 
   const draft: NewEvent | null = useMemo(() => {
     if (!kind) return null;
@@ -117,29 +126,40 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
 
   return (
     <>
-    <Sheet open={open} onClose={close} title={picking ? t('من المنتجات') : newProduct ? t('منتج جديد') : kind ? t(KINDS.find((k) => k.kind === kind)!.label) : t('سجّل')}>
-      {picking ? (
-        <ProductPicker onPick={(p) => { setPicked(p); close(); }} />
+    <Sheet open={open} onClose={close} title={food && !newProduct ? t('أكل') : newProduct ? t('منتج جديد') : kind ? t(KINDS.find((k) => k.kind === kind)!.label) : t('سجّل')}>
+      {food && !newProduct ? (
+        <div className="space-y-3">
+          <div className="flex items-start gap-2">
+            <p className="flex-1 text-sm text-slate-600">{t('اختاروا المنتج من القائمة. إذا لم يكن فيها: اكتبوا الكارب، أو صوّروا الأكل.')}</p>
+            <button onClick={() => setFood(false)} className="min-h-[36px] shrink-0 text-sm font-medium text-slate-500">{t('رجوع')}</button>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button onClick={() => { setFood(false); setKind('carbs'); }} className={cx(SMALL, KIND_STYLE.carbs.soft)}><Icon name="carbs" size={22} />{t('كارب فقط')}</button>
+            <Link to="/scan" onClick={close} className={cx(SMALL, KIND_STYLE.carbs.soft)}><Icon name="camera" size={22} />{t('صورة + كارب')}</Link>
+            <Link to="/meals" onClick={close} className={cx(SMALL, KIND_STYLE.carbs.soft)}><Icon name="meals" size={22} />{t('من الوصفات')}</Link>
+          </div>
+          <button onClick={() => setNewProduct(true)} className="min-h-[40px] w-full text-start text-sm font-bold text-brand">{t('+ منتج جديد ليس في القائمة')}</button>
+          <ProductPicker onPick={(p) => { setPicked(p); close(); }} />
+        </div>
       ) : newProduct ? (
         <ProductForm q={null} brands={brands} onDone={() => { setNewProduct(false); void quick.reload(); }} onLog={async (q: QuickItem) => {
           const id = await logQuick(q); await reload(); void quick.reload(); close();
           toast(t('تم التسجيل: {x}', { x: `${tMaybe(q.name)} · ${t('{g} غ', { g: fmt(q.carbs) })}` }), { label: t('تراجع'), run: async () => { await deleteHistory(id); await reload(); } });
         }} />
       ) : !kind ? (
-        <div className="space-y-3">
-          <div className="grid grid-cols-3 gap-3">
-            {KINDS.map((k) => (
-              <button key={k.kind} onClick={() => setKind(k.kind)} className={cx('flex min-h-[80px] flex-col items-center justify-center gap-1.5 rounded-2xl', KIND_STYLE[k.kind].soft)}>
-                <Icon name={k.icon} size={26} /><span className="text-sm font-bold">{t(k.label)}</span>
-              </button>
-            ))}
+        <div className="space-y-4">
+          {low && <Tile k="treatment" icon="treatment" strong wide label={t('علاج انخفاض')} sub={t('السكر منخفض: سجّلوا العصير أو الأقراص')} onClick={() => setKind('treatment')} />}
+          <div className="grid grid-cols-2 gap-3">
+            <Tile k="meal" icon="carbs" label={t('أكل')} sub={t('منتج، كارب، صورة، وصفة')} onClick={() => setFood(true)} />
+            <Tile k="insulin" icon="insulin" label={t('إنسولين')} sub={t('سريع أو طويل المفعول')} onClick={() => setKind('insulin')} />
+            {!low && <Tile k="treatment" icon="treatment" label={t('علاج انخفاض')} sub={t('عصير أو أقراص')} onClick={() => setKind('treatment')} />}
+            <Tile k="bg_check" icon="glucose" wide={low} label={t('وخز إصبع')} sub={t('قراءة من جهاز الوخز')} onClick={() => setKind('bg_check')} />
           </div>
           {/* foods she has often: one tap logs the usual amount (undo in the toast) */}
           {(
             <div>
               <div className="mb-1 flex items-center justify-between gap-2">
-                <span className="text-sm font-medium text-slate-600">{t('أكل متكرر')}</span>
-                <button onClick={() => setNewProduct(true)} className="min-h-[36px] text-sm font-bold text-brand">{t('+ منتج جديد')}</button>
+                <span className="text-sm font-medium text-slate-600">{t('أكل متكرر')} <span className="text-xs font-normal text-slate-500">{t('· ضغطة واحدة تسجّل')}</span></span>
               </div>
               {brands.length > 0 && (
                 <div className="-mx-4 mb-2 flex gap-1.5 overflow-x-auto px-4">
@@ -163,20 +183,34 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
               </div>
             </div>
           )}
-          <button onClick={() => setPicking(true)} className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-white font-medium ring-1 ring-slate-200">
-            <Icon name="products" size={22} /> {t('من المنتجات')}
-          </button>
-          <div className="grid grid-cols-2 gap-2">
-            <Link to="/scan" onClick={close} className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-white font-medium ring-1 ring-slate-200">
-              <Icon name="camera" size={22} /> {t('صوّر الأكل')}
-            </Link>
-            <Link to="/meals" onClick={close} className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl bg-white font-medium ring-1 ring-slate-200">
-              <Icon name="meals" size={22} /> {t('من الوصفات')}
-            </Link>
+          <div>
+            <button onClick={() => setMore(!more)} aria-expanded={more} className="flex min-h-[44px] w-full items-center justify-between rounded-xl px-1 text-sm font-medium text-slate-600">
+              <span>{t('أخرى: ملاحظة، رياضة، نوم')}</span><span aria-hidden>{more ? '▴' : '▾'}</span>
+            </button>
+            {more && (
+              <div className="grid grid-cols-3 gap-2">
+                {KINDS.filter((k) => OTHER.includes(k.kind)).map((k) => (
+                  <button key={k.kind} onClick={() => setKind(k.kind)} className={cx(SMALL, KIND_STYLE[k.kind].soft)}><Icon name={k.icon} size={22} />{t(k.label)}</button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       ) : (
         <div className="space-y-3">
+          {kind === 'treatment' && usualLow.length > 0 && (
+            <div>
+              <div className="mb-1 text-sm font-medium text-slate-600">{t('ما تأخذه عادة')}</div>
+              <div className="flex flex-wrap gap-2">
+                {usualLow.map((u) => (
+                  <button key={u.name + u.carbs} onClick={() => { setGrams(u.carbs); setTreat(u.name); }}
+                    className={cx('min-h-[44px] rounded-full px-3.5 text-sm font-medium', treat === u.name && grams === u.carbs ? KIND_STYLE.treatment.solid : KIND_STYLE.treatment.soft)}>
+                    <bdi>{tMaybe(u.name)}</bdi> <span className="num opacity-80">{fmt(u.carbs)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {/* the value and its save button share one row, so saving never hides under the keyboard */}
           {kind !== 'sleep' && (
             <div className="flex items-end gap-2">
@@ -185,7 +219,7 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
                 {kind === 'note'
                   ? <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('مثلًا: مريضة، حفلة، تغيير الحساس')} autoFocus />
                   : <NumInput value={kind === 'insulin' ? units : kind === 'exercise' ? mins : kind === 'bg_check' ? bg : grams} onChange={kind === 'insulin' ? setUnits : kind === 'exercise' ? setMins : kind === 'bg_check' ? setBg : setGrams}
-                      className="!min-h-[56px] !text-center !text-3xl font-bold" autoFocus={kind !== 'insulin'} />}
+                      className="!min-h-[56px] !text-center !text-3xl font-bold" autoFocus={kind !== 'insulin' && !(kind === 'treatment' && usualLow.length > 0)} />}
               </div>
               <Btn kind="primary" className={cx('min-h-[56px] shrink-0 !px-5', KIND_STYLE[kind].solid)} disabled={!valid || busy || (!!dup && !dupAck)} onClick={save}>{t('حفظ')}</Btn>
             </div>
@@ -242,6 +276,19 @@ export function LogSheet({ open, onClose }: { open: boolean; onClose: () => void
     </Sheet>
     <ProductSheet p={picked} start="log" onClose={() => setPicked(null)} />
     </>
+  );
+}
+
+const SMALL = 'flex min-h-[72px] flex-col items-center justify-center gap-1 rounded-2xl px-1 text-center text-sm font-bold';
+
+/** A big coloured choice on the first screen: what it is, and in small print when to use it. */
+function Tile({ k, icon, label, sub, onClick, strong, wide }: { k: KindKey; icon: IconName; label: string; sub: string; onClick: () => void; strong?: boolean; wide?: boolean }) {
+  return (
+    <button onClick={onClick} className={cx('flex min-h-[96px] flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-center active:opacity-80', strong ? KIND_STYLE[k].solid : KIND_STYLE[k].soft, wide && 'col-span-2 w-full')}>
+      <Icon name={icon} size={28} />
+      <span className="text-base font-bold">{label}</span>
+      <span className="text-xs font-medium opacity-80">{sub}</span>
+    </button>
   );
 }
 

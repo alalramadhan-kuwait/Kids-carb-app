@@ -10,6 +10,11 @@ export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Bool
 type ToastMsg = { text: string; action?: { label: string; run: () => void } };
 export const toast = (text: string, action?: ToastMsg['action']) =>
   window.dispatchEvent(new CustomEvent<ToastMsg>('kc-toast', { detail: { text, action } }));
+const hideToast = () => window.dispatchEvent(new Event('kc-toast-hide'));
+/**
+ * At the top of the screen, so it never covers a sheet's buttons. Tap it or its ✕ to close; it also closes by itself
+ * and whenever a sheet opens.
+ */
 export function Toaster() {
   const [msg, setMsg] = useState<ToastMsg | null>(null);
   useEffect(() => {
@@ -17,16 +22,18 @@ export function Toaster() {
     const on = (e: Event) => {
       const m = (e as CustomEvent<ToastMsg>).detail;
       setMsg(m); window.clearTimeout(t);
-      t = window.setTimeout(() => setMsg(null), m.action ? 8000 : 2600);
+      t = window.setTimeout(() => setMsg(null), m.action ? 6000 : 2600);
     };
-    window.addEventListener('kc-toast', on);
-    return () => window.removeEventListener('kc-toast', on);
+    const off = () => { window.clearTimeout(t); setMsg(null); };
+    window.addEventListener('kc-toast', on); window.addEventListener('kc-toast-hide', off);
+    return () => { window.removeEventListener('kc-toast', on); window.removeEventListener('kc-toast-hide', off); };
   }, []);
   if (!msg) return null;
   return (
-    <div role="status" className="fixed inset-x-4 bottom-40 z-[60] mx-auto flex max-w-sm items-center gap-3 rounded-2xl bg-slate-900 px-4 py-3 text-white shadow-lg">
-      <span className="flex-1 text-center">{msg.text}</span>
-      {msg.action && <button className="rounded-xl bg-white/15 px-3 py-1.5 font-bold" onClick={() => { msg.action!.run(); setMsg(null); }}>{msg.action.label}</button>}
+    <div role="status" onClick={() => setMsg(null)} className="fixed inset-x-4 top-[calc(8px+env(safe-area-inset-top))] z-[60] mx-auto flex max-w-sm items-center gap-2 rounded-2xl bg-slate-900 py-2 pe-1.5 ps-4 text-sm text-white shadow-lg">
+      <span className="flex-1">{msg.text}</span>
+      {msg.action && <button className="min-h-[40px] rounded-xl bg-white/15 px-3 font-bold" onClick={(e) => { e.stopPropagation(); msg.action!.run(); setMsg(null); }}>{msg.action.label}</button>}
+      <button aria-label={t('إغلاق')} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/70" onClick={(e) => { e.stopPropagation(); setMsg(null); }}>✕</button>
     </div>
   );
 }
@@ -79,6 +86,7 @@ function useSwipeDown(onClose: () => void) {
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
   const area = useVisibleArea();
   const panel = useSwipeDown(onClose);
+  useEffect(() => { if (open) hideToast(); }, [open]);
   if (!open) return null;
   return (
     <div className="fixed inset-x-0 z-50 flex items-end justify-center bg-black/40" style={{ top: area.top, height: area.height }} onClick={onClose}>

@@ -1,5 +1,25 @@
 [
   {
+    "date": "2026-10-03",
+    "version": "2.0.0",
+    "notes": [
+      "شاشة «سجّل» الجديدة: أربعة أزرار ملوّنة كبيرة (أكل، إنسولين، علاج انخفاض، وخز إصبع) وتحت كل زر متى يُستخدم. الملاحظة والرياضة والنوم تحت «أخرى».",
+      "«أكل» يفتح المنتجات مباشرة، ومعها: كارب فقط، صورة + كارب، من الوصفات، ومنتج جديد.",
+      "عندما يكون السكر منخفضًا يظهر «علاج انخفاض» أولًا باللون الأحمر، ويعرض ما تأخذه ليان عادة (مثل عصير 1.2.3) بضغطة.",
+      "صوّر الأكل: التقدير بالذكاء الاصطناعي متوقف مؤقتًا. تُحفظ الصورة مع الكارب الذي تكتبونه لنراجعه لاحقًا، وتظهر في السجل.",
+      "رسالة «تم التسجيل» صارت أعلى الشاشة ولها زر إغلاق، ولا تغطي الأزرار.",
+      "صورة لبسكويت Ritz في المنتجات."
+    ],
+    "notes_en": [
+      "New Log screen: four big coloured buttons (Food, Insulin, Low treatment, Finger-prick), each saying when to use it. Note, exercise and sleep are under “Other”.",
+      "Food opens the products list straight away, with Carbs only, Photo + carbs, From recipes and New product.",
+      "When glucose is low, Low treatment comes first in red and offers what Layan usually takes (such as the 1.2.3 juice) in one tap.",
+      "Food photo: the AI estimate is on hold. The photo is kept with the carbs you type, to check later, and shows in History.",
+      "The “Logged” message is now at the top of the screen with a close button, and no longer covers buttons.",
+      "A picture for Ritz crackers in Products."
+    ]
+  },
+  {
     "date": "2026-10-02",
     "version": "1.30.0",
     "notes": [
