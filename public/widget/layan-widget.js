@@ -23,7 +23,7 @@ const MIN = 60000;
 const ARROW = { 1: "⇊", 2: "↘", 3: "→", 4: "↗", 5: "⇈" };
 // the app's day colours (src/index.css)
 const C = {
-  bg: "#FCF7F8", panel: "#F4EFFD", border: "#E4DCF9", ink: "#261E5C", text2: "#625A87", text3: "#9084A9", brand: "#5B48D6",
+  bg: "#FCF7F8", border: "#E4DCF9", ink: "#261E5C", text2: "#625A87", text3: "#9084A9", brand: "#5B48D6",
   band: "#E3F5EC", ins: "#2E7CD6", carb: "#C2408F",
   dot: { ok: "#46B98A", high: "#F2A541", low: "#E95F68", urgent: "#E95F68" },
   text: { ok: "#1F7A55", high: "#8F5A00", low: "#B83A44", urgent: "#B83A44" },
@@ -114,16 +114,15 @@ function widgetSize(fam) {
 
 const levelOf = (d, mg) => (mg < 54 ? "urgent" : mg < d.low ? "low" : mg > d.high ? "high" : "ok");
 
-// the background: side panel, her range, hour lines and labels, the readings as dots, meals and doses as markers
-function background(d, v, size, panelW, chartTop) {
+// the background, edge to edge: her range, hour lines and labels, the readings as dots, meals and doses as markers
+function background(d, v, size, chartTop) {
   const ctx = new DrawContext();
   ctx.size = size;
   ctx.opaque = true;
   ctx.respectScreenScale = true;
-  const W = size.width, H = size.height, x0 = panelW + 8, x1 = W - 10, y0 = chartTop, y1 = H - 20;
+  const W = size.width, H = size.height, x0 = 6, x1 = W - 6, y0 = chartTop, y1 = H - 18;
   ctx.setFillColor(new Color(C.bg));
   ctx.fillRect(new Rect(0, 0, W, H));
-  if (panelW) { ctx.setFillColor(new Color(C.panel)); ctx.fillRect(new Rect(0, 0, panelW, H)); }
   const vals = v.rs.map((r) => r.v);
   const lo = Math.min(54, ...vals), hi = Math.max(200, ...vals);
   const y = (mg) => y1 - ((mg - lo) / (hi - lo)) * (y1 - y0);
@@ -141,7 +140,7 @@ function background(d, v, size, panelW, chartTop) {
     ctx.setFillColor(new Color(C.border));
     ctx.fillRect(new Rect(px - 0.5, y0 - 4, 1, y1 - y0 + 4));
     const hr = new Date(h).getHours();
-    ctx.drawTextInRect(String(hr).padStart(2, "0") + ":00", new Rect(px - 20, y1 + 4, 40, 14));
+    if (px - 16 >= 0 && px + 16 <= W) ctx.drawTextInRect(String(hr).padStart(2, "0") + ":00", new Rect(px - 20, y1 + 3, 40, 14)); // no label cut by an edge
   }
   // meals and doses (widget links carry them), as small marks on the bottom edge
   const ob = d.onboard;
@@ -193,35 +192,23 @@ function message(w, s) {
   text(w, s, 12, { color: C.text2 }).lineLimit = 3;
 }
 
-// side panel: her picture and name, then insulin and carbs on board
-async function panel(row, v, name, size, panelW) {
-  const p = row.addStack();
-  p.layoutVertically();
-  p.size = new Size(panelW, size.height - 16); // room for the padding, however the phone counts it
-  p.setPadding(8, 8, 8, 8);
-  const top = p.addStack();
-  top.addSpacer();
+// header, left: her picture; her name over insulin and carbs on board
+async function who(row, v, name, pic) {
   const img = await logo();
-  if (img) { const i = top.addImage(img); i.imageSize = new Size(34, 34); i.cornerRadius = 9; }
-  top.addSpacer();
-  p.addSpacer(2);
-  const n = p.addStack();
-  n.addSpacer();
-  text(n, name, 13, { bold: true, color: C.brand });
-  n.addSpacer();
-  p.addSpacer();
+  if (img) { const i = row.addImage(img); i.imageSize = new Size(pic, pic); i.cornerRadius = pic * 0.26; row.addSpacer(6); }
+  const col = row.addStack();
+  col.layoutVertically();
+  text(col, name, 13, { bold: true, color: C.brand });
   if (v.onboard) {
-    if (v.onboard.iob) { const r = p.addStack(); r.centerAlignContent(); symbol(r, "syringe.fill", C.ins, 12); r.addSpacer(4); text(r, v.onboard.iob, 12, { medium: true, color: C.ins }); }
-    p.addSpacer(2);
-    if (v.onboard.cob) { const r = p.addStack(); r.centerAlignContent(); symbol(r, "fork.knife", C.carb, 12); r.addSpacer(4); text(r, v.onboard.cob, 12, { medium: true, color: C.carb }); }
+    const r = col.addStack();
+    r.centerAlignContent();
+    if (v.onboard.iob) { symbol(r, "syringe.fill", C.ins, 11); r.addSpacer(2); text(r, v.onboard.iob, 12, { medium: true, color: C.ins }); r.addSpacer(6); }
+    if (v.onboard.cob) { symbol(r, "fork.knife", C.carb, 11); r.addSpacer(2); text(r, v.onboard.cob, 12, { medium: true, color: C.carb }); }
   }
 }
 
 // value, arrow, change and time, top right
-function headline(stack, v, big, showDelta) {
-  const r = stack.addStack();
-  r.centerAlignContent();
-  r.addSpacer();
+function headline(r, v, big, showDelta) {
   text(r, v.value, big, { bold: true, color: v.color });
   r.addSpacer(4);
   text(r, v.arrow, big * 0.62, { bold: true, color: v.color });
@@ -258,7 +245,7 @@ else {
   w.setPadding(0, 0, 0, 0);
   if (fam === "small") {
     // small: picture, value and arrow on top; the trend fills the lower half
-    w.backgroundImage = background(d, v, size, 0, size.height * 0.5);
+    w.backgroundImage = background(d, v, size, size.height * 0.5);
     w.setPadding(10, 12, 0, 12);
     const top = w.addStack();
     top.centerAlignContent();
@@ -270,18 +257,17 @@ else {
     text(w, (v.stale ? W.old + " · " : "") + v.age + (v.onboard && v.onboard.iob ? " · IOB " + v.onboard.iob : ""), 10, { color: v.stale ? C.text["low"] : C.text2 });
     w.addSpacer();
   } else {
-    // medium and large: side panel; value top right; the trend takes the rest
-    const panelW = Math.round(size.width * 0.24);
-    const chartTop = fam === "large" ? size.height * 0.22 : size.height * 0.42;
-    w.backgroundImage = background(d, v, size, panelW, chartTop);
+    // medium and large: a header (picture, name, IOB, COB | reading); the trend spans the whole width below
+    const chartTop = fam === "large" ? size.height * 0.2 : size.height * 0.4;
+    w.backgroundImage = background(d, v, size, chartTop);
+    w.setPadding(8, 12, 0, 12);
     const row = w.addStack();
-    await panel(row, v, name, size, panelW);
-    const right = row.addStack();
-    right.layoutVertically();
-    right.setPadding(8, 8, 0, 12);
-    headline(right, v, fam === "large" ? 48 : 40, true);
-    if (d.offline) { const o = right.addStack(); o.addSpacer(); text(o, W.cached, 10, { color: C.text["high"] }); }
-    right.addSpacer();
+    row.centerAlignContent();
+    await who(row, v, name, fam === "large" ? 40 : 34);
+    row.addSpacer();
+    headline(row, v, fam === "large" ? 46 : 38, true);
+    if (d.offline) { const o = w.addStack(); o.addSpacer(); text(o, W.cached, 10, { color: C.text["high"] }); }
+    w.addSpacer();
   }
 }
 
