@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.2.1",
+    "notes": [
+      "الويدجت بتصميم جديد بألوان التطبيق: صورة ليان والإنسولين والكارب الفعّالان في الجانب، والقراءة كبيرة، والرسم يملأ الباقي مع أوقات الساعة والوجبات والجرعات. يتحدّث بنفسه."
+    ],
+    "notes_en": [
+      "New widget design in the app’s colours: Layan’s picture with insulin and carbs on board at the side, the reading large, and the trend filling the rest with hours, meals and doses. It updates by itself."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.2.0",
     "notes": [
       "الويدجت يعرض الإنسولين والكارب الفعّالين (IOB وCOB) بنفس حساب التطبيق.",

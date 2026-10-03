@@ -1590,6 +1590,7 @@ console.log('iphone widget');
       if (url.endsWith('/widget/layan-widget.js')) {
         this.loadString = async () => { if (opts.code === null) throw new Error('offline'); this.response = { statusCode: 200 }; return opts.code ?? body; };
       } else {
+        if (url.endsWith('.png')) { this.loadImage = async () => U; return; }
         req = this;
         this.loadJSON = async () => { if (opts.throws) throw new Error('offline'); return reply; };
       }
@@ -1598,9 +1599,10 @@ console.log('iphone widget');
     const script = widgetLoader({ url: 'https://x.supabase.co', key: 'pk', token: 'tok"en', app: 'https://app/', lang: opts.en ? 'en' : 'ar' });
     const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
     const g = globalThis as any;
-    Object.assign(g, { Request, FileManager: { local: () => fm }, ListWidget: function () { return node(); }, DrawContext: U, Color: U, Font: U, Size: U, Rect: U,
+    Object.assign(g, { Request, FileManager: { local: () => fm }, ListWidget: function () { return node(); }, DrawContext: U, Color: U, Font: U, Rect: U, SFSymbol: U,
+      Size: function (this: any, w: number, h: number) { this.width = w; this.height = h; }, Device: { screenSize: () => ({ width: 393, height: 852 }) },
       Script: { setWidget: () => { shown = true; }, complete: () => {} }, config: { widgetFamily: family, runsInWidget: true }, args: { widgetParameter: null } });
-    try { await new AsyncFn(script)(); } finally { for (const k of ['Request', 'FileManager', 'ListWidget', 'DrawContext', 'Color', 'Font', 'Size', 'Rect', 'Script', 'config', 'args']) delete g[k]; }
+    try { await new AsyncFn(script)(); } finally { for (const k of ['Request', 'FileManager', 'ListWidget', 'DrawContext', 'Color', 'Font', 'Size', 'Rect', 'SFSymbol', 'Device', 'Script', 'config', 'args']) delete g[k]; }
     return { texts: texts.join(' | '), shown, req, files };
   };
   const now = Date.now(), at = (m: number) => new Date(now - m * 60000).toISOString();
@@ -1609,7 +1611,10 @@ console.log('iphone widget');
     assert.ok(body.startsWith('// LAYAN_WIDGET'), 'the served widget starts with the mark the loader checks');
     const m = await run('medium', data);
     assert.ok(m.shown);
-    assert.match(m.texts, /6\.1/); assert.match(m.texts, /↘/); assert.match(m.texts, /قبل 2 د/); assert.match(m.texts, /ضمن النطاق/); assert.match(m.texts, /−0\.6 خلال 15 د/);
+    const clock = (() => { const x = new Date(now - 2 * 60000); return String(x.getHours()).padStart(2, '0') + ':' + String(x.getMinutes()).padStart(2, '0'); })();
+    assert.match(m.texts, /ليان/); assert.match(m.texts, /6\.1/); assert.match(m.texts, /↘/); assert.match(m.texts, /−0\.6/); assert.ok(m.texts.includes(clock), 'the reading\'s time');
+    const sm = (await run('small', data)).texts;
+    assert.match(sm, /6\.1/); assert.match(sm, /قبل 2 د/);
     assert.equal(m.req.url, 'https://x.supabase.co/rest/v1/rpc/share_view');
     assert.deepEqual(JSON.parse(m.req.body), { p_token: 'tok"en' }, 'the token is embedded safely');
     assert.equal(m.req.headers['Content-Profile'], 'carb');
@@ -1626,23 +1631,24 @@ console.log('iphone widget');
     const P = { dia: 360, peak: 65 };
     const iob = iobAt(now, ob.doses.map((d) => ({ t: Date.parse(d.t), units: d.u })), P);
     const cob = cobAt(now, ob.carbs.map((c) => ({ t: Date.parse(c.t), grams: c.g })), 180);
-    const m = await run('medium', { ...data, onboard: ob });
+    const m = await run('accessoryRectangular', { ...data, onboard: ob });
     const got = /IOB ([\d.]+)u  COB (\d+)g/.exec(m.texts);
     assert.ok(got, m.texts);
     assert.ok(Math.abs(Number(got![1]) - iob) <= 0.051 && Math.abs(Number(got![2]) - cob) <= 0.51, `${got![0]} vs IOB ${iob} COB ${cob}`);
-    assert.match((await run('accessoryRectangular', { ...data, onboard: ob })).texts, /IOB .*COB/);
+    const med = (await run('medium', { ...data, onboard: ob })).texts;
+    assert.ok(med.includes(got![1] + 'u') && med.includes(got![2] + 'g'), 'the side panel shows both: ' + med);
     assert.doesNotMatch((await run('medium', { ...data, onboard: { ...ob, dia: null, peak: null, absorb: null } })).texts, /IOB|COB/, 'nothing when the care team has not set the parameters');
     assert.doesNotMatch((await run('medium', data)).texts, /IOB/, 'family links carry no onboard data');
   });
   test('widget: low, old reading, revoked link, offline with and without a saved copy, English', async () => {
-    assert.match((await run('small', { ...data, readings: [{ t: at(1), v: 62, trend: 1 }] })).texts, /منخفض.*3\.4.*⇊/);
+    assert.match((await run('small', { ...data, readings: [{ t: at(1), v: 62, trend: 1 }] })).texts, /3\.4.*⇊/);
     const old = (await run('small', { ...data, readings: [{ t: at(40), v: 120, trend: 3 }] })).texts;
     assert.match(old, /قراءة قديمة/); assert.doesNotMatch(old, /→/, 'no arrow on an old reading');
     assert.match((await run('medium', { error: 'invalid' })).texts, /الرابط انتهى/);
     assert.match((await run('medium', null, { throws: true })).texts, /لا اتصال/);
     assert.match((await run('medium', null, { throws: true, cache: data })).texts, /بلا اتصال/);
     assert.match((await run('medium', { ...data, readings: [] })).texts, /لا توجد قراءات/);
-    assert.match((await run('small', data, { en: true })).texts, /In range.*2 min ago/, 'in English when the app is');
+    assert.match((await run('small', data, { en: true })).texts, /2 min ago/, 'in English when the app is');
   });
 }
 
