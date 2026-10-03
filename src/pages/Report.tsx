@@ -7,6 +7,8 @@ import { effectiveRange, formatGlucose, unitLabel } from '../lib/glucose';
 import { gmi } from '../lib/now';
 import { fmt } from '../lib/carbs';
 import { Btn, Chip } from '../components/ui';
+import { SharePdf } from '../components/SharePdf';
+import { makePdf } from '../lib/pdfShare';
 import { ProfileChart } from './Patterns';
 import { dayStartOf, dayTotals } from '../engine/day';
 import type { Bin } from '../engine/profile';
@@ -19,6 +21,7 @@ export default function Report() {
   const nav = useNavigate();
   const { settings, history, events } = useData();
   const [days, setDays] = useState(14);
+  const [main, setMain] = useState<HTMLElement | null>(null);
   const [bins, setBins] = useState<Bin[] | null>(null);
   const [st, setSt] = useState<GlucoseStats | null>(null);
   const [nights, setNights] = useState<NightRow[] | null>(null);
@@ -46,13 +49,14 @@ export default function Report() {
     [t('منخفض · {a} إلى {b}', { a: g(54), b: g(69) }), st?.pct_low, 'bg-over-fill'], [t('منخفض جدًا · تحت {x}', { x: g(54) }), st?.pct_vlow, 'bg-over'],
   ];
   return (
-    <main className="report mx-auto max-w-3xl space-y-4 bg-white p-5 text-[rgb(38,30,92)] print:p-0">
+    <main ref={setMain} className="report mx-auto max-w-3xl space-y-4 bg-white p-5 text-[rgb(38,30,92)] print:p-0">
       <div className="space-y-2 print:hidden">
         <div className="flex items-center gap-2">
           <Btn kind="ghost" onClick={() => nav(-1)}>{t('رجوع')}</Btn>
-          <Btn kind="primary" className="flex-1" onClick={() => window.print()}>{t('طباعة أو حفظ PDF')}</Btn>
+          <SharePdf className="flex-1" disabled={!main} filename={`layan-glucose-${days}d-${new Date(to - 1).toISOString().slice(0, 10)}.pdf`} title={t('تقرير السكر · {name}', { name: settings.child_name })}
+            make={() => makePdf(Array.from(main!.children).filter((el) => !el.classList.contains('print:hidden')) as HTMLElement[], { orientation: 'portrait', fit: 'flow' })} />
         </div>
-        <div className="flex gap-1.5">{[14, 30, 90].map((x) => <Chip key={x} active={days === x} onClick={() => setDays(x)}>{t('{n} يوم', { n: x })}</Chip>)}</div>
+        <div className="flex gap-1.5">{[3, 7, 14, 30, 90].map((x) => <Chip key={x} active={days === x} onClick={() => setDays(x)}>{t('{n} يوم', { n: x })}</Chip>)}</div>
       </div>
       <header className="border-b border-slate-200 pb-2">
         <h1 className="text-2xl font-bold">{t('تقرير السكر · {name}', { name: settings.child_name })}</h1>

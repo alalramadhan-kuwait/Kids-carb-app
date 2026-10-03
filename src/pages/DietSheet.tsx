@@ -11,6 +11,8 @@ import { fmtTime } from '../lib/constants';
 import { AFTER_MIN, DEFAULT_STARTS, SLOT_KEYS, buildDay, type Activity, type DaySheet, type Dose, type Food, type Prick, type SlotKey, type SlotStarts, type Treat } from '../lib/dietSheet';
 import type { EventRow, HistoryEntry } from '../lib/types';
 import { Alert, Btn, Card, Chip, Page } from '../components/ui';
+import { SharePdf } from '../components/SharePdf';
+import { makePdf } from '../lib/pdfShare';
 import { isEn, locale, t, tMaybe } from '../i18n';
 
 const MIN = 60000, DAY = 86400000;
@@ -124,8 +126,10 @@ export default function DietSheetPage() {
           )}
           {tooMany && <Alert tone="near">{t('31 يومًا كحد أقصى في المرة الواحدة.')}</Alert>}
           {err && <Alert tone="over">{err}</Alert>}
-          <Btn kind="primary" block disabled={!sheets?.length || busy} onClick={() => window.print()}>{busy ? t('جارٍ التجهيز…') : t('حفظ PDF ({n} صفحة)', { n: sheets?.length ?? 0 })}</Btn>
-          <p className="text-xs leading-relaxed text-slate-500">{t('كل يوم في صفحة A4 أفقية. في شاشة الطباعة على الآيفون: اضغطوا مشاركة ← حفظ في الملفات، أو أرسلوها بالواتساب. إذا لم تظهر شاشة الطباعة من التطبيق، افتحوه في Safari.')}</p>
+          <SharePdf className="w-full" disabled={!sheets?.length || busy} filename={`layan-food-sheet-${from}-${to}.pdf`} title={t('جدول التغذية اليومي')}
+            make={() => makePdf(Array.from(document.querySelectorAll<HTMLElement>('#print-root .diet-page')), { orientation: 'landscape', fit: 'page' })} />
+          {sheets && <p className="text-center text-xs text-slate-500">{busy ? t('جارٍ التجهيز…') : t('{n} صفحة · صفحة لكل يوم', { n: sheets.length })}</p>}
+          <p className="text-xs leading-relaxed text-slate-500">{t('ملف PDF بصفحة A4 أفقية لكل يوم. «مشاركة PDF» تفتح المشاركة: واتساب، الملفات، البريد…')}</p>
         </Card>
         {/* preview, scaled to the screen */}
         <div className="space-y-3 overflow-hidden" style={{ zoom } as React.CSSProperties}>{pages}</div>

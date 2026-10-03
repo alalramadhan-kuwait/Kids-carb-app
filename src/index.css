@@ -95,12 +95,13 @@ input, select, textarea { font-size: 16px !important; }
 html, body { overflow-x: hidden; overscroll-behavior: none; touch-action: pan-x pan-y; }
 
 /* The dietitian's sheet (pages/DietSheet.tsx): only its pages print, one A4 landscape page per day, colours kept. */
-#print-root { display: none; }
+/* off screen but drawn, so the share button can make its PDF from the same pages */
+#print-root { position: fixed; left: -30000px; top: 0; pointer-events: none; }
 @media print {
   @page { size: A4 landscape; margin: 8mm; }
-  html, body { background: #fff !important; }
-  body > *:not(#print-root) { display: none !important; }
-  #print-root { display: block; }
+  body:has(#print-root) { background: #fff !important; }
+  body:has(#print-root) > *:not(#print-root) { display: none !important; }
+  #print-root { position: static; }
   #print-root .diet-page { break-after: page; page-break-after: always; }
   #print-root .diet-page:last-child { break-after: auto; page-break-after: auto; }
   #print-root * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }

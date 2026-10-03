@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.5.0",
+    "notes": [
+      "تقرير السكر وجدول أخصائية التغذية: زر «مشاركة PDF» بدل الطباعة. يصنع ملف PDF ويفتح المشاركة مباشرة (واتساب، الملفات، البريد).",
+      "تقرير السكر: خيارا 3 أيام و7 أيام.",
+      "إصلاح: طباعة تقرير السكر كانت قد تخرج فارغة منذ الإصدار السابق."
+    ],
+    "notes_en": [
+      "Glucose report and dietitian sheet: a “Share PDF” button instead of printing. It makes a PDF file and opens sharing straight away (WhatsApp, Files, Mail).",
+      "Glucose report: 3-day and 7-day options.",
+      "Fix: printing the glucose report could come out blank since the previous version."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.4.0",
     "notes": [
       "جديد: جدول أخصائية التغذية (المزيد). كل يوم في صفحة A4 أفقية بشعار ليان: الإفطار وسناك 1 والغداء وسناك 2 والعشاء، مع الوجبة والكارب والسكر قبل الأكل وبعد ساعتين والإنسولين.",

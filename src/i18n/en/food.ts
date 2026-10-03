@@ -521,4 +521,12 @@ export const food: Record<string, string> = {
   "المسجّل في التطبيق من الفريق الطبي": "Recorded in the app from the care team",
   "ملاحظات الأهل": "Parents’ notes",
   "PDF يومي: الوجبات والكارب والسكر قبل وبعد والإنسولين": "Daily PDF: meals, carbs, glucose before and after, insulin",
+  "حُفظ الملف ✓": "File saved ✓",
+  "تعذّرت المشاركة: {e}": "Could not share: {e}",
+  "تعذّر إنشاء PDF: {e}": "Could not make the PDF: {e}",
+  "جارٍ تجهيز PDF…": "Preparing the PDF…",
+  "PDF جاهز · اضغطوا للمشاركة": "PDF ready · tap to share",
+  "مشاركة PDF": "Share PDF",
+  "{n} صفحة · صفحة لكل يوم": "{n} pages · one page per day",
+  "ملف PDF بصفحة A4 أفقية لكل يوم. «مشاركة PDF» تفتح المشاركة: واتساب، الملفات، البريد…": "A PDF with one A4 landscape page per day. “Share PDF” opens sharing: WhatsApp, Files, Mail…",
 };
