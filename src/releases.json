@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "version": "2.9.4",
+    "notes": [
+      "الرسم البياني: سحب الصفحة لفوق أو لتحت والإصبع على الرسم صار سلسًا، بدون تعليق أو اهتزاز."
+    ],
+    "notes_en": [
+      "Graph: scrolling the page with your finger on the graph is now smooth, with no sticking or shaking."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "version": "2.9.3",
     "notes": [
       "ودجت شاشة القفل: الأرقام صارت بيضاء وواضحة بدل الباهتة."

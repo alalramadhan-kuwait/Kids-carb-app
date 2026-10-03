@@ -322,7 +322,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
 
   // ── gestures ──
   const g = useRef({
-    pts: new Map<number, { x: number; y: number }>(), mode: 'none' as 'none' | 'pan' | 'pinch' | 'cross' | 'pending' | 'scroll', frame: 0, lastY: 0,
+    pts: new Map<number, { x: number; y: number }>(), mode: 'none' as 'none' | 'pan' | 'pinch' | 'cross' | 'pending' | 'scroll', frame: 0,
     x0: 0, y0: 0, t0: 0, view0: view, dist0: 0, mid0: 0, timer: 0, lastTap: { t: 0, x: 0 }, vel: 0, lastX: 0, lastT: 0, fling: 0, wasLow: false, lastInspectT: 0,
   });
   const rect = () => wrap.current!.getBoundingClientRect();
@@ -367,12 +367,13 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
     const e = { clientX: [...s.pts.values()][0].x, clientY: [...s.pts.values()][0].y };
     const r = rect();
     if (s.mode === 'cross') return inspectAt(e.clientX);
-    // the graph decides the direction itself: sideways moves the graph, up/down scrolls the page
+    // up/down is left to the phone (touch-action: pan-y), which scrolls the page itself and cancels the pointer;
+    // a mostly vertical move that still arrives here is ignored rather than read as a sideways pan
     if (s.mode === 'pending') {
       const dx = Math.abs(e.clientX - s.x0), dy = Math.abs(e.clientY - s.y0);
-      if (dy > TAP_SLOP && dy > dx) { window.clearTimeout(s.timer); s.mode = 'scroll'; s.lastY = s.y0; }
+      if (dy > TAP_SLOP && dy > dx) { window.clearTimeout(s.timer); s.mode = 'scroll'; }
     }
-    if (s.mode === 'scroll') { window.scrollBy(0, s.lastY - e.clientY); s.lastY = e.clientY; return; }
+    if (s.mode === 'scroll') return;
     if (s.mode === 'pinch' && s.pts.size >= 2) {
       const [a, b] = [...s.pts.values()];
       const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1, mid = ((a.x + b.x) / 2 - r.left) / r.width;
@@ -433,6 +434,28 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
     }
     if (s.pts.size === 0) s.mode = 'none';
   };
+  // the phone took the touch over to scroll the page: forget it, without reading it as a tap
+  const onCancel = (e: React.PointerEvent) => {
+    const s = g.current;
+    if (s.frame) { cancelAnimationFrame(s.frame); s.frame = 0; }
+    window.clearTimeout(s.timer);
+    s.pts.delete(e.pointerId);
+    if (s.pts.size === 0) s.mode = 'none';
+  };
+  // once the graph owns the gesture (sideways pan, long-press reading, pinch) the page must not scroll under it
+  useEffect(() => {
+    const el = canvas.current; if (!el) return;
+    const block = (e: TouchEvent) => {
+      const m = g.current.mode;
+      if (e.touches.length > 1 || m === 'pan' || m === 'cross' || m === 'pinch') e.preventDefault();
+      else if (m === 'pending' && e.touches.length === 1) {
+        const dx = Math.abs(e.touches[0].clientX - g.current.x0), dy = Math.abs(e.touches[0].clientY - g.current.y0);
+        if (dx > dy && dx > 4) e.preventDefault();
+      }
+    };
+    el.addEventListener('touchmove', block, { passive: false });
+    return () => el.removeEventListener('touchmove', block);
+  }, []);
   const onWheel = (e: React.WheelEvent) => {
     if (!e.ctrlKey && Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
       const v = viewRef.current; onView({ span: v.span, end: limitEnd(v.end + (e.deltaX / width) * v.span, now, v.span, ahead) }); return;
@@ -456,8 +479,8 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
   return (
     <div ref={wrap} className="relative select-none" style={{ height: total }} dir="ltr">
       <canvas
-        ref={canvas} style={{ width: '100%', height, touchAction: 'none' }}
-        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel}
+        ref={canvas} style={{ width: '100%', height, touchAction: 'pan-y' }}
+        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onCancel} onWheel={onWheel}
         role="img" aria-label={t('رسم السكر {from}–{to}، {state}', { from: clock(view.end - view.span), to: clock(view.end), state: freshness(lastT, now) === 'live' ? t('مباشر') : t('غير محدّث') })}
       />
       <div className="flex h-12 items-center gap-2.5 overflow-hidden border-t border-slate-100 px-3 text-sm" dir={dir()} aria-live="polite">
