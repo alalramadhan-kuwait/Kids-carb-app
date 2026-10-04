@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
-import { draftOps, setFullModeNow, useDraft } from '../../lib/mom';
+import { draftOps, setFullModeNow, setSensorSite, useDraft, useSensor } from '../../lib/mom';
 import { planMeal, savePlan, skipPlan, usePlans } from '../../lib/plans';
 import { planItems } from '../../engine/mom';
 import { eatAt, phase } from '../../engine/mealPlan';
@@ -13,7 +13,8 @@ import { fmt } from '../../lib/carbs';
 import { cx, inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import type { PlannedMeal, Product } from '../../lib/types';
-import { Big, Choice, MomPage, clock, dayWord } from './MomUI';
+import { Big, Choice, MomPage, SITE_NAME, clock, dayWord, sensorLeft } from './MomUI';
+import type { InjectionSite } from '../../lib/types';
 import { useCatalog } from './MomMeal';
 
 type Slot = PlannedMeal['slot'];
@@ -148,11 +149,41 @@ export function MomPlanView() {
 export function MomMore() {
   const nav = useNavigate();
   const n = useOpenPlans().length;
+  const sensor = useSensor();
   return (
     <MomPage title={t('المزيد')} back={null} tabs>
+      <Choice icon="📡" label={t('الحساس')} onClick={() => nav('/mom/sensor')}
+        sub={sensor ? `${sensor.site ? t(SITE_NAME[sensor.site]) : t('وين؟')} · ${t('ينتهي بعد {x}', { x: sensorLeft(sensor.life.left) })}` : t('ما في حساس')} />
       <Choice icon="📅" label={t('مخططة')} sub={n ? t('{n} معلّقة', { n }) : undefined} onClick={() => nav('/mom/plans')} />
       <Choice icon="💉" label={t('أماكن الإبر')} onClick={() => nav('/mom/sites')} />
       <Choice icon="🔓" label={t('الوضع الكامل')} onClick={() => { if (window.confirm(t('تفتحين الوضع الكامل؟'))) { setFullModeNow(true); nav('/'); } }} />
+    </MomPage>
+  );
+}
+
+/** The sensor: when it ends, and which arm it is on (that arm gets no injections until it is changed). */
+export function MomSensor() {
+  const sensor = useSensor();
+  const [busy, setBusy] = useState(false);
+  const SPOTS: InjectionSite[] = ['arm_r', 'arm_l', 'belly_r', 'belly_l'];
+  const pick = async (site: InjectionSite) => {
+    if (!sensor) return;
+    setBusy(true);
+    try { await setSensorSite(sensor.sn, sensor.startedAt, sensor.days, site); toast(t('تم ✓')); } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
+  };
+  if (!sensor) return <MomPage title={t('الحساس')} back="/mom/more"><p className="text-center text-[18px] text-slate-500">{t('ما في حساس شغّال')}</p></MomPage>;
+  const end = sensor.life.end, soon = sensor.life.state !== 'ok';
+  return (
+    <MomPage title={t('الحساس')} back="/mom/more">
+      <div className={cx('rounded-3xl px-4 py-4 text-center', soon ? 'bg-over-soft text-over' : 'bg-white')}>
+        <div className="text-[17px]">{t('ينتهي بعد')}</div>
+        <div className="text-[34px] font-extrabold leading-tight">{sensorLeft(sensor.life.left)}</div>
+        <div className="text-[18px]">{dayWord(end)} · {clock(end)}</div>
+        <div className="mt-1 text-[14px] text-slate-500">{t('انحط {d}', { d: `${dayWord(sensor.life.start)} ${clock(sensor.life.start)}` })}</div>
+      </div>
+      <h2 className="text-[18px] font-bold">📡 {t('وين الحساس؟')}</h2>
+      {SPOTS.map((x) => <Choice key={x} icon={sensor.site === x ? '📡' : '○'} label={t(SITE_NAME[x])} on={sensor.site === x} onClick={() => { if (!busy) void pick(x); }} />)}
+      <p className="text-center text-[15px] text-slate-500">{t('مكان الحساس ما تنعطى فيه إبرة')}</p>
     </MomPage>
   );
 }

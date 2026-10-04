@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
+import { useSensor } from '../../lib/mom';
 import { saveEvent, setInjectionSite } from '../../lib/api';
 import { usualLowTreatments } from '../../lib/lowUsual';
 import { SITES, nextRapidAllowed, siteCounts, siteSuggestion, type Shot } from '../../engine/mom';
@@ -19,11 +20,13 @@ const ALL6: InjectionSite[] = ['arm_r', 'arm_l', 'belly_r', 'belly_l', 'thigh_r'
 export function useSite(type: 'rapid' | 'long', exclude: string | null = null) {
   const [sp] = useSearchParams();
   const { events, settings } = useData();
-  const allowed = (settings.injection_sites?.[type] ?? ALL6).filter((x) => SITES.includes(x));
+  // the arm with the sensor gets no injections while the sensor is on
+  const sensor = useSensor()?.site ?? null;
+  const allowed = (settings.injection_sites?.[type] ?? ALL6).filter((x) => SITES.includes(x) && x !== sensor);
   const shots: Shot[] = events.filter((e) => e.kind === 'insulin' && !e.deleted_at && e.id !== exclude).map((e) => ({ t: Date.parse(e.occurred_at), site: e.injection_site ?? null, type: e.insulin_type === 'long' ? 'long' : 'rapid' }));
   const r = siteSuggestion(shots, allowed);
   const asked = sp.get('site') as InjectionSite | null;
-  return { ...r, allowed, site: asked && allowed.includes(asked) ? asked : r.suggest };
+  return { ...r, allowed, sensor, site: asked && allowed.includes(asked) ? asked : r.suggest };
 }
 
 /** The site on a dose page: tap to change it on the body. */
@@ -158,7 +161,7 @@ export function MomSite() {
   const [sp] = useSearchParams();
   const id = sp.get('e'), type = (sp.get('type') === 'long' ? 'long' : 'rapid') as 'rapid' | 'long', next = sp.get('next') ?? '/mom';
   const { events, reload } = useData();
-  const { suggest, last, allowed, used, total } = useSite(type, id);
+  const { suggest, last, allowed, used, total, sensor } = useSite(type, id);
   const [sel, setSel] = useState<InjectionSite | null>(() => events.find((e) => e.id === id)?.injection_site ?? null);
   const pick = sel ?? suggest;
   const [busy, setBusy] = useState(false);
@@ -175,7 +178,8 @@ export function MomSite() {
     </>}>
       <div className="flex items-center gap-2"><PenBar type={type} /><b className="text-[18px]">{t(PEN_NAME[type])}</b></div>
       {suggest && <div className="rounded-2xl bg-ok-soft px-4 py-2 text-center text-[18px] font-bold text-ok">⭐ {t(SITE_NAME[suggest])} {used.size > 0 && <span className="text-[15px] font-normal">· {t('باقي {k} أماكن', { k: total - used.size })}</span>}</div>}
-      <BodyMap allowed={allowed} last={last} suggest={suggest} sel={pick} onPick={setSel} now={Date.now()} />
+      <BodyMap allowed={allowed} last={last} suggest={suggest} sel={pick} onPick={setSel} now={Date.now()} sensor={sensor} />
+      {sensor && <p className="text-center text-[15px] text-slate-500">📡 {t('الحساس: {s} · لا إبرة فيه', { s: t(SITE_NAME[sensor]) })}</p>}
     </MomPage>
   );
 }

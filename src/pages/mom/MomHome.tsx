@@ -10,11 +10,11 @@ import { levelFromLibre, trendFrom } from '../../engine/trend';
 import { effectiveRange } from '../../lib/glucose';
 import { moodOf, nextRapidAllowed, type Mood } from '../../engine/mom';
 import { usePlans } from '../../lib/plans';
-import { draftOps } from '../../lib/mom';
+import { draftOps, useSensor } from '../../lib/mom';
 import { phase } from '../../engine/mealPlan';
 import { cx } from '../../components/ui';
 import { t } from '../../i18n';
-import { Big, PEN, PEN_NAME, PenBar, TABS_PAD, ago, clock, dayWord, glucoseText, left } from './MomUI';
+import { Big, PEN, PEN_NAME, PenBar, TABS_PAD, ago, clock, dayWord, glucoseText, left, sensorLeft } from './MomUI';
 
 const H = 3600000;
 const ARROW: Record<number, string> = { [-3]: '⇊', [-2]: '↓', [-1]: '↘', 0: '→', 1: '↗', 2: '↑', 3: '⇈' };
@@ -73,6 +73,9 @@ export function MomHome() {
   const due = waiting.find((p) => phase(p, now) === 'check') ?? null;
   const next = due ? null : waiting.find((p) => Date.parse(p.dose_at) - now < 18 * H) ?? null;
   const build = (mode: 'now' | 'plan') => { draftOps.start(mode); nav('/mom/meal'); };
+  // the sensor: days left in the status line; its last day, or an unknown arm, gets a card
+  const sensor = useSensor();
+  const sensorSoon = sensor && sensor.life.state !== 'ok';
   // a juice given: its recheck stays on home until someone taps «فحصتها»
   const recheckMin = s.treat_recheck_min ?? 15;
   const lastJuice = events.filter((e) => e.kind === 'treatment' && !e.deleted_at).sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))[0] ?? null;
@@ -86,7 +89,7 @@ export function MomHome() {
     // one fixed screen: nothing scrolls; the graph takes whatever room is left
     <main className={cx('mx-auto flex h-[100dvh] max-w-md flex-col gap-2 overflow-hidden px-4 pt-[calc(8px+env(safe-area-inset-top))]', TABS_PAD)}>
       <div className="flex shrink-0 items-center gap-3 rounded-3xl px-4 py-2.5" style={{ color: '#fff', background: m.bg }}>
-        <div className="min-w-0 flex-1"><div className="text-[14px] opacity-90">{t('ليان')} · {at ? ago(at, now) : ''}</div><div className="text-[20px] font-bold leading-tight">{t(m.word)}</div><div className="text-[15px] opacity-90">{t(m.todo)}</div></div>
+        <div className="min-w-0 flex-1"><div className="text-[14px] opacity-90">{t('ليان')} · {at ? ago(at, now) : ''}{sensor ? ` · 📡 ${sensorLeft(sensor.life.left)}` : ''}</div><div className="text-[20px] font-bold leading-tight">{t(m.word)}</div><div className="text-[15px] opacity-90">{t(m.todo)}</div></div>
         {latest && mood !== 'stale' && <div dir="ltr" className="flex items-baseline gap-1"><span className="text-[48px] font-extrabold leading-none">{glucoseText(latest.mg_dl, unit)}</span><span className="text-[30px]">{level !== null ? ARROW[level] : ''}</span></div>}
       </div>
 
@@ -104,6 +107,13 @@ export function MomHome() {
         ))}
         {nextAt && !lowNow && <div className="mb-1 rounded-xl bg-near-soft px-3 py-1.5 text-[16px] font-bold text-near">{t('لا نوفورابيد قبل الساعة {c}', { c: clock(nextAt) })}</div>}
       </div>
+
+      {sensor && (sensorSoon || !sensor.site) && (
+        <Link to="/mom/sensor" className={cx('flex shrink-0 items-center gap-3 rounded-2xl px-4 py-2 text-[16px] font-bold', sensorSoon ? 'bg-over-soft text-over' : 'bg-white text-brand')}>
+          <span className="text-2xl">📡</span>
+          <span className="flex-1">{sensorSoon ? t('الحساس ينتهي {d} {c}', { d: dayWord(sensor.life.end, now), c: clock(sensor.life.end) }) : t('الحساس بأي ذراع؟')}</span><span>›</span>
+        </Link>
+      )}
 
       {juice && (
         <Link to={`/mom/entry/${juice.id}`} className="flex shrink-0 items-center gap-3 rounded-2xl bg-near-soft px-4 py-2 text-near">

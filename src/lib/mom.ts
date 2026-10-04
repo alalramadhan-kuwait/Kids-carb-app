@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import type { MomItem } from '../engine/mom';
-import type { Portion, SavedMeal } from './types';
+import type { InjectionSite, Portion, SavedMeal } from './types';
+import { useData } from './data';
+import { sensorLife } from '../engine/status';
 
 function liveTable<T>(table: string, order: string) {
   let cache: T[] | null = null;
@@ -29,6 +31,26 @@ function liveTable<T>(table: string, order: string) {
 
 const portionsT = liveTable<Portion>('portions', 'sort');
 const mealsT = liveTable<SavedMeal>('saved_meals', 'sort');
+const sensorsT = liveTable<{ sn: string; started_at: string; days: number | null; site: InjectionSite | null }>('sensors', 'started_at');
+
+/** The sensor she wears now (from LibreLinkUp): when it ends, and where it is (that site gets no injections). */
+export function useSensor() {
+  const { settings } = useData();
+  const { list } = sensorsT.use();
+  const s = list.length ? list[list.length - 1] : null; // the newest sensor (LibreLinkUp adds each new serial)
+  if (!s) return null;
+  const life = sensorLife(s.started_at, s.days ?? settings.sensor_days ?? 14, Date.now());
+  if (life.state === 'ended') return null;
+  return { sn: s.sn, startedAt: s.started_at, days: s.days ?? settings.sensor_days ?? 14, life, site: s.site };
+}
+/** Where the current sensor is worn (one row per sensor serial). */
+export async function setSensorSite(sn: string, startedAt: string, days: number, site: InjectionSite) {
+  const patch = { site, site_at: new Date().toISOString() };
+  const r = await supabase.from('sensors').update(patch).eq('sn', sn).select('sn');
+  if (r.error) throw new Error(r.error.message);
+  if (!r.data?.length) { const i = await supabase.from('sensors').insert({ sn, started_at: startedAt, days, source: 'librelinkup', ...patch }); if (i.error) throw new Error(i.error.message); }
+  await sensorsT.load();
+}
 export const usePortions = () => { const r = portionsT.use(); return { portions: r.list.map((p) => ({ ...p, amount: Number(p.amount) })), loaded: r.loaded }; };
 export const useSavedMeals = () => { const r = mealsT.use(); return { meals: r.list, loaded: r.loaded }; };
 

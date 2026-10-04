@@ -234,3 +234,9 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
 - **v12 (Dad)** — "in the end most food is an estimate": a food left out (sent to Dad) keeps the warning only; the dose
   is not blocked. Decision closed.
 - **v13 (Dad, 2.30.3)** — the page still slid under the clock: the body's bottom padding made it 34 px taller than the screen. Mom pages now lock the document; only inner areas scroll.
+- **v14 (Dad, 2.31.0)** — the arm with the CGM sensor gets no injection, and Mom needs to know when the sensor ends.
+  `sensors.site` (one migration, 20261004200013): which site the current sensor is on, asked on Home («الحساس بأي
+  ذراع؟») for each new sensor and changeable in «المزيد ← الحساس». That site is drawn grey with 📡 on the body and is
+  never suggested or selectable. Time left shows in Home's status line; on the last day a red card shows the end time
+  (the 24 h / 2 h pushes still go to both phones).
+

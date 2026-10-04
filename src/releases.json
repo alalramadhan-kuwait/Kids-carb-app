@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.31.0",
+    "notes": [
+      "الحساس: كم باقي له يبين فوق بالرئيسية، وآخر يوم يطلع تنبيه أحمر بموعد انتهائه.",
+      "مكان الحساس (أي ذراع): ينحفظ لكل حساس، وهالمكان ما تنقترح فيه إبرة ولا ينضغط بصفحة أماكن الإبرة.",
+      "«المزيد ← الحساس»: موعد الانتهاء ومكانه."
+    ],
+    "notes_en": [
+      "Sensor: the time left shows at the top of Home; on its last day a red card shows when it ends.",
+      "Where the sensor is (which arm) is saved for each sensor; that site is never suggested or selectable for an injection.",
+      "“More → Sensor”: when it ends and where it is."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.30.3",
     "notes": [
       "الوضع البسيط: الصفحة ثابتة تمامًا، ما تتحرك ولا تطلع تحت الساعة."

@@ -72,7 +72,7 @@ export const SITE_NAME: Record<InjectionSite, string> = {
 };
 
 /** Body (front, as you face her: her right on your left) with the sites; tap a site to choose it. */
-export function BodyMap({ allowed, last, suggest, sel, onPick, now }: { allowed: InjectionSite[]; last: Map<InjectionSite, number>; suggest: InjectionSite | null; sel: InjectionSite | null; onPick: (s: InjectionSite) => void; now: number }) {
+export function BodyMap({ allowed, last, suggest, sel, onPick, now, sensor = null }: { allowed: InjectionSite[]; last: Map<InjectionSite, number>; suggest: InjectionSite | null; sel: InjectionSite | null; onPick: (s: InjectionSite) => void; now: number; sensor?: InjectionSite | null }) {
   const Z: Partial<Record<InjectionSite, [number, number, number, number]>> = {
     arm_r: [52, 112, 30, 64], arm_l: [218, 112, 30, 64], belly_r: [106, 146, 42, 52], belly_l: [152, 146, 42, 52], thigh_r: [106, 226, 40, 74], thigh_l: [154, 226, 40, 74],
   };
@@ -85,8 +85,16 @@ export function BodyMap({ allowed, last, suggest, sel, onPick, now }: { allowed:
       <rect x="212" y="96" width="34" height="110" rx="17" fill="#f3e1d4" transform="rotate(-8 229 96)" />
       <rect x="104" y="210" width="44" height="112" rx="20" fill="#f3e1d4" />
       <rect x="152" y="210" width="44" height="112" rx="20" fill="#f3e1d4" />
-      {(Object.keys(Z) as InjectionSite[]).filter((s) => allowed.includes(s)).map((s) => {
+      {(Object.keys(Z) as InjectionSite[]).filter((s) => allowed.includes(s) || s === sensor).map((s) => {
         const [x, y, w, h] = Z[s]!;
+        // the sensor's site: grey, the sensor mark, not tappable (no injection there while it is worn)
+        if (s === sensor) return (
+          <g key={s} aria-label={t('الحساس')}>
+            <rect x={x} y={y} width={w} height={h} rx="12" fill="#d7d3df" stroke="#8a84a0" strokeWidth={1.5} strokeDasharray="4 3" />
+            <circle cx={x + w / 2} cy={y + h / 2} r={Math.min(w, h) / 2 - 3} fill="#fff" stroke="#8a84a0" strokeWidth={2} />
+            <text x={x + w / 2} y={y + h / 2 + 5} fontSize="13" textAnchor="middle">📡</text>
+          </g>
+        );
         const recent = last.has(s) && now - last.get(s)! < 2 * 86400000;
         const fill = s === sel ? '#5b48d6' : s === suggest ? '#dcf4e8' : recent ? '#fde3e5' : '#ece5fd';
         const stroke = s === sel ? '#5b48d6' : s === suggest ? '#1f8a5b' : '#b9a8f0';
@@ -129,4 +137,9 @@ export const dayWord = (ms: number, now = Date.now()) => {
   const a = new Date(ms), b = new Date(now);
   const diff = Math.round((Date.UTC(a.getFullYear(), a.getMonth(), a.getDate()) - Date.UTC(b.getFullYear(), b.getMonth(), b.getDate())) / 86400000);
   return diff === 1 ? t('بكرة') : relDay(a, b);
+};
+/** Time left on the sensor in words: «9 أيام», «يومين», «يوم», or hours under a day. */
+export const sensorLeft = (leftMs: number) => {
+  const d = Math.floor(leftMs / 86400000);
+  return d >= 3 ? t('{n} أيام', { n: d }) : d === 2 ? t('يومين') : d === 1 ? t('يوم') : span(Math.max(1, Math.ceil(leftMs / 60000)));
 };
