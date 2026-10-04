@@ -231,4 +231,6 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
   links them. Added from official/standard sources (approved, source on each): McDonald's BBQ sauce (11 g a packet),
   Diet Pepsi (0), cucumber (USDA 3.6 g/100), turkey slices (generic 4.2 g/100), Baladna full-fat labneh (7 g/100).
   KDD labneh stays unapproved (its store page says 27 g/100).
+- **v12 (Dad)** — "in the end most food is an estimate": a food left out (sent to Dad) keeps the warning only; the dose
+  is not blocked. Decision closed.
 
