@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.26.4",
+    "notes": [
+      "اختيار منتج (في التسجيل وخطة الوجبة والوصفات): نفس تقسيم دليل المنتجات — البراند ثم المجموعة (ألبان، مشروبات، نشويات…) ثم النوع، و«الموجود بالبيت فقط»."
+    ],
+    "notes_en": [
+      "Choosing a product (logging, meal plans, recipes) now has the same filters as the products page: brand, then group (dairy, drinks, starches…), then type, and “Only what’s at home”."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.26.3",
     "notes": [
       "خطة الوجبة: اضغط على الوحدة بجانب الكمية للتبديل بين الحصص والغرامات (أو المل)، والكمية تتحوّل معها."
