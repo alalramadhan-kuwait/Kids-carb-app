@@ -106,3 +106,6 @@ html, body { overflow-x: hidden; overscroll-behavior: none; touch-action: pan-x 
   #print-root .diet-page:last-child { break-after: auto; page-break-after: auto; }
   #print-root * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+/* mom mode: the page itself never moves (no slide under the clock); only the areas inside it scroll */
+html.mom-lock, html.mom-lock body { height: 100%; overflow: hidden; }
+html.mom-lock body { position: fixed; inset: 0; width: 100%; padding-bottom: 0; }

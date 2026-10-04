@@ -233,4 +233,4 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
   KDD labneh stays unapproved (its store page says 27 g/100).
 - **v12 (Dad)** — "in the end most food is an estimate": a food left out (sent to Dad) keeps the warning only; the dose
   is not blocked. Decision closed.
-
+- **v13 (Dad, 2.30.3)** — the page still slid under the clock: the body's bottom padding made it 34 px taller than the screen. Mom pages now lock the document; only inner areas scroll.

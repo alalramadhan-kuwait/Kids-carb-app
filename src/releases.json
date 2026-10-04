@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.30.3",
+    "notes": [
+      "الوضع البسيط: الصفحة ثابتة تمامًا، ما تتحرك ولا تطلع تحت الساعة."
+    ],
+    "notes_en": [
+      "Simple mode: the page is fully fixed; it no longer slides up under the clock."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.30.2",
     "notes": [
       "البحث: «صمون» يلقى صمون المطاحن ولوزين.",

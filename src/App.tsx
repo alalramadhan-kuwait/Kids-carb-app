@@ -197,6 +197,8 @@ function Shell() {
   // mom mode: this person's phone opens in the simple screens (one tap «الوضع الكامل» for this visit)
   const simple = !!members.find((m) => m.user_id === me)?.simple_mode && !fullModeNow();
   const mom = pathname === '/mom' || pathname.startsWith('/mom/');
+  // mom mode's pages are one fixed screen each: the document is locked so it cannot slide under the clock
+  useEffect(() => { document.documentElement.classList.toggle('mom-lock', mom); if (mom) window.scrollTo(0, 0); }, [mom]);
   // mom mode's own tabs (home, log, nutrition) on its three main pages
   const momTabs = pathname === '/mom' || pathname === '/mom/log' || pathname === '/mom/more' || (simple && pathname === '/growth');
   // the research lab runs by itself every 12 hours (one phone per slot); it never touches doses or readings
