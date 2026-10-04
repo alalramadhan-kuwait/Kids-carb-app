@@ -51,6 +51,21 @@ export function readyForMom(kind: 'product' | 'recipe', id: string, c: Catalog) 
 }
 export const hasPortions = (kind: 'product' | 'recipe', id: string, c: Catalog) => c.portions.some((p) => (kind === 'product' ? p.product_id === id : p.recipe_id === id));
 
+// ── comparing foods (the «التغذية» tab) ───────────────────────────────────────────────────────────
+export type FoodRef = { kind: 'product' | 'recipe'; id: string };
+export const COMPARE_MAX = 3;
+/** The compare list with one more food; unchanged when it is already there or the list is full. */
+export const withCompared = (list: FoodRef[], x: FoodRef): FoodRef[] =>
+  list.some((r) => r.kind === x.kind && r.id === x.id) || list.length >= COMPARE_MAX ? list : [...list, x];
+/** The columns holding the fewest carbs, when at least two columns have a figure and they differ; else none. */
+export function lowestCarbs(carbs: (number | null)[]): number[] {
+  const known = carbs.filter((v): v is number => v !== null);
+  if (known.length < 2) return [];
+  const min = Math.min(...known);
+  if (known.every((v) => v === min)) return [];
+  return carbs.flatMap((v, i) => (v === min ? [i] : []));
+}
+
 /** The home screen's one word and colour, from the reading, its age and the trend. */
 export type Mood = 'ok' | 'falling' | 'high' | 'low' | 'stale';
 export function moodOf(mg: number | null, ageMin: number | null, level: number | null, low: number, high: number): Mood {

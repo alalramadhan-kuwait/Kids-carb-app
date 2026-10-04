@@ -40,7 +40,8 @@ import { themePref } from './lib/theme';
 import { t, useLang } from './i18n';
 import { LangSwitch } from './components/LangSwitch';
 import { MomHome } from './pages/mom/MomHome';
-import { MomAdd, MomFoodItem, MomMeal, MomNew, MomPortion } from './pages/mom/MomMeal';
+import { MomAdd, MomFoodItem, MomGroup, MomMeal, MomNew, MomPortion } from './pages/mom/MomMeal';
+import { MomCompare } from './pages/mom/MomCompare';
 import { MomAte, MomDose, MomGiven } from './pages/mom/MomDose';
 import { MomJuice, MomShot, MomSite, MomSites, MomTresiba } from './pages/mom/MomShots';
 import { MomEntry } from './pages/mom/MomEntry';
@@ -213,6 +214,7 @@ function Shell() {
         <Route path="/mom" element={<MomHome />} />
         <Route path="/mom/meal" element={<MomMeal />} />
         <Route path="/mom/add" element={<MomAdd />} />
+        <Route path="/mom/add/g/:key" element={<MomGroup />} />
         <Route path="/mom/item/:kind/:id" element={<MomPortion />} />
         <Route path="/mom/new" element={<MomNew />} />
         <Route path="/mom/dose" element={<MomDose />} />
@@ -227,7 +229,9 @@ function Shell() {
         <Route path="/mom/log" element={<MomLog />} />
         <Route path="/mom/more" element={<MomMore />} />
         <Route path="/mom/food" element={<MomAdd browse />} />
+        <Route path="/mom/food/g/:key" element={<MomGroup browse />} />
         <Route path="/mom/food/:kind/:id" element={<MomFoodItem />} />
+        <Route path="/mom/compare" element={<MomCompare />} />
         <Route path="/mom/sensor" element={<MomSensor />} />
         <Route path="/mom/when" element={<MomWhen />} />
         <Route path="/mom/plans" element={<MomPlans />} />

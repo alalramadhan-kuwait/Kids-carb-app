@@ -155,13 +155,14 @@ export const asset = (path: string) => `${import.meta.env.BASE_URL}assets/${path
 
 const FOOD_ART: Record<string, string> = { meal: '05_food/food_meal.svg', cereal: '05_food/food_cereal.svg', snack: '05_food/food_snack.svg', juice: '05_food/food_juice.svg' };
 
-/** The user's photo if there is one; otherwise Layan food art (recipes, snacks) or the category emoji (products). */
-export function Photo({ path, category, className, art }: { path?: string | null; category?: string | null; className?: string; art?: keyof typeof FOOD_ART }) {
+/** The user's photo if there is one; otherwise the food's own emoji (generic foods), Layan food art (recipes, snacks)
+ *  or the category emoji (products). */
+export function Photo({ path, category, className, art, emoji }: { path?: string | null; category?: string | null; className?: string; art?: keyof typeof FOOD_ART; emoji?: string | null }) {
   const url = photoUrl(path);
   if (url) return <img src={url} alt="" loading="lazy" className={cx('object-cover', className)} />;
   return (
     <div aria-hidden className={cx('grid place-items-center bg-brand-soft/60 text-4xl', className)}>
-      {art ? <img src={asset(FOOD_ART[art])} alt="" className="h-3/5 max-h-28 w-auto" /> : emojiFor(category)}
+      {emoji ? emoji : art ? <img src={asset(FOOD_ART[art])} alt="" className="h-3/5 max-h-28 w-auto" /> : emojiFor(category)}
     </div>
   );
 }

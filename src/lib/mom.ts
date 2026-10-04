@@ -2,7 +2,7 @@
 // saved, so going back and forth between pages never loses it), and the simple-mode switch.
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
-import type { MomItem } from '../engine/mom';
+import { withCompared, type FoodRef, type MomItem } from '../engine/mom';
 import type { InjectionSite, Portion, SavedMeal } from './types';
 import { useData } from './data';
 import { sensorLife } from '../engine/status';
@@ -100,6 +100,26 @@ export const draftOps = {
   /** Start building for now or for a plan; switching between them starts a fresh plate. */
   start: (mode: Draft['mode']) => { if (draft.mode !== mode) setDraft({ ...empty, mode }); },
   get: () => draft,
+};
+
+// ── the foods being compared on this phone (up to three, kept like the meal being built) ──────────────
+const CMP = 'mom-compare-v1';
+let compared: FoodRef[] = (() => { try { const l = JSON.parse(localStorage.getItem(CMP) ?? '[]'); return Array.isArray(l) ? l : []; } catch { return []; } })();
+const cmpSubs = new Set<(l: FoodRef[]) => void>();
+function setCompared(l: FoodRef[]) {
+  compared = l;
+  try { localStorage.setItem(CMP, JSON.stringify(l)); } catch { /* storage blocked: kept in memory */ }
+  cmpSubs.forEach((f) => f(l));
+}
+export function useCompare() {
+  const [l, setL] = useState(compared);
+  useEffect(() => { cmpSubs.add(setL); return () => { cmpSubs.delete(setL); }; }, []);
+  return l;
+}
+export const compareOps = {
+  add: (x: FoodRef) => setCompared(withCompared(compared, x)),
+  remove: (x: FoodRef) => setCompared(compared.filter((r) => !(r.kind === x.kind && r.id === x.id))),
+  clear: () => setCompared([]),
 };
 
 /** Full mode on a simple-mode phone, for this visit only (the switch at the bottom of mom mode). */

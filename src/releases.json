@@ -1,6 +1,24 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.33.0",
+    "notes": [
+      "قائمة أكل أساسية جاهزة (165 صنف): خضار، فواكه، مكسرات، لحوم وسمك وبيض، رز بأنواعه، خبز، معكرونة، حبوب وبقوليات، ألبان، عصائر، فطور، صلصات، حلويات وسناكات — القيم من مصدر غذائي موثوق (USDA).",
+      "لكل صنف: الكارب، السكر، السعرات، البروتين، الدهون، الألياف لكل 100 غرام، وكميات البيت (نص كوب، كوب، ملعقة، حبة صغيرة/وسط/كبيرة، شريحة) كل وحدة بوزنها بالغرام.",
+      "13 أكلة كويتية كوصفات لصحن طفل: مطبق، مرق، تشريب، مموش، معدس، عيش أصفر، رز بالثوم، رز باربكيو، هريس، جريش، بلاليط، مجبوس روبيان، مرق بامية.",
+      "صفحة الأكل تبدأ بالمجموعات بالصور، والبحث (مثل «رز») يطلع كل الأنواع مع الكارب.",
+      "«⚖️ قارني»: قارني لين 3 أصناف جنب بعض لكل 100 غرام أو للحصة."
+    ],
+    "notes_en": [
+      "A ready basic food list (165 items): vegetables, fruit, nuts, meat/fish/eggs, rice types, bread, pasta, grains and legumes, dairy, juices, breakfast, sauces, sweets and snacks — values from a trusted food source (USDA).",
+      "Each item has carbs, sugar, calories, protein, fat and fiber per 100 g, and household portions (half cup, cup, spoon, small/medium/large piece, slice), each tied to its weight in grams.",
+      "13 Kuwaiti dishes as recipes for a child's plate: mutabbaq, maraq, tashreeb, mumawwash, mu'addas, yellow rice, garlic rice, BBQ rice, harees, jareesh, balaleet, shrimp machboos, okra stew.",
+      "The food page opens on picture groups, and a search like “rice” lists every type with its carbs.",
+      "“⚖️ Compare”: up to 3 foods side by side, per 100 g or per portion."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.32.0",
     "notes": [
       "تبويب «التغذية» صار قائمة الأكل: تتصفحين الأكل وطبخ البيت مقسّم بالأنواع مع البحث، وتفتحين أي صنف تشوفين قيمه (الكارب، الدهون، البروتين، الألياف، السعرات) لكل 100 وللحصة، أو للصحن بطبخ البيت، وتضيفينه لوجبة."

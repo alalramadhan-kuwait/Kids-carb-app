@@ -40,8 +40,9 @@ export function MomPage({ title, back = -1, children, foot, tabs }: { title: str
         {back !== null && <button aria-label={t('رجوع')} onClick={() => (typeof back === 'number' ? nav(back) : nav(back))} className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-2xl shadow-sm">{isEn() ? '←' : '→'}</button>}
         <h1 className="text-[24px] font-bold leading-tight">{title}</h1>
       </header>
-      <div className={cx('flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4', tabs ? TABS_PAD : !foot && 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{children}</div>
-      {foot && <div className="shrink-0 space-y-2 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3">{foot}</div>}
+      <div className={cx('flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4', tabs && !foot ? TABS_PAD : !foot && 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{children}</div>
+      {/* with the tabs, the buttons sit just above them */}
+      {foot && <div className={cx('shrink-0 space-y-2 px-4 pt-3', tabs ? TABS_PAD : 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{foot}</div>}
     </main>
   );
 }

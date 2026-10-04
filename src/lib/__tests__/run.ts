@@ -2025,6 +2025,15 @@ console.log('search');
     assert.ok(matches(['Rolls', 'المطاحن', 'خبز'], 'صمون') && matches(['Sandwich Rolls', 'لوزين', 'خبز'], 'صمونه لوزين'), 'Flour Mills and Lusine rolls are «صمون»');
     assert.ok(matches(['Turkey Breast Slices', null, 'لحوم'], 'تركي'));
   });
+  test('search: generic foods are found in the other language (vegetables, nuts, fish, grains, extras)', () => {
+    assert.ok(matches(['Zucchini, boiled', null, 'خضار'], 'كوسا') && matches(['باذنجان مشوي', null, 'خضار'], 'eggplant'));
+    assert.ok(matches(['Cashews', null, 'مكسرات'], 'كاجو') && matches(['Walnuts', null, 'مكسرات'], 'عين الجمل') && matches(['Pistachios', null, 'مكسرات'], 'فستق'));
+    assert.ok(matches(['Shrimp, cooked', null, 'سمك وروبيان'], 'روبيان') && matches(['هامور مشوي'], 'grouper') && matches(['Oats, dry'], 'شوفان'));
+    assert.ok(matches(['رز بسمتي مطبوخ', null, 'رز'], 'basmati') && matches(['Basmati rice, cooked', null, 'رز'], 'رز') && matches(['Tahini'], 'طحينه'));
+    assert.ok(matches(['دبس تمر', null, 'سكر وعسل'], 'date syrup') && matches(['Popcorn', null, 'سناكات'], 'فشار'));
+    // look-alikes: coconut is not walnut, peanut is not fava, cornflakes are not «ذرة»
+    assert.ok(!matches(['جوز هند'], 'walnut') && !matches(['فول سوداني'], 'fava') && !matches(['Corn Flakes'], 'ذره'));
+  });
   test('search: either language finds the item (foods, types and brands), whole words only', () => {
     assert.ok(matches(['Milk Toast With Vitamin D3', 'المطاحن', 'توست'], 'توست'));
     assert.ok(matches(['Milk Toast With Vitamin D3', 'المطاحن'], 'توست المطاحن'));
@@ -2127,12 +2136,32 @@ console.log('short names');
 
 console.log('product groups');
 {
-  const { groupOf, groupsIn, typesIn } = await import('../productGroups');
+  const { groupOf, groupsIn, typesIn, groupByKey } = await import('../productGroups');
   test('product groups: categories gather into groups; a brand shows only its groups, with counts, then the types inside', () => {
     assert.equal(groupOf('روب').key, 'dairy'); assert.equal(groupOf('آيس كريم').key, 'sweets'); assert.equal(groupOf('شيء جديد').key, 'other'); assert.equal(groupOf(null).key, 'other');
     const kdd = [{ category: 'حليب' }, { category: 'حليب' }, { category: 'لبن' }, { category: 'مشروبات' }, { category: 'آيس كريم' }, { category: 'غريب' }];
     assert.deepEqual(groupsIn(kdd).map((x) => [x.group.key, x.n]), [['dairy', 3], ['drinks', 1], ['sweets', 1], ['other', 1]]);
     assert.deepEqual(typesIn(kdd, 'dairy'), [{ cat: 'حليب', n: 2 }, { cat: 'لبن', n: 1 }]);
+  });
+  test('product groups: the generic foods\' categories each land in their own group, in the fixed order', () => {
+    assert.equal(groupOf('رز').key, 'rice'); assert.equal(groupOf('ملوخية').key, 'veg'); assert.equal(groupOf('بطاط مجمد').key, 'veg');
+    assert.equal(groupOf('سمك وروبيان').key, 'protein'); assert.equal(groupOf('سكر وعسل').key, 'sauces'); assert.equal(groupOf('عصير طبيعي').key, 'drinks');
+    assert.equal(groupOf('حبوب الإفطار').key, 'breakfast'); assert.equal(groupOf('باستا').key, 'pasta'); assert.equal(groupOf('طحين').key, 'bread');
+    const mix = [{ category: 'شوكولاتة' }, { category: 'رز' }, { category: 'خضار' }, { category: 'مكسرات' }, { category: 'رز' }];
+    assert.deepEqual(groupsIn(mix).map((x) => [x.group.key, x.n]), [['veg', 1], ['nuts', 1], ['rice', 2], ['sweets', 1]]);
+    assert.equal(groupByKey('rice')?.emoji, '🍚'); assert.equal(groupByKey('other')?.key, 'other'); assert.equal(groupByKey('nope'), null);
+  });
+}
+
+console.log('compare foods');
+{
+  const { withCompared, lowestCarbs } = await import('../../engine/mom');
+  test('compare foods: up to three, no repeats; the fewest carbs marked only when there is something to compare', () => {
+    const a = { kind: 'product' as const, id: 'a' }, b = { kind: 'recipe' as const, id: 'b' }, c = { kind: 'product' as const, id: 'c' }, d = { kind: 'product' as const, id: 'd' };
+    assert.deepEqual(withCompared(withCompared([a], a), b), [a, b]);
+    assert.deepEqual(withCompared([a, b, c], d), [a, b, c], 'a full list stays as it is');
+    assert.deepEqual(lowestCarbs([30, null, 12.5]), [2]); assert.deepEqual(lowestCarbs([10, 10, 20]), [0, 1]);
+    assert.deepEqual(lowestCarbs([10, null]), []); assert.deepEqual(lowestCarbs([8, 8]), []);
   });
 }
 

@@ -241,3 +241,18 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
   (the 24 h / 2 h pushes still go to both phones).
 - **v15 (Dad, 2.31.1)** — injection-site picture like the care chart Dad sent, but girly: a girl from the back and the front (hair with a bow, pink top, lilac shorts); back of the upper arms (both views), belly around the navel, outer thighs, buttocks (back view, only when enabled). Sides labelled per view.
 - **v16 (Dad, 2.32.0)** — «التغذية» means the food list, not the growth page: the tab now opens the same simple food browser (foods by group with search, home cooking); an item shows its values per 100 and per serving (recipes per plate), «—» when the label does not give one, and «أضيفيها لوجبة». The growth page stays in the full app.
+- **v17 (Dad) — basic food database + food groups** (split across agents):
+  - Source rules: generic foods from USDA SR Legacy (offline copy; FDC id and link on each row), branded products only
+    from their labels (no guessing), prepared/Kuwaiti dishes as recipes computed from their ingredients.
+  - Per 100 g: carbs, calories, protein, fat, fiber, total sugar (`products.sugar_per_100`, migration 20261004203612,
+    with `products.emoji` as the picture for foods without a photo). Every household portion (نصف كوب، كوب، ملعقة، حبة
+    صغيرة/متوسطة/كبيرة، شريحة) is a row in `carb.portions` with its USDA gram weight.
+  - Groups: خضار · فواكه · مكسرات · لحوم وبروتين · رز · خبز ونشويات · معكرونة · حبوب وبقوليات · ألبان · عصائر ومشروبات ·
+    فطور · صلصات وإضافات · حلويات وسناكات · أكلات كويتية (recipes). The food pages open on a grid of groups; a search like
+    «رز» lists every type with picture and carbs.
+  - Built (2.33.0): 165 generic foods (147 added, 15 updated, every one USDA-sourced with portions; checked: no duplicates,
+    carbs in range, kcal consistent), 7 extra ingredients and 13 Kuwaiti dish recipes (35–60 g carbs per plate; family's
+    own مجبوس دجاج/لحم kept, not duplicated). Not in USDA, so not added: date syrup, corn flakes/crisped rice (brand-only),
+    muesli, watermelon juice. Group grid, group pages, search across groups, carbs on every tile, item page with sugar
+    and household portions, and «⚖️ قارني» (up to 3 foods side by side, per 100 g or per portion; lowest-carb marked).
+

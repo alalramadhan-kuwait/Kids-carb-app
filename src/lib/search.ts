@@ -44,12 +44,31 @@ const SAME: string[][] = [ // i18n-ok: data (search words in both languages)
   ['grapefruit', 'جريب فروت'], ['guava', 'جوافه'], ['peach', 'خوخ'], ['pomegranate', 'رمان'], ['apricot', 'مشمش'], ['cherry', 'كرز'], // i18n-ok: data
   ['raspberry', 'blueberry', 'cranberry', 'توت'], ['tomato', 'طماط', 'طماطم'], ['cucumber', 'خيار'], ['turkey', 'تركي', 'حبش', 'ديك رومي'], ['onion', 'بصل'], ['olive oil', 'زيت زيتون'], // i18n-ok: data
   ['semolina', 'سميد'], ['wheat', 'قمح'], ['bran', 'نخاله'], ['barley', 'شعير'], ['sesame', 'سمسم'], ['lolly', 'مصاصه'], // i18n-ok: data
-  ['evaporated milk', 'حليب مبخر'], ['pistachio', 'فستق'], ['almond', 'almonds', 'لوز'], // i18n-ok: data
+  ['evaporated milk', 'حليب مبخر'], ['pistachio', 'pistachios', 'فستق', 'فستق حلبي'], ['almond', 'almonds', 'لوز'], // i18n-ok: data
+  // generic foods (vegetables, fruit, nuts, fish, grains, extras) and Kuwaiti dishes
+  ['zucchini', 'courgette', 'كوسا', 'كوسه'], ['eggplant', 'aubergine', 'باذنجان', 'بيتنجان'], ['okra', 'باميه'], ['carrot', 'carrots', 'جزر'], // i18n-ok: data
+  ['spinach', 'سبانخ'], ['lettuce', 'خس'], ['cabbage', 'ملفوف'], ['cauliflower', 'زهره', 'قرنبيط'], ['broccoli', 'بروكلي'], ['peas', 'بازلاء', 'بزاليا'], // i18n-ok: data
+  ['corn', 'sweet corn', 'ذره'], ['green beans', 'beans', 'فاصوليا', 'لوبيا'], ['pepper', 'capsicum', 'فلفل'], ['sweet potato', 'بطاط حلو', 'بطاطا حلوه'], ['beetroot', 'beet', 'شمندر', 'شوندر'], // i18n-ok: data
+  ['cantaloupe', 'melon', 'شمام'], ['pear', 'كمثرى', 'عرموط'], ['kiwi', 'كيوي'], ['fig', 'figs', 'تين'], ['plum', 'برقوق'], ['raisins', 'زبيب'], ['papaya', 'بابايا'], ['avocado', 'افوكادو'], // i18n-ok: data
+  ['cashew', 'cashews', 'كاجو'], ['walnut', 'walnuts', 'عين الجمل', 'جوز'], ['hazelnut', 'hazelnuts', 'بندق'], ['peanut', 'peanuts', 'فول سوداني'], ['nuts', 'مكسرات'], // i18n-ok: data
+  ['chickpea', 'chickpeas', 'hummus', 'حمص'], ['lentil', 'lentils', 'عدس'], ['fava', 'fava beans', 'broad beans', 'foul', 'فول'], ['kidney beans', 'فاصوليا حمراء'], // i18n-ok: data
+  ['oats', 'oat', 'oatmeal', 'porridge', 'شوفان'], ['bulgur', 'برغل'], ['quinoa', 'كينوا'], ['couscous', 'كسكس', 'كسكسي'], ['freekeh', 'فريكه'], // i18n-ok: data
+  ['shrimp', 'shrimps', 'prawn', 'prawns', 'روبيان', 'ربيان'], ['grouper', 'hamour', 'هامور'], ['salmon', 'سلمون', 'سالمون'], ['tuna', 'تونه', 'تونا'], ['sardine', 'sardines', 'سردين'], // i18n-ok: data
+  ['zubaidi', 'pomfret', 'زبيدي'], ['lamb', 'mutton', 'غنم', 'لحم غنم'], ['minced meat', 'mince', 'لحم مفروم', 'مفروم'], ['sausage', 'sausages', 'نقانق'], ['liver', 'كبده'], // i18n-ok: data
+  ['basmati', 'بسمتي'], ['egyptian rice', 'رز مصري', 'ارز مصري'], ['brown rice', 'رز بني', 'ارز بني'], ['bread crumbs', 'بقسماط'], // i18n-ok: data
+  ['date syrup', 'dibs', 'دبس'], ['tahini', 'tahina', 'طحينه'], ['molasses', 'دبس'], ['maple', 'قيقب'], ['syrup', 'شيره', 'شراب'], ['nutella', 'نوتيلا'], ['peanut butter', 'زبده فول سوداني'], // i18n-ok: data
+  ['popcorn', 'pop corn', 'فشار', 'بوب كورن'], ['chips', 'crisps', 'شيبس', 'شبس', 'جيبس'], ['donut', 'doughnut', 'دونات'], ['waffle', 'وافل'], ['jelly', 'jello', 'جلي'], // i18n-ok: data
+  ['kunafa', 'knafeh', 'كنافه'], ['basbousa', 'بسبوسه'], ['muhallabia', 'mahalabia', 'مهلبيه'], ['custard', 'كاسترد'], ['candy', 'sweets', 'حلاوه', 'حلويات'], // i18n-ok: data
+  ['machboos', 'majboos', 'مجبوس'], ['mareg', 'stew', 'مرق', 'مرقه'], ['harees', 'هريس'], ['jareesh', 'جريش'], ['murabyan', 'مربين'], ['balaleet', 'بلاليط'], ['mutabbaq', 'مطبق'], ['quzi', 'ghouzi', 'قوزي'], // i18n-ok: data
+  ['granola', 'جرانولا', 'غرانولا'], ['muesli', 'ميوزلي'], ['corn syrup', 'شراب الذره'], // i18n-ok: data
   ['americana', 'امريكانا'], ['mcdonalds', 'mcdonald', 'ماكدونالدز', 'ماكدونالز', 'مكدونالدز', 'ماكدونلدز', 'ماك'], ['almarai', 'المراعي'], ['ritz', 'ريتز'], // i18n-ok: data
 ].map((g) => g.map(norm));
 
 // words that only look like a group's word: "full cream milk" is milk, not cream (قشطة)
-const UNLESS: Record<string, string[]> = { cream: ['full cream', 'half cream', 'ice cream', 'cream cheese', 'cream filled', 'sour cream'] };
+const UNLESS: Record<string, string[]> = {
+  cream: ['full cream', 'half cream', 'ice cream', 'cream cheese', 'cream filled', 'sour cream'],
+  walnut: ['جوز هند'], fava: ['فول سوداني'], corn: ['corn flakes', 'cornflakes', 'popcorn', 'pop corn'], beans: ['coffee beans'], // i18n-ok: data
+};
 
 const LATIN = /^[a-z0-9 ]+$/;
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

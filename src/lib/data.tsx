@@ -39,7 +39,7 @@ const fixProduct = (p: any): Product => ({
   pack_size: num(p.pack_size), carbs_per_100: Number(p.carbs_per_100), fat_per_100: num(p.fat_per_100),
   fiber_per_100: num(p.fiber_per_100), protein_per_100: num(p.protein_per_100), kcal_per_100: num(p.kcal_per_100),
   serving_size: num(p.serving_size), carbs_per_serving: num(p.carbs_per_serving), cooked_yield: num(p.cooked_yield),
-  sat_fat_per_100: num(p.sat_fat_per_100), sugar_added_per_100: num(p.sugar_added_per_100), sodium_mg_per_100: num(p.sodium_mg_per_100),
+  sat_fat_per_100: num(p.sat_fat_per_100), sugar_per_100: num(p.sugar_per_100), sugar_added_per_100: num(p.sugar_added_per_100), sodium_mg_per_100: num(p.sodium_mg_per_100),
   calcium_mg_per_100: num(p.calcium_mg_per_100), iron_mg_per_100: num(p.iron_mg_per_100), potassium_mg_per_100: num(p.potassium_mg_per_100), vit_d_ug_per_100: num(p.vit_d_ug_per_100),
 });
 const fixIng = (i: any): Ingredient => ({ ...i, quantity: Number(i.quantity) });

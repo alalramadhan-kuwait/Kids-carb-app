@@ -4,18 +4,27 @@
 export interface ProductGroup { key: string; label: string; emoji: string; cats: string[] }
 
 export const PRODUCT_GROUPS: ProductGroup[] = [
+  { key: 'veg', label: 'خضار', emoji: '🥕', cats: ['خضار', 'ملوخية', 'بطاط مجمد'] }, // i18n-ok: stored values
+  { key: 'fruit', label: 'فواكه', emoji: '🍎', cats: ['فواكه'] }, // i18n-ok: stored values
+  { key: 'nuts', label: 'مكسرات', emoji: '🥜', cats: ['مكسرات'] }, // i18n-ok: stored values
+  { key: 'protein', label: 'لحوم وبروتين', emoji: '🍗', cats: ['لحوم ودجاج', 'سمك وروبيان', 'بيض', 'ناجت', 'برغر لحم'] }, // i18n-ok: stored values
+  { key: 'rice', label: 'رز', emoji: '🍚', cats: ['رز'] }, // i18n-ok: stored values
+  { key: 'bread', label: 'خبز ونشويات', emoji: '🍞', cats: ['خبز', 'توست', 'صمون', 'معجنات', 'سندويشات', 'نشويات', 'طحين'] }, // i18n-ok: stored values
+  { key: 'pasta', label: 'معكرونة', emoji: '🍝', cats: ['باستا'] }, // i18n-ok: stored values
+  { key: 'grains', label: 'حبوب وبقوليات', emoji: '🫘', cats: ['حبوب وبقوليات'] }, // i18n-ok: stored values
   { key: 'dairy', label: 'ألبان', emoji: '🥛', cats: ['حليب', 'لبن', 'روب', 'جبن', 'كريمة طبخ'] }, // i18n-ok: stored values
-  { key: 'drinks', label: 'مشروبات', emoji: '🧃', cats: ['مشروبات'] }, // i18n-ok: stored values
-  { key: 'sweets', label: 'حلويات وكيك وآيس كريم', emoji: '🍦', cats: ['حلويات', 'آيس كريم', 'كيك', 'بسكويت'] }, // i18n-ok: stored values
-  { key: 'starch', label: 'نشويات وخبز', emoji: '🍞', cats: ['توست', 'خبز', 'صمون', 'معجنات', 'سندويشات', 'نشويات', 'باستا', 'طحين', 'بطاط مجمد'] }, // i18n-ok: stored values
-  { key: 'protein', label: 'لحوم ودجاج وبيض', emoji: '🍗', cats: ['لحوم ودجاج', 'ناجت', 'برغر لحم', 'بيض'] }, // i18n-ok: stored values
-  { key: 'produce', label: 'فواكه وخضار', emoji: '🍎', cats: ['فواكه', 'خضار', 'ملوخية'] }, // i18n-ok: stored values
-  { key: 'sauces', label: 'صلصات', emoji: '🥫', cats: ['صلصة', 'كاتشب', 'مايونيز'] }, // i18n-ok: stored values
+  { key: 'drinks', label: 'عصائر ومشروبات', emoji: '🧃', cats: ['عصير طبيعي', 'مشروبات'] }, // i18n-ok: stored values
+  { key: 'breakfast', label: 'فطور', emoji: '🥣', cats: ['حبوب الإفطار', 'فطور'] }, // i18n-ok: stored values
+  { key: 'sauces', label: 'صلصات وإضافات', emoji: '🍯', cats: ['صلصة', 'كاتشب', 'مايونيز', 'سكر وعسل'] }, // i18n-ok: stored values
+  { key: 'sweets', label: 'حلويات وسناكات', emoji: '🍫', cats: ['حلويات', 'بسكويت', 'كيك', 'آيس كريم', 'شوكولاتة', 'سناكات'] }, // i18n-ok: stored values
 ];
 const OTHER: ProductGroup = { key: 'other', label: 'أخرى', emoji: '🍽️', cats: [] }; // i18n-ok: stored value
 
 export const groupOf = (category: string | null | undefined): ProductGroup =>
   PRODUCT_GROUPS.find((g) => !!category && g.cats.includes(category)) ?? OTHER;
+
+/** A group by its key (other included); null for an unknown key. */
+export const groupByKey = (key: string | null | undefined): ProductGroup | null => [...PRODUCT_GROUPS, OTHER].find((g) => g.key === key) ?? null;
 
 /** The groups these products fall in, in the fixed order (other last), each with how many products it holds. */
 export function groupsIn(products: { category: string | null }[]): { group: ProductGroup; n: number }[] {

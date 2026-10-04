@@ -22,8 +22,10 @@ export interface Product {
   protein_per_100: number | null;
   kcal_per_100: number | null;
   /** more label nutrients per 100 (all optional; null = not on the label, never zero) */
-  sat_fat_per_100?: number | null; sugar_added_per_100?: number | null; sodium_mg_per_100?: number | null; calcium_mg_per_100?: number | null;
+  sat_fat_per_100?: number | null; sugar_per_100?: number | null; sugar_added_per_100?: number | null; sodium_mg_per_100?: number | null; calcium_mg_per_100?: number | null;
   iron_mg_per_100?: number | null; potassium_mg_per_100?: number | null; vit_d_ug_per_100?: number | null;
+  /** a picture word for a generic food without a photo (🍚), shown instead of the category's */
+  emoji?: string | null;
   /** food group when the category's default is wrong (e.g. water among drinks) */
   food_group?: string | null;
   serving_size: number | null; // also what "1 piece" means

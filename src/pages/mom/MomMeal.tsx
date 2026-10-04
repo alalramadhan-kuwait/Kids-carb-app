@@ -1,19 +1,19 @@
 // Mom mode, building a meal from Layan's database: saved meals, recipes and products (grouped, with pictures), each
 // in one of its portions. Every choice is a full page; the meal being built is kept on the phone.
 import { useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
-import { draftOps, saveMeal, useDraft, usePortions, useSavedMeals } from '../../lib/mom';
+import { compareOps, draftOps, saveMeal, useCompare, useDraft, usePortions, useSavedMeals } from '../../lib/mom';
 import { planMeal } from '../../lib/plans';
-import { planItems, planItemsOf, readyForMom, type Catalog, type MomItem } from '../../engine/mom';
-import { groupOf } from '../../lib/productGroups';
+import { COMPARE_MAX, planItems, planItemsOf, readyForMom, type Catalog, type MomItem } from '../../engine/mom';
+import { groupByKey, groupOf, groupsIn } from '../../lib/productGroups';
 import { matches } from '../../lib/search';
 import { fmt } from '../../lib/carbs';
 import { supabase, uploadPhoto } from '../../lib/supabase';
 import { Photo, cx, inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import { Big, Choice, MomPage } from './MomUI';
-import type { PlanItem } from '../../lib/types';
+import type { PlanItem, Product, Recipe } from '../../lib/types';
 
 /** The catalogue Mom mode reads, and the carbs of any item or meal (null if any part is unknown). */
 export function useCatalog() {
@@ -24,9 +24,21 @@ export function useCatalog() {
   const itemCarbs = (it: MomItem) => carbsOf(planItemsOf(it, c));
   const mealCarbs = (items: MomItem[]) => carbsOf(planItems(items, c));
   const nameOf = (it: { kind: 'product' | 'recipe'; id: string }) => tMaybe((it.kind === 'product' ? products : recipes).find((x) => x.id === it.id)?.name ?? '');
-  const photoOf = (it: { kind: 'product' | 'recipe'; id: string }) => (it.kind === 'product' ? products : recipes).find((x) => x.id === it.id) ?? null;
-  return { c, carbsOf, itemCarbs, mealCarbs, nameOf, photoOf };
+  const photoOf = (it: { kind: 'product' | 'recipe'; id: string }): Product | Recipe | null => (it.kind === 'product' ? products : recipes).find((x) => x.id === it.id) ?? null;
+  const firstPortion = (kind: 'product' | 'recipe', id: string) => c.portions.find((p) => (kind === 'product' ? p.product_id === id : p.recipe_id === id)) ?? null;
+  /** A tile's carbs: «كوب = 45 غ كارب» by its first portion, else «28 غ / 100 غ» (a recipe: per plate). */
+  const tileCarbs = (kind: 'product' | 'recipe', id: string): string | null => {
+    const p = firstPortion(kind, id);
+    if (p) { const g = itemCarbs({ kind, id, portion_id: p.id }); return g === null ? null : t('{p} = {g} غ كارب', { p: tMaybe(p.label), g: fmt(g) }); }
+    if (kind === 'recipe') { const g = itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'plate' }); return g === null ? null : t('صحن = {g} غ كارب', { g: fmt(g) }); }
+    const pr = products.find((x) => x.id === id);
+    return pr ? t('{g} غ / 100 {u}', { g: fmt(Number(pr.carbs_per_100)), u: pr.unit === 'ml' ? t('مل') : t('غ') }) : null;
+  };
+  return { c, carbsOf, itemCarbs, mealCarbs, nameOf, photoOf, firstPortion, tileCarbs };
 }
+
+/** What Photo needs for a product or recipe: its photo, its own emoji (generic foods), its category. */
+export const pic = (x: Product | Recipe | null | undefined) => ({ path: x?.image_path, category: x?.category, emoji: x && 'emoji' in x ? x.emoji : null });
 
 const RECENT = 'mom-recent-v1';
 const recent = (): { kind: 'product' | 'recipe'; id: string }[] => { try { return JSON.parse(localStorage.getItem(RECENT) ?? '[]'); } catch { return []; } };
@@ -64,7 +76,7 @@ export function MomMeal() {
           return (
             <li key={k} className="flex items-center gap-3 py-2.5">
               <button onClick={() => nav(`/mom/item/${it.kind}/${it.id}?k=${k}`)} className="flex min-w-0 flex-1 items-center gap-3 text-start">
-                <Photo path={p?.image_path} category={p?.category} className="h-14 w-14 shrink-0 rounded-xl" />
+                <Photo {...pic(p)} className="h-14 w-14 shrink-0 rounded-xl" />
                 <span className="min-w-0 flex-1"><b className="block truncate text-[18px]"><bdi>{nameOf(it)}</bdi></b><span className="text-[15px] text-slate-500"><bdi>{portionLabel(it)}</bdi></span></span>
                 <span className="text-[15px] text-slate-500">{g === null ? '—' : g < 1 ? t('بدون كارب') : `${fmt(g)} ${t('غرام')}`}</span>
               </button>
@@ -87,36 +99,63 @@ export function MomMeal() {
   );
 }
 
-/** «شنو بتاكل؟»: saved meals | recipes | products (grouped with pictures), most used first, search. Full page. */
+/** Back to where she came from; to `home` when the page was opened directly (nothing to go back to). */
+export function useBack(home: string): string | number {
+  return useLocation().key === 'default' ? home : -1;
+}
+
+/** One food as a tile: its picture (photo or emoji), name, and carbs (per its first portion, else per 100). */
+function FoodTile({ x, carbs, onClick }: { x: Product | Recipe; carbs: string | null; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="flex flex-col items-center gap-1 rounded-2xl border border-slate-100 bg-white p-2 active:opacity-80">
+      <Photo {...pic(x)} className="h-24 w-full rounded-xl" />
+      <span className="line-clamp-2 text-center text-[17px] font-bold leading-tight"><bdi>{tMaybe(x.name)}</bdi></span>
+      {carbs && <span className="text-center text-[15px] font-bold leading-tight text-brand"><bdi>{carbs}</bdi></span>}
+    </button>
+  );
+}
+
+/** The food page's foods: approved ones, and the tile line and tap for each (browse: values; add: portions). */
+function useFoods(browse: boolean) {
+  const nav = useNavigate();
+  const cat = useCatalog();
+  const { c } = cat;
+  const products = c.products.filter((p) => readyForMom('product', p.id, c));
+  const recipes = c.recipes.filter((r) => readyForMom('recipe', r.id, c));
+  const pick = (kind: 'product' | 'recipe', id: string) => nav(browse ? `/mom/food/${kind}/${id}` : `/mom/item/${kind}/${id}`);
+  const homeFirst = (l: Product[]) => [...l].sort((a, b) => Number(b.available !== false) - Number(a.available !== false));
+  const tile = (kind: 'product' | 'recipe', x: Product | Recipe) => <FoodTile key={kind + x.id} x={x} carbs={cat.tileCarbs(kind, x.id)} onClick={() => pick(kind, x.id)} />;
+  return { ...cat, products, recipes, homeFirst, tile };
+}
+
+/** «⚖️ قارني (2)»: the way to the compare page, at the bottom of the food pages while the compare list has foods. */
+function useCompareBar(browse: boolean) {
+  const nav = useNavigate();
+  const n = useCompare().length;
+  return browse && n ? <Big tone="soft" className="!min-h-[52px] !text-[18px]" onClick={() => nav('/mom/compare')}>⚖️ {t('قارني ({n})', { n })}</Big> : undefined;
+}
+
+/** «شنو بتاكل؟»: saved meals | recipes | food (its groups as big tiles; typing searches every group), most used
+ *  first. Full page. */
 export function MomAdd({ browse = false }: { browse?: boolean }) {
   const nav = useNavigate();
   const [sp, setSp] = useSearchParams();
   const { meals } = useSavedMeals();
   // browse: the «التغذية» tab — the same food list, but a tap opens the item's nutrition values
   const tab = (sp.get('tab') ?? (meals.length && !browse ? 'saved' : 'products')) as 'saved' | 'recipes' | 'products';
-  const group = sp.get('g');
   const [q, setQ] = useState('');
-  const { c, mealCarbs, nameOf } = useCatalog();
-  // browsing shows what is at home; searching finds every approved product (restaurants, things not bought yet)
-  const products = c.products.filter((p) => readyForMom('product', p.id, c) && (q.trim() !== '' || p.available !== false));
-  const recipes = c.recipes.filter((r) => readyForMom('recipe', r.id, c));
-  const rec = recent().filter((r) => readyForMom(r.kind, r.id, c)).slice(0, 6);
-  const pick = (kind: 'product' | 'recipe', id: string) => nav(browse ? `/mom/food/${kind}/${id}` : `/mom/item/${kind}/${id}`);
-  const shown = products.filter((p) => (!group || groupOf(p.category).key === group) && matches([p.name, p.brand, p.category], q))
-    .sort((a, b) => Number(b.available !== false) - Number(a.available !== false)); // what is at home first
-  const groups = [...new Map(products.map((p) => [groupOf(p.category).key, groupOf(p.category)])).values()];
-  const missing = q.trim() && !shown.length && !recipes.some((r) => matches([r.name], q));
-  const Tile = ({ kind, id }: { kind: 'product' | 'recipe'; id: string }) => {
-    const x = (kind === 'product' ? c.products : c.recipes).find((y) => y.id === id)!;
-    return (
-      <button onClick={() => pick(kind, id)} className="flex flex-col items-center gap-1 rounded-2xl border border-slate-100 bg-white p-2 active:opacity-80">
-        <Photo path={x.image_path} category={x.category} className="h-20 w-full rounded-xl" />
-        <span className="line-clamp-2 text-center text-[15px] font-bold leading-tight"><bdi>{tMaybe(x.name)}</bdi></span>
-      </button>
-    );
-  };
+  const { c, mealCarbs, nameOf, products, recipes, homeFirst, tile } = useFoods(browse);
+  const rec = recent().filter((r) => readyForMom(r.kind, r.id, c)).slice(0, 4);
+  const find = (kind: 'product' | 'recipe', id: string) => ((kind === 'product' ? c.products : c.recipes) as (Product | Recipe)[]).find((y) => y.id === id)!;
+  // searching finds every approved food in every group (restaurants, things not bought yet), what is at home first
+  const found = q.trim() ? homeFirst(products.filter((p) => matches([p.name, p.brand, p.category], q))) : [];
+  const foundRecipes = q.trim() ? recipes.filter((r) => matches([r.name, r.category], q)) : [];
+  const groups = groupsIn(products);
+  const missing = q.trim() && !found.length && !foundRecipes.length;
+  const base = browse ? '/mom/food' : '/mom/add';
+  const bar = useCompareBar(browse);
   return (
-    <MomPage title={browse ? t('التغذية') : t('شنو بتاكل؟')} back={browse ? null : '/mom/meal'} tabs={browse}>
+    <MomPage title={browse ? t('التغذية') : t('شنو بتاكل؟')} back={browse ? null : '/mom/meal'} tabs={browse} foot={bar}>
       <div className={cx('grid gap-1 rounded-full bg-slate-100 p-1 text-[15px]', browse ? 'grid-cols-2' : 'grid-cols-3')}>
         {(browse ? ['products', 'recipes'] as const : ['saved', 'recipes', 'products'] as const).map((k) => <button key={k} onClick={() => setSp({ tab: k }, { replace: true })} className={cx('min-h-[44px] rounded-full', tab === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{k === 'saved' ? t('وجباتها') : k === 'recipes' ? t('طبخ البيت') : t('أكل')}</button>)}
       </div>
@@ -124,24 +163,51 @@ export function MomAdd({ browse = false }: { browse?: boolean }) {
         const g = mealCarbs(m.items);
         return <Choice key={m.id} icon="⭐" label={m.name} sub={m.items.map((i) => nameOf(i)).join(' · ')} onClick={() => { draftOps.load(m); nav('/mom/meal'); }} color={g === null ? '#e2e8f0' : undefined} />;
       }) : <p className="text-center text-slate-500">{t('ما في وجبات محفوظة بعد')}</p>)}
-      {tab === 'recipes' && (recipes.length ? <div className="grid grid-cols-2 gap-2">{recipes.map((r) => <Tile key={r.id} kind="recipe" id={r.id} />)}</div> : <p className="text-center text-slate-500">{t('بابا ما جهّز وصفات بعد')}</p>)}
+      {tab === 'recipes' && (recipes.length ? <div className="grid grid-cols-2 gap-2">{recipes.map((r) => tile('recipe', r))}</div> : <p className="text-center text-slate-500">{t('بابا ما جهّز وصفات بعد')}</p>)}
       {tab === 'products' && (
         <>
-          <input className={inputCls} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('ابحثي: كورن فليكس، توبي…')} />
-          {!q && rec.length > 0 && !group && (<><h2 className="text-[16px] font-bold text-slate-500">{t('الأكثر')}</h2><div className="grid grid-cols-3 gap-2">{rec.map((r) => <Tile key={r.kind + r.id} kind={r.kind} id={r.id} />)}</div></>)}
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
-            <button onClick={() => setSp({ tab: 'products' }, { replace: true })} className={cx('min-h-[44px] shrink-0 rounded-full px-4 font-bold', !group ? 'bg-brand text-white' : 'bg-white')}>{t('الكل')}</button>
-            {groups.map((gr) => <button key={gr.key} onClick={() => setSp({ tab: 'products', g: gr.key }, { replace: true })} className={cx('min-h-[44px] shrink-0 rounded-full px-4 font-bold', group === gr.key ? 'bg-brand text-white' : 'bg-white')}>{gr.emoji} {tMaybe(gr.label)}</button>)}
-          </div>
-          {(group ? [groups.find((x) => x.key === group)!].filter(Boolean) : groups).map((gr) => {
-            const list = shown.filter((p) => groupOf(p.category).key === gr.key);
-            if (!list.length) return null;
-            return (<section key={gr.key}><h2 className="mb-1.5 text-[16px] font-bold text-slate-500">{gr.emoji} {tMaybe(gr.label)}</h2><div className="grid grid-cols-3 gap-2">{list.map((p) => <Tile key={p.id} kind="product" id={p.id} />)}</div></section>);
-          })}
-          {!products.length && <p className="text-center text-slate-500">{t('بابا ما جهّز الكميات بعد')}</p>}
+          <input className={inputCls} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('ابحثي: رز، كورن فليكس، توبي…')} />
+          {q.trim() ? (
+            <div className="grid grid-cols-2 gap-2">{foundRecipes.map((r) => tile('recipe', r))}{found.map((p) => tile('product', p))}</div>
+          ) : (
+            <>
+              {rec.length > 0 && (<><h2 className="text-[16px] font-bold text-slate-500">{t('الأكثر')}</h2><div className="grid grid-cols-2 gap-2">{rec.map((r) => tile(r.kind, find(r.kind, r.id)))}</div></>)}
+              {/* the groups as big tiles: home cooking first, then every group that has foods */}
+              <div className="grid grid-cols-3 gap-2">
+                {recipes.length > 0 && <GroupTile emoji="🍲" label={t('أكلات كويتية')} sub={t('طبخ البيت')} n={recipes.length} onClick={() => setSp({ tab: 'recipes' }, { replace: true })} />}
+                {groups.map(({ group: gr, n }) => <GroupTile key={gr.key} emoji={gr.emoji} label={tMaybe(gr.label)} n={n} onClick={() => nav(`${base}/g/${gr.key}`)} />)}
+              </div>
+              {!products.length && <p className="text-center text-slate-500">{t('بابا ما جهّز الكميات بعد')}</p>}
+            </>
+          )}
         </>
       )}
       <Big tone="ghost" className={cx('shrink-0', missing ? '' : 'mt-auto')} onClick={() => nav('/mom/new')}>{t('مو موجود؟')}</Big>
+    </MomPage>
+  );
+}
+
+function GroupTile({ emoji, label, sub, n, onClick }: { emoji: string; label: string; sub?: string; n: number; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="flex min-h-[112px] flex-col items-center justify-center gap-1 rounded-2xl border border-slate-100 bg-white p-2 active:opacity-80">
+      <span aria-hidden className="text-[40px] leading-none">{emoji}</span>
+      <span className="line-clamp-2 text-center text-[16px] font-bold leading-tight">{label}</span>
+      {sub && <span className="text-center text-[14px] leading-tight text-slate-500">{sub}</span>}
+      <span className="num text-[14px] text-slate-500">{n}</span>
+    </button>
+  );
+}
+
+/** One group's page (/mom/food/g/:key, /mom/add/g/:key): every approved food in it, what is at home first. */
+export function MomGroup({ browse = false }: { browse?: boolean }) {
+  const { key } = useParams() as { key: string };
+  const gr = groupByKey(key);
+  const { products, homeFirst, tile } = useFoods(browse);
+  const list = homeFirst(products.filter((p) => groupOf(p.category).key === key));
+  const bar = useCompareBar(browse), back = useBack(browse ? '/mom/food' : '/mom/add?tab=products');
+  return (
+    <MomPage title={gr ? `${gr.emoji} ${tMaybe(gr.label)}` : t('أكل')} back={back} foot={bar}>
+      {list.length ? <div className="grid grid-cols-2 gap-2">{list.map((p) => tile('product', p))}</div> : <p className="text-center text-slate-500">{t('ما في شي هني بعد')}</p>}
     </MomPage>
   );
 }
@@ -184,7 +250,7 @@ export function MomPortion() {
       <Big disabled={!item || g === null} onClick={done}>{k !== null ? t('تم') : t('إضافة')}</Big>
     </>}>
       <div className="flex items-center gap-3 rounded-3xl bg-white p-3">
-        <Photo path={x?.image_path} category={x?.category} className="h-24 w-24 shrink-0 rounded-2xl" />
+        <Photo {...pic(x)} className="h-24 w-24 shrink-0 rounded-2xl" />
         {prod ? (
           <div className="space-y-0.5 text-[16px]">
             <div><b className="num">{fmt(Number(prod.carbs_per_100))}</b> {t('غرام كارب بكل 100 {u}', { u: gUnit })}</div>
@@ -254,14 +320,19 @@ export function MomNew() {
 }
 
 /** «التغذية»: one food's values — carbs first, then sugar, fat, protein, fiber, calories — per 100 and per serving
- *  (a recipe: per plate). A value the label does not give shows «—», never 0. Then add it to a meal. */
+ *  (a recipe: per plate), then its household portions. A value the label does not give shows «—», never 0. Then add
+ *  it to a meal, or to the compare list. */
 export function MomFoodItem() {
   const nav = useNavigate();
   const { kind, id } = useParams() as { kind: 'product' | 'recipe'; id: string };
   const { products, settings } = useData();
-  const { c, nameOf, photoOf } = useCatalog();
+  const { c, nameOf, photoOf, itemCarbs } = useCatalog();
   const x = photoOf({ kind, id });
   const prod = kind === 'product' ? products.find((p) => p.id === id) ?? null : null;
+  const back = useBack('/mom/food');
+  const cmp = useCompare();
+  const inCompare = cmp.some((r) => r.kind === kind && r.id === id);
+  const mine = c.portions.filter((p) => (kind === 'product' ? p.product_id === id : p.recipe_id === id));
   const u = prod?.unit === 'ml' ? t('مل') : t('غرام');
   const n = (v: number | null | undefined, f = 1) => (v === null || v === undefined || Number.isNaN(Number(v)) ? null : Math.round(Number(v) * f * 10) / 10);
   type Row = { label: string; a: number | null; b: number | null; unit: string; main?: boolean };
@@ -272,6 +343,7 @@ export function MomFoodItem() {
     head = [t('بكل 100 {u}', { u }), ss ? t('الحصة {s} {u}', { s: fmt(ss), u }) : null];
     rows = [
       { label: t('كارب'), ...both(prod.carbs_per_100), unit: t('غرام'), main: true },
+      { label: t('سكر'), ...both(prod.sugar_per_100), unit: t('غرام') },
       ...(prod.sugar_added_per_100 !== null && prod.sugar_added_per_100 !== undefined ? [{ label: t('سكر مضاف'), ...both(prod.sugar_added_per_100), unit: t('غرام') }] : []),
       { label: t('دهون'), ...both(prod.fat_per_100), unit: t('غرام') },
       { label: t('بروتين'), ...both(prod.protein_per_100), unit: t('غرام') },
@@ -293,8 +365,13 @@ export function MomFoodItem() {
   }
   const cell = (v: number | null, r: Row) => (v === null ? <span className="text-slate-400">—</span> : <span className={r.main ? 'text-[22px] font-extrabold text-brand' : 'font-bold'}>{fmt(v)}{r.unit ? <span className="text-[13px] font-normal text-slate-500"> {r.unit}</span> : null}</span>);
   return (
-    <MomPage title={nameOf({ kind, id })} back="/mom/food" foot={<Big onClick={() => { draftOps.start('now'); nav(`/mom/item/${kind}/${id}`); }}>🍽️ {t('أضيفيها لوجبة')}</Big>}>
-      <Photo path={x?.image_path} category={x?.category} className="mx-auto h-36 w-36 shrink-0 rounded-3xl" />
+    <MomPage title={nameOf({ kind, id })} back={back} foot={<>
+      {inCompare || cmp.length >= COMPARE_MAX
+        ? <Big tone="soft" onClick={() => nav('/mom/compare')}>⚖️ {t('شوفي المقارنة ({n})', { n: cmp.length })}</Big>
+        : <Big tone="soft" onClick={() => compareOps.add({ kind, id })}>⚖️ {t('قارني')}</Big>}
+      <Big onClick={() => { draftOps.start('now'); nav(`/mom/item/${kind}/${id}`); }}>🍽️ {t('أضيفيها لوجبة')}</Big>
+    </>}>
+      <Photo {...pic(x)} className="mx-auto h-36 w-36 shrink-0 rounded-3xl" />
       {prod?.brand && <p className="text-center text-[15px] text-slate-500"><bdi>{prod.brand}</bdi></p>}
       <table className="w-full overflow-hidden rounded-3xl bg-white text-[17px]">
         <thead><tr className="text-[14px] text-slate-500"><th className="px-4 py-2 text-start font-normal" /><th className="px-2 py-2 font-normal">{head[0]}</th>{head[1] && <th className="px-2 py-2 font-normal">{head[1]}</th>}</tr></thead>
@@ -302,6 +379,17 @@ export function MomFoodItem() {
           {rows.map((r) => <tr key={r.label}><td className="px-4 py-2.5">{r.label}</td><td className="px-2 py-2.5 text-center">{cell(r.a, r)}</td>{head[1] && <td className="px-2 py-2.5 text-center">{cell(r.b, r)}</td>}</tr>)}
         </tbody>
       </table>
+      {mine.length > 0 && (
+        <section className="rounded-3xl bg-white px-4 py-2">
+          <h2 className="py-1 text-[15px] text-slate-500">{t('كميات البيت')}</h2>
+          <ul className="divide-y divide-slate-100 text-[17px]">
+            {mine.map((p) => {
+              const g = itemCarbs({ kind, id, portion_id: p.id }), gt = g === null ? '—' : fmt(g);
+              return <li key={p.id} className="py-2.5"><bdi>{prod ? t('{p} ({a} {u}) = {g} غ كارب', { p: tMaybe(p.label), a: fmt(p.amount), u: prod.unit === 'ml' ? t('مل') : t('غ'), g: gt }) : t('{p} = {g} غ كارب', { p: tMaybe(p.label), g: gt })}</bdi></li>;
+            })}
+          </ul>
+        </section>
+      )}
     </MomPage>
   );
 }
