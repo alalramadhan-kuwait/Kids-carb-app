@@ -34,6 +34,7 @@ const SAME: string[][] = [ // i18n-ok: data (search words in both languages)
   ['snack', 'snacks', 'سناك', 'سناكات'], ['breakfast', 'فطور', 'ريوق'], ['lunch', 'غدا', 'غداء'], ['dinner', 'عشا', 'عشاء'], // i18n-ok: data
   ['cornflakes', 'corn flakes', 'frosties', 'كورن فليكس', 'كورنفليكس', 'كورن فلكس', 'كورنفلكس', 'النمر'], ['cereal', 'cereals', 'سيريال', 'حبوب الافطار'], // i18n-ok: data
   ['kelloggs', 'كيلوقز', 'كيلوجز', 'كلوقز'], // i18n-ok: data
+  ['topi', 'توبي'], ['muratbey', 'موراتبي', 'مراد بي'], // i18n-ok: data
   ['kdd', 'كي دي دي'], ['kfmb', 'المطاحن', 'مطاحن', 'kuwait flour mills'], ['lusine', 'لوزين'], // i18n-ok: data
   ['cupcake', 'cupcakes', 'cup cake', 'cup cakes', 'كب كيك', 'كاب كيك'], ['muffin', 'muffins', 'مافن', 'مفن'], ['brownie', 'براوني'], // i18n-ok: data
   ['wrap', 'wraps', 'tortilla', 'تورتيلا', 'راب'], ['bun', 'buns', 'burger buns', 'خبز برغر'], ['roll', 'rolls', 'رول'], ['hot dog', 'hotdog', 'هوت دوق', 'هوت دوج'], // i18n-ok: data

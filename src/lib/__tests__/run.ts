@@ -2312,6 +2312,11 @@ test('Frosties is found by «كورن فليكس», «كورنفليكس» and �
   for (const q of ['كورن فليكس', 'كورنفليكس', 'النمر', 'frosties', 'كيلوقز']) assert.ok(matches(["Kellogg's Frosties", "Kellogg's", 'نشويات'], q), q);
 });
 
+test('Topi cheese is found by «توبي» and «جبن»', async () => {
+  const { matches } = await import('../search');
+  for (const q of ['توبي', 'جبن', 'cheese', 'topi', 'موراتبي']) assert.ok(matches(['Topi Cheese (كرات جبن طازجة) 200g', 'Muratbey', 'جبن'], q), q);
+});
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {
