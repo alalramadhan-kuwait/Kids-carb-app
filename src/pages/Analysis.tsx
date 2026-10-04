@@ -19,6 +19,7 @@ import { EventSheet } from '../components/EventSheet';
 import { Sheet, Toggle } from '../components/ui';
 import { iobParamsOk, modelLine } from '../engine/iob';
 import { usePredictions } from '../lib/predictions';
+import { nightOf } from '../lib/schedule';
 import { trendFrom } from '../engine/trend';
 import { useGraphExtras } from '../hooks/useGraphExtras';
 import { GraphHelp } from '../components/ForecastKey';
@@ -158,7 +159,7 @@ function Live() {
       </div>
       <div className="flex-1 bg-white">
         <Timeline series={series} view={view} now={now} onView={onView} unit={unit} height={Math.max(160, land.height - 48)}
-          range={rng} marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={ahead} />
+          range={rng} marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={ahead} night={nightOf(settings)} />
       </div>
       <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
     </div>
@@ -185,7 +186,7 @@ function Live() {
       <div className="relative -mx-4 bg-white py-2 shadow-card">
         <Timeline series={series} view={view} now={now} onView={onView} unit={unit} height={height}
           range={rng}
-          marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={ahead} />
+          marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={ahead} night={nightOf(settings)} />
         {loading && <div className="absolute start-3 top-3 text-xs text-slate-400">…</div>}
         <GraphHelp past={forecasts.some((f) => f.kind === 'past')} tracks={!!tracks} className="absolute right-12 top-3" />
       </div>

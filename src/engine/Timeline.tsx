@@ -44,11 +44,13 @@ const css = (name: string, a = 1) => {
 const KW = 3 * 3600000;
 const clock = (t: number) => { const d = new Date(t + KW); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
 
-export function Timeline({ series, view, now, onView, range, unit, height: total, marks = [], layers, onSelect, dayParts, highlight, tracks, forecasts, ahead = 0.04 }: {
+export function Timeline({ series, view, now, onView, range, unit, height: total, marks = [], layers, onSelect, dayParts, highlight, tracks, forecasts, ahead = 0.04, night }: {
   series: Series; view: View; now: number; onView: (v: View, opts?: { animate?: boolean }) => void;
   range: Range; unit: GlucoseUnit; height: number;
   marks?: Mark[]; layers?: Set<Layer>; onSelect?: (g: Group) => void;
   dayParts?: boolean; highlight?: number | null; tracks?: Tracks;
+  /** the parents' night hours (Kuwait time, "HH:MM"), shaded when 6 hours or more are shown */
+  night?: { start: string; end: string } | null;
   forecasts?: Forecast[]; ahead?: number;
 }) {
   // the readout floats just above the plot while a point is read, so the finger on the graph never covers it;
@@ -103,6 +105,22 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
         const a = Math.max(0, X(ts)), b = Math.min(width, X(ts + H6));
         if (part % 2 === 0) { g.fillStyle = css('--surface-2', 0.6); g.fillRect(a, PAD_T, b - a, plotH); }
         if (b - a > 40) { g.fillStyle = css('--text-3'); g.fillText(names[part], (a + b) / 2, PAD_T + plotH - 3); }
+      }
+      g.direction = 'ltr';
+    }
+
+    // night: the parents' night hours, a soft tint with a moon at its top, so a long view shows which part was sleep
+    if (night && !dayParts && span >= 6 * 3600000) {
+      const KWO = 3 * 3600000, DAY = 86400000;
+      const hm = (x: string) => { const [h, m] = x.split(':').map(Number); return (h * 60 + (m || 0)) * 60000; };
+      const a0 = hm(night.start), b0 = hm(night.end), len = ((b0 - a0 + DAY) % DAY) || DAY;
+      g.font = '500 10.5px Rubik, system-ui, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top'; g.direction = dir();
+      for (let d = Math.floor((start + KWO) / DAY) * DAY - KWO - DAY; d < end; d += DAY) {
+        const from = d + a0, to = from + len;
+        if (to <= start || from >= end) continue;
+        const a = Math.max(0, X(from)), b = Math.min(width, X(to));
+        g.fillStyle = css('--primary', 0.07); g.fillRect(a, PAD_T, b - a, plotH);
+        if (b - a > 34) { g.fillStyle = css('--text-3'); g.fillText(`☾ ${t('ليل')}`, a + 4, PAD_T + 2); }
       }
       g.direction = 'ltr';
     }
@@ -313,7 +331,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
         g.strokeStyle = css('--text'); g.lineWidth = 2; g.beginPath(); g.arc(x, y, 5, 0, 7); g.stroke();
       }
     }
-  }, [series, view, now, range.low, range.high, range.reference, unit, width, height, inspect, marks, layers, hasRail, RAIL, dayParts, highlight, tracks, TRK, forecasts]);
+  }, [series, view, now, range.low, range.high, range.reference, unit, width, height, inspect, marks, layers, hasRail, RAIL, dayParts, highlight, tracks, TRK, forecasts, night]);
 
   useEffect(() => { const id = requestAnimationFrame(draw); return () => cancelAnimationFrame(id); }, [draw]);
   useEffect(() => { // redraw on light/dark change

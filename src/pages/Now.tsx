@@ -28,6 +28,7 @@ import { dir, isEn, t, tMaybe } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
 import { sensorLife } from '../engine/status';
 import { syncPredictions } from '../lib/predictions';
+import { nightOf } from '../lib/schedule';
 import { trendFrom, libreOf } from '../engine/trend';
 import { useGraphExtras } from '../hooks/useGraphExtras';
 import { fmtTime } from '../lib/constants';
@@ -292,7 +293,7 @@ function HomeChart({ live }: { live: Reading[] }) {
   return (
     <div className="relative -mx-4">
       <Timeline series={series} view={view} now={now} onView={onView} unit={settings.glucose_unit} height={height}
-        range={rng} marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={AHEAD} />
+        range={rng} marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={AHEAD} night={nightOf(settings)} />
       {!following && (
         <button onClick={() => { setFollowing(true); setView({ span: SPAN, end: limitEnd(Infinity, Date.now(), SPAN, AHEAD) }); }}
           className="absolute start-4 top-2 min-h-[40px] rounded-full bg-brand px-4 text-sm font-bold text-white shadow">{t('الآن')}</button>
