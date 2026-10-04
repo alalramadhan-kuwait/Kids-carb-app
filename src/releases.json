@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.18.0",
+    "notes": [
+      "السجل: الوجبة المأخوذة من وصفة يظهر تحتها «وصفة»، وعند فتحها رابط للوصفة.",
+      "جديد: «تعديل الأصناف والكميات» لأي وجبة مسجّلة: غيّروا كمية صنف، احذفوه، أو أضيفوا منتجًا، ويُعاد حساب الكارب والقيم الغذائية. يتغيّر هذا التسجيل فقط، والوصفة كما هي."
+    ],
+    "notes_en": [
+      "Log: a meal made from a recipe shows “Recipe” under it, and opening it shows a link to the recipe.",
+      "New: “Edit items and amounts” for any logged meal: change an item's amount, remove it, or add a product, and carbs and nutrition are recalculated. Only that entry changes; the recipe stays as it is."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.17.5",
     "notes": [
       "التحليل: المختبر صار أيقونة 🧪 في الزاوية، فصارت التبويبات الأربعة أوسع."

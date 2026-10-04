@@ -1500,6 +1500,37 @@ console.log('growth and nutrition');
   });
 }
 
+console.log('editing the items of a logged meal');
+
+{
+  const MI = await import('../mealItems');
+  const P = (id: string, name: string, c: number, extra: Partial<Product> = {}): Product => ({ id, name, brand: null, category: 'x', kind: 'commercial', image_path: null, pack_size: null, unit: 'g', carbs_per_100: c, fat_per_100: 10, fiber_per_100: 2, protein_per_100: 5, kcal_per_100: null, serving_size: null, carbs_per_serving: null, label_basis: 'as_sold', cooked_yield: null, available: true, approved: true, label_updated_at: '2026-01-01', notes: null, ...extra });
+  const rice = P('r', 'rice', 30), bread = P('b', 'bread', 50, { fat_per_100: null });
+  const h = { id: 'h', kind: 'meal', recipe_id: 'rec', name: 'plate', category: null, eaten_at: '2026-10-01T10:00:00Z', total_carbs: 70, total_fat: 25, total_fiber: 5, total_protein: 12, total_kcal: 500, modified: false, glucose_mgdl: null, glucose_trend: null, glucose_at: null, notes: null,
+    lines: [{ name: 'rice', product: 'rice', quantity: 100, unit: 'g', state: 'as_is', role: 'main', carbs: 30 }, { name: 'sauce', product: null, quantity: 50, unit: 'g', state: 'as_is', role: 'main', carbs: 40 }] } as HistoryEntry;
+  test('logged meal items: a catalogue item is recomputed from its label, an item without one keeps its carbs in proportion', () => {
+    const rows = MI.rowsOf(h, [rice, bread]);
+    assert.equal(rows[0].product?.id, 'r'); assert.equal(rows[1].product, null);
+    const same = MI.recompute(h, rows, S);
+    assert.equal(same.carbs, 70, 'nothing changed: exactly as logged'); assert.equal(same.totals.fat, 25);
+    rows[0].line = { ...rows[0].line, quantity: 150 }; rows[1].line = { ...rows[1].line, quantity: 25 };
+    const r = MI.recompute(h, rows, S);
+    assert.equal(r.carbs, 30 + 15 + 20, 'rice adds its label difference (+15), the sauce halves');
+    // fat: saved 25; rice +5 (10 → 15 g); the sauce's share (25 − 10 = 15) halves → −7.5
+    close(r.totals.fat!, 25 + 5 - 7.5, 1e-9);
+  });
+  test('logged meal items: removing, adding, and a nutrient that becomes unknown is never zero', () => {
+    const rows = MI.rowsOf(h, [rice, bread]);
+    rows[0].line = { ...rows[0].line, quantity: 0 };
+    rows.push(MI.addRow(bread)); rows[2].line = { ...rows[2].line, quantity: 40 };
+    const r = MI.recompute(h, rows, S);
+    assert.deepEqual(r.lines.map((l) => l.name), ['sauce', 'bread'], 'removed item dropped');
+    assert.equal(r.carbs, 40 + 20);
+    assert.equal(r.totals.fat, null, 'bread has no fat on its label: unknown, not zero');
+    close(r.totals.protein!, 12 - 5 + 2, 1e-9, );
+  });
+}
+
 console.log('editing entries');
 
 {

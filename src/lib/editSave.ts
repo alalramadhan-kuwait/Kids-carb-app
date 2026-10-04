@@ -3,7 +3,8 @@ import { supabase } from './supabase';
 import { scaleLines, type EditDraft } from './edit';
 import { quickFromMeal } from './quick';
 import { normBrand } from './brand';
-import type { EventRow, HistoryEntry } from './types';
+import type { EventRow, HistoryEntry, HistoryLine } from './types';
+import { totalsPatch, type Nut } from './mealItems';
 
 export async function updateEvent(e: EventRow, d: EditDraft, me: string | null) {
   const patch: Record<string, unknown> = { occurred_at: new Date(d.t!).toISOString(), edited_by: me, edited_at: new Date().toISOString() };
@@ -64,4 +65,12 @@ export async function carbsToMeal(e: EventRow, d: EditDraft, me: string | null):
   if (del.error) { await supabase.from('meal_history').delete().eq('id', (data as { id: string }).id); throw new Error(del.error.message); }
   if (d.toQuick) await quickFromMeal(name, { name, brand: d.brand ?? null, kind, carbs: d.carbs!, fat: d.fat ?? null, protein: d.protein ?? null, kcal: d.kcal ?? null, fiber: d.fiber ?? null, at: iso, label: d.label ?? null });
   return (data as { id: string }).id;
+}
+
+/** The items of a logged meal changed (amounts, removed or added): its lines and totals are replaced; the recipe is not touched. */
+export async function updateMealItems(h: HistoryEntry, r: { lines: HistoryLine[]; carbs: number; totals: Record<Nut, number | null> }, me: string | null) {
+  const { error } = await supabase.from('meal_history').update({
+    lines: r.lines, total_carbs: r.carbs, ...totalsPatch(r.totals), modified: true, edited_by: me, edited_at: new Date().toISOString(),
+  }).eq('id', h.id);
+  if (error) throw new Error(error.message);
 }

@@ -18,6 +18,7 @@ import { photoUrl, supabase } from '../lib/supabase';
 import { checkMinutes } from '../engine/predict';
 import { LogSheet } from '../components/LogSheet';
 import { EditEntry } from '../components/EditEntry';
+import { EditItems } from '../components/EditItems';
 import { EntryActions } from '../components/EntryActions';
 import { useQuickItems } from '../lib/quick';
 import { brandsOf, sameBrand } from '../lib/brand';
@@ -39,7 +40,7 @@ export default function History() {
   const [days, setDays] = useState(7);
   const [open, setOpen] = useState<Item | null>(null);
   const [logOpen, setLogOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<false | 'entry' | 'items'>(false);
   const close = () => { setOpen(null); setEditing(false); };
 
   const keyOf = (h: { recipe_id: string | null; name: string }) => h.recipe_id ?? `n:${h.name}`;
@@ -113,16 +114,17 @@ export default function History() {
         <div className="h-16" aria-hidden />{/* room so the Log button never covers the last entry */}
       </div>
 
-      <Sheet open={!!open} onClose={close} title={editing ? t('تعديل التسجيل') : open?.h ? open.h.name : open?.e ? describeEvent(open.e) : ''}>
-        {open && editing && <EditEntry e={open.e} h={open.h} onCancel={() => setEditing(false)} onDone={close} />}
-        {open?.h && !editing && <MealDetail h={open.h} n={times.get(keyOf(open.h)) ?? 1} unit={settings.glucose_unit} />}
+      <Sheet open={!!open} onClose={close} title={editing === 'items' ? t('تعديل الأصناف') : editing ? t('تعديل التسجيل') : open?.h ? open.h.name : open?.e ? describeEvent(open.e) : ''}>
+        {open && editing === 'entry' && <EditEntry e={open.e} h={open.h} onCancel={() => setEditing(false)} onDone={close} />}
+        {open?.h && editing === 'items' && <EditItems h={open.h} onCancel={() => setEditing(false)} onDone={close} />}
+        {open?.h && !editing && <MealDetail h={open.h} n={times.get(keyOf(open.h)) ?? 1} unit={settings.glucose_unit} onEditItems={() => setEditing('items')} />}
         {open?.e && !editing && (
           <div className="space-y-1 text-sm text-slate-600">
             {open.e.note && <p dir="auto" className="text-base text-slate-800">{open.e.note}</p>}
             <p>{fmtTime(new Date(open.e.occurred_at))}{open.e.source ? '' : <> · <bdi>{nameOf(open.e.created_by)}</bdi></>}</p>
           </div>
         )}
-        {open && !editing && <EntryActions key={open.key} e={open.e} h={open.h} onEdit={() => setEditing(true)} onRemove={() => remove(open)} onClose={close} onOpenOther={(x) => setOpen({ t: Date.parse(x.eaten_at), key: 'h' + x.id, h: x })} />}
+        {open && !editing && <EntryActions key={open.key} e={open.e} h={open.h} onEdit={() => setEditing('entry')} onRemove={() => remove(open)} onClose={close} onOpenOther={(x) => setOpen({ t: Date.parse(x.eaten_at), key: 'h' + x.id, h: x })} />}
       </Sheet>
 
       {/* the same primary action as Now, in the thumb zone above the tab bar */}
@@ -141,7 +143,7 @@ export default function History() {
 function Row({ it, who, onOpen }: { it: Item; who: string; onOpen: () => void }) {
   const icon: IconName = it.h ? 'meals' : EVENT_ICON[it.e!.kind];
   const main = it.h ? <bdi>{it.h.name}</bdi> : it.e!.kind === 'note' ? <bdi>{it.e!.note}</bdi> : describeEvent(it.e!);
-  const sub = it.h ? [it.h.kind === 'snack' ? t('سناك') : '', isFatty(it.h.total_fat, it.h.total_protein) ? t('دسمة') : '', it.h.brand ?? '', it.h.needs_review ? t('خارج البحث') : '', it.h.source === 'gluroo' ? it.h.notes ?? 'Gluroo' : ''].filter(Boolean).join(' · ') : it.e!.kind !== 'note' && it.e!.note ? it.e!.note : '';
+  const sub = it.h ? [it.h.recipe_id ? t('وصفة') : '', it.h.kind === 'snack' ? t('سناك') : '', isFatty(it.h.total_fat, it.h.total_protein) ? t('دسمة') : '', it.h.brand ?? '', it.h.needs_review ? t('خارج البحث') : '', it.h.source === 'gluroo' ? it.h.notes ?? 'Gluroo' : ''].filter(Boolean).join(' · ') : it.e!.kind !== 'note' && it.e!.note ? it.e!.note : '';
   return (
     <li>
       <button onClick={onOpen} className="flex min-h-[56px] w-full items-center gap-3 px-4 py-2 text-start active:bg-slate-50">
@@ -159,9 +161,16 @@ function Row({ it, who, onOpen }: { it: Item; who: string; onOpen: () => void })
   );
 }
 
-function MealDetail({ h, n, unit }: { h: HistoryEntry; n: number; unit: 'mmol' | 'mgdl' }) {
+function MealDetail({ h, n, unit, onEditItems }: { h: HistoryEntry; n: number; unit: 'mmol' | 'mgdl'; onEditItems: () => void }) {
+  const { recipes } = useData();
+  const recipe = h.recipe_id ? recipes.find((r) => r.id === h.recipe_id) : null;
   return (
     <div className="space-y-3 text-sm">
+      {recipe && (
+        <Link to={`/recipes/${recipe.id}`} className="flex min-h-[44px] items-center gap-2 rounded-xl bg-brand-soft px-3 text-brand">
+          <Icon name="meals" size={18} /><span className="min-w-0 flex-1 truncate font-bold">{t('وصفة: {name}', { name: tMaybe(recipe.name) })}</span><span>{isEn() ? '›' : '‹'}</span>
+        </Link>
+      )}
       <div className="flex items-baseline gap-2">
         <span className="num text-3xl font-bold text-brand-num">{fmt(h.total_carbs)}</span><span className="text-slate-500">{t('غ كارب')}</span>
         <span className="ms-auto text-slate-500">{fmtTime(new Date(h.eaten_at))}</span>
@@ -175,6 +184,7 @@ function MealDetail({ h, n, unit }: { h: HistoryEntry; n: number; unit: 'mmol' |
           <li key={i} className="flex justify-between gap-2 py-1.5"><span><bdi>{l.name}</bdi> · <span className="num">{fmt(l.quantity)}</span> {unitText(l.unit)}{l.state !== 'as_is' ? ` ${stateText(l.state).toLowerCase()}` : ''}</span><span className="num font-medium">{fmt(l.carbs)}</span></li>
         ))}
       </ul>
+      {h.lines.length > 0 && <button onClick={onEditItems} className="min-h-[44px] text-sm font-bold text-brand">{t('تعديل الأصناف والكميات')}</button>}
       {h.total_kcal !== null && <p className="num text-xs text-slate-500">{t('دهون {fat}غ • ألياف {fiber}غ • بروتين {protein}غ • {kcal} سعرة', { fat: fmt(h.total_fat), fiber: fmt(h.total_fiber), protein: fmt(h.total_protein), kcal: h.total_kcal })}</p>}
       <p className="text-xs text-slate-500">{t('اختيرت {n} مرة', { n })}{h.modified ? ' · ' + t('معدّلة') : ''}</p>
       {h.needs_review && <Link to="/import" className="block rounded-xl bg-near-soft p-2.5 text-sm font-medium text-near">{t('ربما سُجّل جزء منها مرتين في Gluroo، فهي مستبعدة من البحث تلقائيًا. لا يلزم شيء منكم.')}</Link>}
