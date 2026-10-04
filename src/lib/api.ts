@@ -146,3 +146,6 @@ export type GlucoseStats = NonNullable<Awaited<ReturnType<typeof glucoseStats>>>
 /** Where an injection was given (rotation). */
 export const setInjectionSite = async (id: string, site: NonNullable<EventRow['injection_site']>) =>
   ok(await supabase.from('events').update({ injection_site: site }).eq('id', id));
+/** Mom mode: a dose's units corrected (who and when are kept). */
+export const setEventUnits = async (id: string, units: number, by: string | null) =>
+  ok(await supabase.from('events').update({ insulin_units: units, edited_by: by, edited_at: new Date().toISOString() }).eq('id', id));

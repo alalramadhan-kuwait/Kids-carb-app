@@ -45,10 +45,13 @@ export function MomMeal() {
   const [name, setName] = useState('');
   const sameAsSaved = d.savedId && meals.find((m) => m.id === d.savedId && JSON.stringify(m.items) === JSON.stringify(d.items));
   const portionLabel = (it: MomItem) => tMaybe(c.portions.find((p) => p.id === it.portion_id)?.label ?? '');
+  const Left = () => d.left.length ? <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ <bdi>{d.left.join(' · ')}</bdi> {t('ما ينحسب بالإبرة · كلّمي بابا')}</p> : null;
   if (!d.items.length) return (
     <MomPage title={t('وجبة ليان')} back="/mom">
-      <p className="text-center text-[18px] text-slate-500">{t('الصحن فاضي')}</p>
-      <Big onClick={() => nav('/mom/add')}>+ {t('إضافة شي')}</Big>
+      <Left />
+      {meals.length > 0 && <h2 className="text-[17px] font-bold text-slate-500">⭐ {t('وجباتها')}</h2>}
+      {meals.slice(0, 6).map((m) => <Choice key={m.id} icon="⭐" label={m.name} sub={m.items.map((i) => nameOf(i)).join(' · ')} onClick={() => draftOps.load(m)} />)}
+      <Big tone={meals.length ? 'soft' : 'primary'} onClick={() => nav(meals.length ? '/mom/add?tab=recipes' : '/mom/add')}>+ {t('شي ثاني')}</Big>
     </MomPage>
   );
   return (
@@ -61,14 +64,14 @@ export function MomMeal() {
               <button onClick={() => nav(`/mom/item/${it.kind}/${it.id}?k=${k}`)} className="flex min-w-0 flex-1 items-center gap-3 text-start">
                 <Photo path={p?.image_path} category={p?.category} className="h-14 w-14 shrink-0 rounded-xl" />
                 <span className="min-w-0 flex-1"><b className="block truncate text-[18px]"><bdi>{nameOf(it)}</bdi></b><span className="text-[15px] text-slate-500"><bdi>{portionLabel(it)}</bdi></span></span>
-                <span className="text-sm text-slate-500">{g === null ? '—' : g < 1 ? t('بدون سكر') : `${fmt(g)} ${t('غ')}`}</span>
+                <span className="text-[15px] text-slate-500">{g === null ? '—' : g < 1 ? t('بدون كارب') : `${fmt(g)} ${t('غرام')}`}</span>
               </button>
-              <button aria-label={t('حذف')} onClick={() => draftOps.remove(k)} className="grid h-11 w-11 place-items-center rounded-full text-xl text-slate-400">✕</button>
             </li>
           );
         })}
       </ul>
-      <div className="flex items-baseline justify-between px-1 text-slate-500"><span>{t('الكارب')}</span><b className="num text-[22px] text-slate-900">{total === null ? '—' : `${fmt(total)} ${t('غ')}`}</b></div>
+      <Left />
+      <div className="flex items-baseline justify-between px-1 text-slate-500"><span>{t('الكارب')}</span><b className="num text-[22px] text-slate-900">{total === null ? '—' : `${fmt(total)} ${t('غرام')}`}</b></div>
       <Big tone="soft" onClick={() => nav('/mom/add')}>+ {t('إضافة شي')}</Big>
       {!sameAsSaved && d.items.length > 1 && (naming ? (
         <div className="flex gap-2">
@@ -86,12 +89,12 @@ export function MomMeal() {
 export function MomAdd() {
   const nav = useNavigate();
   const [sp, setSp] = useSearchParams();
-  const tab = (sp.get('tab') ?? 'products') as 'saved' | 'recipes' | 'products';
+  const { meals } = useSavedMeals();
+  const tab = (sp.get('tab') ?? (meals.length ? 'saved' : 'products')) as 'saved' | 'recipes' | 'products';
   const group = sp.get('g');
   const [q, setQ] = useState('');
   const { c, mealCarbs, nameOf } = useCatalog();
-  const { meals } = useSavedMeals();
-  const products = c.products.filter((p) => readyForMom('product', p.id, c));
+  const products = c.products.filter((p) => p.available !== false && readyForMom('product', p.id, c));
   const recipes = c.recipes.filter((r) => readyForMom('recipe', r.id, c));
   const rec = recent().filter((r) => readyForMom(r.kind, r.id, c)).slice(0, 6);
   const pick = (kind: 'product' | 'recipe', id: string) => nav(`/mom/item/${kind}/${id}`);
@@ -110,7 +113,7 @@ export function MomAdd() {
   return (
     <MomPage title={t('شنو بتاكل؟')} back="/mom/meal">
       <div className="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 text-[15px]">
-        {(['saved', 'recipes', 'products'] as const).map((k) => <button key={k} onClick={() => setSp({ tab: k }, { replace: true })} className={cx('min-h-[44px] rounded-full', tab === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{k === 'saved' ? t('محفوظة') : k === 'recipes' ? t('وصفات') : t('منتجات')}</button>)}
+        {(['saved', 'recipes', 'products'] as const).map((k) => <button key={k} onClick={() => setSp({ tab: k }, { replace: true })} className={cx('min-h-[44px] rounded-full', tab === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{k === 'saved' ? t('وجباتها') : k === 'recipes' ? t('طبخ البيت') : t('أكل')}</button>)}
       </div>
       {tab === 'saved' && (meals.length ? meals.map((m) => {
         const g = mealCarbs(m.items);
@@ -162,7 +165,7 @@ export function MomPortion() {
       <h2 className="text-[18px] font-bold">{t('كم؟')}</h2>
       {mine.map((p) => {
         const g = itemCarbs({ kind, id, portion_id: p.id });
-        return <Choice key={p.id} icon={p.photo_path ? <Photo path={p.photo_path} className="h-11 w-11" /> : '🥣'} label={tMaybe(p.label)} sub={g === null ? undefined : g < 1 ? t('بدون سكر') : `${fmt(g)} ${t('غ')}`} on={sel === p.id} onClick={() => setSel(p.id)} />;
+        return <Choice key={p.id} icon={p.photo_path ? <Photo path={p.photo_path} className="h-11 w-11" /> : '🥣'} label={tMaybe(p.label)} sub={g === null ? undefined : g < 1 ? t('بدون كارب') : `${fmt(g)} ${t('غرام')}`} on={sel === p.id} onClick={() => setSel(p.id)} />;
       })}
       {!mine.length && <p className="text-slate-500">{t('اسألي بابا')}</p>}
       {k !== null && <button className="min-h-[44px] font-bold text-over" onClick={() => { draftOps.remove(Number(k)); nav('/mom/meal', { replace: true }); }}>{t('شيليه من الصحن')}</button>}
@@ -192,9 +195,9 @@ export function MomNew() {
   if (sent) return (
     <MomPage title={t('انرسل لبابا ✓')} back="/mom/meal">
       <p className="text-center text-[18px] text-slate-600">{t('وبالحين؟')}</p>
-      <Big onClick={() => nav('/mom/meal', { replace: true })}>{t('كمّلي الوجبة بدونه')}</Big>
+      <Big onClick={() => { draftOps.leaveOut(name.trim()); nav('/mom/meal', { replace: true }); }}>{t('كمّلي الوجبة بدونه')}</Big>
       <Big tone="ghost" onClick={() => nav('/mom', { replace: true })}>{t('انتظري بابا')}</Big>
-      <p className="mt-auto text-center text-sm text-slate-500">{t('ما نحسب إبرة لشي مو مأكد')}</p>
+      <p className="mt-auto text-center text-sm text-slate-500">{t('ما نحسب إبرة لشي مو مؤكد')}</p>
     </MomPage>
   );
   return (

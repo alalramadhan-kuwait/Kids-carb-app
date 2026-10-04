@@ -43,6 +43,7 @@ import { MomHome } from './pages/mom/MomHome';
 import { MomAdd, MomMeal, MomNew, MomPortion } from './pages/mom/MomMeal';
 import { MomAte, MomDose, MomGiven } from './pages/mom/MomDose';
 import { MomJuice, MomShot, MomSite, MomSites, MomTresiba } from './pages/mom/MomShots';
+import { MomEntry } from './pages/mom/MomEntry';
 import { PortionEdit, PortionList } from './pages/Portions';
 import { fullModeNow } from './lib/mom';
 
@@ -215,6 +216,7 @@ function Shell() {
         <Route path="/mom/tresiba" element={<MomTresiba />} />
         <Route path="/mom/site" element={<MomSite />} />
         <Route path="/mom/sites" element={<MomSites />} />
+        <Route path="/mom/entry/:id" element={<MomEntry />} />
         <Route path="/portions" element={<PortionList />} />
         <Route path="/portions/:kind/:id" element={<PortionEdit />} />
         <Route path="/meals" element={<Today />} />

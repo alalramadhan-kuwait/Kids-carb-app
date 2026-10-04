@@ -1,6 +1,28 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.28.0",
+    "notes": [
+      "الوضع البسيط لماما: شاشات كبيرة وكلام قليل — حالة ليان ورسم السكر، تجهيز الوجبة من وجباتها وطبخ البيت والأكل، الإبرة حسب خطة الدكتور، العصير، وتريسيبا.",
+      "الإبر بألوان الأقلام: نوفورابيد برتقالي وتريسيبا أخضر فاتح، ولا نوفورابيد قبل ساعتين من آخر إبرة.",
+      "أماكن الإبر: تسجيل مكان كل إبرة واقتراح المكان الجاي.",
+      "«كميات ليان» في «المزيد»: كميات ليان بالميزان (صحن صغير، شريحة…) اللي تختار منها ماما، مع تنبيه إذا الكمية غريبة.",
+      "أكل جديد ترسله ماما بصورة يوصل لبابا ولا تنحسب له إبرة.",
+      "تريسيبا: تنبيه إذا انعطت اليوم قبل تسجيل مرة ثانية.",
+      "تعديل أو مسح أي إبرة أو عصير من الوضع البسيط."
+    ],
+    "notes_en": [
+      "Simple mode for Mom: big screens, few words — Layan's status and glucose graph, building a meal from her meals, home cooking and foods, the injection from the doctor's plan, juice and Tresiba.",
+      "Injections in pen colours: NovoRapid orange, Tresiba light green, and no NovoRapid within 2 hours of the last one.",
+      "Injection sites: where each injection was given, and a suggestion for the next one.",
+      "“Layan's portions” in More: weighed household portions (small plate, slice…) Mom chooses from, with a warning when a portion looks wrong.",
+      "A new food Mom sends with a photo goes to Dad, and no dose is worked out for it.",
+      "Tresiba: a stop if it was already given today, before logging it again.",
+      "Change or delete any injection or juice from simple mode."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.27.0",
     "notes": [
       "تذكير «أعيدوا قياس السكر» يصل للوالدين بعد 15 دقيقة من أي علاج انخفاض.",

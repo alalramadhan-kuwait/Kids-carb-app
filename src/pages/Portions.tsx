@@ -74,6 +74,16 @@ export function PortionEdit() {
   }, [recipe, ingsByRecipe, products, settings]);
   const unit = product ? (product.unit === 'ml' ? t('مل') : t('غ')) : t('صحن');
   const carbsOf = (amount: number | null) => (!amount ? null : product ? portion(product, amount).carbs : plate === null ? null : plate * amount);
+  // a portion that looks wrong: almost no carbs from a carb food (a «شريحة» typed as 1 g), or far from the others
+  const warn = (amount: number | null, self?: string) => {
+    const c = carbsOf(amount);
+    if (!amount || c === null) return null;
+    if (product && Number(product.carbs_per_100) >= 5 && c < 2) return t('قليل وايد: {g} غ كارب. الكمية بالغرام مو بالحبة', { g: fmt(c) });
+    const others = mine.filter((p) => p.id !== self).map((p) => Number(p.amount));
+    if (others.length && (amount > 5 * Math.max(...others) || amount * 5 < Math.min(...others))) return t('بعيد وايد عن باقي الكميات · تأكد');
+    return null;
+  };
+  const serving = product?.serving_size ? Number(product.serving_size) : null;
   const [label, setLabel] = useState('');
   const [amount, setAmount] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -89,7 +99,7 @@ export function PortionEdit() {
         </Card>
         <Card className="!p-0 overflow-hidden">
           <ul className="divide-y divide-slate-100">
-            {mine.map((p) => <PortionRow key={p.id} p={p} unit={unit} carbsOf={carbsOf} busy={busy} run={run} />)}
+            {mine.map((p) => <PortionRow key={p.id} p={p} unit={unit} carbsOf={carbsOf} warn={warn} busy={busy} run={run} />)}
             {!mine.length && <li className="p-3 text-sm text-slate-500">{t('ما في كميات بعد. ماما ما تشوف هذا الصنف لين تضيف كمية.')}</li>}
           </ul>
         </Card>
@@ -97,11 +107,14 @@ export function PortionEdit() {
           <h2 className="font-bold">{t('+ كمية جديدة')}</h2>
           <div className="flex flex-wrap gap-1.5">{QUICK.map((q) => <button key={q} onClick={() => setLabel(tMaybe(q))} className={cx('min-h-[36px] rounded-full px-3 text-sm', label === tMaybe(q) ? 'bg-brand text-white' : 'bg-slate-100')}>{tMaybe(q)}</button>)}</div>
           <input className={inputCls} dir="auto" value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t('الاسم: صحن ليان الصغير')} maxLength={60} />
+          {recipe && <p className="text-xs text-slate-500">{t('بالصحون: 1 = صحن واحد من الوصفة (حسب عدد الصحون فيها) · نص صحن = 0.5. الطبخ ما يغيّر الحساب.')}</p>}
+          {serving && <div className="flex flex-wrap gap-1.5">{[1, 2].map((n) => <button key={n} onClick={() => { setAmount(serving * n); if (!label.trim()) setLabel(n === 1 ? tMaybe('حبة') : t('{n} حبات', { n })); }} className="min-h-[36px] rounded-full bg-brand-soft px-3 text-sm font-bold text-brand">{n === 1 ? t('حبة = {g} {u}', { g: fmt(serving), u: unit }) : t('{n} حبات = {g} {u}', { n, g: fmt(serving * n), u: unit })}</button>)}</div>}
           <div className="flex items-center gap-2">
             <NumInput value={amount} onChange={setAmount} className="!w-28 !text-center" placeholder={product ? '30' : '1'} />
             <span className="text-sm text-slate-500">{unit}</span>
             {carbsOf(amount) !== null && <span className="ms-auto text-sm text-brand">= <b className="num">{fmt(Math.round(carbsOf(amount)! * 10) / 10)}</b> {t('غ كارب')}</span>}
           </div>
+          {warn(amount) && <p className="rounded-xl bg-near-soft px-3 py-2 text-sm font-bold text-near">⚠️ {warn(amount)}</p>}
           <Btn kind="primary" block disabled={busy || !label.trim() || !amount || amount <= 0} onClick={() => run(async () => {
             await savePortion({ product_id: product?.id ?? null, recipe_id: recipe?.id ?? null, label, amount: amount!, photo_path: null, sort: mine.length });
             setLabel(''); setAmount(null); toast(t('حُفظ ✓'));
@@ -112,7 +125,7 @@ export function PortionEdit() {
   );
 }
 
-function PortionRow({ p, unit, carbsOf, busy, run }: { p: Portion; unit: string; carbsOf: (a: number | null) => number | null; busy: boolean; run: (f: () => Promise<void>) => void }) {
+function PortionRow({ p, unit, carbsOf, warn, busy, run }: { p: Portion; unit: string; carbsOf: (a: number | null) => number | null; warn: (a: number | null, self?: string) => string | null; busy: boolean; run: (f: () => Promise<void>) => void }) {
   const [label, setLabel] = useState(p.label);
   const [amount, setAmount] = useState<number | null>(Number(p.amount));
   const changed = label.trim() !== p.label || amount !== Number(p.amount);
@@ -126,9 +139,10 @@ function PortionRow({ p, unit, carbsOf, busy, run }: { p: Portion; unit: string;
         {c !== null && <span className="text-sm text-slate-600">= <b className="num">{fmt(Math.round(c * 10) / 10)}</b> {t('غ كارب')}</span>}
         <span className="ms-auto flex gap-1">
           {changed && <Btn kind="primary" className="!min-h-[40px] !px-3" disabled={busy || !label.trim() || !amount} onClick={() => run(() => savePortion({ ...p, label, amount: amount! }))}>{t('حفظ')}</Btn>}
-          <Btn kind="ghost" className="!min-h-[40px] !px-3" disabled={busy} onClick={() => run(() => deletePortion(p.id))}>{t('حذف')}</Btn>
+          <Btn kind="ghost" className="!min-h-[40px] !px-3" disabled={busy} onClick={() => { if (window.confirm(t('تحذف «{x}»؟', { x: tMaybe(p.label) }))) run(() => deletePortion(p.id)); }}>{t('حذف')}</Btn>
         </span>
       </div>
+      {warn(amount, p.id) && <p className="rounded-xl bg-near-soft px-3 py-1.5 text-xs font-bold text-near">⚠️ {warn(amount, p.id)}</p>}
     </li>
   );
 }

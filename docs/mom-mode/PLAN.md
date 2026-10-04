@@ -1,6 +1,6 @@
 # Mom mode (الوضع البسيط) — living plan
 
-**Status:** step 1 built (2.27.0); steps 2–5 not built. Updated after every piece of feedback (see the log at the end).
+**Status:** steps 1–5 built and released (2.27.0, 2.28.0); next: Rawan tries it, then the alarm sound (§13). Updated after every piece of feedback (see the log at the end).
 **Mockups:** `v1-screens-1..3.png` (12 screens), `v2-home-products-pens.png`, `v3-injection-sites.png`; sources
 `mom.html`, `mom2.html`, `mom3.html` (open in a browser). All numbers in mockups are made up.
 
@@ -185,3 +185,20 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
   «عالجتها» opens the treatment entry with her usual juice; a recheck push 15 min after every low treatment.
 - **v6 (Dad)** — doctor's rules written at the top: no NovoRapid within 2 h of the last dose (hard stop with a
   countdown); a dose has no effect after 3 h (doctor) — app counts 4 h by the family's cautious choice.
+- **Steps 2–5 built (2.28.0):** portions, saved meals, all mom pages, injection sites.
+- **Three-mom test (step 5) — fixed before release:**
+  - Safety: the dose shows on home even when the site is skipped; Tresiba stops if given in the last 20 h (a second,
+    deliberate tap to go on); a juice keeps its «افحصيها» card and «✓ فحصتها» on home; a food sent to Dad and eaten
+    anyway is flagged on the plate and the dose page («… ما ينحسب بالإبرة · كلّمي بابا») and kept in the plan's note.
+  - Dad's portions: warning when a carb food's portion is under 2 g carbs (a «شريحة» typed as 1 g) or far from the
+    others; one-tap «حبة = X غ» from the label's serving; delete asks first; recipe plates explained.
+  - Undo and change: every shot or juice opens its own page (change units or site, or «غلط · امسحيها»; a plan's dose
+    deleted cancels the plan); «غلطانة؟» after the injection; the sites list rows open the entry.
+  - No duplication: one main button on home (the next step); no ✕ on the plate (open the item →
+    «شيليه من الصحن»); the empty plate shows her saved meals first.
+  - Checking: the dose page lists the foods and the trend arrow; «إبرة تصحيح» title; «ليش؟» shows the total and
+    the pen's rounding down; the injection and «شكثر أكلت؟» pages name the meal.
+  - Reasons follow the direction (less: أكلت أقل / كانت نازلة / ما رضت / شي ثاني; more: أكلت أكثر / كان مرتفع /
+    شي ثاني) with «اختاري السبب».
+  - Words: «لا نوفورابيد قبل الساعة X»; «ساعة و43 د»; «أنت عطيتيها»; «بدون كارب»; «غرام»; tabs
+    «وجباتها / طبخ البيت / أكل»; unavailable products hidden; juice names not repeated.

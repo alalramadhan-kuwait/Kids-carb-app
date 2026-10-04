@@ -129,3 +129,5 @@ export async function planNow(p: { name: string; slot: PlannedMeal['slot']; item
 }
 /** She started eating (mom mode's «بدأت تاكل»): the start is kept; "how much she ate" comes later. */
 export const startEating = (id: string, at = Date.now()) => patch(id, { eating_at: new Date(at).toISOString() });
+/** Mom mode: the dose given was corrected afterwards. */
+export const setGivenUnits = (id: string, units: number) => patch(id, { given_units: units });

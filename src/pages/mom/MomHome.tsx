@@ -37,7 +37,9 @@ export function MomHome() {
   }, []);
   const merged = useMemo(() => {
     if (!series) return null;
-    const r = g?.readings ?? [];
+    // the graph's own readings, plus only the live ones newer than them (one source per moment: no zigzags)
+    const lastT = series.t.length ? series.t[series.t.length - 1] : 0;
+    const r = (g?.readings ?? []).filter((x) => Date.parse(x.taken_at) > lastT + 60000);
     return mergeSeries(series, r.map((x) => Date.parse(x.taken_at)), r.map((x) => x.mg_dl));
   }, [series, g]);
   const unit = s.glucose_unit;
@@ -57,11 +59,18 @@ export function MomHome() {
   const { plans } = usePlans();
   const open = plans.filter((p) => p.status === 'dosed' && now - Date.parse(p.dose_at) < 6 * H).sort((a, b) => Date.parse(b.dose_at) - Date.parse(a.dose_at))[0] ?? null;
   const lowNow = mood === 'low';
+  // a juice given: its recheck stays on home until someone taps «فحصتها»
+  const recheckMin = s.treat_recheck_min ?? 15;
+  const lastJuice = events.filter((e) => e.kind === 'treatment' && !e.deleted_at).sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))[0] ?? null;
+  const [acked, setAcked] = useState<string | null>(() => { try { return localStorage.getItem('mom-juice-ack'); } catch { return null; } });
+  const juice = lastJuice && lastJuice.id !== acked && now - Date.parse(lastJuice.occurred_at) < (recheckMin + 45) * 60000 ? lastJuice : null;
+  const juiceDue = juice ? Date.parse(juice.occurred_at) + recheckMin * 60000 : 0;
+  const ack = () => { if (!juice) return; try { localStorage.setItem('mom-juice-ack', juice.id); } catch { /* blocked */ } setAcked(juice.id); };
 
   return (
     <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col gap-3 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3">
       <div className="flex items-baseline justify-between"><b className="text-[22px]">{t('ليان')}</b><span className="text-sm text-slate-500">{at ? ago(at, now) : ''}</span></div>
-      <div className={cx('flex items-center gap-4 rounded-3xl px-5 py-4 text-white', m.bg)}>
+      <div className={cx('flex items-center gap-4 rounded-3xl px-5 py-4', m.bg)} style={{ color: '#fff' }}>
         <div className="min-w-0 flex-1"><div className="text-[22px] font-bold leading-tight">{t(m.word)}</div><div className="text-[16px] opacity-90">{t(m.todo)}</div></div>
         {latest && mood !== 'stale' && <div dir="ltr" className="flex items-baseline gap-1.5"><span className="text-[56px] font-extrabold leading-none">{glucoseText(latest.mg_dl, unit)}</span><span className="text-[34px]">{level !== null ? ARROW[level] : ''}</span></div>}
       </div>
@@ -75,27 +84,32 @@ export function MomHome() {
 
       <div className="space-y-2 rounded-3xl border border-slate-100 bg-white px-4 py-3">
         {[lastRapid && { type: 'rapid' as const, e: lastRapid }, lastLong && { type: 'long' as const, e: lastLong }].filter(Boolean).map((x) => x && (
-          <div key={x.type} className="flex items-center gap-3"><PenBar type={x.type} /><span className="flex-1 text-[17px]">{t(PEN_NAME[x.type])} <b className="num">{x.e.insulin_units}</b> {t('وحدة')}</span><span className="text-sm text-slate-500">{ago(Date.parse(x.e.occurred_at), now)}</span></div>
+          <Link key={x.type} to={`/mom/entry/${x.e.id}`} className="flex min-h-[44px] items-center gap-3"><PenBar type={x.type} /><span className="flex-1 text-[17px]">{t(PEN_NAME[x.type])} <b className="num">{x.e.insulin_units}</b> {t('وحدة')}</span><span className="text-[15px] text-slate-500">{ago(Date.parse(x.e.occurred_at), now)}</span></Link>
         ))}
-        {nextAt && <div className="rounded-xl bg-near-soft px-3 py-2 text-[15px] font-bold text-near">{t('الإبرة الجاية بعد {m} · الساعة {c}', { m: left(nextAt, now), c: clock(nextAt) })}</div>}
+        {nextAt && !lowNow && <div className="rounded-xl bg-near-soft px-3 py-2 text-[16px] font-bold text-near">{t('لا نوفورابيد قبل الساعة {c}', { c: clock(nextAt) })}</div>}
       </div>
 
-      {open && (
-        <Link to={open.eating_at ? `/mom/ate/${open.id}` : `/mom/given/${open.id}`} className="flex items-center gap-3 rounded-3xl bg-brand-soft px-4 py-3 text-brand">
-          <span className="text-3xl">🍽️</span>
-          <span className="flex-1 text-[18px] font-bold">{open.eating_at ? t('شكثر أكلت؟') : t('الوجبة جاهزة')}</span>
-          <span className="text-2xl">‹</span>
+      {juice && (
+        <Link to={`/mom/entry/${juice.id}`} className="flex items-center gap-3 rounded-3xl bg-near-soft px-4 py-3 text-near">
+          <span className="text-3xl">🧃</span>
+          <span className="flex-1 text-[17px] font-bold">{t('عصير {c}', { c: clock(Date.parse(juice.occurred_at)) })} · {juiceDue > now ? t('افحصيها بعد {m}', { m: left(juiceDue, now) }) : t('افحصيها الحين')}</span>
         </Link>
       )}
 
-      {lowNow
-        ? <Big tone="danger" className="min-h-[72px] text-[22px]" onClick={() => nav('/mom/juice')}>🧃 {t('عطيتها عصير')}</Big>
+      {/* one main button: the next step of whatever is going on */}
+      {juice ? <Big className="min-h-[72px] text-[22px]" onClick={ack}>✓ {t('فحصتها')}</Big>
+        : lowNow ? <Big tone="danger" className="min-h-[72px] text-[22px]" onClick={() => nav('/mom/juice')}>🧃 {t('عطيتها عصير')}</Big>
+        : open ? <Big className="min-h-[72px] text-[22px]" onClick={() => nav(open.eating_at ? `/mom/ate/${open.id}` : `/mom/given/${open.id}`)}>🍽️ {open.eating_at ? t('شكثر أكلت؟') : t('بدأت تاكل؟')}</Big>
         : <Big className="min-h-[72px] text-[22px]" onClick={() => nav('/mom/meal')}>🍽️ {t('جهزي وجبتها')}</Big>}
       <div className="grid grid-cols-2 gap-2">
-        {lowNow ? <Big tone="ghost" disabled>🍽️ {t('وجبة')}</Big> : <Big tone="ghost" onClick={() => nav('/mom/juice')}>🧃 {t('عصير')}</Big>}
+        {lowNow || juice ? <Big tone="ghost" disabled={lowNow} onClick={() => nav('/mom/meal')}>🍽️ {t('وجبة')}</Big> : <Big tone="ghost" onClick={() => nav('/mom/juice')}>🧃 {t('عصير')}</Big>}
         <Big tone="ghost" disabled={lowNow} onClick={() => nav('/mom/shot')}>💉 {t('إبرة')}</Big>
       </div>
-      <p className="mt-auto text-center text-xs text-slate-400">{t('الأرقام من خطة الدكتور')} · <Link to="/mom/sites" className="underline">{t('أماكن الإبر')}</Link> · <button className="underline" onClick={() => { setFullModeNow(true); nav('/'); }}>{t('الوضع الكامل')}</button></p>
+      <div className="mt-auto flex items-center justify-between gap-2 pt-2 text-[15px]">
+        <Link to="/mom/sites" className="min-h-[44px] rounded-full bg-white px-4 py-2.5 font-bold">💉 {t('أماكن الإبر')}</Link>
+        <button className="min-h-[44px] px-2 text-slate-500 underline" onClick={() => { if (window.confirm(t('تفتحين الوضع الكامل؟'))) { setFullModeNow(true); nav('/'); } }}>{t('الوضع الكامل')}</button>
+      </div>
+      <p className="text-center text-[13px] text-slate-500">{t('الأرقام من خطة الدكتور')}</p>
     </main>
   );
 }
@@ -113,12 +127,12 @@ function BigGraph({ s, now, unit, low, high, band, alarmHigh, shots, meals }: { 
     const t = s.t[i]; if (t < t0 || t > now + 60000) continue;
     d += `${!d || t - prev > 20 * 60000 ? 'M' : 'L'}${x(t).toFixed(1)},${y(s.v[i]).toFixed(1)}`; prev = t; lastV = s.v[i]; lastT = t;
   }
-  const dot = lastV === null ? '#64748b' : lastV < low ? '#c62f3a' : lastV > high ? '#c27a00' : '#2f8f55';
+  const dot = lastV === null ? '#64748b' : lastV < low ? '#c62f3a' : lastV > high ? '#c27a00' : '#2f8f55'; // the newest reading drawn, same as the box
   const first = Math.ceil(t0 / (3 * H)) * 3 * H; const hours = [0, 1, 2, 3].map((k) => first + k * 3 * H).filter((h) => h <= now);
   return (
     <svg viewBox={`0 0 ${W} ${HH}`} className="w-full" direction="ltr" role="img" aria-label={t('السكر آخر 12 ساعة')}>
       <rect x={PL} y={y(band[1])} width={W - PL - PR} height={y(band[0]) - y(band[1])} fill="#2f8f55" opacity="0.14" />
-      {ticks.map((v) => <g key={v}><line x1={PL} x2={W - PR} y1={y(v)} y2={y(v)} stroke="rgb(var(--text-3))" strokeOpacity="0.25" /><text x={W - PR + 4} y={y(v) + 4} fontSize="12" fill="#8a84a0">{glucoseText(v, unit).replace(/\.0$/, '')}</text></g>)}
+      {ticks.map((v) => <g key={v}><line x1={PL} x2={W - PR} y1={y(v)} y2={y(v)} stroke="rgb(var(--text-3))" strokeOpacity="0.25" /><text x={W - PR + 4} y={y(v) + 4} fontSize="14" fill="#8a84a0">{glucoseText(v, unit).replace(/\.0$/, '')}</text></g>)}
       <line x1={PL} x2={W - PR} y1={y(alarmHigh)} y2={y(alarmHigh)} stroke="#f0a020" strokeWidth="2" strokeDasharray="6 5" />
       <line x1={PL} x2={W - PR} y1={y(low)} y2={y(low)} stroke="#d6303c" strokeWidth="2" strokeDasharray="6 5" />
       <path d={d} fill="none" stroke="rgb(var(--text))" strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" />

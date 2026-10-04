@@ -52,8 +52,9 @@ export const setSimpleMode = (user: string, on: boolean) => ok(supabase.rpc('set
 
 // ── the meal being built on this phone ─────────────────────────────────────────────────────────────
 const KEY = 'mom-draft-v1';
-export interface Draft { items: MomItem[]; savedId: string | null; name: string | null }
-const empty: Draft = { items: [], savedId: null, name: null };
+/** left: foods sent to Dad and eaten anyway; they are not in the dose and the dose page says so. */
+export interface Draft { items: MomItem[]; savedId: string | null; name: string | null; left: string[] }
+const empty: Draft = { items: [], savedId: null, name: null, left: [] };
 let draft: Draft = (() => { try { return { ...empty, ...JSON.parse(localStorage.getItem(KEY) ?? 'null') }; } catch { return empty; } })();
 const draftSubs = new Set<(d: Draft) => void>();
 function setDraft(d: Draft) {
@@ -70,7 +71,8 @@ export const draftOps = {
   add: (it: MomItem) => setDraft({ ...draft, items: [...draft.items, it] }),
   replace: (k: number, it: MomItem) => setDraft({ ...draft, items: draft.items.map((x, i) => (i === k ? it : x)) }),
   remove: (k: number) => setDraft({ ...draft, items: draft.items.filter((_, i) => i !== k) }),
-  load: (m: SavedMeal) => setDraft({ items: m.items.map((i) => ({ ...i })), savedId: m.id, name: m.name }),
+  load: (m: SavedMeal) => setDraft({ items: m.items.map((i) => ({ ...i })), savedId: m.id, name: m.name, left: draft.left }),
+  leaveOut: (name: string) => setDraft({ ...draft, left: [...draft.left.filter((x) => x !== name), name] }),
   clear: () => setDraft(empty),
   get: () => draft,
 };

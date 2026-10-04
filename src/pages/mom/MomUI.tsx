@@ -16,11 +16,18 @@ export const clock = (ms: number) => new Date(ms).toLocaleTimeString(locale(), {
 export const ago = (ms: number, now = Date.now()) => {
   const m = Math.max(0, Math.round((now - ms) / 60000));
   if (m >= 12 * 60) return `${relDay(new Date(ms))} ${clock(ms)}`;
-  return m < 1 ? t('الحين') : m < 60 ? t('قبل {m} د', { m }) : t('قبل {h}:{mm}', { h: Math.floor(m / 60), mm: String(m % 60).padStart(2, '0') });
+  return m < 1 ? t('الحين') : t('قبل {d}', { d: span(m) });
+};
+/** Minutes in words: «43 د», «ساعة», «ساعة و43 د», «ساعتين و5 د», «3 ساعات». */
+export const span = (m: number) => {
+  const h = Math.floor(m / 60), r = m % 60;
+  if (!h) return t('{m} د', { m: r });
+  const hw = h === 1 ? t('ساعة') : h === 2 ? t('ساعتين') : t('{h} ساعات', { h });
+  return r ? t('{h} و{m} د', { h: hw, m: r }) : hw;
 };
 export const left = (ms: number, now = Date.now()) => {
   const m = Math.max(0, Math.ceil((ms - now) / 60000));
-  return m < 60 ? t('{m} د', { m }) : `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+  return span(m);
 };
 export const glucoseText = (mg: number, unit: 'mmol' | 'mgdl') => formatGlucose(mg, unit);
 
