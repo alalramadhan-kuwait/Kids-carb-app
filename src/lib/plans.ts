@@ -116,3 +116,16 @@ export const savePlanNote = (id: string, note: string) => patch(id, { note: note
 /** The plan's meal as the calculator sees it now (fresh from the product labels). */
 export const planMeal = (items: PlanItem[], products: Product[], settings: Settings) =>
   computeMeal(items.map((i, k) => ({ ...i, id: String(k), qty_confirmed: true, note: null, sort: k })), products, settings);
+
+/** Mom mode: a meal planned and dosed now, in one go. Returns the new plan (then approveDose records the dose). */
+export async function planNow(p: { name: string; slot: PlannedMeal['slot']; items: PlanItem[]; eat_after_min: number; note?: string | null }): Promise<PlannedMeal> {
+  const now = new Date();
+  const kw = new Date(now.getTime() + 3 * 3600000).toISOString().slice(0, 10);
+  const { data, error } = await supabase.from('planned_meals').insert({ for_date: kw, slot: p.slot, name: p.name, recipe_id: null, items: p.items, dose_at: now.toISOString(),
+    eat_after_min: p.eat_after_min, remind_min: 0, note: p.note ?? null, notified: { check: now.toISOString() } }).select('*').single();
+  if (error) throw new Error(error.message);
+  await load();
+  return { ...(data as PlannedMeal), items: p.items };
+}
+/** She started eating (mom mode's «بدأت تاكل»): the start is kept; "how much she ate" comes later. */
+export const startEating = (id: string, at = Date.now()) => patch(id, { eating_at: new Date(at).toISOString() });

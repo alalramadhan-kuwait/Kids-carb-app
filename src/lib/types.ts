@@ -131,6 +131,9 @@ export interface Settings {
   nutrition_targets?: import('../engine/nutrition').Targets;
   /** care team: minutes between the rapid dose and eating (planned meals' eat time); null = eat right after */
   dose_to_meal_min?: number | null;
+  /** injection sites the family uses, per insulin (rotation suggests among these) */
+  injection_sites?: { rapid: InjectionSite[]; long: InjectionSite[] };
+  treat_recheck_min?: number;
 }
 
 /** One item of a planned meal: what a recipe ingredient holds, recomputed from the products when it is checked. */
@@ -265,9 +268,15 @@ export interface EventRow {
   bg_mgdl?: number | null;
   /** where an imported entry came from (e.g. 'gluroo'); null when logged in the app */
   source?: string | null;
+  /** where an injection was given (rotation) */
+  injection_site?: InjectionSite | null;
   edited_at?: string | null; edited_by?: string | null;
   ends_at?: string | null;
   created_by: string;
   deleted_at: string | null;
 }
-export interface Member { user_id: string; display_name: string | null; alert_role?: 'primary' | 'backup' | 'off' }
+export interface Member { user_id: string; display_name: string | null; alert_role?: 'primary' | 'backup' | 'off'; simple_mode?: boolean }
+/** A household measure for a product (grams/ml) or a recipe (how many of its plates), set once by a parent with a scale. */
+export interface Portion { id: string; product_id: string | null; recipe_id: string | null; label: string; amount: number; photo_path: string | null; sort: number }
+export interface SavedMeal { id: string; name: string; emoji: string | null; items: { kind: 'product' | 'recipe'; id: string; portion_id: string }[]; sort: number }
+export type InjectionSite = 'belly_r' | 'belly_l' | 'thigh_r' | 'thigh_l' | 'arm_r' | 'arm_l' | 'buttock_r' | 'buttock_l';

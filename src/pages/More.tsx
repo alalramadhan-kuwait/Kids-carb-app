@@ -10,7 +10,8 @@ import { Icon } from '../components/Icon';
 import type { IconName } from '../icons/defs';
 import { formatGlucose, toMgdl, unitLabel } from '../lib/glucose';
 import type { CategoryTarget, Settings, Snack, Unit } from '../lib/types';
-import { Alert, Badge, Btn, Card, CarbBadge, Field, NumInput, Page, Photo, asset, cx, inputCls, snackArt, toast } from '../components/ui';
+import { Alert, Badge, Btn, Card, CarbBadge, Field, NumInput, Page, Photo, Toggle, asset, cx, inputCls, snackArt, toast } from '../components/ui';
+import { setFullModeNow, setSimpleMode } from '../lib/mom';
 import { setThemePref, themePref, type ThemePref } from '../lib/theme';
 import { isEn, t, tMaybe } from '../i18n';
 import { LangSwitch } from '../components/LangSwitch';
@@ -36,6 +37,26 @@ function Appearance() {
       </div>
       {p === 'auto' && <p className="text-xs text-slate-500">{t('يتبع الوضع الداكن في الجوال، وألوان الليل في وقت النوم إن كانت مفعّلة في التنبيهات.')}</p>}
     </div>
+  );
+}
+
+/** Simple (mom) mode: who opens in it, and a way in to see it from this phone. */
+function SimpleModeRows() {
+  const nav = useNavigate();
+  const { members, me, reload } = useData();
+  return (
+    <>
+      <li><button onClick={() => { setFullModeNow(false); nav('/mom'); }} className="flex min-h-[56px] w-full items-center gap-3 px-4 py-2.5 text-start active:bg-slate-50">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="home" size={20} /></span>
+        <span className="min-w-0 flex-1"><span className="block font-semibold">{t('افتح الوضع البسيط')}</span><span className="block truncate text-sm text-slate-500">{t('شاشات كبيرة وكلام قليل')}</span></span>
+      </button></li>
+      {members.map((m) => (
+        <li key={m.user_id} className="flex min-h-[56px] items-center gap-3 px-4 py-2">
+          <span className="min-w-0 flex-1"><span className="block font-medium"><bdi>{m.display_name ?? '—'}</bdi>{m.user_id === me ? ` (${t('أنت')})` : ''}</span><span className="block text-sm text-slate-500">{t('يفتح على الوضع البسيط')}</span></span>
+          <Toggle on={!!m.simple_mode} label={t('الوضع البسيط')} onChange={async (v) => { try { await setSimpleMode(m.user_id, v); await reload(); } catch (e) { toast((e as Error).message); } }} />
+        </li>
+      ))}
+    </>
   );
 }
 
@@ -83,7 +104,9 @@ export function More() {
         {group(t('الوجبات'), <>
           {link('/plan', 'meals', t('قائمة الأسبوع وقائمة الشراء'), t('وجبات لعدة أيام وعدد الأشخاص'))}
           {link('/snacks', 'carbs', t('السناكات'), t('قاعدة بيانات السناكات'))}
+          {link('/portions', 'meals', t('كميات ليان'), t('صحن ليان الصغير والكبير… لوضع ماما'))}
         </>)}
+        {group(t('الوضع البسيط'), <SimpleModeRows />)}
         {group(t('التطبيق'), <>
           {link('/settings', 'settings', t('الإعدادات'), t('الحد الأقصى للكارب ونطاق السكر'))}
           {link('/import', 'history', t('استيراد من Gluroo'), t('قراءات وجرعات ووجبات من ملف التصدير'))}

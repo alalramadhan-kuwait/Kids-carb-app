@@ -2334,6 +2334,48 @@ test('Topi cheese is found by «توبي» and «جبن»', async () => {
   });
 }
 
+{
+  const M = await import('../../engine/mom');
+  const prod = (id: string, o: Record<string, unknown> = {}) => ({ id, name: id, brand: null, category: 'نشويات', kind: 'commercial', image_path: null, pack_size: null, unit: 'g', carbs_per_100: 87, fat_per_100: 0.6, fiber_per_100: 2, protein_per_100: 4.5, kcal_per_100: 375, serving_size: null, carbs_per_serving: null, label_basis: 'as_sold', cooked_yield: null, available: true, approved: true, ...o }) as any;
+  const cat = {
+    products: [prod('frost'), prod('milk', { unit: 'ml', carbs_per_100: 4.7, category: 'حليب' }), prod('new', { approved: false })],
+    recipes: [{ id: 'r1', name: 'مجبوس', category: null, image_path: null, instructions: null, notes: null, approved: true, favorite: false, carb_pending: false, pending_note: null, saved_total_carbs: null }] as any,
+    ingsByRecipe: new Map([['r1', [{ id: 'i1', role: 'main', product_id: 'frost', slot_category: null, label: null, quantity: 40, unit: 'g', state: 'as_is', qty_confirmed: true, note: null, sort: 0 }]]]) as any,
+    portions: [{ id: 'p1', product_id: 'frost', recipe_id: null, label: 'صحن ليان الصغير', amount: 30, photo_path: null, sort: 0 },
+      { id: 'p2', product_id: 'milk', recipe_id: null, label: 'كوب ليان', amount: 150, photo_path: null, sort: 0 },
+      { id: 'p3', product_id: null, recipe_id: 'r1', label: 'صحن كبير', amount: 1.5, photo_path: null, sort: 0 }],
+  };
+  test('mom meal: portions become plan items (product amount, recipe ingredients scaled); a missing portion never guesses', () => {
+    assert.deepEqual(M.planItemsOf({ kind: 'product', id: 'frost', portion_id: 'p1' }, cat)!.map((i) => [i.product_id, i.quantity, i.unit]), [['frost', 30, 'g']]);
+    assert.deepEqual(M.planItemsOf({ kind: 'product', id: 'milk', portion_id: 'p2' }, cat)!.map((i) => [i.quantity, i.unit, i.role]), [[150, 'ml', 'main']]);
+    assert.deepEqual(M.planItemsOf({ kind: 'recipe', id: 'r1', portion_id: 'p3' }, cat)!.map((i) => i.quantity), [60]);
+    assert.equal(M.planItemsOf({ kind: 'product', id: 'milk', portion_id: 'p1' }, cat), null, "another product's portion");
+    assert.equal(M.planItems([{ kind: 'product', id: 'frost', portion_id: 'p1' }, { kind: 'product', id: 'frost', portion_id: 'zz' }], cat), null);
+    assert.equal(M.readyForMom('product', 'frost', cat), true);
+    assert.equal(M.readyForMom('product', 'new', cat), false, 'not approved / no portion');
+  });
+  test('mom home word: stale beats everything, then low, falling, high', () => {
+    assert.equal(M.moodOf(120, 20, 0, 70, 180), 'stale');
+    assert.equal(M.moodOf(null, null, null, 70, 180), 'stale');
+    assert.equal(M.moodOf(65, 2, 0, 70, 180), 'low');
+    assert.equal(M.moodOf(120, 2, -2, 70, 180), 'falling');
+    assert.equal(M.moodOf(90, 2, -1, 70, 180), 'falling');
+    assert.equal(M.moodOf(200, 2, 0, 70, 180), 'high');
+    assert.equal(M.moodOf(120, 2, 0, 70, 180), 'ok');
+  });
+  test('injection sites: suggest the one used longest ago; flag overuse; doctor gap countdown', () => {
+    const H = 3600000, now = 100 * H;
+    const shots = [{ t: now - 2 * H, site: 'belly_r', type: 'rapid' }, { t: now - 30 * H, site: 'belly_l', type: 'rapid' }, { t: now - 80 * H, site: 'thigh_r', type: 'long' }] as any;
+    const allowed = ['belly_r', 'belly_l', 'thigh_r', 'thigh_l'] as any;
+    assert.equal(M.siteSuggestion(shots, allowed).suggest, 'thigh_l', 'never used first');
+    assert.equal(M.siteSuggestion([...shots, { t: now - H, site: 'thigh_l', type: 'rapid' }], allowed).suggest, 'thigh_r');
+    const many = Array.from({ length: 6 }, (_, k) => ({ t: now - k * H, site: 'belly_r', type: 'rapid' })) as any;
+    assert.deepEqual(M.siteCounts(many, now, allowed).overused, ['belly_r']);
+    assert.equal(M.nextRapidAllowed(now - 40 * 60000, 120, now), now + 80 * 60000);
+    assert.equal(M.nextRapidAllowed(now - 3 * H, 120, now), null);
+  });
+}
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {

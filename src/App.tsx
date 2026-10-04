@@ -39,6 +39,12 @@ import { More, SnacksPage, SettingsPage } from './pages/More';
 import { themePref } from './lib/theme';
 import { t, useLang } from './i18n';
 import { LangSwitch } from './components/LangSwitch';
+import { MomHome } from './pages/mom/MomHome';
+import { MomAdd, MomMeal, MomNew, MomPortion } from './pages/mom/MomMeal';
+import { MomAte, MomDose, MomGiven } from './pages/mom/MomDose';
+import { MomJuice, MomShot, MomSite, MomSites, MomTresiba } from './pages/mom/MomShots';
+import { PortionEdit, PortionList } from './pages/Portions';
+import { fullModeNow } from './lib/mom';
 
 function Centered({ children }: { children: React.ReactNode }) {
   return <main className="mx-auto grid min-h-screen max-w-md place-items-center px-4"><div className="w-full space-y-4">{children}</div></main>;
@@ -182,8 +188,11 @@ function NightTheme() {
 }
 
 function Shell() {
-  const { loading, error, settings, events, history } = useData();
+  const { loading, error, settings, events, history, members, me } = useData();
   const { pathname } = useLocation();
+  // mom mode: this person's phone opens in the simple screens (one tap «الوضع الكامل» for this visit)
+  const simple = !!members.find((m) => m.user_id === me)?.simple_mode && !fullModeNow();
+  const mom = pathname === '/mom' || pathname.startsWith('/mom/');
   // the research lab runs by itself every 12 hours (one phone per slot); it never touches doses or readings
   useLabRunner({ loading: loading || !!error, settings, events, history });
   if (loading) return <Centered><p className="text-center text-slate-500">{t('جاري التحميل…')}</p></Centered>;
@@ -192,7 +201,22 @@ function Shell() {
     <>
       <NightTheme />
       <Routes>
-        <Route path="/" element={<Now />} />
+        <Route path="/" element={simple ? <Navigate to="/mom" replace /> : <Now />} />
+        <Route path="/mom" element={<MomHome />} />
+        <Route path="/mom/meal" element={<MomMeal />} />
+        <Route path="/mom/add" element={<MomAdd />} />
+        <Route path="/mom/item/:kind/:id" element={<MomPortion />} />
+        <Route path="/mom/new" element={<MomNew />} />
+        <Route path="/mom/dose" element={<MomDose />} />
+        <Route path="/mom/given/:id" element={<MomGiven />} />
+        <Route path="/mom/ate/:id" element={<MomAte />} />
+        <Route path="/mom/juice" element={<MomJuice />} />
+        <Route path="/mom/shot" element={<MomShot />} />
+        <Route path="/mom/tresiba" element={<MomTresiba />} />
+        <Route path="/mom/site" element={<MomSite />} />
+        <Route path="/mom/sites" element={<MomSites />} />
+        <Route path="/portions" element={<PortionList />} />
+        <Route path="/portions/:kind/:id" element={<PortionEdit />} />
         <Route path="/meals" element={<Today />} />
         <Route path="/timeline" element={<History />} />
         <Route path="/history" element={<Navigate to="/timeline" replace />} />
@@ -228,7 +252,7 @@ function Shell() {
         <Route path="/more" element={<More />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+      {!mom && <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         <ul className="mx-auto grid max-w-2xl grid-cols-5">
           {TABS.map((tab) => {
             const on = tab.to === '/' ? pathname === '/' : tab.match.some((m) => pathname === m || pathname.startsWith(m + '/'));
@@ -241,7 +265,7 @@ function Shell() {
             );
           })}
         </ul>
-      </nav>
+      </nav>}
     </>
   );
 }

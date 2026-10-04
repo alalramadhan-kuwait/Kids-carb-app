@@ -113,7 +113,7 @@ export async function callGlucose(body: Record<string, unknown>): Promise<Glucos
 }
 
 // ── events (insulin, carbs, treatment, note) ──────────────────────────────────
-export type NewEvent = Pick<EventRow, 'client_id' | 'kind' | 'occurred_at' | 'insulin_units' | 'insulin_type' | 'bolus_purpose' | 'carbs_g' | 'treatment' | 'note' | 'activity_min' | 'activity_level' | 'ends_at' | 'dose_calc' | 'bg_mgdl'>;
+export type NewEvent = Pick<EventRow, 'client_id' | 'kind' | 'occurred_at' | 'insulin_units' | 'insulin_type' | 'bolus_purpose' | 'carbs_g' | 'treatment' | 'note' | 'activity_min' | 'activity_level' | 'ends_at' | 'dose_calc' | 'bg_mgdl'> & { injection_site?: EventRow['injection_site'] };
 
 /** Returns the new id, or null if this exact submission was already saved (double tap). */
 export async function saveEvent(e: NewEvent): Promise<string | null> {
@@ -142,3 +142,7 @@ export async function glucoseStats(from: Date, to: Date, low: number | null, hig
   };
 }
 export type GlucoseStats = NonNullable<Awaited<ReturnType<typeof glucoseStats>>>;
+
+/** Where an injection was given (rotation). */
+export const setInjectionSite = async (id: string, site: NonNullable<EventRow['injection_site']>) =>
+  ok(await supabase.from('events').update({ injection_site: site }).eq('id', id));
