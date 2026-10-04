@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.17.3",
+    "notes": [
+      "بطاقة النمو والتغذية في الآن: ثلاثة أسطر لمتوسط 3 أيام بألوان أخضر / برتقالي / أحمر. الطاقة تقول «ضمن المدى» ما دامت داخل المدى التقديري، مع السعرات اليومية والفرق عن التقدير بالنسبة. البيانات الناقصة سطر صغير فقط."
+    ],
+    "notes_en": [
+      "Growth & nutrition card on Now: three lines for the 3-day average in green / amber / red. Energy says “Within range” whenever it is inside the estimated range, with kcal/day and the % difference from the estimate. Missing data is only a small note."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.17.2",
     "notes": [
       "الرسم: عند الضغط المطوّل، تظهر القراءة فوق الرسم بدل أسفله، فلا يغطيها الإصبع."

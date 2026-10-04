@@ -152,6 +152,15 @@ complete days, 7 days at least 3, 30 days at least 7.
 
 ## 8. Card on Now
 
-At most three chips, from the 3-day view: Growth, Energy, Balance. Green = fine in one word; amber names the issue;
-grey says what is missing. "Balance" shows the single most important issue in this order: protein, fibre, vegetables,
-calcium, iron, fruit, potassium, vitamin D, saturated fat, added sugar, sodium.
+Three lines from the 3-day average, each with a green / amber / red dot (grey = not enough data yet):
+
+| Line | Green | Amber | Red |
+|---|---|---|---|
+| Growth | no rule fires ("On track") | WHO BMI > +2 SD, height < −2 SD, height not increasing, a likely entry error | WHO thinness, weight down ≥ 3 %, a 0.67 z drop in BMI- or height-for-age |
+| Energy | total intake inside the estimated range | above the range, or up to 10 % below its lower edge | more than 10 % below the lower edge |
+| Nutrition | carbs, protein and fat all within | any of them outside, or a balance issue | — |
+
+The energy verdict follows the estimated **range**, never the midpoint: the kcal/day and the % difference from the
+estimate are shown beside it as plain numbers. The single most important balance issue, or else "Some nutrient data
+missing", is a small line under the three; missing data is never a status of its own. Red/amber thresholds for the
+card are app rules.

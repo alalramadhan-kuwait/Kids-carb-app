@@ -3,7 +3,7 @@
 import { tr } from '../i18n';
 
 export const GROWTH_REASON_SHORT = tr({ // i18n-ok: values translated when read
-  bmi_thinness: 'النمو: يحتاج نظرة', bmi_obesity: 'النمو: يحتاج نظرة', height_short: 'الطول: يحتاج نظرة', bmi_z_drop: 'النمو: تغيّر المسار', // i18n-ok
+  bmi_thinness: 'أقل من المدى (WHO)', bmi_obesity: 'أعلى من المدى (WHO)', height_short: 'الطول أقل من المدى', bmi_z_drop: 'تغيّر المسار', // i18n-ok
   height_z_drop: 'الطول: تغيّر المسار', weight_down: 'الوزن نقص', height_stalled: 'الطول ثابت', height_decreased: 'راجع قياس الطول', // i18n-ok
 });
 export const GROWTH_REASON = tr({ // i18n-ok: values translated when read
