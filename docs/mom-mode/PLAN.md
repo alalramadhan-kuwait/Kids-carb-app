@@ -138,6 +138,14 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
 - «مو موجود بقاعدة ليان» → photo + name → «أرسليه لبابا يضيفه».
 - For now: «احسبي باقي الوجبة بدونه» or «انتظري بابا». Never a dose for an uncertain item.
 
+## 13. Alarm sound (after the mom-mode tests)
+
+- While the app is open and a low/high alert is active: a loud repeating sound and a red flashing screen until
+  someone taps «أنا عليها». Very low = urgent fast beeps; low = repeated beeps; high = softer tone.
+- A per-phone switch (in mom mode and the full app). Push notifications keep the phone's normal sound; an app
+  outside the App Store cannot ring through silent / Focus (Apple critical alerts) — keep LibreLinkUp's own alarms
+  on as a backup.
+
 ## Data changes (one migration when built)
 
 - `members.simple_mode` (Rawan on).
@@ -171,6 +179,7 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
 - **v7 (Dad)** — full pages instead of bottom sheets for every choice (back and forth, no lag); very little text,
   simple words and numbers; after building, three agent moms from different backgrounds test everything (workflow,
   no duplication, easy to choose/check/change) and report.
+- **v8 (Dad)** — add an alarm sound for low and high, after the mom-mode tests.
 - **Defaults (until Dad/care team say otherwise):** 6 injection sites, no buttocks; Tresiba rotates over all sites.
 - **Step 1 built (2.27.0):** no 100 g preselected; dose calculator «أعطيتها X وحدة · سجّل» saves; an alert's
   «عالجتها» opens the treatment entry with her usual juice; a recheck push 15 min after every low treatment.
