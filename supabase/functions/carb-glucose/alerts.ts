@@ -199,7 +199,7 @@ const ARROW: Record<number, string> = { 1: '↓', 2: '↘', 3: '→', 4: '↗', 
 const arrowOf = (trend: number | null, rate?: number | null) =>
   trend ? ARROW[trend] : rate == null ? '' : rate <= -2 ? '↓' : rate <= -1 ? '↘' : rate < 1 ? '→' : rate < 2 ? '↗' : '↑';
 const num = (mg: number, unit: 'mgdl' | 'mmol') => (unit === 'mmol' ? (Math.round((mg / 18.016) * 10) / 10).toFixed(1) : String(Math.round(mg)));
-const LRI = '\u2066', PDI = '\u2069'; // keeps "5.2 ↘" together inside Arabic text
+const LRI = String.fromCharCode(0x2066), PDI = String.fromCharCode(0x2069); // keeps "5.2 ↘" together inside Arabic text
 /** "الآن 5.2 ↘ ملمول/ل": the current value, never mistaken for a forecast. */
 export function nowLine(mg: number, trend: number | null, unit: 'mgdl' | 'mmol', lang: Lang, rate?: number | null) {
   const a = arrowOf(trend, rate), v = `${LRI}${num(mg, unit)}${a ? ' ' + a : ''}${PDI}`;
