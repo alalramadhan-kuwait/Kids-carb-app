@@ -1,6 +1,22 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.25.0",
+    "notes": [
+      "خطة وجبة: آخر 3 مرات للوجبة نفسها (الجرعة المعطاة، الوقت قبل الأكل، السكر عند البداية، الذروة، النهاية، النتيجة وملاحظتك)، ولماذا لا تشبه هذه المرة إن اختلفت.",
+      "التحليل ← الأنماط ← استجابة الوجبات: بطاقة «الوجبات المخططة» تجمع الوجبات القابلة للمقارنة (3 على الأقل) وما يتكرر فيها، مع سبب استبعاد غيرها.",
+      "المزيد ← «الوجبات المخططة لفريق الرعاية»: الجرعة المحسوبة والمعطاة، النسب المستخدمة، النتائج، الأنماط، وما يستحق «مراجعة مع فريق الرعاية». أدلة للنقاش فقط، بلا اقتراح جرعة أو تغيير.",
+      "صفحات السجل والمراجعة أصبحت بهوامش الشاشة المعتادة."
+    ],
+    "notes_en": [
+      "Meal plan: the last 3 times of the same meal (dose given, time before eating, starting glucose, peak, end, result and your note), and why a time is not similar when it differs.",
+      "Analysis → Patterns → Meal response: a “Planned meals” card brings together comparable meals (at least 3) and what repeats, with why others were left out.",
+      "More → “Meal plans for the care team”: calculated vs given dose, ratios used, outcomes, patterns, and what is worth a “Care-team review”. Evidence to discuss only, never a dose or a change.",
+      "Plan history and review pages now have the usual screen margins."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.24.0",
     "notes": [
       "الموافقة على الجرعة: تظهر «الجرعة المحسوبة (إعدادات الطبيب)» و«الجرعة التي قررتُ إعطاءها»، ومعها سبب اختياري إذا اختلفتا. تُحفظ الاثنتان.",

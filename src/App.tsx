@@ -6,6 +6,7 @@ import { DataProvider, useData } from './lib/data';
 import { Alert, Btn, Card, Field, Toaster, cx, inputCls } from './components/ui';
 import Today from './pages/Today';
 import { PlanHistoryPage, PlanPage } from './pages/PlanReview';
+import { PlanReport } from './pages/PlanReport';
 import Now from './pages/Now';
 import Analysis from './pages/Analysis';
 import { RecipeList, RecipeView } from './pages/Recipes';
@@ -206,6 +207,7 @@ function Shell() {
         <Route path="/products/:id" element={<ProductEdit />} />
         <Route path="/plan" element={<Plan />} />
         <Route path="/plans/history" element={<PlanHistoryPage />} />
+        <Route path="/plans/report" element={<PlanReport />} />
         <Route path="/plans/:id" element={<PlanPage />} />
         <Route path="/scan" element={<Scan />} />
         <Route path="/cgm" element={<Cgm />} />

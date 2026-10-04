@@ -12,6 +12,10 @@ import { formatGlucose, unitLabel } from '../lib/glucose';
 import { fmtTime, isoDate, relDay } from '../lib/constants';
 import type { DoseSnapshot, PlanItem, PlannedMeal, Product, Recipe } from '../lib/types';
 import { ProductPicker } from './ProductPicker';
+import { LastSimilar, gOf } from './PlanCompare';
+import { factsOf, planKey } from '../lib/planFacts';
+import { lastSimilar, type PlanFacts } from '../engine/planCompare';
+import { rulesOf } from '../engine/planReview';
 import { Btn, NumInput, Sheet, cx, inputCls, toast } from './ui';
 import { ratioAt } from '../engine/status';
 import { Icon } from './Icon';
@@ -79,6 +83,12 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
   // what you wrote after the same meal before: shown while planning it again
   const { plans: past } = usePlanHistory();
   const notes = past.filter((p) => p.review_note && p.id !== plan?.id && ((recipeId && p.recipe_id === recipeId) || (name.trim() && p.name === name.trim()))).slice(0, 2);
+  // the last 3 times of the same meal, each saying how it differs from this plan
+  const similar = useMemo(() => {
+    const key = planKey({ recipe_id: recipeId, name: name.trim() });
+    const facts = past.map(factsOf).filter((x): x is PlanFacts => x !== null && x.id !== plan?.id);
+    return lastSimilar(key, { carbs: meal.total.carbs || null, start: null, level: null, iob: null }, facts, rulesOf(settings.plan_review_rules as never));
+  }, [past, recipeId, name, plan?.id, meal.total.carbs, settings.plan_review_rules]);
   const doseAt = at(day, time);
   const lastLow = events.filter((e) => e.kind === 'treatment').map((e) => Date.parse(e.occurred_at)).sort((a, b) => b - a)[0] ?? null;
   const fast = meal.lines.reduce((s, l) => s + (isFastDrink(l.ing, l.product?.category, l.carbs) ? l.carbs ?? 0 : 0), 0);
@@ -152,9 +162,10 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
               </li>
             ))}
           </ul>
-          {notes.length > 0 && (
+          <LastSimilar rows={similar} g={gOf(settings.glucose_unit)} />
+          {notes.filter((p) => !similar.some((x) => x.p.id === p.id)).length > 0 && (
             <ul className="space-y-1 rounded-xl bg-near-soft p-3 text-sm">
-              {notes.map((p) => <li key={p.id}><span className="text-xs text-slate-500">{t('ملاحظتك بعد {when}:', { when: fmtDay(Date.parse(p.eating_at ?? p.dose_at)) })}</span> <bdi>{p.review_note}</bdi></li>)}
+              {notes.filter((p) => !similar.some((x) => x.p.id === p.id)).map((p) => <li key={p.id}><span className="text-xs text-slate-500">{t('ملاحظتك بعد {when}:', { when: fmtDay(Date.parse(p.eating_at ?? p.dose_at)) })}</span> <bdi>{p.review_note}</bdi></li>)}
             </ul>
           )}
           <div className="flex gap-4 text-sm font-bold text-brand">

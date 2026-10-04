@@ -10,6 +10,11 @@ import { Badge, Card, cx, inputCls } from '../components/ui';
 import { GRID, MIN_CLEAN, buildOccurrence, medianCurve, summary, windowSeries, type Occurrence, type Speed } from '../engine/meals';
 import type { HistoryEntry, HistoryLine } from '../lib/types';
 import { isEn, t } from '../i18n';
+import { usePlanFacts } from '../lib/planFacts';
+import { groupsOf, patternOf } from '../engine/planCompare';
+import { rulesOf } from '../engine/planReview';
+import { PatternCard, gOf } from '../components/PlanCompare';
+import { Link } from 'react-router-dom';
 
 // A product's own response: the times it was most of what she ate (at least 70 % of the carbs), and the low
 // treatments that name it. Drinks are followed 2 hours, the rest 3.
@@ -113,6 +118,7 @@ export function MealResponse() {
           <p className="col-span-3 text-[11px] text-slate-400">{t('الوسيط من {n} وجبات نظيفة', { n: clean.length })}{sum.lowStarts > 0 && <> · {t('{n} منها بدأت منخفضة (يرتفع السكر أكثر بعد الانخفاض)', { n: sum.lowStarts })}</>} · {unitLabel(unit)} · {t('ملاحظات تاريخية وليست توصية.')}</p>
         </Card>
       )}
+      {tab === 'recipes' && <PlannedPattern recipeId={item.id} />}
       {occ && (
         <Card className="!p-0 overflow-hidden">
           <ul className="divide-y divide-slate-100 text-sm">
@@ -129,6 +135,21 @@ export function MealResponse() {
         </Card>
       )}
     </div>
+  );
+}
+
+/** The same recipe's planned meals: their comparable pattern (calculated vs given dose, timing, outcomes). */
+function PlannedPattern({ recipeId }: { recipeId: string }) {
+  const { settings } = useData();
+  const { facts } = usePlanFacts();
+  const rules = useMemo(() => rulesOf(settings.plan_review_rules as never), [settings.plan_review_rules]);
+  const group = useMemo(() => groupsOf(facts.filter((p) => p.key === recipeId), rules)[0] ?? null, [facts, recipeId, rules]);
+  if (!group) return null;
+  return (
+    <>
+      <PatternCard group={group} pattern={patternOf(group.comparable, rules)} need={rules.pattern_min} g={gOf(settings.glucose_unit)} title={t('الوجبات المخططة')} />
+      <Link to="/plans/report" className="block px-1 text-sm font-bold text-brand">{t('تقرير الوجبات المخططة لفريق الرعاية')} {isEn() ? '›' : '‹'}</Link>
+    </>
   );
 }
 

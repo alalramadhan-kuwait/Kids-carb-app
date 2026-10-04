@@ -17,14 +17,14 @@ import { isEn, t, tMaybe, tr } from '../i18n';
 const MIN = 60000;
 const SLOT = tr({ breakfast: 'الفطور', lunch: 'الغداء', dinner: 'العشاء', snack: 'سناك' }) as Record<string, string>; // i18n-ok: values translated when read
 const clock = (ms: number) => fmtTime(new Date(ms));
-const dur = (min: number) => { const m = Math.max(0, Math.round(min)); return m >= 60 ? t('{h} س {m} د', { h: Math.floor(m / 60), m: m % 60 }) : t('{m} د', { m }); };
+export const dur = (min: number) => { const m = Math.max(0, Math.round(min)); return m >= 60 ? (m % 60 ? t('{h} س {m} د', { h: Math.floor(m / 60), m: m % 60 }) : t('{h} س', { h: m / 60 })) : t('{m} د', { m }); };
 const PART: Record<string, string> = { '1': t('كلها'), '0.75': '¾', '0.5': '½', '0.25': '¼' };
-const partTxt = (p: number | null | undefined) => (p == null ? '—' : PART[String(p)] ?? String(p));
+export const partTxt = (p: number | null | undefined) => (p == null ? '—' : PART[String(p)] ?? String(p));
 
 /* ------------------------------------------------------------ outcome words */
 
 export type OutcomeKey = 'in_target' | 'high' | 'low' | 'unclear';
-const OUTCOME: Record<OutcomeKey, { icon: string; tone: string; label: () => string }> = {
+export const OUTCOME: Record<OutcomeKey, { icon: string; tone: string; label: () => string }> = {
   in_target: { icon: '✅', tone: 'bg-ok-soft text-ok', label: () => t('ضمن النطاق') },
   high: { icon: '🟠', tone: 'bg-near-soft text-near', label: () => t('ارتفع') },
   low: { icon: '🔴', tone: 'bg-over-soft text-over', label: () => t('انخفض') },
@@ -58,7 +58,7 @@ const qualityText = (w: string) => {
   return k === 'readings' ? t('قراءات ناقصة {m}', { m: dur(Number(v)) }) : k === 'estimated' ? t('كارب تقديري: {x}', { x: v }) : k === 'eating_time' ? t('وقت الأكل تقديري')
     : k === 'no_dose' ? t('الجرعة غير مسجّلة مع الخطة') : t('لا قراءة عند بدء الأكل');
 };
-const comparableText = (w: string) => {
+export const comparableText = (w: string) => {
   const [k, v] = w.split(':');
   return k === 'ended' ? t('انتهت المراجعة بعد {d}', { d: dur(Number(v)) }) : k === 'quality' ? t('جودة المراجعة محدودة') : k === 'part' ? t('أكلت {p} فقط', { p: partTxt(Number(v)) })
     : k === 'no_interval' ? t('الوقت بين الجرعة والأكل غير مسجّل') : t('رياضة أثناء الوجبة');
@@ -77,10 +77,11 @@ export function PlanHistoryPage() {
   const todo = plans.filter((p) => p.status === 'eaten' && !p.reviewed_at);
   const list = tab === 'todo' ? todo : plans;
   return (
-    <div className="space-y-3 pb-4">
+    <main className="mx-auto max-w-2xl space-y-3 px-4 pb-28 pt-3">
       <div className="flex items-center gap-2">
         <button aria-label={t('رجوع')} onClick={() => nav('/meals')} className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl shadow-sm">{isEn() ? '←' : '→'}</button>
-        <h1 className="text-2xl font-bold">{t('سجل الخطط')}</h1>
+        <h1 className="flex-1 text-2xl font-bold">{t('سجل الخطط')}</h1>
+        <button onClick={() => nav('/plans/report')} className="min-h-[44px] rounded-full bg-white px-3 text-sm font-bold text-brand shadow-sm">{t('تقرير الفريق')}</button>
       </div>
       <div className="grid grid-cols-2 gap-1 rounded-full bg-slate-100 p-1 text-sm">
         {(['todo', 'all'] as const).map((k) => <button key={k} onClick={() => setTab(k)} className={cx('min-h-[40px] rounded-full', tab === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{k === 'todo' ? `${t('للمراجعة')}${todo.length ? ` (${todo.length})` : ''}` : t('الكل')}</button>)}
@@ -106,7 +107,7 @@ export function PlanHistoryPage() {
           </ul>
         </Card>
       )}
-    </div>
+    </main>
   );
 }
 
@@ -139,7 +140,7 @@ function PlanBody({ plan, back }: { plan: PlannedMeal; back: () => void }) {
   const o = review?.stage === 'final' && review.outcome ? OUTCOME[review.outcome] : null;
 
   return (
-    <div className="space-y-3 pb-6">
+    <main className="mx-auto max-w-2xl space-y-3 px-4 pb-28 pt-3">
       <div className="flex items-center gap-2">
         <button aria-label={t('رجوع')} onClick={back} className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl shadow-sm">{isEn() ? '←' : '→'}</button>
         <div className="min-w-0 flex-1"><div className="truncate font-bold"><bdi>{SLOT[plan.slot]} · {plan.name}</bdi></div><div className="text-sm text-slate-500">{relDay(new Date(when))} · {clock(when)}</div></div>
@@ -221,7 +222,7 @@ function PlanBody({ plan, back }: { plan: PlannedMeal; back: () => void }) {
         </Section>
       )}
       <p className="text-center text-[11px] text-slate-400">{unitLabel(unit)} · {t('ملاحظات من بياناتها، وليست توصية بجرعة.')}</p>
-    </div>
+    </main>
   );
 }
 

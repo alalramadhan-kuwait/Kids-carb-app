@@ -2202,6 +2202,62 @@ console.log('iphone widget');
   });
 }
 
+{
+  const { whyNotLike, lastSimilar, groupsOf, patternOf, evidenceOf } = await import('../../engine/planCompare');
+  const { DEFAULT_RULES } = await import('../../engine/planReview');
+  const D = 86400000, T0 = Date.UTC(2026, 0, 10, 4);
+  // synthetic meals only
+  const meal = (k: number, o: Partial<import('../../engine/planCompare').PlanFacts> = {}): import('../../engine/planCompare').PlanFacts => ({
+    id: `m${k}`, key: 'r1', name: 'Test breakfast', at: T0 + k * D, carbs: 40, start: 120, level: 0, iob: 0, calc: 3, given: 3, reason: null,
+    cr: 15, isf: 54, correction: 0, interval: 10, part: 1, outcome: 'in_target', quality: 'high', comparable: true, notComparable: [],
+    peak: 200, last: 130, ttp: 60, rise: 80, lowAfterMin: null, lowMin: null, highMin: null, endedBy: null, cleanMin: 360, contributors: [], note: null, ...o,
+  });
+
+  test('comparable meals: carbs ±25%, start ±2 mmol/L, same direction, IOB ±0.5 U, and each one comparable', () => {
+    const a = meal(0);
+    assert.deepEqual(whyNotLike(a, meal(1, { carbs: 48 }), DEFAULT_RULES), []);
+    assert.deepEqual(whyNotLike(a, meal(1, { carbs: 52 }), DEFAULT_RULES), ['carbs:30']);
+    assert.deepEqual(whyNotLike(a, meal(1, { start: 160 }), DEFAULT_RULES), ['start:40']);
+    assert.deepEqual(whyNotLike(a, meal(1, { level: -1 }), DEFAULT_RULES), ['direction']);
+    assert.deepEqual(whyNotLike(a, meal(1, { iob: 0.8 }), DEFAULT_RULES), ['iob:0.8']);
+    assert.deepEqual(whyNotLike(a, meal(1, { comparable: false, notComparable: ['ended:95'] }), DEFAULT_RULES), ['ended:95']);
+    // unknown start or arrow is not a reason (planning ahead)
+    assert.deepEqual(whyNotLike({ carbs: 40, start: null, level: null, iob: null }, meal(1), DEFAULT_RULES), []);
+  });
+
+  test('last 3 similar: the same meal only, newest first, each with its reasons', () => {
+    const past = [meal(1), meal(2, { carbs: 80 }), meal(3), meal(4, { key: 'other' }), meal(5)];
+    const r = lastSimilar('r1', { carbs: 40, start: null, level: null, iob: null }, past, DEFAULT_RULES);
+    assert.deepEqual(r.map((x) => x.p.id), ['m5', 'm3', 'm2']);
+    assert.deepEqual(r[2].why, ['carbs:100']);
+  });
+
+  test('a pattern needs 3 comparable meals; the excluded say why', () => {
+    const two = groupsOf([meal(1), meal(2), meal(3, { comparable: false, notComparable: ['part:0.5'] })], DEFAULT_RULES)[0];
+    assert.equal(two.comparable.length, 2);
+    assert.deepEqual(two.excluded[0].why, ['part:0.5']);
+    assert.equal(patternOf(two.comparable, DEFAULT_RULES), null);
+    const g = groupsOf([meal(1, { outcome: 'high' }), meal(2, { outcome: 'high', given: 2 }), meal(3, { outcome: 'high', given: 2 }), meal(4)], DEFAULT_RULES)[0];
+    const p = patternOf(g.comparable, DEFAULT_RULES)!;
+    assert.equal(p.n, 4);
+    assert.equal(p.outcomes.high, 3);
+    assert.deepEqual(p.repeats.map((r) => r.key), ['went_high']); // gave less only 2 of 4: not repeated enough
+  });
+
+  test('care-team evidence names a setting and the meals, never a value', () => {
+    const highs = [1, 2, 3].map((k) => meal(k, { outcome: 'high' }));
+    const ev = evidenceOf([...highs, meal(4)], DEFAULT_RULES, [99, 117]);
+    assert.deepEqual(ev.map((e) => [e.setting, e.finding, e.n, e.of]), [['icr', 'high_after_calc', 3, 4]]);
+    assert.deepEqual(ev[0].ids, ['m1', 'm2', 'm3']);
+    // the dose given was lower than calculated: not evidence about the ratio
+    assert.deepEqual(evidenceOf([1, 2, 3].map((k) => meal(k, { outcome: 'high', given: 2 })), DEFAULT_RULES, null), []);
+    // late lows point at the insulin-action time; early rises at the timing
+    assert.deepEqual(evidenceOf([1, 2, 3].map((k) => meal(k, { outcome: 'low', lowAfterMin: 200 })), DEFAULT_RULES, null).map((e) => e.setting), ['dia']);
+    assert.deepEqual(evidenceOf([1, 2, 3].map((k) => meal(k, { contributors: ['early_rise_interval'] })), DEFAULT_RULES, null).map((e) => e.setting), ['timing']);
+    assert.ok(!JSON.stringify(ev).match(/units|ratio_to|suggest/));
+  });
+}
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {
