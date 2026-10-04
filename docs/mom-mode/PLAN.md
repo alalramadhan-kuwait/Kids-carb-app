@@ -11,6 +11,20 @@
 Mom needs to answer three things quickly: *How is Layan now? What should I do? What can she eat?* No nutrition
 knowledge is required. Mom mode has no separate food database; it uses the same products, recipes and meal plans.
 
+## Doctor's rules (always enforced, in every screen)
+
+1. **No rapid insulin (NovoRapid) within 2 hours of the last NovoRapid dose.** The app already holds this rule
+   (`dose_gap_min = 120`). In mom mode it is a hard stop: no dose number, and the screen says
+   «لا تعطينها إبرة الحين — آخر إبرة قبل 1:10 · الإبرة الجاية بعد 50 دقيقة (الساعة 9:20)», whoever gave the last one.
+   The home screen shows the same countdown while it runs. Tresiba (long-acting) is not counted in this gap.
+2. **After 3 hours a NovoRapid dose no longer affects her sugar** (the doctor's insulin action time).
+   The family set the app to count it for **4 hours** to be cautious (4 Oct 2026), so "insulin still working" fades
+   to zero at 4 h; the doctor's 3 h is recorded here and in the care-team report. Changing it back to 3 h is a
+   setting, not a code change.
+
+These come from the care team and are never overridden by Mom mode. Any other care-plan rule (treat-low amount,
+recheck time, maximum dose) is read from the care plan, not written into Mom mode.
+
 ## Who
 
 - Mom mode is per person: it opens on **Rawan**'s account. Dad keeps the full app.
@@ -73,8 +87,9 @@ knowledge is required. Mom mode has no separate food database; it uses the same 
 - «حسب خطة الدكتور: X وحدة» from the care-team settings (CR, ISF, target, insulin action 4 h, pen step) with «ليش؟»
   showing the parts (food, correction, insulin still working, pen rounding).
 - **Stops instead of guessing** (no number, says why, «اتصلي ببابا», «سجّلي الأكل بدون إبرة»):
-  low or falling; no recent reading; any item still waiting for Dad; a rapid injection recently
-  («بابا عطاها 3 وحدات قبل 40 دقيقة»); above the care plan's maximum.
+  low or falling; no recent reading; any item still waiting for Dad; **a NovoRapid dose within the last 2 hours
+  (doctor's rule 1)** — «بابا عطاها 3 وحدات قبل 40 دقيقة · الإبرة الجاية بعد 1:20» with the time it becomes
+  allowed; above the care plan's maximum.
 - «كم عطيتيها؟ [−] X [+]», and the dose is saved **only** when she presses «💉 سجّلي الإبرة بعد ما تعطينها».
   If different from the plan: one-tap reason — أكلت أقل / كانت نازلة / ما رضت.
 
@@ -140,3 +155,5 @@ knowledge is required. Mom mode has no separate food database; it uses the same 
   Tresiba light green); products as a full, grouped page.
 - **v4 (Dad)** — track where each injection is given, rotate between sites and suggest the next one.
 - **v5 (Dad)** — keep all details in this plan and update it after every feedback.
+- **v6 (Dad)** — doctor's rules written at the top: no NovoRapid within 2 h of the last dose (hard stop with a
+  countdown); a dose has no effect after 3 h (doctor) — app counts 4 h by the family's cautious choice.
