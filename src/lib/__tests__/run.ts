@@ -2307,6 +2307,11 @@ console.log('iphone widget');
   });
 }
 
+test('Frosties is found by «كورن فليكس», «كورنفليكس» and «النمر»', async () => {
+  const { matches } = await import('../search');
+  for (const q of ['كورن فليكس', 'كورنفليكس', 'النمر', 'frosties', 'كيلوقز']) assert.ok(matches(["Kellogg's Frosties", "Kellogg's", 'نشويات'], q), q);
+});
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {

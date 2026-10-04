@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.26.2",
+    "notes": [
+      "البحث: «كورن فليكس» و«كورنفليكس» و«النمر» تجد Kellogg’s Frosties، مع صورة العلبة."
+    ],
+    "notes_en": [
+      "Search: “corn flakes”, “cornflakes” and the Arabic spellings now find Kellogg’s Frosties, with its box picture."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.26.1",
     "notes": [
       "توقع 30 دقيقة («≈ … عند …») والخط المنقّط على الرسم صارا يخفّان تدريجيًا بدل الخط المستقيم. على بياناتها قلّ الخطأ من حوالي 39 إلى 25 ملغ/دل.",
