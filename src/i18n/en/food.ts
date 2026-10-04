@@ -815,6 +815,7 @@ export const food: Record<string, string> = {
   "أعطيت رقمًا آخر: ضع الرقم لأعدّله": "Gave a different amount: put the number in to edit it",
   "اختاروا الكمية": "choose the amount",
   // mom mode
+  "العلبة كاملة": "The whole pack",
   "وقت {x}": "Time for {x}",
   "أضيفي وجبة": "Add a meal",
   "خططي وجبة": "Plan a meal",

@@ -220,3 +220,11 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
   - A planned meal due now becomes home's main button («وقت …»); the next one shows as a small line. Its page:
     injection now (same dose page and stops), change the time, cancel. A reminder opens it.
   - 4th tab «المزيد»: planned meals (on hold), injection sites, full mode.
+- **Scenario test (Dad, 2.30.1)** — McDonald's nuggets + fries + BBQ + Diet Pepsi; qaimar and honey; school breakfast
+  (samoon with egg and turkey, two Lusine white toast slices, cocktail juice) and a no-carb snack (cheese, labneh,
+  cucumber, turkey). Found: search hid everything not marked «موجود بالبيت» (all McDonald's and Lusine) → search now
+  finds every approved food, home items first; new spellings (نقت، تشكن، صمونة، تركي، عصير كوكتيل…); «العلبة كاملة» for
+  drinks without a serving. Not in the database: McDonald's BBQ sauce, Pepsi/Diet Pepsi, samoon, turkey slices,
+  cucumber, labneh (KDD labneh unapproved, 27 g/100 looks wrong). Open question for Dad: a food left out (sent to Dad)
+  only warns today — should it stop the dose (samoon is ~half the breakfast's carbs)?
+

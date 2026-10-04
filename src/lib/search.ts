@@ -13,23 +13,23 @@ export const norm = (s: string) => s.toLowerCase()
  * word, the whole group is added to what the item can be found by. Brand names are here too. In Kuwait «عيش» is rice.
  */
 const SAME: string[][] = [ // i18n-ok: data (search words in both languages)
-  ['toast', 'توست'], ['bread', 'خبز'], ['samoon', 'صمون'], ['arabic bread', 'pita', 'خبز عربي'], // i18n-ok: data
+  ['toast', 'توست'], ['bread', 'خبز'], ['samoon', 'صمون', 'صمونه', 'صمونات'], ['arabic bread', 'pita', 'خبز عربي'], // i18n-ok: data
   ['croissant', 'croissants', 'كرواسون', 'كرواسان'], ['puff', 'puffs', 'فطيره', 'فطاير'], // i18n-ok: data
   ['cake', 'cakes', 'كيك', 'كيكه'], ['biscuit', 'biscuits', 'cookie', 'cookies', 'بسكويت'], ['cracker', 'crackers', 'كراكر'], // i18n-ok: data
   ['sandwich', 'sandwiches', 'سندويش', 'سندويشات', 'سندويتش', 'ساندويتش'], ['flour', 'طحين'], // i18n-ok: data
   ['pasta', 'باستا', 'معكرونه', 'مكرونه'], ['spaghetti', 'سباغيتي', 'اسباجيتي'], ['noodles', 'نودلز', 'اندومي'], // i18n-ok: data
   ['rice', 'رز', 'ارز', 'عيش'], ['potato', 'potatoes', 'بطاط', 'بطاطا', 'بطاطس'], ['fries', 'french fries', 'فرايز'], // i18n-ok: data
-  ['nugget', 'nuggets', 'ناجت', 'ناغيت'], ['burger', 'burgers', 'برغر', 'برجر'], ['pizza', 'بيتزا'], ['shawarma', 'شاورما'], // i18n-ok: data
-  ['chicken', 'دجاج'], ['meat', 'beef', 'لحم'], ['fish', 'سمك'], ['egg', 'eggs', 'بيض', 'بيضه'], // i18n-ok: data
+  ['nugget', 'nuggets', 'mcnuggets', 'ناجت', 'ناغيت', 'نقت', 'نقتس', 'ناقت', 'ناجتس'], ['burger', 'burgers', 'برغر', 'برجر'], ['pizza', 'بيتزا'], ['shawarma', 'شاورما'], // i18n-ok: data
+  ['chicken', 'دجاج', 'تشكن', 'شكن'], ['meat', 'beef', 'لحم'], ['fish', 'سمك'], ['egg', 'eggs', 'بيض', 'بيضه'], // i18n-ok: data
   ['milk', 'حليب'], ['laban', 'لبن'], ['labneh', 'لبنه'], ['yoghurt', 'yogurt', 'روب', 'زبادي'], // i18n-ok: data
   ['cheese', 'جبن', 'جبنه'], ['cream cheese', 'جبن كريمي', 'جبنه كريمي'], ['cream', 'قشطه', 'كريمه', 'قيمر'], // i18n-ok: data
   ['thick cream', 'قشطه', 'قيمر'], ['butter', 'زبده'], ['ice cream', 'ايس كريم', 'ايسكريم', 'بوظه'], // i18n-ok: data
   ['honey', 'عسل'], ['sugar', 'سكر'], ['chocolate', 'شوكولاته', 'شوكولا', 'شوكلت'], ['dates', 'date', 'تمر'], ['jam', 'مربى'], // i18n-ok: data
-  ['juice', 'عصير'], ['nectar', 'نكتار'], ['water', 'ماء', 'مويه', 'ماي'], ['drink', 'drinks', 'مشروب', 'مشروبات'], ['tea', 'شاي'], // i18n-ok: data
+  ['juice', 'عصير'], ['nectar', 'نكتار'], ['water', 'ماء', 'مويه', 'ماي'], ['drink', 'drinks', 'مشروب', 'مشروبات', 'عصير'], ['tea', 'شاي'], // i18n-ok: data
   ['apple', 'apples', 'تفاح'], ['banana', 'bananas', 'موز'], ['orange', 'oranges', 'برتقال'], ['mango', 'مانجو', 'منجا'], // i18n-ok: data
   ['strawberry', 'strawberries', 'فراوله'], ['grape', 'grapes', 'عنب'], ['watermelon', 'بطيخ'], ['pineapple', 'اناناس'], // i18n-ok: data
   ['lemon', 'ليمون'], ['vanilla', 'فانيلا'], ['cocktail', 'كوكتيل'], ['fruit', 'fruits', 'فواكه', 'فاكهه'], ['vegetables', 'خضار'], // i18n-ok: data
-  ['sauce', 'صلصه'], ['ketchup', 'كاتشب'], ['mayonnaise', 'mayo', 'مايونيز'], ['garlic', 'ثوم'], ['zaatar', 'thyme', 'زعتر'], // i18n-ok: data
+  ['sauce', 'صلصه', 'صوص'], ['bbq', 'barbecue', 'barbeque', 'باربيكيو', 'باربكيو', 'باربيكو', 'بربكيو'], ['pepsi', 'بيبسي', 'ببسي'], ['diet', 'دايت'], ['cola', 'coca-cola', 'coke', 'كولا', 'كوكا كولا'], ['ketchup', 'كاتشب'], ['mayonnaise', 'mayo', 'مايونيز'], ['garlic', 'ثوم'], ['zaatar', 'thyme', 'زعتر'], // i18n-ok: data
   ['white', 'ابيض'], ['brown', 'اسمر'], ['wholemeal', 'whole wheat', 'قمح كامل'], ['kids', 'اطفال'], // i18n-ok: data
   ['snack', 'snacks', 'سناك', 'سناكات'], ['breakfast', 'فطور', 'ريوق'], ['lunch', 'غدا', 'غداء'], ['dinner', 'عشا', 'عشاء'], // i18n-ok: data
   ['cornflakes', 'corn flakes', 'frosties', 'كورن فليكس', 'كورنفليكس', 'كورن فلكس', 'كورنفلكس', 'النمر'], ['cereal', 'cereals', 'سيريال', 'حبوب الافطار'], // i18n-ok: data
@@ -42,10 +42,10 @@ const SAME: string[][] = [ // i18n-ok: data (search words in both languages)
   ['lasagna', 'لازانيا'], ['vermicelli', 'شعيريه'], ['pancake', 'pancakes', 'بان كيك', 'بانكيك'], ['falafel', 'فلافل'], // i18n-ok: data
   ['halloumi', 'حلوم'], ['feta', 'فيتا'], ['coconut', 'جوز هند'], ['caramel', 'كراميل'], ['coffee', 'latte', 'mocha', 'espresso', 'قهوه'], // i18n-ok: data
   ['grapefruit', 'جريب فروت'], ['guava', 'جوافه'], ['peach', 'خوخ'], ['pomegranate', 'رمان'], ['apricot', 'مشمش'], ['cherry', 'كرز'], // i18n-ok: data
-  ['raspberry', 'blueberry', 'cranberry', 'توت'], ['tomato', 'طماط', 'طماطم'], ['onion', 'بصل'], ['olive oil', 'زيت زيتون'], // i18n-ok: data
+  ['raspberry', 'blueberry', 'cranberry', 'توت'], ['tomato', 'طماط', 'طماطم'], ['cucumber', 'خيار'], ['turkey', 'تركي', 'حبش', 'ديك رومي'], ['onion', 'بصل'], ['olive oil', 'زيت زيتون'], // i18n-ok: data
   ['semolina', 'سميد'], ['wheat', 'قمح'], ['bran', 'نخاله'], ['barley', 'شعير'], ['sesame', 'سمسم'], ['lolly', 'مصاصه'], // i18n-ok: data
   ['evaporated milk', 'حليب مبخر'], ['pistachio', 'فستق'], ['almond', 'almonds', 'لوز'], // i18n-ok: data
-  ['americana', 'امريكانا'], ['mcdonalds', 'ماكدونالدز', 'ماك'], ['almarai', 'المراعي'], ['ritz', 'ريتز'], // i18n-ok: data
+  ['americana', 'امريكانا'], ['mcdonalds', 'mcdonald', 'ماكدونالدز', 'ماكدونالز', 'مكدونالدز', 'ماكدونلدز', 'ماك'], ['almarai', 'المراعي'], ['ritz', 'ريتز'], // i18n-ok: data
 ].map((g) => g.map(norm));
 
 // words that only look like a group's word: "full cream milk" is milk, not cream (قشطة)

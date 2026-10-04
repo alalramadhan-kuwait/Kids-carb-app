@@ -96,11 +96,13 @@ export function MomAdd() {
   const group = sp.get('g');
   const [q, setQ] = useState('');
   const { c, mealCarbs, nameOf } = useCatalog();
-  const products = c.products.filter((p) => p.available !== false && readyForMom('product', p.id, c));
+  // browsing shows what is at home; searching finds every approved product (restaurants, things not bought yet)
+  const products = c.products.filter((p) => readyForMom('product', p.id, c) && (q.trim() !== '' || p.available !== false));
   const recipes = c.recipes.filter((r) => readyForMom('recipe', r.id, c));
   const rec = recent().filter((r) => readyForMom(r.kind, r.id, c)).slice(0, 6);
   const pick = (kind: 'product' | 'recipe', id: string) => nav(`/mom/item/${kind}/${id}`);
-  const shown = products.filter((p) => (!group || groupOf(p.category).key === group) && matches([p.name, p.brand, p.category], q));
+  const shown = products.filter((p) => (!group || groupOf(p.category).key === group) && matches([p.name, p.brand, p.category], q))
+    .sort((a, b) => Number(b.available !== false) - Number(a.available !== false)); // what is at home first
   const groups = [...new Map(products.map((p) => [groupOf(p.category).key, groupOf(p.category)])).values()];
   const missing = q.trim() && !shown.length && !recipes.some((r) => matches([r.name], q));
   const Tile = ({ kind, id }: { kind: 'product' | 'recipe'; id: string }) => {
@@ -155,12 +157,14 @@ export function MomPortion() {
   const mine = c.portions.filter((p) => (kind === 'product' ? p.product_id === id : p.recipe_id === id));
   const prod = kind === 'product' ? c.products.find((p) => p.id === id) ?? null : null;
   const ss = prod?.serving_size ? Number(prod.serving_size) : null;
+  const pack = prod?.pack_size && Number(prod.pack_size) <= 500 && Number(prod.pack_size) !== ss ? Number(prod.pack_size) : null;
   const gUnit = prod?.unit === 'ml' ? t('مل') : t('غرام');
   const cur = k !== null ? d.items[Number(k)] ?? null : null;
   // the choice: one of Dad's portions, or 'serving' / 'g' / 'plate' with an amount
   const [sel, setSel] = useState<string | null>(cur ? cur.portion_id ?? cur.unit ?? null : null);
   const [amt, setAmt] = useState<number | null>(cur && !cur.portion_id ? cur.amount ?? null : null);
   const free = sel === 'serving' || sel === 'g' || sel === 'plate';
+  const showAmt = free && !(sel === 'g' && pack !== null && amt === pack);
   const item: MomItem | null = !sel ? null : free ? (amt && amt > 0 ? { kind, id, portion_id: null, amount: amt, unit: sel as 'serving' | 'g' | 'plate' } : null) : { kind, id, portion_id: sel };
   const g = item ? itemCarbs(item) : null;
   const x = photoOf({ kind, id });
@@ -191,9 +195,10 @@ export function MomPortion() {
       <h2 className="text-[18px] font-bold">{t('كم؟')}</h2>
       {mine.map((p) => <Choice key={p.id} icon={p.photo_path ? <Photo path={p.photo_path} className="h-11 w-11" /> : '⭐'} label={tMaybe(p.label)} sub={carbsText(itemCarbs({ kind, id, portion_id: p.id }))} on={sel === p.id} onClick={() => pick(p.id, null)} />)}
       {prod && ss && <Choice icon="🥄" label={t('بالحصة')} sub={t('حصة = {s} {u}', { s: fmt(ss), u: gUnit })} on={sel === 'serving'} onClick={() => pick('serving', sel === 'serving' ? amt : 1)} />}
-      {prod && <Choice icon="⚖️" label={prod.unit === 'ml' ? t('بالمل') : t('بالغرام')} on={sel === 'g'} onClick={() => pick('g', sel === 'g' ? amt : ss ?? null)} />}
+      {prod && pack && <Choice icon="📦" label={t('العلبة كاملة')} sub={`${fmt(pack)} ${gUnit} · ${carbsText(itemCarbs({ kind, id, portion_id: null, amount: pack, unit: 'g' }))}`} on={sel === 'g' && amt === pack} onClick={() => pick('g', pack)} />}
+      {prod && <Choice icon="⚖️" label={prod.unit === 'ml' ? t('بالمل') : t('بالغرام')} on={sel === 'g' && amt !== pack} onClick={() => pick('g', sel === 'g' && amt !== pack ? amt : ss ?? null)} />}
       {!prod && <Choice icon="🍽️" label={t('بالصحون')} on={sel === 'plate'} onClick={() => pick('plate', sel === 'plate' ? amt : 1)} />}
-      {free && (
+      {showAmt && (
         <div className="flex items-center justify-center gap-4">
           <button aria-label="+" className="grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => setAmt(Math.round(((amt ?? 0) + step) * 10) / 10)}>+</button>
           {sel === 'g'

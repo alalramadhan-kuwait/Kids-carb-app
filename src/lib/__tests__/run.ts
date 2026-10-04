@@ -2017,6 +2017,13 @@ console.log('search');
     assert.ok(!matches(['Chicken Nuggets'], 'nuggets fries'));
     assert.ok(matches(['anything'], '  '));
   });
+  test('search: the words a parent types for a McDonald\'s order or a school breakfast', () => {
+    assert.ok(matches(['Chicken McNuggets 6 pcs', "McDonald's", 'ناجت'], 'تشكن نقت'));
+    assert.ok(matches(['World Famous Fries (Regular)', "McDonald's", 'نشويات'], 'ماكدونالدز'));
+    assert.ok(matches(['1.2.3 Cocktail Drink (Kids) 125ml', 'KDD', 'مشروبات'], 'عصير كوكتيل'), 'a fruit drink is «عصير»');
+    assert.ok(matches(['Samoon', null, 'خبز'], 'صمونه'));
+    assert.ok(matches(['Turkey Breast Slices', null, 'لحوم'], 'تركي'));
+  });
   test('search: either language finds the item (foods, types and brands), whole words only', () => {
     assert.ok(matches(['Milk Toast With Vitamin D3', 'المطاحن', 'توست'], 'توست'));
     assert.ok(matches(['Milk Toast With Vitamin D3', 'المطاحن'], 'توست المطاحن'));

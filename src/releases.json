@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.30.1",
+    "notes": [
+      "الوضع البسيط: البحث يلقى كل الأكل المعتمد، حتى المطاعم واللي مو موجود بالبيت (ماكدونالدز، لوزين…). الموجود بالبيت يطلع أول.",
+      "البحث يفهم: نقت، تشكن، صمونة، تركي، عصير كوكتيل، باربيكيو، بيبسي، ماكدونالدز.",
+      "المشروبات والعلب بدون حصة: خيار «العلبة كاملة»."
+    ],
+    "notes_en": [
+      "Simple mode: search finds every approved food, including restaurants and things not at home (McDonald's, Lusine…); what is at home comes first.",
+      "Search understands more spellings: nuggets, chicken, samoon, turkey, cocktail juice, BBQ, Pepsi, McDonald's.",
+      "Drinks and packs without a label serving: a “whole pack” choice."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.30.0",
     "notes": [
       "الوضع البسيط: «أضيفي وجبة» للأكل الحين، و«خططي وجبة» لوجبة بعدين (نفس الوجبات المخططة: الوجبة، اليوم أو بكرة، وقت الإبرة، وتذكير).",
