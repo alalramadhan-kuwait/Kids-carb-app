@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.17.1",
+    "notes": [
+      "النمو والتغذية أبسط: الجواب أولًا. السعرات اليومية على شريط يبيّن المدى التقديري ومكانها منه، وعلامة واحدة للكارب والبروتين والدهون، وجودة البيانات.",
+      "اختيار الفترة في الأعلى: 3 أيام (الافتراضي) أو 7 أو 30.",
+      "النمو بجملة واحدة مع المئين لكل قياس. المراجع وطريقة الحساب وأنماط الوجبات والمغذيات بلا بيانات كافية صارت بضغطة."
+    ],
+    "notes_en": [
+      "Growth & nutrition is simpler: the answer first. Daily calories on a bar showing the estimated range and where she is in it, one mark each for carbs, protein and fat, and data quality.",
+      "Choose the period at the top: 3 days (default), 7 or 30.",
+      "Growth in one line, with the percentile for each measurement. References, the method, meal patterns and nutrients without enough data are one tap away."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.17.0",
     "notes": [
       "جديد: «النمو والتغذية». بطاقة صغيرة في الآن تجيب: هل النمو والأكل والتوازن بخير؟ اضغطها للتفاصيل.",

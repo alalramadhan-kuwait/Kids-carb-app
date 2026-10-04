@@ -89,15 +89,15 @@ export function useGrowthNutrition(): GrowthNutrition {
     ];
     const treatments = events.filter((x) => x.kind === 'treatment' && x.carbs_g).map((x) => ({ at: Date.parse(x.occurred_at), carbs: x.carbs_g! }));
     const ds = days(food, treatments, today);
-    const periods: Period[] = ['today', 'd7', 'd30'];
+    const periods: Period[] = ['today', 'd3', 'd7', 'd30'];
     const avg = Object.fromEntries(periods.map((p) => [p, average(ds, p, today)])) as Record<Period, Avg>;
     const bal = Object.fromEntries(periods.map((p) => [p, balance(avg[p], refs, NUTRITION_RULES, coverageMin)])) as Record<Period, Balance>;
     const energy = Object.fromEntries(periods.map((p) => [p, energyState(avg[p], eref, coverageMin)])) as Record<Period, EnergyState>;
     const from7 = new Date(Date.parse(today + 'T00:00:00Z') - 7 * 86400000).toISOString().slice(0, 10);
     const card = {
-      growth: (growth.state === 'attention' ? 'attention' : growth.state === 'stable' ? 'ok' : 'pending') as CardTone,
-      energy: (energy.d7 === 'within' ? 'ok' : energy.d7 === 'below' ? 'attention' : energy.d7 === 'above' ? 'neutral' : 'pending') as CardTone,
-      balance: (bal.d7.state === 'balanced' ? 'ok' : bal.d7.state === 'attention' ? 'attention' : 'pending') as CardTone,
+      growth: (growth.state === 'attention' ? 'attention' : growth.state === 'no_data' ? 'pending' : 'ok') as CardTone,
+      energy: (energy.d3 === 'within' ? 'ok' : energy.d3 === 'below' ? 'attention' : energy.d3 === 'above' ? 'neutral' : 'pending') as CardTone,
+      balance: (bal.d3.state === 'balanced' ? 'ok' : bal.d3.state === 'attention' ? 'attention' : 'pending') as CardTone,
     };
     return {
       ready: !loading && list !== null,

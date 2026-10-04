@@ -132,8 +132,26 @@ group. Groups shown: vegetables, fruit, grains & starches, protein foods, dairy;
 sweets, sugary drinks and processed snacks. A meal whose lines cannot all be classified (e.g. a name-only import)
 counts as unclassified. "Few vegetables / few fruit" = present on fewer than half of complete days (app rule).
 
-## 7. Card on Now
+## 7. What is shown first
 
-At most three chips, from the 7-day view: Growth, Energy, Balance. Green = fine in one word; amber names the issue;
+The page answers four questions before anything else, for the chosen window (**3 days** by default, or 7 / 30):
+
+1. **Energy** — total intake (food + low treatments) as kcal/day, with a bar showing the estimated range and a dot
+   for her average; "within / below / above range".
+2. **Carbs, protein, fat** — one mark each (✓ within, ↑ / ↓ outside). A share within 5 percentage points of the
+   ISPAD range reads "slightly high / low" (app rule, `slightlyPts`). Protein is "low" only below 0.95 g/kg/day;
+   protein above 25 % of energy is not flagged.
+3. **Growth** — "within expected range" when no WHO cut-off or trajectory rule fires; weight, height and BMI with
+   their percentiles.
+4. **Anything worth a look** — growth reasons and balance issues, in amber.
+
+**Data quality** = the lowest of energy, fat and protein coverage for the window. Nutrients without enough label
+data are collapsed under "Other nutrients"; references, the activity choice and sources sit under "How targets are
+calculated"; food groups and high-fat / high-protein meals under "Meal patterns". The 3-day window needs at least 2
+complete days, 7 days at least 3, 30 days at least 7.
+
+## 8. Card on Now
+
+At most three chips, from the 3-day view: Growth, Energy, Balance. Green = fine in one word; amber names the issue;
 grey says what is missing. "Balance" shows the single most important issue in this order: protein, fibre, vegetables,
 calcium, iron, fruit, potassium, vitamin D, saturated fat, added sugar, sodium.

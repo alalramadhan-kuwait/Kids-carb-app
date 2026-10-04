@@ -1477,6 +1477,19 @@ console.log('growth and nutrition');
     assert.equal(N.energyState(N.average(ds, 'd30', today), eref), 'insufficient', '30 days needs 7 complete days');
     assert.equal(N.energyRef(null, { energy_kcal: 1600 })!.source, 'dietitian');
   });
+  test('nutrition: a 3-day window, carbs / protein / fat in a word, one data-quality figure', () => {
+    const ks = ['2026-10-07', '2026-10-08', '2026-10-09', '2026-10-04'];
+    const food = ks.flatMap((k) => [meal(k, 8, { total_fat: 24 }), meal(k, 13, { total_fat: 24 }), meal(k, 19, { total_fat: 24, total_protein: null })]);
+    const ds = N.days(food, [], today);
+    const a3 = N.average(ds, 'd3', today), a7 = N.average(ds, 'd7', today);
+    assert.equal(a3.days, 3, 'only the last 3 days'); assert.equal(a7.days, 4);
+    const refs = N.references(7, 23);
+    assert.equal(N.macroLevel('carbs', a3, refs), 'ok', '600 of 1500 kcal = 40 %');
+    assert.equal(N.macroLevel('fat', a3, refs), 'slightly_high', '72 g × 9 = 43 % of energy: within 5 points above 40 %');
+    assert.equal(N.macroLevel('protein', a3, refs, 0.8), 'unknown', 'protein known for two thirds of the food');
+    close(N.dataQuality(a3), 2 / 3, 1e-9);
+    assert.equal(N.macroLevel('protein', N.average(N.days(food.filter((_, i) => i % 3 !== 2), [], today), 'd3', today), refs), 'unknown', 'two meals a day is not a complete day');
+  });
   test('references: ISPAD 2022 ranges as context, minimums and limits by age, the dietitian overrides any of them', () => {
     const r = N.references(7.2, 23);
     assert.deepEqual([r.carbs!.value, r.carbs!.high, r.fat!.value, r.fat!.high, r.sat_fat!.value], [40, 50, 30, 40, 10]);

@@ -19,7 +19,8 @@ export const UNIT: Record<Nutrient | 'energy', string> = { energy: 'kcal', carbs
 export const NUTRITION_RULES = {
   coverageMin: 0.8,           // below this share of food with the nutrient's value: "not enough data"
   completeDayMeals: 3,        // a day counts in averages only with at least this many food entries
-  minDays: { d7: 3, d30: 7 }, // complete days needed before a 7- or 30-day status is shown
+  minDays: { d3: 2, d7: 3, d30: 7 }, // complete days needed before a 3-, 7- or 30-day status is shown
+  slightlyPts: 5,             // up to this many percentage points outside a %-of-energy range reads "slightly"
   carbShareForUnknownKcal: 0.45, // an entry with no calorie figure is weighed as carbs×4 ÷ 0.45 (middle of ISPAD's 40–50 %)
   fewDaysShare: 0.5,          // a food group on fewer than half of complete days is "few"
 };
@@ -122,7 +123,8 @@ export function days(food: FoodEntry[], treatments: Treatment[], today: string, 
 
 /* ------------------------------------------------------------ a period */
 
-export type Period = 'today' | 'd7' | 'd30';
+export type Period = 'today' | 'd3' | 'd7' | 'd30';
+export const WINDOW: Record<Exclude<Period, 'today'>, number> = { d3: 3, d7: 7, d30: 30 };
 export interface Avg {
   period: Period; days: number; enough: boolean;
   energy: Total; treatment: { carbs: number; kcal: number }; totalKcal: number | null;
@@ -132,7 +134,7 @@ export interface Avg {
 
 /** Averages over complete days in the window (today: the day so far). Coverage pools the energy of all those days. */
 export function average(all: Day[], period: Period, today: string, R = NUTRITION_RULES): Avg {
-  const n = period === 'd7' ? 7 : 30;
+  const n = period === 'today' ? 0 : WINDOW[period];
   const from = new Date(Date.parse(today + 'T00:00:00Z') - n * DAY).toISOString().slice(0, 10);
   const ds = period === 'today' ? all.filter((d) => d.key === today) : all.filter((d) => d.complete && d.key >= from && d.key < today);
   const k = Math.max(1, ds.length);
@@ -151,7 +153,7 @@ export function average(all: Day[], period: Period, today: string, R = NUTRITION
   for (const g of [...SHOWN_GROUPS, 'extras' as FoodGroup]) groupDays[g] = ds.filter((d) => d.groups[g]).length;
   const ex = ds.filter((d) => d.extrasCarbShare !== null);
   return {
-    period, days: ds.length, enough: period === 'today' ? ds.length > 0 : ds.length >= (period === 'd7' ? R.minDays.d7 : R.minDays.d30),
+    period, days: ds.length, enough: period === 'today' ? ds.length > 0 : ds.length >= R.minDays[period],
     energy, treatment, totalKcal: energy.est === null ? null : energy.est + treatment.kcal, nutrients, groupDays,
     groupCoverage: ds.length ? ds.reduce((s, d) => s + d.groupCoverage, 0) / ds.length : 0,
     extrasCarbShare: ex.length ? ex.reduce((s, d) => s + d.extrasCarbShare!, 0) / ex.length : null,
@@ -218,6 +220,29 @@ export function nutrientState(n: Nutrient, t: Total, foodKcal: number | null, re
   return pct < ref.value ? 'below_ref' : pct > (ref.high ?? Infinity) ? 'above_ref' : 'within';
 }
 export const pctOfEnergy = (n: Nutrient, t: Total, foodKcal: number | null) => (foodKcal && KCAL_PER_G[n] && t.est !== null ? (t.est * KCAL_PER_G[n]!) / foodKcal * 100 : null);
+
+/** One figure for "can we trust these numbers": the lowest coverage among energy, fat and protein (carbs are always
+ *  logged). Shown as data quality; the per-nutrient coverage stays one tap deeper. */
+export const dataQuality = (a: Avg) => Math.min(a.energy.coverage, a.nutrients.fat.coverage, a.nutrients.protein.coverage);
+
+/** Carbs / protein / fat in a word: ok, low, slightly high/low (within a few points of the range) or high. Context
+ *  only (ISPAD ranges are a guide); a minimum such as protein g/kg decides "low" for protein. */
+export type Level = 'ok' | 'low' | 'slightly_low' | 'slightly_high' | 'high' | 'unknown';
+export function macroLevel(n: 'carbs' | 'protein' | 'fat', a: Avg, refs: Partial<Record<Nutrient, Ref>>, coverageMin = NUTRITION_RULES.coverageMin, R = NUTRITION_RULES): Level {
+  const t = a.nutrients[n], E = a.energy.est;
+  if (!a.enough || t.coverage < coverageMin || t.est === null) return 'unknown';
+  if (n === 'protein') {
+    const r = refs.protein;
+    if (r && r.kind === 'min' && t.est < r.value) return 'low';
+  }
+  const range = n === 'protein' ? { value: 15, high: 25 } : refs[n]?.kind === 'pct_range' ? { value: refs[n]!.value, high: refs[n]!.high ?? Infinity } : null;
+  if (!range || !E) return 'ok';
+  const pct = (t.est * (n === 'fat' ? 9 : 4)) / E * 100;
+  if (n === 'protein' && pct > range.high) return 'ok'; // more protein than the share is not a concern here
+  if (pct > range.high) return pct - range.high <= R.slightlyPts ? 'slightly_high' : 'high';
+  if (pct < range.value) return range.value - pct <= R.slightlyPts ? 'slightly_low' : 'low';
+  return 'ok';
+}
 
 export type EnergyState = 'within' | 'below' | 'above' | 'insufficient';
 /** Total intake (food + treatments) against the EER range (± its standard error), or the dietitian's figure ± 10 %. */

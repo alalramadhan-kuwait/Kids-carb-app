@@ -15,9 +15,9 @@ export function GrowthCard() {
   if (!g.ready) return null;
   const growth = g.growth.state === 'no_data' ? t('أضف الوزن والطول')
     : g.growth.state === 'attention' ? GROWTH_REASON_SHORT[g.growth.reasons[0]]
-      : g.growth.state === 'stable' ? t('النمو مستقر') : t('النمو: بداية السجل');
-  const energy = ENERGY_CHIP[g.energy.d7];
-  const bal = g.bal.d7.state === 'balanced' ? t('التوازن جيد') : g.bal.d7.state === 'attention' ? BALANCE_ISSUE[g.bal.d7.issues[0]] : t('التوازن: بيانات غير كافية');
+      : t('النمو ضمن المتوقع');
+  const energy = ENERGY_CHIP[g.energy.d3];
+  const bal = g.bal.d3.state === 'balanced' ? t('التوازن جيد') : g.bal.d3.state === 'attention' ? BALANCE_ISSUE[g.bal.d3.issues[0]] : t('التوازن: بيانات غير كافية');
   const due = g.measurements.length > 0 && weighInDue(g.measurements);
   return (
     <Link to="/growth" className="block rounded-2xl border border-slate-100 bg-white px-3 py-2.5 active:bg-slate-50">

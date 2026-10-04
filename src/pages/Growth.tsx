@@ -4,66 +4,58 @@ import { useData } from '../lib/data';
 import { saveSettings } from '../lib/api';
 import { backTo } from '../lib/nav';
 import { deleteMeasurement, saveMeasurement, useGrowthNutrition, type GrowthNutrition, type MeasurementRow } from '../lib/growth';
-import { RANGE, bmiBand, heightBand, implausible, percentile, valueAtZ, type Indicator } from '../engine/growth';
+import { RANGE, implausible, percentile, valueAtZ, type Indicator } from '../engine/growth';
 import { ACTIVITIES, type Activity } from '../engine/energy';
-import { NUTRIENTS, NUTRITION_RULES, SHOWN_GROUPS, UNIT, pctOfEnergy, type Nutrient, type Period, type Ref, type State, type Targets } from '../engine/nutrition';
-import { ACTIVITY, ACTIVITY_HINT, BALANCE_ISSUE, BAND, ENERGY_CHIP, GROUP, GROWTH_REASON, NUTRIENT_NAME, SOURCE, STATE } from '../components/growthText';
+import { NUTRIENTS, SHOWN_GROUPS, NUTRITION_RULES, UNIT, dataQuality, macroLevel, type Level, type Nutrient, type Period, type Ref, type State, type Targets } from '../engine/nutrition';
+import { ACTIVITY, ACTIVITY_HINT, BALANCE_ISSUE, GROUP, GROWTH_REASON, NUTRIENT_NAME, SOURCE } from '../components/growthText';
 import { Alert, Btn, Card, Field, NumInput, Page, Sheet, cx, inputCls, toast } from '../components/ui';
 import { fmt } from '../lib/carbs';
 import { isEn, locale, t, tr } from '../i18n';
 
 const UNIT_AR: Record<string, string> = tr({ g: 'غ', mg: 'ملغ', 'µg': 'ميكروغرام', kcal: 'سعرة' } as Record<string, string>); // i18n-ok: values translated when read
-const PERIOD = tr({ today: 'اليوم', d7: '7 أيام', d30: '30 يومًا' }); // i18n-ok
+const PERIOD = tr({ d3: '3 أيام', d7: '7 أيام', d30: '30 يومًا' }); // i18n-ok
+const PERIOD_LONG = tr({ d3: 'آخر 3 أيام', d7: 'آخر 7 أيام', d30: 'آخر 30 يومًا' }); // i18n-ok
 const IND = tr({ bmi: 'مؤشر الكتلة', hfa: 'الطول', wfa: 'الوزن' }); // i18n-ok
+const LEVEL_WORD = tr({ ok: 'ضمن المدى', low: 'منخفض', slightly_low: 'أقل قليلًا', slightly_high: 'أعلى قليلًا', high: 'مرتفع', unknown: 'بيانات غير كافية' }); // i18n-ok
+const STATE_WORD = tr({ adequate: 'كافٍ', low: 'قليل', high: 'مرتفع', within: 'ضمن الحد', below_ref: 'أقل من المرجع', above_ref: 'أعلى من المرجع', insufficient: 'بيانات غير كافية' }); // i18n-ok
+const MARK: Record<Level, string> = { ok: '✓', low: '↓', slightly_low: '↓', slightly_high: '↑', high: '↑', unknown: '–' };
 const n0 = (x: number) => Math.round(x).toLocaleString('en-US');
 const day = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
 const today = () => new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10);
-const tone = (s: State | string) => (s === 'low' || s === 'high' || s === 'below' ? 'bg-near-soft text-near' : s === 'adequate' || s === 'within' ? 'bg-ok-soft text-ok' : 'bg-slate-100 text-slate-600');
+const ord = (n: number) => (isEn() ? `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}` : String(n));
+const levelTone = (l: Level | State) => (l === 'ok' || l === 'adequate' || l === 'within' ? 'text-ok' : l === 'unknown' || l === 'insufficient' ? 'text-slate-400' : 'text-near');
 const Num = ({ children }: { children: React.ReactNode }) => <bdi dir="ltr" className="tabular-nums">{children}</bdi>;
 
 /**
- * النمو والتغذية: is her growth on track (WHO 2007), is she eating enough (NASEM 2023 EER), is the pattern balanced
- * (ISPAD 2022, ADA 2026)? Measurement and pattern detection only: the care team and dietitian decide.
+ * النمو والتغذية, answer first: is energy within the estimated range, are carbs / protein / fat okay, is growth within
+ * the expected range, is anything worth a look. References, methods and the rest are one tap deeper.
  */
 export default function Growth() {
   const nav = useNavigate();
   const g = useGrowthNutrition();
   const [params, setParams] = useSearchParams();
   const [edit, setEdit] = useState<Partial<MeasurementRow> | null>(null);
-  const [period, setPeriod] = useState<Period>('d7');
+  const [period, setPeriod] = useState<Exclude<Period, 'today'>>('d3');
   useEffect(() => { if (params.get('add')) { setEdit({}); setParams({}, { replace: true }); } }, [params, setParams]);
-
-  const reasons = [...g.growth.reasons.map((r) => GROWTH_REASON[r]), ...(g.energy.d7 === 'below' ? [t('متوسط الطاقة في آخر 7 أيام أقل من المدى التقديري لاحتياجها.')] : []),
-    ...g.bal.d7.issues.map((i) => t('{x} في آخر 7 أيام.', { x: BALANCE_ISSUE[i] }))];
 
   return (
     <Page title={t('النمو والتغذية')} back={() => backTo(nav, '/')}>
       {!g.ready ? <p className="text-sm text-slate-500">{t('جارٍ التحميل…')}</p> : (
-        <div className="space-y-4">
-          {reasons.length > 0 && (
-            <Alert tone="near">
-              <b className="block">{t('يستحق نظرة')}</b>
-              <ul className="mt-1 list-disc space-y-0.5 ps-5 text-sm">{reasons.map((r) => <li key={r}>{r}</li>)}</ul>
-              <p className="mt-1.5 text-xs">{t('ملاحظة للنقاش مع فريق السكري وأخصائية التغذية، وليست تشخيصًا.')}</p>
-            </Alert>
-          )}
-          <GrowthSection g={g} onAdd={() => setEdit({})} onEdit={(m) => setEdit(m)} />
-          <div>
-            <div className="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 text-sm" role="tablist" aria-label={t('الفترة')}>
-              {(['today', 'd7', 'd30'] as Period[]).map((p) => (
-                <button key={p} role="tab" aria-selected={period === p} onClick={() => setPeriod(p)} className={cx('min-h-[36px] rounded-full', period === p ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{PERIOD[p]}</button>
-              ))}
-            </div>
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 text-sm" role="tablist" aria-label={t('الفترة')}>
+            {(['d3', 'd7', 'd30'] as const).map((p) => (
+              <button key={p} role="tab" aria-selected={period === p} onClick={() => setPeriod(p)} className={cx('min-h-[40px] rounded-full', period === p ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{PERIOD[p]}</button>
+            ))}
           </div>
-          <EnergySection g={g} period={period} />
-          <NutrientSection g={g} period={period} />
-          <GroupSection g={g} period={period} />
-          <CompositionSection g={g} />
+          <Summary g={g} period={period} />
+          <DailyAverage g={g} period={period} />
+          <GrowthSection g={g} onAdd={() => setEdit({})} onEdit={(m) => setEdit(m)} />
+          <MealPatterns g={g} period={period} />
+          <HowTargets g={g} />
           <ProfileSection g={g} />
           <Link to="/diet-sheet" className="flex min-h-[52px] items-center justify-between rounded-2xl border border-slate-100 bg-white px-4 text-sm font-bold">
             {t('جدول أخصائية التغذية (PDF)')}<span className="opacity-60">{isEn() ? '›' : '‹'}</span>
           </Link>
-          <Sources />
         </div>
       )}
       <MeasureSheet edit={edit} list={g.measurements} onClose={() => setEdit(null)} />
@@ -71,59 +63,131 @@ export default function Growth() {
   );
 }
 
+/* --------------------------------------------------------------- summary */
+
+function Summary({ g, period }: { g: GrowthNutrition; period: 'd3' | 'd7' | 'd30' }) {
+  const a = g.avg[period], st = g.energy[period], r = g.energyRef, b = g.bal[period];
+  const overall = st === 'within' ? t('ضمن المدى ✓') : st === 'below' ? t('أقل من المدى') : st === 'above' ? t('أعلى من المدى') : t('بيانات غير كافية بعد');
+  const macros = (['carbs', 'protein', 'fat'] as const).map((n) => ({ n, l: macroLevel(n, a, g.refs, g.coverageMin) }));
+  const attention = [...g.growth.reasons.map((x) => GROWTH_REASON[x]), ...b.issues.map((i) => BALANCE_ISSUE[i])];
+  return (
+    <Card className="space-y-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="font-bold">{t('التغذية')} <span className="font-normal text-slate-500">· {PERIOD_LONG[period]}</span></h2>
+        {a.enough && <span className="text-xs text-slate-500">{t('جودة البيانات')} <Num>{Math.round(dataQuality(a) * 100)}%</Num></span>}
+      </div>
+      <p className={cx('text-lg font-bold', st === 'within' ? 'text-ok' : st === 'below' ? 'text-near' : 'text-slate-700')}>{overall}</p>
+      {a.enough && a.totalKcal !== null ? (
+        <>
+          <p><b className="text-3xl"><Num>{n0(a.totalKcal)}</Num></b> <span className="text-slate-600">{t('سعرة/يوم')}</span></p>
+          {r && <RangeBar value={a.totalKcal} lo={r.low} hi={r.high} />}
+          {a.treatment.kcal >= 1 && <p className="text-xs text-slate-500">{t('منها علاج الانخفاض +{k} سعرة', { k: n0(a.treatment.kcal) })}</p>}
+        </>
+      ) : <p className="text-sm text-slate-500">{t('سجّلوا وجبات يومين كاملين على الأقل.')}</p>}
+      <div className="flex gap-4 text-sm">
+        {macros.map(({ n, l }) => <span key={n} className="font-medium">{NUTRIENT_NAME[n]} <b className={levelTone(l)}>{MARK[l]}</b></span>)}
+      </div>
+      {attention.length > 0 && (
+        <ul className="space-y-0.5 rounded-xl bg-near-soft px-3 py-2 text-sm text-near">{attention.map((x) => <li key={x}>• {x}</li>)}</ul>
+      )}
+    </Card>
+  );
+}
+
+/** Where intake sits against the estimated range: the band is the range, the dot is her average. */
+function RangeBar({ value, lo, hi }: { value: number; lo: number; hi: number }) {
+  const span = hi - lo, min = lo - span * 0.6, max = hi + span * 0.6;
+  const x = (v: number) => `${((Math.min(max, Math.max(min, v)) - min) / (max - min)) * 100}%`;
+  const inside = value >= lo && value <= hi;
+  return (
+    <div dir="ltr" aria-label={t('{v} سعرة، المدى التقديري {lo}–{hi}', { v: n0(value), lo: n0(lo), hi: n0(hi) })} role="img">
+      <div className="relative h-3 rounded-full bg-slate-100">
+        <div className="absolute inset-y-0 rounded-full bg-ok-soft ring-1 ring-ok-fill" style={{ left: x(lo), width: `calc(${x(hi)} - ${x(lo)})` }} />
+        <span className={cx('absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow', inside ? 'bg-ok-fill' : 'bg-near-fill')} style={{ left: x(value) }} />
+      </div>
+      <div className="relative mt-1 h-4 text-[11px] text-slate-500 tabular-nums">
+        <span className="absolute -translate-x-1/2" style={{ left: x(lo) }}>{n0(lo)}</span>
+        <span className="absolute -translate-x-1/2" style={{ left: x(hi) }}>{n0(hi)}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------- daily average */
+
+function DailyAverage({ g, period }: { g: GrowthNutrition; period: 'd3' | 'd7' | 'd30' }) {
+  const a = g.avg[period], b = g.bal[period];
+  const amount = (n: Nutrient) => { const v = a.nutrients[n].est; return v === null ? { v: '—', u: '' } : { v: UNIT[n] === 'mg' ? n0(v) : String(Math.round(v)), u: UNIT_AR[UNIT[n]] }; };
+  const others = NUTRIENTS.filter((n) => n !== 'carbs' && n !== 'protein' && n !== 'fat');
+  const shown = others.filter((n) => b.states[n] && b.states[n] !== 'insufficient');
+  const hidden = others.filter((n) => !shown.includes(n));
+  if (!a.enough) return null;
+  return (
+    <Card className="space-y-1">
+      <h2 className="mb-1 font-bold">{t('المتوسط اليومي')}</h2>
+      {(['carbs', 'protein', 'fat'] as const).map((n) => {
+        const l = macroLevel(n, a, g.refs, g.coverageMin);
+        const word = n === 'protein' && l === 'ok' ? t('كافٍ') : LEVEL_WORD[l];
+        return <Line key={n} name={NUTRIENT_NAME[n]} amount={amount(n)} mark={MARK[l]} word={word} tone={levelTone(l)} />;
+      })}
+      {shown.map((n) => { const s = b.states[n]!; return <Line key={n} name={NUTRIENT_NAME[n]} amount={amount(n)} mark={s === 'adequate' || s === 'within' ? '✓' : s === 'low' ? '↓' : '↑'} word={STATE_WORD[s]} tone={levelTone(s)} />; })}
+      {hidden.length > 0 && (
+        <details className="pt-1">
+          <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between text-sm text-slate-600">{t('مغذيات أخرى: بيانات الملصقات غير كافية')}<span className="text-slate-300">{isEn() ? '›' : '‹'}</span></summary>
+          <ul className="space-y-1 pb-1 text-xs text-slate-500">
+            {hidden.map((n) => <li key={n} className="flex justify-between gap-2"><span>{NUTRIENT_NAME[n]}</span><span>{t('تغطية {p}%', { p: Math.round(a.nutrients[n].coverage * 100) })}</span></li>)}
+          </ul>
+          <p className="pb-2 text-[11px] text-slate-500">{t('تتحسن عند إضافة هذه القيم لملصقات المنتجات الأكثر أكلًا.')}</p>
+        </details>
+      )}
+    </Card>
+  );
+}
+const Line = ({ name, amount, mark, word, tone }: { name: string; amount: { v: string; u: string }; mark: string; word: string; tone: string }) => (
+  <div className="flex min-h-[36px] items-center justify-between gap-2 text-sm">
+    <span><span className="font-medium">{name}</span> <span className="text-slate-500"><Num>{amount.v}</Num> {amount.u}</span></span>
+    <span className={cx('shrink-0 font-medium', tone)}>{mark} {word}</span>
+  </div>
+);
+
 /* ------------------------------------------------------------------ growth */
 
 function GrowthSection({ g, onAdd, onEdit }: { g: GrowthNutrition; onAdd: () => void; onEdit: (m: MeasurementRow) => void }) {
   const [ind, setInd] = useState<Indicator>('bmi');
   const L = g.growth.latest, lastH = [...g.points].reverse().find((p) => p.height_cm !== null);
-  const z = (v: number | null | undefined) => (v == null ? null : v);
-  const zb = z([...g.points].reverse().find((p) => p.z.bmi != null)?.z.bmi), zh = z(lastH?.z.hfa), zw = z(L?.z.wfa);
-  const row = (label: string, v: number | null, band?: string) => v === null ? null : (
-    <div className="flex items-baseline justify-between gap-2 text-sm">
-      <span className="text-slate-600">{label}</span>
-      <span>{t('المئين')} <b><Num>{Math.round(percentile(v))}</Num></b> <bdi dir="ltr" className="text-xs text-slate-500">(z {v.toFixed(2)})</bdi>{band && <span className="text-xs text-slate-500"> · {band}</span>}</span>
-    </div>
-  );
+  const zb = [...g.points].reverse().find((p) => p.z.bmi != null)?.z.bmi ?? null, zh = lastH?.z.hfa ?? null, zw = L?.z.wfa ?? null;
+  const ok = g.growth.reasons.length === 0;
+  const pct = (z: number | null) => (z === null ? null : t('المئين {p}', { p: ord(Math.round(percentile(z))) }));
   const ch = g.growth.change;
   return (
-    <Card className="space-y-3">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-bold">{t('النمو')}</h2>
-        <span className="text-xs text-slate-500">{t('مرجع WHO 2007، بنات 5–19 سنة')}</span>
-      </div>
-      {!g.profile.birth && <Alert tone="info">{t('أضف تاريخ الميلاد في «الملف والأهداف» لحساب المئين.')}</Alert>}
+    <Card className="space-y-2.5">
       {L ? (
         <>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <Stat label={t('الوزن')} value={L.weight_kg !== null ? `${fmt(L.weight_kg)} ${t('كغ')}` : '—'} />
-            <Stat label={t('الطول')} value={lastH ? `${fmt(lastH.height_cm!)} ${t('سم')}` : '—'} />
-            <Stat label={t('مؤشر الكتلة')} value={L.bmi !== null ? L.bmi.toFixed(1) : '—'} />
+          <p className={cx('font-bold', ok ? 'text-ok' : 'text-near')}>{ok ? t('النمو: ضمن المتوقع ✓') : t('النمو: يستحق نظرة')}</p>
+          <div className="space-y-1 text-sm">
+            {L.weight_kg !== null && <Meas name={t('الوزن')} v={`${fmt(L.weight_kg)} ${t('كغ')}`} p={pct(zw)} />}
+            {lastH && <Meas name={t('الطول')} v={`${fmt(lastH.height_cm!)} ${t('سم')}`} p={pct(zh)} />}
+            {L.bmi !== null && <Meas name={t('مؤشر الكتلة')} v={L.bmi.toFixed(1)} p={pct(zb)} />}
           </div>
-          <p className="text-xs text-slate-500">{t('آخر قياس {d}', { d: day(L.on) })}{g.profile.age !== null && ` · ${t('العمر {a} سنة', { a: g.profile.age.toFixed(1) })}${g.profile.approx ? ` ${t('(تقريبي)')}` : ''}`}</p>
-          <div className="space-y-1">
-            {row(t('مؤشر الكتلة للعمر'), zb, zb !== null ? BAND[bmiBand(zb)] : undefined)}
-            {row(t('الطول للعمر'), zh, zh !== null ? BAND[heightBand(zh)] : undefined)}
-            {row(t('الوزن للعمر'), zw)}
-          </div>
-          {g.growth.state === 'baseline' && <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">{t('بداية السجل: يُحكم على مسار النمو بعد قياسين بينهما 3 أشهر على الأقل. التغيرات القصيرة تُعرض فقط.')}</p>}
+          <p className="text-xs text-slate-500">{t('آخر قياس {d}', { d: day(L.on) })}{g.growth.state === 'baseline' ? ` · ${t('المسار بعد قياس ثانٍ بعد 3 أشهر')}` : ''}</p>
           <div className="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 text-xs" role="tablist">
             {(['bmi', 'hfa', 'wfa'] as Indicator[]).map((k) => (
               <button key={k} role="tab" aria-selected={ind === k} onClick={() => setInd(k)} className={cx('min-h-[32px] rounded-full', ind === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{IND[k]}</button>
             ))}
           </div>
           <Chart g={g} ind={ind} />
-          <div className="grid grid-cols-3 gap-1 text-center text-xs">
-            {([['d7', t('7 أيام')], ['d30', t('30 يومًا')], ['d90', t('90 يومًا')]] as const).map(([k, l]) => (
-              <span key={k} className="rounded-lg bg-slate-50 py-1"><span className="block text-[11px] text-slate-500">{l}</span><Num>{ch[k] === null ? '—' : `${ch[k]! > 0 ? '+' : ''}${fmt(ch[k]!)} ${t('كغ')}`}</Num></span>
-            ))}
-          </div>
-          <p className="text-[11px] text-slate-500">{t('تغيّر الوزن للعرض فقط؛ الحكم على المسار الطويل.')}</p>
         </>
       ) : <p className="text-sm text-slate-500">{t('لا قياسات بعد.')}</p>}
+      {!g.profile.birth && <Alert tone="info">{t('أضف تاريخ الميلاد في «الملف والأهداف» لحساب المئين.')}</Alert>}
       <Btn kind="primary" block onClick={onAdd}>{t('+ وزن / طول')}</Btn>
       {g.measurements.length > 0 && (
         <details>
-          <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between text-sm font-medium">{t('السجل ({n})', { n: g.measurements.length })}<span className="text-slate-300">{isEn() ? '›' : '‹'}</span></summary>
+          <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between text-sm font-medium">{t('السجل والتغيّر')}<span className="text-slate-300">{isEn() ? '›' : '‹'}</span></summary>
+          <div className="grid grid-cols-3 gap-1 text-center text-xs">
+            {([['d7', t('7 أيام')], ['d30', t('30 يومًا')], ['d90', t('90 يومًا')]] as const).map(([k, l]) => (
+              <span key={k} className="rounded-lg bg-slate-50 py-1"><span className="block text-[11px] text-slate-500">{l}</span><Num>{ch[k] === null ? '—' : `${ch[k]! > 0 ? '+' : ''}${fmt(ch[k]!)} kg`}</Num></span>
+            ))}
+          </div>
           <ul className="divide-y divide-slate-100 text-sm">
             {[...g.measurements].reverse().map((m) => (
               <li key={m.id}><button className="flex min-h-[44px] w-full items-center justify-between gap-2 text-start" onClick={() => onEdit(m)}>
@@ -137,10 +201,64 @@ function GrowthSection({ g, onAdd, onEdit }: { g: GrowthNutrition; onAdd: () => 
     </Card>
   );
 }
-
-const Stat = ({ label, value }: { label: string; value: string }) => (
-  <span className="rounded-xl bg-slate-50 py-2"><span className="block text-[11px] text-slate-500">{label}</span><b className="text-lg"><Num>{value}</Num></b></span>
+const Meas = ({ name, v, p }: { name: string; v: string; p: string | null }) => (
+  <div className="flex items-baseline justify-between gap-2"><span><span className="text-slate-600">{name}</span> <b><Num>{v}</Num></b></span>{p && <span className="text-slate-600">{p}</span>}</div>
 );
+
+/* ------------------------------------------------------------ one tap deeper */
+
+function MealPatterns({ g, period }: { g: GrowthNutrition; period: 'd3' | 'd7' | 'd30' }) {
+  const a = g.avg[period], f = g.fatty;
+  const enough = a.groupCoverage >= g.coverageMin && a.days > 0;
+  return (
+    <details className="rounded-2xl border border-slate-100 bg-white px-4">
+      <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between font-bold">{t('أنماط الوجبات')}<span className="text-slate-300">{isEn() ? '›' : '‹'}</span></summary>
+      <div className="space-y-2 pb-4 text-sm">
+        <h3 className="text-xs font-bold text-slate-500">{t('مجموعات الطعام · {p}', { p: PERIOD_LONG[period] })}</h3>
+        {!enough ? <p className="text-slate-500">{t('بيانات غير كافية')}</p> : SHOWN_GROUPS.map((k) => {
+          const d = a.groupDays[k] ?? 0, few = (k === 'vegetables' || k === 'fruit') && d < a.days * NUTRITION_RULES.fewDaysShare;
+          return <div key={k} className="flex justify-between"><span className="text-slate-600">{GROUP[k]}</span><span className={few ? 'text-near' : ''}><Num>{d}/{a.days}</Num> {t('أيام')}</span></div>;
+        })}
+        {enough && a.extrasCarbShare !== null && <p className="text-xs text-slate-500">{t('من الكارب من حلويات ومشروبات محلاة ومصنّعة: {p}%', { p: Math.round(a.extrasCarbShare * 100) })}</p>}
+        {f.meals > 0 && <>
+          <h3 className="pt-2 text-xs font-bold text-slate-500">{t('وجبات عالية الدهون أو البروتين · آخر 7 أيام')}</h3>
+          <p>{t('{n} من {m} وجبة', { n: f.fatty, m: f.meals })}</p>
+          <p className="text-xs text-slate-500">{t('قد ترفع السكر متأخرًا. تعديل الإنسولين يقرره فريق السكري.')}</p>
+          <Link to="/analysis?mode=meals" className="inline-flex min-h-[40px] items-center font-bold text-brand">{t('استجابة السكر للوجبات')} {isEn() ? '›' : '‹'}</Link>
+        </>}
+      </div>
+    </details>
+  );
+}
+
+function HowTargets({ g }: { g: GrowthNutrition }) {
+  const { settings } = useData();
+  const setActivity = async (x: Activity) => { try { await saveSettings({ ...settings, activity_level: x }); } catch (e) { toast((e as Error).message); } };
+  const r = g.energyRef;
+  return (
+    <details className="rounded-2xl border border-slate-100 bg-white px-4">
+      <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between font-bold">{t('كيف تُحسب الأهداف')}<span className="text-slate-300">{isEn() ? '›' : '‹'}</span></summary>
+      <div className="space-y-3 pb-4 text-sm">
+        {r && <p>{t('الطاقة: ~{k} سعرة/يوم، المدى {lo}–{hi}', { k: n0(r.kcal), lo: n0(r.low), hi: n0(r.high) })} · {SOURCE[r.source]}</p>}
+        <div>
+          <div className="mb-1 text-xs font-medium text-slate-600">{t('النشاط')}{g.profile.activityAssumed && <span className="text-slate-400"> · {t('افتراضي، اختر الأقرب')}</span>}</div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {ACTIVITIES.map((x) => (
+              <button key={x} onClick={() => setActivity(x)} className={cx('min-h-[44px] rounded-xl px-2 py-1 text-start text-xs', g.profile.activity === x && !g.profile.activityAssumed ? 'bg-brand-soft text-brand' : g.profile.activity === x ? 'bg-slate-100 font-medium' : 'border border-slate-100')}>
+                <b className="block">{ACTIVITY[x]}{g.eer && <span className="font-normal text-slate-500"> · <Num>{n0(g.eer.byActivity[x])}</Num></span>}</b>{ACTIVITY_HINT[x]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <ul className="space-y-1 text-xs text-slate-600">
+          {NUTRIENTS.map((n) => <li key={n} className="flex justify-between gap-2"><span>{NUTRIENT_NAME[n]}</span><span className="text-end">{refText(n, g.refs[n])}</span></li>)}
+        </ul>
+        <p className="text-xs text-slate-500">{t('تقديرات مرجعية وليست حدودًا. البيانات الناقصة لا تُحسب صفرًا، وعلاج الانخفاض لا يدخل في التوازن.')}</p>
+        <Sources />
+      </div>
+    </details>
+  );
+}
 
 /** Her points on WHO's 3rd, 15th, 50th, 85th and 97th centile curves (girls). */
 const CENTILES: [number, string][] = [[-1.881, '3'], [-1.036, '15'], [0, '50'], [1.036, '85'], [1.881, '97']];
@@ -170,131 +288,12 @@ function Chart({ g, ind }: { g: GrowthNutrition; ind: Indicator }) {
   );
 }
 
-/* ------------------------------------------------------------------ energy */
-
-function EnergySection({ g, period }: { g: GrowthNutrition; period: Period }) {
-  const { settings } = useData();
-  const a = g.avg[period], r = g.energyRef, st = g.energy[period];
-  const cov = a.energy.coverage;
-  const setActivity = async (x: Activity) => { try { await saveSettings({ ...settings, activity_level: x }); } catch (e) { toast((e as Error).message); } };
-  return (
-    <Card className="space-y-2.5">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-bold">{t('الطاقة')}</h2>
-        {period !== 'today' && <span className={cx('rounded-full px-2 py-0.5 text-xs', tone(st))}>{ENERGY_CHIP[st]}</span>}
-      </div>
-      <Row label={t('الاحتياج التقديري')} value={r ? <><Num>~{n0(r.kcal)}</Num> {t('سعرة/يوم')}</> : '—'} sub={r ? <>{t('المدى')} <Num>{n0(r.low)}–{n0(r.high)}</Num> · {SOURCE[r.source]}</> : t('يحتاج الوزن والطول وتاريخ الميلاد')} />
-      <Row label={t('الطعام')} value={a.energy.est !== null ? <><Num>{cov < 1 ? '≈' : ''}{n0(a.energy.est)}</Num> {t('سعرة')}</> : '—'} sub={t('تغطية {p}%', { p: Math.round(cov * 100) })} />
-      <Row label={t('علاج الانخفاض')} value={<><Num>+{n0(a.treatment.kcal)}</Num> {t('سعرة')}</>} sub={<><Num>+{fmt(Math.round(a.treatment.carbs))}</Num> {t('غ كارب')}</>} />
-      <Row strong label={t('المجموع')} value={a.totalKcal !== null ? <><Num>{n0(a.totalKcal)}</Num> {t('سعرة')}</> : '—'} />
-      <p className="text-xs text-slate-500">
-        {period === 'today' ? t('اليوم حتى الآن.') : t('متوسط {n} يوم مكتمل (3 وجبات أو أكثر).', { n: a.days })}{' '}
-        {t('الاحتياج تقدير مرجعي من معادلات NASEM 2023 بعمرها وطولها ووزنها ونشاطها، وليس هدفًا ولا حدًا. تجاوزه قليلًا ليس مشكلة؛ النمو هو الحكم.')}
-      </p>
-      <div>
-        <div className="mb-1 text-xs font-medium text-slate-600">{t('النشاط')}{g.profile.activityAssumed && <span className="text-slate-400"> · {t('افتراضي، اختر الأقرب')}</span>}</div>
-        <div className="grid grid-cols-2 gap-1.5">
-          {ACTIVITIES.map((x) => (
-            <button key={x} onClick={() => setActivity(x)} className={cx('min-h-[44px] rounded-xl px-2 py-1 text-start text-xs', g.profile.activity === x && !g.profile.activityAssumed ? 'bg-brand-soft text-brand' : g.profile.activity === x ? 'bg-slate-100 font-medium' : 'border border-slate-100')}>
-              <b className="block">{ACTIVITY[x]}{g.eer && <span className="font-normal text-slate-500"> · <Num>{n0(g.eer.byActivity[x])}</Num></span>}</b>{ACTIVITY_HINT[x]}
-            </button>
-          ))}
-        </div>
-      </div>
-    </Card>
-  );
-}
-const Row = ({ label, value, sub, strong }: { label: string; value: React.ReactNode; sub?: React.ReactNode; strong?: boolean }) => (
-  <div className={cx('flex items-baseline justify-between gap-3 text-sm', strong && 'border-t border-slate-100 pt-2 font-bold')}>
-    <span className="text-slate-600">{label}</span>
-    <span className="text-end">{value}{sub && <span className="block text-[11px] font-normal text-slate-500">{sub}</span>}</span>
-  </div>
-);
-
-/* --------------------------------------------------------------- nutrients */
-
 function refText(n: Nutrient, r: Ref | undefined) {
   if (!r) return t('لا مرجع');
   const u = UNIT_AR[UNIT[n]];
   const v = r.kind === 'min' ? t('المرجع ≥ {v} {u}', { v: UNIT[n] === 'mg' ? n0(r.value) : fmt(r.value), u }) : r.kind === 'max' ? t('الحد ≤ {v} {u}', { v: n0(r.value), u })
     : r.kind === 'pct_range' ? t('{lo}–{hi}% من الطاقة', { lo: r.value, hi: r.high }) : t('أقل من {v}% من الطاقة', { v: r.value });
   return `${v} · ${SOURCE[r.source]}`;
-}
-function NutrientSection({ g, period }: { g: GrowthNutrition; period: Period }) {
-  const a = g.avg[period], b = g.bal[period];
-  const foodKcal = a.energy.est;
-  return (
-    <Card className="space-y-2">
-      <h2 className="font-bold">{t('التغذية')}</h2>
-      <p className="text-xs text-slate-500">{t('من الأكل فقط (بدون علاج الانخفاض). الناقص في الملصق لا يُحسب صفرًا: «بيانات غير كافية» إذا قلّت التغطية عن {p}%.', { p: Math.round(g.coverageMin * 100) })}</p>
-      <ul className="divide-y divide-slate-100">
-        {NUTRIENTS.map((n) => {
-          const tot = a.nutrients[n], st = b.states[n] ?? 'insufficient', pct = pctOfEnergy(n, tot, foodKcal);
-          const known = tot.known > 0;
-          const val = tot.est !== null && tot.coverage >= g.coverageMin ? `${tot.coverage < 1 ? '≈' : ''}${UNIT[n] === 'mg' ? n0(tot.est) : fmt(Math.round(tot.est * 10) / 10)}` : known ? `≥${UNIT[n] === 'mg' ? n0(tot.known) : fmt(Math.round(tot.known * 10) / 10)}` : '—';
-          return (
-            <li key={n} className="py-2">
-              <div className="flex items-baseline justify-between gap-2 text-sm">
-                <span className="font-medium">{NUTRIENT_NAME[n]}</span>
-                <span className={cx('shrink-0 rounded-full px-2 py-0.5 text-xs', period === 'today' ? 'bg-slate-100 text-slate-600' : tone(st))}>{period === 'today' && st !== 'insufficient' ? t('حتى الآن') : STATE[st]}</span>
-              </div>
-              <div className="flex items-baseline justify-between gap-2 text-xs text-slate-500">
-                <span><Num>{val}</Num>{val !== '—' && <> {UNIT_AR[UNIT[n]]}</>}{pct !== null && tot.coverage >= g.coverageMin && <> · <Num>{Math.round(pct)}%</Num> {t('من الطاقة')}</>} · {t('تغطية {p}%', { p: Math.round(tot.coverage * 100) })}</span>
-                <span className="text-end">{refText(n, g.refs[n])}</span>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-      <p className="text-[11px] text-slate-500">{t('نسب الكارب والدهون والبروتين للسياق فقط: ISPAD 2022 تقول إن النسبة المثلى تُحدَّد لكل طفل. لا يُنصح بتقليل الكارب لتحسين منحنى السكر.')}</p>
-    </Card>
-  );
-}
-
-/* ------------------------------------------------------------------ groups */
-
-function GroupSection({ g, period }: { g: GrowthNutrition; period: Period }) {
-  const a = g.avg[period];
-  const enough = a.groupCoverage >= g.coverageMin && a.days > 0;
-  return (
-    <Card className="space-y-2">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-bold">{t('مجموعات الطعام')}</h2>
-        <span className="text-xs text-slate-500">{t('أيام فيها المجموعة')} · {t('تغطية {p}%', { p: Math.round(a.groupCoverage * 100) })}</span>
-      </div>
-      {!enough ? <p className="text-sm text-slate-500">{t('بيانات غير كافية: وجبات كثيرة بلا مكوّنات معروفة (مثل المستورد من Gluroo).')}</p> : (
-        <>
-          <ul className="space-y-1.5 text-sm">
-            {SHOWN_GROUPS.map((k) => {
-              const d = a.groupDays[k] ?? 0, few = (k === 'vegetables' || k === 'fruit') && d < a.days * NUTRITION_RULES.fewDaysShare;
-              return (
-                <li key={k} className="flex items-center gap-2">
-                  <span className="w-36 shrink-0 text-slate-600">{GROUP[k]}</span>
-                  <span className="flex h-2 flex-1 overflow-hidden rounded-full bg-slate-100" dir="ltr"><i className={few ? 'bg-near-fill' : 'bg-ok-fill'} style={{ width: `${(d / Math.max(1, a.days)) * 100}%` }} /></span>
-                  <span className="w-10 shrink-0 text-end text-xs"><Num>{d}/{a.days}</Num></span>
-                </li>
-              );
-            })}
-          </ul>
-          {a.extrasCarbShare !== null && <p className="text-xs text-slate-600">{t('من الكارب من حلويات ومشروبات محلاة ومصنّعة: {p}%', { p: Math.round(a.extrasCarbShare * 100) })}</p>}
-        </>
-      )}
-      <p className="text-[11px] text-slate-500">{t('حسب ADA 2026 (14.2): خضار غير نشوية، فواكه كاملة، بقوليات، حبوب كاملة، مكسرات، ألبان؛ وأقل من المشروبات المحلاة والحلويات والمصنّع.')}</p>
-    </Card>
-  );
-}
-
-function CompositionSection({ g }: { g: GrowthNutrition }) {
-  const f = g.fatty;
-  if (!f.meals) return null;
-  return (
-    <Card className="space-y-1.5">
-      <h2 className="font-bold">{t('تركيبة الوجبات')}</h2>
-      <p className="text-sm">{t('وجبات عالية الدهون أو البروتين في آخر 7 أيام: {n} من {m}', { n: f.fatty, m: f.meals })}{f.unknown > 0 && <span className="text-xs text-slate-500"> · {t('{n} بلا بيانات دهون', { n: f.unknown })}</span>}</p>
-      <p className="text-xs text-slate-500">{t('هذه الوجبات قد ترفع السكر متأخرًا (ADA 2026، 14.4). أي تعديل في الإنسولين يقرره فريق السكري.')}</p>
-      <Link to="/analysis?mode=meals" className="inline-flex min-h-[40px] items-center text-sm font-bold text-brand">{t('استجابة السكر للوجبات')} {isEn() ? '›' : '‹'}</Link>
-    </Card>
-  );
 }
 
 /* ----------------------------------------------------------- profile/targets */
@@ -338,7 +337,7 @@ function ProfileSection({ g }: { g: GrowthNutrition }) {
 
 function Sources() {
   return (
-    <details className="rounded-2xl border border-slate-100 bg-white px-4 text-xs text-slate-600">
+    <details className="text-xs text-slate-600">
       <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between text-sm font-bold">{t('المصادر وطريقة الحساب')}<span className="text-slate-300">{isEn() ? '›' : '‹'}</span></summary>
       <ul className="list-disc space-y-1 pb-4 ps-5" dir="ltr">
         <li>Growth: WHO Growth Reference 2007 (5–19 y), girls' LMS tables; WHO z-score method incl. restricted tails beyond ±3 SD. de Onis et al., Bull WHO 2007;85:660–7.</li>
