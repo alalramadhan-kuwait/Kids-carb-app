@@ -2,6 +2,7 @@
 // and the check that turns a plan into what really happened: dose (approved by a parent) → eat time → she ate. A plan
 // is on hold until then; a low first is treated first (with the plan's juice, if it has one).
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { approveDose, ate, deletePlan, planMeal, savePlan, skipPlan, treatFromPlan, usePlans } from '../lib/plans';
 import { useLiveDose } from '../lib/useLiveDose';
@@ -291,8 +292,11 @@ export function PlanLines() {
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(id); }, []);
   const [open, setOpen] = useState<string | null>(null);
   const [edit, setEdit] = useState<PlannedMeal | null>(null);
+  // a reminder opens its plan's check (./#/?plan=id)
+  const [sp, setSp] = useSearchParams();
+  useEffect(() => { const id = sp.get('plan'); if (id) { setOpen(id); setSp({}, { replace: true }); } }, [sp, setSp]);
   const list = upcoming(plans, now);
-  if (!list.length && !edit) return null;
+  if (!list.length && !edit && !open) return null;
   return (
     <>
       {list.length > 0 && <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">{list.map((p) => <li key={p.id}><PlanRow p={p} now={now} onOpen={() => setOpen(p.id)} /></li>)}</ul>}

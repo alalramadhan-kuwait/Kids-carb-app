@@ -3,7 +3,7 @@
 // them. The login is kept in Supabase Vault; the browser can save it but never read it back.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { hostFor, LLU_PRODUCT, LLU_VERSION, LluError, loginProblem, maskEmail, readingsFromGraph, redirectRegion, sensorFrom, sensorReminderDue, sha256Hex, tooSoon } from './lib.ts';
-import { ackMessage, alertMessage, evaluate, recipients, sensorMessage, testMessage, type AlertCfg, type AlertKind, type Lang, type OpenAlert } from './alerts.ts';
+import { ackMessage, alertMessage, evaluate, planMessage, planPushDue, recipients, sensorMessage, testMessage, type AlertCfg, type AlertKind, type Lang, type OpenAlert, type PlanRow } from './alerts.ts';
 import { newVapid, sendPush, type Vapid } from './push.ts';
 
 const cors = {
@@ -124,6 +124,21 @@ async function sensorReminder(db: Db, now: number) {
   await pushAll(db, (lang) => ({ ...sensorMessage(due, ends, (set as any)?.child_name ?? 'ليان', lang), tag: 'sensor', url: './#/status' }), { kind: 'sensor', urgency: 'normal' });
 }
 
+/** Planned meals: one push to both parents at the check, the eat time and a low's recheck; claimed before sending. */
+async function planReminders(db: Db, now: number) {
+  const { data } = await db.from('planned_meals').select('id,status,name,slot,dose_at,eat_after_min,remind_min,recheck_at,notified')
+    .in('status', ['planned', 'dosed']).gte('dose_at', new Date(now - 6 * 3600000).toISOString()).lte('dose_at', new Date(now + 6 * 3600000).toISOString());
+  if (!data?.length) return;
+  const { data: set } = await db.from('settings').select('child_name').eq('id', true).single();
+  for (const p of data as (PlanRow & { id: string })[]) {
+    const due = planPushDue(p, now);
+    if (!due) continue;
+    const { error } = await db.from('planned_meals').update({ notified: { ...(p.notified ?? {}), [due.kind]: due.at } }).eq('id', p.id); // claim first: never twice
+    if (error) { console.error('plans: claim', error.message); continue; }
+    await pushAll(db, (lang) => ({ ...planMessage(due.kind, p, (set as any)?.child_name ?? 'ليان', lang), tag: `plan-${p.id}`, url: `./#/?plan=${p.id}` }), { kind: `plan_${due.kind}`, urgency: 'high' });
+  }
+}
+
 async function runAlerts(db: Db, now: number) {
   const [st, set, last, open, mem] = await Promise.all([
     db.from('cgm_state').select('connected').eq('id', true).single(),
@@ -208,6 +223,7 @@ Deno.serve(async (req) => {
     if (fromCron) {
       try { await runAlerts(db, Date.now()); } catch (e) { console.error('alerts', e instanceof Error ? e.message : e); }
       try { await sensorReminder(db, Date.now()); } catch (e) { console.error('sensor', e instanceof Error ? e.message : e); }
+      try { await planReminders(db, Date.now()); } catch (e) { console.error('plans', e instanceof Error ? e.message : e); }
       return json({ ok: !extra.error, ...extra });
     }
     const st = await state();

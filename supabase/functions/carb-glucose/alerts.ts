@@ -238,3 +238,38 @@ export function sensorMessage(due: '24' | '2', endsAt: number, child: string, la
   const body = en ? `At ${at}. Have a new sensor ready.` : `الساعة ${at}. جهّزوا حساسًا جديدًا.`;
   return { title, body };
 }
+
+// ── Planned meals: a push at the check (the reminder before the dose), at the eat time and at a low's recheck ──
+export type PlanPush = 'check' | 'eat' | 'recheck';
+export interface PlanRow { status: string; name: string; slot: string; dose_at: string; eat_after_min: number; remind_min: number; recheck_at: string | null; notified: Record<string, string> | null }
+const LATE_MIN = 30; // a reminder more than this late is not sent: the moment has passed
+
+/** The reminder a plan is due for now, if any. Each goes out once for the time it is about (moving that time sends it
+ *  again), and none is sent once the moment is long past. */
+export function planPushDue(p: PlanRow, now: number): { kind: PlanPush; at: string } | null {
+  const sent = p.notified ?? {};
+  const due = (kind: PlanPush, at: number) => (now >= at && now - at <= LATE_MIN * MIN && sent[kind] !== new Date(at).toISOString() ? { kind, at: new Date(at).toISOString() } : null);
+  const dose = Date.parse(p.dose_at);
+  if (p.status === 'dosed') return due('eat', dose + p.eat_after_min * MIN);
+  if (p.status !== 'planned') return null;
+  if (p.recheck_at) return due('recheck', Date.parse(p.recheck_at));
+  return due('check', dose - p.remind_min * MIN);
+}
+
+const SLOT_AR: Record<string, string> = { breakfast: 'الفطور', lunch: 'الغداء', dinner: 'العشاء', snack: 'السناك' };
+const SLOT_EN: Record<string, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
+const kwClock = (ms: number) => { const k = new Date(ms + 3 * 3600000); return `${String(k.getUTCHours()).padStart(2, '0')}:${String(k.getUTCMinutes()).padStart(2, '0')}`; };
+
+export function planMessage(kind: PlanPush, p: PlanRow, child: string, lang: Lang = 'ar') {
+  const en = lang === 'en', name = childName(child, lang), meal = (en ? SLOT_EN : SLOT_AR)[p.slot] ?? p.name;
+  const dose = Date.parse(p.dose_at);
+  if (kind === 'check') return en
+    ? { title: `${meal} plan · dose at ${kwClock(dose)}`, body: `Open it to check ${name}'s glucose and approve the dose.` }
+    : { title: `خطة ${meal} · الجرعة ${kwClock(dose)}`, body: `افتحوها لفحص سكر ${name} وتأكيد الجرعة.` };
+  if (kind === 'eat') return en
+    ? { title: `Time to eat: ${meal}`, body: `${p.eat_after_min} min since the dose. Tap “She ate” after.` }
+    : { title: `وقت الأكل: ${meal}`, body: `مرّت ${p.eat_after_min} د على الجرعة. بعد الأكل اضغطوا «أكلت».` };
+  return en
+    ? { title: `Recheck ${name}'s glucose`, body: `15 min since the treatment. Open the ${meal.toLowerCase()} plan before the dose.` }
+    : { title: `أعيدوا قياس سكر ${name}`, body: `مرّت 15 د على العلاج. افتحوا خطة ${meal} قبل الجرعة.` };
+}

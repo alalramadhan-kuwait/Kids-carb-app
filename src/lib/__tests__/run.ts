@@ -995,6 +995,34 @@ console.log('status page');
   });
 }
 
+{
+  const { planPushDue, planMessage } = await import('../../../supabase/functions/carb-glucose/alerts');
+  const M = 60000, DOSE = Date.UTC(2026, 9, 5, 4, 0); // 07:00 Kuwait
+  const p = { status: 'planned', name: 'synthetic toast', slot: 'breakfast', dose_at: new Date(DOSE).toISOString(), eat_after_min: 10, remind_min: 10, recheck_at: null as string | null, notified: {} as Record<string, string> };
+  test('plan reminders: the check 10 min before the dose, once', () => {
+    assert.equal(planPushDue(p, DOSE - 11 * M), null);
+    const d = planPushDue(p, DOSE - 10 * M)!; assert.equal(d.kind, 'check');
+    assert.equal(planPushDue({ ...p, notified: { check: d.at } }, DOSE - 9 * M), null, 'sent once');
+    assert.equal(planPushDue({ ...p, notified: { check: d.at }, dose_at: new Date(DOSE + 30 * M).toISOString() }, DOSE + 20 * M)!.kind, 'check', 'a moved dose time reminds again');
+    assert.equal(planPushDue(p, DOSE + 25 * M), null, 'long past: not sent');
+  });
+  test('plan reminders: eat time after the dose, recheck after a treatment, nothing once done', () => {
+    assert.equal(planPushDue({ ...p, status: 'dosed' }, DOSE + 9 * M), null);
+    assert.equal(planPushDue({ ...p, status: 'dosed' }, DOSE + 10 * M)!.kind, 'eat');
+    const rc = new Date(DOSE + 15 * M).toISOString();
+    assert.equal(planPushDue({ ...p, recheck_at: rc, notified: { check: 'x' } }, DOSE + 14 * M), null);
+    assert.equal(planPushDue({ ...p, recheck_at: rc }, DOSE + 15 * M)!.kind, 'recheck');
+    assert.equal(planPushDue({ ...p, status: 'eaten' }, DOSE + 10 * M), null);
+    assert.equal(planPushDue({ ...p, status: 'skipped' }, DOSE - 10 * M), null);
+  });
+  test('plan reminder text, in both languages', () => {
+    assert.equal(planMessage('check', p, 'ليان', 'en').title, 'Breakfast plan · dose at 07:00');
+    assert.equal(planMessage('check', p, 'ليان', 'ar').title, 'خطة الفطور · الجرعة 07:00');
+    assert.ok(planMessage('eat', p, 'ليان', 'en').body.startsWith('10 min since the dose'));
+    assert.ok(planMessage('recheck', p, 'ليان', 'en').title.includes('Layan'));
+  });
+}
+
 console.log('dose calculator');
 
 {
