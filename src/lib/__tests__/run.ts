@@ -520,24 +520,40 @@ test('escalation: nobody answers within the set minutes, the backup parent is to
   assert.deepEqual(recipients([{ user_id: 'dad', alert_role: 'backup' }], 'alert'), ['dad']); // no primary: nobody is left out
 });
 
-test('alert wording is facts only, in her unit', () => {
-  const m = alertMessage('low', 'alert', { child: 'ليان', value: 63, trend: 2, unit: 'mmol', minutes: 4 });
-  assert.equal(m.title, 'ليان: منخفض 3.5 ↘'); assert.equal(m.body, 'منذ 4 د · خطة الطبيب');
-  assert.equal(alertMessage('no_data', 'alert', { child: 'ليان', value: null, trend: null, unit: 'mgdl', minutes: 21 }).title, 'ليان: لا توجد قراءة منذ 21 د');
-  for (const k of ['urgent_low', 'low', 'high', 'no_data', 'rapid_fall', 'rapid_rise'] as const) for (const n of ['alert', 'repeat', 'resolved', 'escalate'] as const) {
-    const t = Object.values(alertMessage(k, n, { child: 'ليان', value: 60, trend: 1, unit: 'mgdl', minutes: 3 })).join(' ');
-    assert.ok(!/وحد|غرام|جرام|أعط|اعط|جرعة/.test(t), t);
+test('push wording: what is happening first, then glucose now, then what it means; no names, source or doses', () => {
+  const I = (x: string) => `\u2066${x}\u2069`;
+  const pl = alertMessage('predicted_low', 'alert', { value: 94, trend: 3, unit: 'mmol', minutes: 0, low: 70, rate: -1.2, ahead: 20 });
+  assert.equal(pl.title, '🟠 انخفاض متوقع خلال 20 دقيقة');
+  assert.equal(pl.body, `الآن ${I('5.2 →')} ملمول/ل\nقد ينزل تحت ${I('3.9')}`);
+  assert.equal(pl.urgency, 'high');
+  const ul = alertMessage('urgent_low', 'alert', { value: 50, trend: 1, unit: 'mmol', minutes: 0 });
+  assert.equal(ul.title, '🔴 منخفض جدًا · عالجوا الآن'); assert.equal(ul.body, `الآن ${I('2.8 ↓')} ملمول/ل`); assert.equal(ul.severity, 'urgent');
+  const lo = alertMessage('low', 'repeat', { value: 63, trend: 2, unit: 'mmol', minutes: 34 });
+  assert.equal(lo.title, '🟠 ما زال منخفضًا'); assert.equal(lo.body, `الآن ${I('3.5 ↘')} ملمول/ل\nمنذ 34 دقيقة`);
+  assert.equal(alertMessage('high', 'alert', { value: 250, trend: 4, unit: 'mgdl', minutes: 75 }).title, '🟠 مرتفع منذ ساعة و15 دقيقة');
+  assert.equal(alertMessage('rapid_rise', 'alert', { value: 160, trend: 5, unit: 'mgdl', minutes: 2 }).urgency, 'normal');
+  assert.equal(alertMessage('no_data', 'alert', { value: null, trend: null, unit: 'mgdl', minutes: 21 }).title, '🟠 لا توجد قراءة منذ 21 دقيقة');
+  assert.equal(alertMessage('low', 'resolved', { value: 90, trend: 4, unit: 'mgdl', minutes: 30 }).title, '✅ انتهى الانخفاض');
+  const rf = alertMessage('rapid_fall', 'alert', { value: 130, trend: 1, unit: 'mgdl', minutes: 2, low: 70, rate: -3 });
+  assert.equal(rf.body, `الآن ${I('130 ↓')} ملغ/دل\nقد ينزل تحت ${I('70')} خلال 20 دقيقة`);
+  for (const k of ['urgent_low', 'low', 'predicted_low', 'high', 'no_data', 'rapid_fall', 'rapid_rise'] as const) for (const n of ['alert', 'repeat', 'resolved', 'escalate'] as const) {
+    const m = alertMessage(k, n, { value: 60, trend: 1, unit: 'mgdl', minutes: 3, low: 70, rate: -2 });
+    const t = m.title + '\n' + m.body;
+    assert.ok(!/ليان|خطة الطبيب|وحد|غرام|جرام|أعط|اعط|جرعة|[A-Za-z]/.test(t), t);
+    assert.ok(/^[🔴🟠🔵✅]/u.test(m.title), m.title);
+    assert.ok(m.body.split('\n').length <= 2, m.body);
   }
 });
 
-test('English push alerts: her name in English, same facts, no dose or grams', () => {
-  const m = alertMessage('low', 'alert', { child: 'ليان', value: 63, trend: 2, unit: 'mmol', minutes: 4 }, 'en');
-  assert.equal(m.title, 'Layan: Low 3.5 ↘'); assert.equal(m.body, "for 4 min · doctor's plan");
-  assert.equal(alertMessage('no_data', 'escalate', { child: 'ليان', value: null, trend: null, unit: 'mgdl', minutes: 21 }, 'en').title, 'No one answered · Layan: no reading for 21 min');
-  assert.equal(ackMessage('urgent_low', 'ليان', null, 'treated', 'en').title, 'A parent treated it ✓');
-  for (const k of ['urgent_low', 'low', 'high', 'no_data', 'rapid_fall', 'rapid_rise'] as const) for (const n of ['alert', 'repeat', 'resolved', 'escalate'] as const) {
-    const t = Object.values(alertMessage(k, n, { child: 'ليان', value: 60, trend: 1, unit: 'mgdl', minutes: 3 }, 'en')).join(' ');
-    assert.ok(!/[\u0600-\u06FF]|unit|gram|give|dose|take /i.test(t), t);
+test('push wording in English: same layout, no Arabic, no doses', () => {
+  const m = alertMessage('predicted_low', 'alert', { value: 94, trend: null, unit: 'mmol', minutes: 0, low: 70, rate: -1.2 }, 'en');
+  assert.equal(m.title, '🟠 Low expected in 20 min');
+  assert.equal(m.body, 'Now \u20665.2 ↘\u2069 mmol/L\nMay drop below \u20663.9\u2069');
+  assert.equal(alertMessage('no_data', 'escalate', { value: null, trend: null, unit: 'mgdl', minutes: 21 }, 'en').title, '🔴 No one answered · no reading for 21 min');
+  assert.equal(ackMessage('urgent_low', null, 'treated', 'en').title, '✅ A parent treated it');
+  for (const k of ['urgent_low', 'low', 'predicted_low', 'high', 'no_data', 'rapid_fall', 'rapid_rise'] as const) for (const n of ['alert', 'repeat', 'resolved', 'escalate'] as const) {
+    const t = Object.values(alertMessage(k, n, { value: 60, trend: 1, unit: 'mgdl', minutes: 3, low: 70, rate: -2 }, 'en')).join(' ');
+    assert.ok(!/[\u0600-\u06FF]|Layan|unit|gram|give|dose|take /i.test(t), t);
   }
 });
 
@@ -1027,10 +1043,11 @@ console.log('status page');
     assert.equal(planPushDue({ ...p, status: 'skipped' }, DOSE - 10 * M), null);
   });
   test('plan reminder text, in both languages', () => {
-    assert.equal(planMessage('check', p, 'ليان', 'en').title, 'Breakfast plan · dose at 07:00');
-    assert.equal(planMessage('check', p, 'ليان', 'ar').title, 'خطة الفطور · الجرعة 07:00');
-    assert.ok(planMessage('eat', p, 'ليان', 'en').body.startsWith('10 min since the dose'));
-    assert.ok(planMessage('recheck', p, 'ليان', 'en').title.includes('Layan'));
+    assert.equal(planMessage('check', p, 'en').title, '🔵 Breakfast plan · dose at \u206607:00\u2069');
+    assert.equal(planMessage('check', p, 'ar', { mg: 94, trend: 3, unit: 'mmol' }).body, 'الآن \u20665.2 →\u2069 ملمول/ل\nافحصوا السكر وأكّدوا الجرعة');
+    assert.ok(planMessage('eat', p, 'en').body.startsWith('10 min since the dose'));
+    assert.equal(planMessage('eat', p, 'ar').title, '🔵 وقت أكل الفطور');
+    assert.equal(planMessage('recheck', p, 'ar').title, '🟠 أعيدوا قياس السكر');
   });
 }
 

@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.22.0",
+    "notes": [
+      "تنبيهات أوضح تُفهم بنظرة: السطر الأول ماذا يحدث ومتى (مثل «انخفاض متوقع خلال 20 دقيقة»)، ثم السكر الآن واتجاهه، ثم ماذا يعني أو ماذا تفعلون.",
+      "لون الأهمية في بداية التنبيه: 🔴 تصرّفوا الآن، 🟠 يحتاج انتباهًا، 🔵 للعلم، ✅ انتهى.",
+      "حُذف الاسم و«خطة الطبيب» من التنبيهات، والانخفاض المتوقع يُحسب وقته من سرعة النزول الفعلية."
+    ],
+    "notes_en": [
+      "Clearer alerts you can read at a glance: first what is happening and when (e.g. “Low expected in 20 min”), then her glucose now with its direction, then what it means or what to do.",
+      "Severity leads each alert: 🔴 act now, 🟠 needs attention, 🔵 for information, ✅ over.",
+      "The name and “doctor's plan” are gone from alerts, and the time to an expected low comes from how fast she is actually falling."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.21.0",
     "notes": [
       "استجابة الوجبة: جديد قسم «المنتجات» (مثل العصير أو التوست) يُظهر كيف يرتفع السكر بعد المنتج وحده، والارتفاع لكل 10 غ كارب.",

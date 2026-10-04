@@ -3,7 +3,7 @@
 // them. The login is kept in Supabase Vault; the browser can save it but never read it back.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { hostFor, LLU_PRODUCT, LLU_VERSION, LluError, loginProblem, maskEmail, readingsFromGraph, redirectRegion, sensorFrom, sensorReminderDue, sha256Hex, tooSoon } from './lib.ts';
-import { ackMessage, alertMessage, evaluate, planMessage, planPushDue, recipients, sensorMessage, testMessage, type AlertCfg, type AlertKind, type Lang, type OpenAlert, type PlanRow } from './alerts.ts';
+import { ackMessage, alertMessage, evaluate, lowNow, planMessage, planPushDue, rate15, recipients, sensorMessage, testMessage, type AlertCfg, type AlertKind, type Lang, type OpenAlert, type PlanRow } from './alerts.ts';
 import { newVapid, sendPush, type Vapid } from './push.ts';
 
 const cors = {
@@ -121,7 +121,7 @@ async function sensorReminder(db: Db, now: number) {
   if (!due) return;
   await db.from('cgm_state').update({ sensor_reminded: `${s.sensor_sn}:${due}` }).eq('id', true); // claim first: never twice
   const ends = Date.parse(s.sensor_started_at) + days * 86400000;
-  await pushAll(db, (lang) => ({ ...sensorMessage(due, ends, (set as any)?.child_name ?? 'ليان', lang), tag: 'sensor', url: './#/status' }), { kind: 'sensor', urgency: 'normal' });
+  await pushAll(db, (lang) => ({ ...sensorMessage(due, ends, lang), tag: 'sensor', url: './#/status' }), { kind: 'sensor', urgency: 'normal' });
 }
 
 /** Planned meals: one push to both parents at the check, the eat time and a low's recheck; claimed before sending. */
@@ -129,13 +129,18 @@ async function planReminders(db: Db, now: number) {
   const { data } = await db.from('planned_meals').select('id,status,name,slot,dose_at,eat_after_min,remind_min,recheck_at,notified')
     .in('status', ['planned', 'dosed']).gte('dose_at', new Date(now - 6 * 3600000).toISOString()).lte('dose_at', new Date(now + 6 * 3600000).toISOString());
   if (!data?.length) return;
-  const { data: set } = await db.from('settings').select('child_name').eq('id', true).single();
+  const [{ data: set }, { data: last }] = await Promise.all([
+    db.from('settings').select('glucose_unit').eq('id', true).single(),
+    db.from('glucose_readings').select('taken_at,mg_dl,trend').order('taken_at', { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  const r = last as { taken_at: string; mg_dl: number; trend: number | null } | null;
+  const g = r && now - Date.parse(r.taken_at) <= 15 * 60000 ? { mg: r.mg_dl, trend: r.trend, unit: ((set as any)?.glucose_unit === 'mmol' ? 'mmol' : 'mgdl') as 'mmol' | 'mgdl' } : null;
   for (const p of data as (PlanRow & { id: string })[]) {
     const due = planPushDue(p, now);
     if (!due) continue;
     const { error } = await db.from('planned_meals').update({ notified: { ...(p.notified ?? {}), [due.kind]: due.at } }).eq('id', p.id); // claim first: never twice
     if (error) { console.error('plans: claim', error.message); continue; }
-    await pushAll(db, (lang) => ({ ...planMessage(due.kind, p, (set as any)?.child_name ?? 'ليان', lang), tag: `plan-${p.id}`, url: `./#/?plan=${p.id}` }), { kind: `plan_${due.kind}`, urgency: 'high' });
+    await pushAll(db, (lang) => ({ ...planMessage(due.kind, p, lang, g), tag: `plan-${p.id}`, url: `./#/?plan=${p.id}` }), { kind: `plan_${due.kind}`, urgency: 'high' });
   }
 }
 
@@ -179,8 +184,10 @@ async function runAlerts(db: Db, now: number) {
       ? (latest ? (now - Date.parse(latest.taken_at)) / 60000 : 0)
       : (now - Date.parse(startedAt)) / 60000;
     const value = step.kind === 'no_data' ? null : (latest?.mg_dl ?? null);
-    const msg = (lang: Lang) => alertMessage(step.kind, step.notify!, { child: s.child_name, value, trend: latest?.trend ?? null, unit: s.glucose_unit === 'mmol' ? 'mmol' : 'mgdl', minutes, ahead: s.alert_predict_low_min ?? null }, lang);
-    await pushAll(db, (lang) => { const m = msg(lang); return { title: m.title, body: m.body, tag: `alert-${step.kind}`, url: './#/', kind: step.kind, sticky: step.kind === 'urgent_low' && step.notify !== 'resolved' }; },
+    const fresh = latest && now - Date.parse(latest.taken_at) <= 15 * 60000;
+    const msg = (lang: Lang) => alertMessage(step.kind, step.notify!, { value, trend: latest?.trend ?? null, unit: s.glucose_unit === 'mmol' ? 'mmol' : 'mgdl', minutes,
+      low: lowNow(now, cfg), rate: fresh ? rate15(readings) : null, ahead: s.alert_predict_low_min ?? null }, lang);
+    await pushAll(db, (lang) => { const m = msg(lang); return { title: m.title, body: m.body, tag: `alert-${step.kind}`, url: './#/', kind: step.kind, sticky: m.severity === 'urgent' }; },
       { kind: step.notify, alertId: id, urgency: msg('ar').urgency, users: recipients(members, step.notify) });
   }
 }
@@ -255,11 +262,8 @@ Deno.serve(async (req) => {
       const mins = Math.min(max, Math.max(5, Number(body.snooze_min) || 15));
       await db.from('alerts').update({ state: 'acknowledged', acknowledged_by: userId, acknowledged_at: new Date().toISOString(), ack_action: act,
         snoozed_until: new Date(Date.now() + mins * 60000).toISOString() }).eq('id', (a as any).id);
-      const [{ data: me }, { data: set }] = await Promise.all([
-        db.from('members').select('display_name').eq('user_id', userId).maybeSingle(),
-        db.from('settings').select('child_name').eq('id', true).single(),
-      ]);
-      const ack = (lang: Lang) => ackMessage((a as any).kind as AlertKind, (set as any)?.child_name ?? 'ليان', (me as any)?.display_name || null, act, lang);
+      const { data: me } = await db.from('members').select('display_name').eq('user_id', userId).maybeSingle();
+      const ack = (lang: Lang) => ackMessage((a as any).kind as AlertKind, (me as any)?.display_name || null, act, lang);
       await pushAll(db, (lang) => ({ title: ack(lang).title, body: ack(lang).body, tag: `alert-${(a as any).kind}`, url: './#/' }), { kind: 'ack', alertId: (a as any).id, urgency: 'normal', except: userId });
       return json({ ok: true, snoozed_min: mins });
     }

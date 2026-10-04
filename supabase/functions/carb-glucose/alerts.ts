@@ -56,6 +56,12 @@ export function profileAt(now: number, cfg: AlertCfg): Profile {
   return 'day';
 }
 
+/** The low limit in effect now (night and school may have their own). */
+export function lowNow(now: number, cfg: AlertCfg): number | null {
+  const p = profileAt(now, cfg);
+  return p === 'night' ? cfg.night?.low ?? cfg.low : p === 'school' ? cfg.school?.low ?? cfg.low : cfg.low;
+}
+
 /** Least-squares slope over the 15 minutes up to the last reading (mg/dL per minute); needs ≥ 3 points over ≥ 5 min, no gap. */
 export function rate15(readings: Reading[]): number | null {
   if (readings.length < 3) return null;
@@ -176,50 +182,101 @@ export function evaluate(now: number, readings: Reading[], cfg: AlertCfg, open: 
 }
 
 // ── wording ────────────────────────────────────────────────────────────────────
-const ARROW: Record<number, string> = { 1: '↓', 2: '↘', 3: '→', 4: '↗', 5: '↑' };
-const fmt = (mg: number, unit: 'mgdl' | 'mmol') => (unit === 'mmol' ? (Math.round((mg / 18.016) * 10) / 10).toFixed(1) : String(Math.round(mg)));
+// Read in 1–2 seconds: the title says what is happening (and when), the first body line the glucose now with its
+// direction, the second (if any) what it means or what to do. Severity leads the title: 🔴 act now, 🟠 needs
+// attention, 🔵 for information, ✅ over. No names, no source, nothing about doses or grams.
 export type Lang = 'ar' | 'en';
+export type Severity = 'urgent' | 'warning' | 'info' | 'ok';
+const MARK: Record<Severity, string> = { urgent: '🔴', warning: '🟠', info: '🔵', ok: '✅' };
 export const ALERT_NAME: Record<AlertKind, string> = {
-  urgent_low: 'منخفض جدًا', low: 'منخفض', predicted_low: 'منخفض متوقع', high: 'مرتفع', no_data: 'لا توجد قراءة', rapid_fall: 'نزول سريع', rapid_rise: 'صعود سريع',
+  urgent_low: 'منخفض جدًا', low: 'منخفض', predicted_low: 'انخفاض متوقع', high: 'مرتفع', no_data: 'لا توجد قراءة', rapid_fall: 'ينزل بسرعة', rapid_rise: 'يرتفع بسرعة',
 };
 const ALERT_NAME_EN: Record<AlertKind, string> = {
   urgent_low: 'Very low', low: 'Low', predicted_low: 'Low expected', high: 'High', no_data: 'No reading', rapid_fall: 'Falling fast', rapid_rise: 'Rising fast',
 };
-/** The stored child name is Arabic; English alerts write her name in English. */
-const childName = (child: string, lang: Lang) => (lang === 'en' && child === 'ليان' ? 'Layan' : child);
+const ARROW: Record<number, string> = { 1: '↓', 2: '↘', 3: '→', 4: '↗', 5: '↑' };
+/** Libre's arrow, else one from the last 15 minutes' rate (mg/dL per minute). */
+const arrowOf = (trend: number | null, rate?: number | null) =>
+  trend ? ARROW[trend] : rate == null ? '' : rate <= -2 ? '↓' : rate <= -1 ? '↘' : rate < 1 ? '→' : rate < 2 ? '↗' : '↑';
+const num = (mg: number, unit: 'mgdl' | 'mmol') => (unit === 'mmol' ? (Math.round((mg / 18.016) * 10) / 10).toFixed(1) : String(Math.round(mg)));
+const LRI = '\u2066', PDI = '\u2069'; // keeps "5.2 ↘" together inside Arabic text
+/** "الآن 5.2 ↘ ملمول/ل": the current value, never mistaken for a forecast. */
+export function nowLine(mg: number, trend: number | null, unit: 'mgdl' | 'mmol', lang: Lang, rate?: number | null) {
+  const a = arrowOf(trend, rate), v = `${LRI}${num(mg, unit)}${a ? ' ' + a : ''}${PDI}`;
+  return lang === 'en' ? `Now ${v} ${unit === 'mmol' ? 'mmol/L' : 'mg/dL'}` : `الآن ${v} ${unit === 'mmol' ? 'ملمول/ل' : 'ملغ/دل'}`;
+}
+/** Minutes in words: "5 دقائق", "20 دقيقة", "ساعة و10 دقائق" / "20 min", "1 h 10 min". */
+export function dur(min: number, lang: Lang) {
+  const m = Math.max(1, Math.round(min));
+  if (lang === 'en') return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ''}`;
+  const mins = (n: number) => (n === 1 ? 'دقيقة' : n === 2 ? 'دقيقتين' : n <= 10 ? `${n} دقائق` : `${n} دقيقة`);
+  const hours = (n: number) => (n === 1 ? 'ساعة' : n === 2 ? 'ساعتين' : n <= 10 ? `${n} ساعات` : `${n} ساعة`);
+  if (m < 60) return mins(m);
+  return m % 60 ? `${hours(Math.floor(m / 60))} و${mins(m % 60)}` : hours(m / 60);
+}
+const sev = (kind: AlertKind, notify: Notify): Severity =>
+  notify === 'resolved' ? 'ok' : notify === 'escalate' || kind === 'urgent_low' ? 'urgent' : kind === 'rapid_rise' ? 'info' : 'warning';
+const join = (...lines: (string | false | null | undefined)[]) => lines.filter(Boolean).join('\n');
 
-/** Push wording, in each parent's app language (carb.members.lang). */
-export function alertMessage(
-  kind: AlertKind, notify: Notify, o: { child: string; value: number | null; trend: number | null; unit: 'mgdl' | 'mmol'; minutes: number; ahead?: number | null }, lang: Lang = 'ar',
-) {
-  const en = lang === 'en', child = childName(o.child, lang);
-  const val = o.value !== null ? `${fmt(o.value, o.unit)}${o.trend ? ' ' + ARROW[o.trend] : ''}` : '';
-  const since = o.minutes < 1 ? (en ? 'now' : 'الآن') : en ? `for ${Math.round(o.minutes)} min` : `منذ ${Math.round(o.minutes)} د`;
-  const plan = en ? "doctor's plan" : 'خطة الطبيب';
-  if (notify === 'resolved') {
-    const title = kind === 'no_data' ? (en ? `${child}: readings are back` : `${child}: رجعت القراءات`) : (en ? `${child}: up to ${val}` : `${child}: ارتفعت إلى ${val}`).trim();
-    return { title, body: en ? 'Alert ended' : 'انتهى التنبيه', urgency: 'normal' as const };
-  }
-  const head = notify === 'escalate' ? (en ? 'No one answered · ' : 'لم يرد أحد · ') : '';
-  const title = kind === 'no_data'
-    ? `${head}${child}: ${en ? `no reading ${since}` : `لا توجد قراءة ${since}`}`
-    : `${head}${child}: ${(en ? ALERT_NAME_EN : ALERT_NAME)[kind]} ${val}`;
-  const body = kind === 'no_data'
-    ? (en ? `Check the sensor and the reading phone · ${plan}` : `تأكد من الحساس وجوال القراءة · ${plan}`)
-    : kind === 'predicted_low'
-    ? (en ? `Falling: may go low within ~${o.ahead ?? 20} min · ${plan}` : `ينزل: قد يصير منخفضًا خلال ~${o.ahead ?? 20} د · ${plan}`)
-    : `${notify === 'repeat' ? (en ? 'Still · ' : 'ما زال · ') : ''}${since} · ${plan}`;
-  return { title, body, urgency: kind === 'high' || kind === 'rapid_rise' ? ('normal' as const) : ('high' as const) };
+export interface AlertFacts {
+  value: number | null; trend: number | null; unit: 'mgdl' | 'mmol'; minutes: number;
+  low?: number | null;  // the low limit in effect now (mg/dL)
+  rate?: number | null; // mg/dL per minute over the last 15 minutes
+  ahead?: number | null; // the "low expected" look-ahead (minutes), when the rate cannot give a time
+}
+/** Minutes until the current fall reaches the low limit, if it is falling. */
+export function minutesToLow(f: AlertFacts): number | null {
+  if (f.value === null || f.low == null || f.rate == null || f.rate >= 0 || f.value <= f.low) return null;
+  return (f.value - f.low) / -f.rate;
 }
 
-export function ackMessage(kind: AlertKind, child: string, who: string | null, action: 'on_it' | 'treated', lang: Lang = 'ar') {
+/** Push wording, in each parent's app language (carb.members.lang). */
+export function alertMessage(kind: AlertKind, notify: Notify, f: AlertFacts, lang: Lang = 'ar') {
+  const en = lang === 'en', s = sev(kind, notify);
+  const now = f.value !== null ? nowLine(f.value, f.trend, f.unit, lang, f.rate) : null;
+  const since = f.minutes >= 1 ? dur(f.minutes, lang) : null;
+  const lowTxt = f.low != null ? `${LRI}${num(f.low, f.unit)}${PDI}` : null;
+  const eta = minutesToLow(f);
+  const out = (title: string, ...body: (string | false | null | undefined)[]) =>
+    ({ title: `${MARK[s]} ${title}`, body: join(...body), urgency: s === 'urgent' || s === 'warning' ? ('high' as const) : ('normal' as const), severity: s });
+
+  if (notify === 'resolved') return kind === 'no_data'
+    ? out(en ? 'Readings are back' : 'رجعت القراءات', now)
+    : out(en ? `${ALERT_NAME_EN[kind]} is over` : kind === 'high' ? 'انتهى الارتفاع' : 'انتهى الانخفاض', now);
+  if (notify === 'escalate') return kind === 'no_data'
+    ? out(en ? `No one answered · no reading for ${since}` : `لم يرد أحد · لا توجد قراءة منذ ${since}`, en ? 'Check the sensor and the phone near her' : 'تأكدوا من الحساس والجوال القريب منها')
+    : out(en ? `No one answered · ${ALERT_NAME_EN[kind]}${since ? ` for ${since}` : ''}` : `لم يرد أحد · ${ALERT_NAME[kind]}${since ? ` منذ ${since}` : ''}`, now, en ? 'Treat now' : 'عالجوا الآن');
+  const still = notify === 'repeat';
+  switch (kind) {
+    case 'urgent_low':
+      return out(en ? (still ? 'Still very low · treat now' : 'Very low · treat now') : still ? 'ما زال منخفضًا جدًا · عالجوا الآن' : 'منخفض جدًا · عالجوا الآن', now, since && (en ? `For ${since}` : `منذ ${since}`));
+    case 'low':
+      return out(en ? (still ? 'Still low' : 'Low · needs treatment') : still ? 'ما زال منخفضًا' : 'منخفض · يحتاج علاجًا', now, since && (en ? `For ${since}` : `منذ ${since}`));
+    case 'predicted_low': {
+      const m = Math.round(eta ?? f.ahead ?? 20);
+      return out(en ? `Low expected in ${dur(m, lang)}` : `انخفاض متوقع خلال ${dur(m, lang)}`, now, lowTxt && (en ? `May drop below ${lowTxt}` : `قد ينزل تحت ${lowTxt}`));
+    }
+    case 'high':
+      return out(en ? `${still ? 'Still high' : 'High'}${since ? ` for ${since}` : ''}` : `${still ? 'ما زال مرتفعًا' : 'مرتفع'}${since ? ` منذ ${since}` : ''}`, now);
+    case 'rapid_fall':
+      return out(en ? 'Falling fast' : 'ينزل بسرعة', now, eta !== null && eta <= 60 && lowTxt && (en ? `May drop below ${lowTxt} in ${dur(eta, lang)}` : `قد ينزل تحت ${lowTxt} خلال ${dur(eta, lang)}`));
+    case 'rapid_rise':
+      return out(en ? 'Rising fast' : 'يرتفع بسرعة', now);
+    default:
+      return out(en ? `${still ? 'Still no' : 'No'} reading for ${since ?? dur(1, lang)}` : `${still ? 'ما زالت لا توجد قراءة' : 'لا توجد قراءة'} منذ ${since ?? dur(1, lang)}`,
+        en ? 'Check the sensor and the phone near her' : 'تأكدوا من الحساس والجوال القريب منها');
+  }
+}
+
+/** Another parent answered: the others know they need not act. */
+export function ackMessage(kind: AlertKind, who: string | null, action: 'on_it' | 'treated', lang: Lang = 'ar') {
   const en = lang === 'en', name = who || (en ? 'A parent' : 'أحد الوالدين');
-  const did = en ? (action === 'treated' ? 'treated it' : 'is on it') : action === 'treated' ? 'عالجها' : 'عليها';
-  return { title: `${name} ${did} ✓`, body: `${childName(child, lang)}: ${(en ? ALERT_NAME_EN : ALERT_NAME)[kind]}`, urgency: 'normal' as const };
+  const did = en ? (action === 'treated' ? 'treated it' : 'is on it') : action === 'treated' ? 'عالجه' : 'يتابعه';
+  return { title: `${MARK.ok} ${name} ${did}`, body: en ? `${ALERT_NAME_EN[kind]} · nothing to do now` : `${ALERT_NAME[kind]} · لا حاجة لفعل شيء الآن`, urgency: 'normal' as const };
 }
 
 export const testMessage = (lang: Lang = 'ar') =>
-  lang === 'en' ? { title: 'Test alert', body: 'Alerts work on this phone' } : { title: 'تنبيه تجربة', body: 'التنبيهات تعمل على هذا الجوال' };
+  lang === 'en' ? { title: `${MARK.info} Test alert`, body: 'Alerts work on this phone' } : { title: `${MARK.info} تنبيه تجربة`, body: 'التنبيهات تعمل على هذا الجوال' };
 
 /** Who is told: first alerts and repeats go to the primary parents (everyone if none is primary); escalation adds the backups. */
 export function recipients(members: { user_id: string; alert_role: string }[], notify: Notify): string[] {
@@ -230,13 +287,12 @@ export function recipients(members: { user_id: string; alert_role: string }[], n
 }
 
 /** Sensor expiry reminder: when it ends, in Kuwait time, so a change can be planned outside school or sleep. */
-export function sensorMessage(due: '24' | '2', endsAt: number, child: string, lang: Lang = 'ar') {
-  const en = lang === 'en', name = childName(child, lang);
+export function sensorMessage(due: '24' | '2', endsAt: number, lang: Lang = 'ar') {
+  const en = lang === 'en';
   const k = new Date(endsAt + 3 * 3600000);
-  const at = `${String(k.getUTCHours()).padStart(2, '0')}:${String(k.getUTCMinutes()).padStart(2, '0')}`;
-  const title = en ? `${name}'s sensor ends ${due === '2' ? 'in 2 hours' : 'within a day'}` : `حساس ${name} ينتهي ${due === '2' ? 'خلال ساعتين' : 'خلال يوم'}`;
-  const body = en ? `At ${at}. Have a new sensor ready.` : `الساعة ${at}. جهّزوا حساسًا جديدًا.`;
-  return { title, body };
+  const at = `${LRI}${String(k.getUTCHours()).padStart(2, '0')}:${String(k.getUTCMinutes()).padStart(2, '0')}${PDI}`;
+  const title = `${MARK.info} ${en ? `Sensor ends ${due === '2' ? 'in 2 hours' : 'within a day'}` : `الحساس ينتهي ${due === '2' ? 'خلال ساعتين' : 'خلال يوم'}`}`;
+  return { title, body: en ? `At ${at} · have a new sensor ready` : `الساعة ${at} · جهّزوا حساسًا جديدًا` };
 }
 
 // ── Planned meals: a push at the check (the reminder before the dose), at the eat time and at a low's recheck ──
@@ -258,18 +314,23 @@ export function planPushDue(p: PlanRow, now: number): { kind: PlanPush; at: stri
 
 const SLOT_AR: Record<string, string> = { breakfast: 'الفطور', lunch: 'الغداء', dinner: 'العشاء', snack: 'السناك' };
 const SLOT_EN: Record<string, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
-const kwClock = (ms: number) => { const k = new Date(ms + 3 * 3600000); return `${String(k.getUTCHours()).padStart(2, '0')}:${String(k.getUTCMinutes()).padStart(2, '0')}`; };
+const kwClock = (ms: number) => { const k = new Date(ms + 3 * 3600000); return `${LRI}${String(k.getUTCHours()).padStart(2, '0')}:${String(k.getUTCMinutes()).padStart(2, '0')}${PDI}`; };
 
-export function planMessage(kind: PlanPush, p: PlanRow, child: string, lang: Lang = 'ar') {
-  const en = lang === 'en', name = childName(child, lang), meal = (en ? SLOT_EN : SLOT_AR)[p.slot] ?? p.name;
+/** Plan reminders; `g` is her glucose now, when there is a recent reading. */
+export function planMessage(kind: PlanPush, p: PlanRow, lang: Lang = 'ar', g?: { mg: number; trend: number | null; unit: 'mgdl' | 'mmol' } | null) {
+  const en = lang === 'en', meal = (en ? SLOT_EN : SLOT_AR)[p.slot] ?? p.name;
+  const now = g ? nowLine(g.mg, g.trend, g.unit, lang) : null;
   const dose = Date.parse(p.dose_at);
-  if (kind === 'check') return en
-    ? { title: `${meal} plan · dose at ${kwClock(dose)}`, body: `Open it to check ${name}'s glucose and approve the dose.` }
-    : { title: `خطة ${meal} · الجرعة ${kwClock(dose)}`, body: `افتحوها لفحص سكر ${name} وتأكيد الجرعة.` };
-  if (kind === 'eat') return en
-    ? { title: `Time to eat: ${meal}`, body: `${p.eat_after_min} min since the dose. Tap “She ate” after.` }
-    : { title: `وقت الأكل: ${meal}`, body: `مرّت ${p.eat_after_min} د على الجرعة. بعد الأكل اضغطوا «أكلت».` };
-  return en
-    ? { title: `Recheck ${name}'s glucose`, body: `15 min since the treatment. Open the ${meal.toLowerCase()} plan before the dose.` }
-    : { title: `أعيدوا قياس سكر ${name}`, body: `مرّت 15 د على العلاج. افتحوا خطة ${meal} قبل الجرعة.` };
+  if (kind === 'check') return {
+    title: `${MARK.info} ${en ? `${meal} plan · dose at ${kwClock(dose)}` : `خطة ${meal} · الجرعة ${kwClock(dose)}`}`,
+    body: join(now, en ? 'Check her glucose and confirm the dose' : 'افحصوا السكر وأكّدوا الجرعة'),
+  };
+  if (kind === 'eat') return {
+    title: `${MARK.info} ${en ? `Time to eat: ${meal}` : `وقت أكل ${meal}`}`,
+    body: join(en ? `${dur(p.eat_after_min, lang)} since the dose` : `مرّت ${dur(p.eat_after_min, lang)} على الجرعة`, en ? 'After eating, tap “She ate”' : 'بعد الأكل اضغطوا «أكلت»'),
+  };
+  return {
+    title: `${MARK.warning} ${en ? 'Recheck her glucose' : 'أعيدوا قياس السكر'}`,
+    body: join(now, en ? `15 min since the low was treated · before the ${meal.toLowerCase()} dose` : `مرّت 15 دقيقة على علاج الانخفاض · قبل جرعة ${meal}`),
+  };
 }
