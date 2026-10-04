@@ -239,4 +239,4 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
   ذراع؟») for each new sensor and changeable in «المزيد ← الحساس». That site is drawn grey with 📡 on the body and is
   never suggested or selectable. Time left shows in Home's status line; on the last day a red card shows the end time
   (the 24 h / 2 h pushes still go to both phones).
-
+- **v15 (Dad, 2.31.1)** — injection-site picture like the care chart Dad sent, but girly: a girl from the back and the front (hair with a bow, pink top, lilac shorts); back of the upper arms (both views), belly around the navel, outer thighs, buttocks (back view, only when enabled). Sides labelled per view.

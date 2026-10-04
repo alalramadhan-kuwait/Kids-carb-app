@@ -71,42 +71,88 @@ export const SITE_NAME: Record<InjectionSite, string> = {
   belly_r: 'بطن يمين', belly_l: 'بطن يسار', thigh_r: 'فخذ يمين', thigh_l: 'فخذ يسار', arm_r: 'ذراع يمين', arm_l: 'ذراع يسار', buttock_r: 'مقعدة يمين', buttock_l: 'مقعدة يسار', // i18n-ok
 };
 
-/** Body (front, as you face her: her right on your left) with the sites; tap a site to choose it. */
+/** Where insulin goes, drawn as a girl seen from the back (left) and the front (right), like the care team's chart:
+ *  back of the upper arms, belly around the navel, outer thighs, buttocks. As you face her front, her right is on
+ *  your left; from the back it is on your right. Tap a site to choose it; the sensor's site is grey and locked. */
 export function BodyMap({ allowed, last, suggest, sel, onPick, now, sensor = null }: { allowed: InjectionSite[]; last: Map<InjectionSite, number>; suggest: InjectionSite | null; sel: InjectionSite | null; onPick: (s: InjectionSite) => void; now: number; sensor?: InjectionSite | null }) {
-  const Z: Partial<Record<InjectionSite, [number, number, number, number]>> = {
-    arm_r: [52, 112, 30, 64], arm_l: [218, 112, 30, 64], belly_r: [106, 146, 42, 52], belly_l: [152, 146, 42, 52], thigh_r: [106, 226, 40, 74], thigh_l: [154, 226, 40, 74],
-  };
+  const SKIN = '#f7e1d3', HAIR = '#6b3b2a', TOP = '#f9a8d4', SHORTS = '#c4b5fd', BOW = '#ec4899';
   const when = (s: InjectionSite) => { const t0 = last.get(s); if (t0 === undefined) return ''; const d = Math.floor((now - t0) / 86400000); return d <= 0 ? t('اليوم') : d === 1 ? t('أمس') : t('{n} أيام', { n: d }); };
+  // one zone: an ellipse (cx, cy, rx, ry) in the figure's own coordinates
+  const zone = (s: InjectionSite, cx: number, cy: number, rx: number, ry: number, label = true) => {
+    if (s === sensor) return (
+      <g key={s + cx} aria-label={t('الحساس')}>
+        <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill="#d9d4e2" stroke="#8a84a0" strokeWidth={1.5} strokeDasharray="4 3" />
+        <text x={cx} y={cy + 5} fontSize="13" textAnchor="middle">📡</text>
+      </g>
+    );
+    if (!allowed.includes(s)) return null;
+    const recent = last.has(s) && now - last.get(s)! < 2 * 86400000;
+    const fill = s === sel ? '#db2777' : s === suggest ? '#d8f5e6' : recent ? '#fff1d6' : '#fde4f0';
+    const stroke = s === sel ? '#9d174d' : s === suggest ? '#1f8a5b' : recent ? '#f0a020' : '#f472b6';
+    const mark = s === sel ? '✓' : s === suggest ? '⭐' : label ? when(s) : '';
+    return (
+      <g key={s + cx} onClick={() => onPick(s)} style={{ cursor: 'pointer' }}>
+        <ellipse cx={cx} cy={cy} rx={rx + 6} ry={ry + 6} fill="transparent" />
+        <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill={fill} stroke={stroke} strokeWidth={s === sel || s === suggest ? 3 : 1.8} />
+        {mark && <text x={cx} y={cy + 4} fontSize={mark.length > 2 ? 8.5 : 12} fontWeight="700" textAnchor="middle" fill={s === sel ? '#fff' : '#3b1a2e'}>{mark}</text>}
+      </g>
+    );
+  };
+  // a girl, centred on x = c; back = seen from behind (no face, hair covers the head)
+  const girl = (c: number, back: boolean) => {
+    const side = (her: 'r' | 'l') => (her === 'r' ? (back ? 1 : -1) : back ? -1 : 1); // where her right/left falls on screen
+    return (
+      <g key={back ? 'back' : 'front'}>
+        {/* long hair behind */}
+        <path d={`M${c - 27},44 C${c - 34},80 ${c - 30},104 ${c - 22},112 L${c + 22},112 C${c + 30},104 ${c + 34},80 ${c + 27},44 Z`} fill={HAIR} />
+        {/* arms */}
+        <path d={`M${c - 33},80 C${c - 46},86 ${c - 50},130 ${c - 48},172 L${c - 36},174 C${c - 36},140 ${c - 34},110 ${c - 26},92 Z`} fill={SKIN} />
+        <path d={`M${c + 33},80 C${c + 46},86 ${c + 50},130 ${c + 48},172 L${c + 36},174 C${c + 36},140 ${c + 34},110 ${c + 26},92 Z`} fill={SKIN} />
+        {/* legs */}
+        <path d={`M${c - 27},176 C${c - 30},220 ${c - 26},262 ${c - 20},292 L${c - 6},292 C${c - 4},250 ${c - 3},210 ${c - 2},180 Z`} fill={SKIN} />
+        <path d={`M${c + 27},176 C${c + 30},220 ${c + 26},262 ${c + 20},292 L${c + 6},292 C${c + 4},250 ${c + 3},210 ${c + 2},180 Z`} fill={SKIN} />
+        {/* body */}
+        <path d={`M${c - 30},82 C${c - 26},120 ${c - 28},150 ${c - 30},180 L${c + 30},180 C${c + 28},150 ${c + 26},120 ${c + 30},82 C${c + 14},74 ${c - 14},74 ${c - 30},82 Z`} fill={SKIN} />
+        <rect x={c - 6} y={60} width={12} height={18} fill={SKIN} />
+        {/* pink top and lilac shorts */}
+        <path d={`M${c - 31},82 C${c - 14},74 ${c + 14},74 ${c + 31},82 L${c + 29},122 C${c + 10},126 ${c - 10},126 ${c - 29},122 Z`} fill={TOP} />
+        <path d={`M${c - 30},164 L${c + 30},164 L${c + 31},200 L${c + 3},200 L${c},188 L${c - 3},200 L${c - 31},200 Z`} fill={SHORTS} />
+        {/* head */}
+        <circle cx={c} cy={40} r={24} fill={back ? HAIR : SKIN} />
+        {!back && <>
+          <path d={`M${c - 25},40 C${c - 24},16 ${c + 24},12 ${c + 25},38 C${c + 12},26 ${c - 6},24 ${c - 25},40 Z`} fill={HAIR} />
+          <circle cx={c - 8} cy={42} r={2.2} fill="#3b1a2e" /><circle cx={c + 8} cy={42} r={2.2} fill="#3b1a2e" />
+          <path d={`M${c - 6},51 Q${c},56 ${c + 6},51`} stroke="#d9467a" strokeWidth={2} fill="none" strokeLinecap="round" />
+          <circle cx={c - 14} cy={49} r={3.5} fill="#f9a8d4" opacity={0.7} /><circle cx={c + 14} cy={49} r={3.5} fill="#f9a8d4" opacity={0.7} />
+          <circle cx={c} cy={142} r={2.4} fill="#e8b9a6" />
+        </>}
+        {/* bow */}
+        <g transform={`translate(${c + 18},${back ? 20 : 18})`}><path d="M0,0 L-9,-6 L-9,6 Z M0,0 L9,-6 L9,6 Z" fill={BOW} /><circle r={2.6} fill="#be185d" /></g>
+        {/* the sites */}
+        {zone('arm_r', c + side('r') * 41, 112, 7.5, 18, false)}
+        {zone('arm_l', c + side('l') * 41, 112, 7.5, 18, false)}
+        {back ? <>
+          {zone('buttock_r', c + side('r') * 15, 180, 13, 12)}
+          {zone('buttock_l', c + side('l') * 15, 180, 13, 12)}
+        </> : <>
+          {zone('belly_r', c + side('r') * 15, 142, 12, 13)}
+          {zone('belly_l', c + side('l') * 15, 142, 12, 13)}
+          {zone('thigh_r', c + side('r') * 19, 232, 9, 24)}
+          {zone('thigh_l', c + side('l') * 19, 232, 9, 24)}
+        </>}
+      </g>
+    );
+  };
   return (
-    <svg viewBox="0 0 300 330" className="w-full" role="img" aria-label={t('أماكن الإبرة')}>
-      <circle cx="150" cy="52" r="30" fill="#f3e1d4" />
-      <rect x="100" y="88" width="100" height="132" rx="34" fill="#f3e1d4" />
-      <rect x="54" y="96" width="34" height="110" rx="17" fill="#f3e1d4" transform="rotate(8 71 96)" />
-      <rect x="212" y="96" width="34" height="110" rx="17" fill="#f3e1d4" transform="rotate(-8 229 96)" />
-      <rect x="104" y="210" width="44" height="112" rx="20" fill="#f3e1d4" />
-      <rect x="152" y="210" width="44" height="112" rx="20" fill="#f3e1d4" />
-      {(Object.keys(Z) as InjectionSite[]).filter((s) => allowed.includes(s) || s === sensor).map((s) => {
-        const [x, y, w, h] = Z[s]!;
-        // the sensor's site: grey, the sensor mark, not tappable (no injection there while it is worn)
-        if (s === sensor) return (
-          <g key={s} aria-label={t('الحساس')}>
-            <rect x={x} y={y} width={w} height={h} rx="12" fill="#d7d3df" stroke="#8a84a0" strokeWidth={1.5} strokeDasharray="4 3" />
-            <circle cx={x + w / 2} cy={y + h / 2} r={Math.min(w, h) / 2 - 3} fill="#fff" stroke="#8a84a0" strokeWidth={2} />
-            <text x={x + w / 2} y={y + h / 2 + 5} fontSize="13" textAnchor="middle">📡</text>
-          </g>
-        );
-        const recent = last.has(s) && now - last.get(s)! < 2 * 86400000;
-        const fill = s === sel ? '#5b48d6' : s === suggest ? '#dcf4e8' : recent ? '#fde3e5' : '#ece5fd';
-        const stroke = s === sel ? '#5b48d6' : s === suggest ? '#1f8a5b' : '#b9a8f0';
-        return (
-          <g key={s} onClick={() => onPick(s)} style={{ cursor: 'pointer' }}>
-            <rect x={x} y={y} width={w} height={h} rx="12" fill={fill} stroke={stroke} strokeWidth={s === suggest || s === sel ? 3 : 1.5} />
-            <text x={x + w / 2} y={y + h / 2 + 5} fontSize="12" fontWeight="700" textAnchor="middle" fill={s === sel ? '#fff' : '#231b3d'}>{s === suggest && s !== sel ? '⭐' : when(s)}</text>
-          </g>
-        );
-      })}
-      <text x="40" y="18" fontSize="12" fill="#8a84a0" textAnchor="middle">{t('يمينها')}</text>
-      <text x="260" y="18" fontSize="12" fill="#8a84a0" textAnchor="middle">{t('يسارها')}</text>
+    <svg viewBox="0 0 360 318" className="w-full" direction="ltr" role="img" aria-label={t('أماكن الإبرة')}>
+      {girl(90, true)}
+      {girl(270, false)}
+      <text x={90} y={312} fontSize="13" fill="#8a84a0" textAnchor="middle">{t('من ورا')}</text>
+      <text x={270} y={312} fontSize="13" fill="#8a84a0" textAnchor="middle">{t('من قدّام')}</text>
+      <text x={42} y={14} fontSize="11" fill="#8a84a0" textAnchor="middle">{t('يسارها')}</text>
+      <text x={138} y={14} fontSize="11" fill="#8a84a0" textAnchor="middle">{t('يمينها')}</text>
+      <text x={222} y={14} fontSize="11" fill="#8a84a0" textAnchor="middle">{t('يمينها')}</text>
+      <text x={318} y={14} fontSize="11" fill="#8a84a0" textAnchor="middle">{t('يسارها')}</text>
     </svg>
   );
 }
