@@ -13,7 +13,7 @@ export const norm = (s: string) => s.toLowerCase()
  * word, the whole group is added to what the item can be found by. Brand names are here too. In Kuwait «عيش» is rice.
  */
 const SAME: string[][] = [ // i18n-ok: data (search words in both languages)
-  ['toast', 'توست'], ['bread', 'خبز'], ['samoon', 'صمون', 'صمونه', 'صمونات'], ['arabic bread', 'pita', 'خبز عربي'], // i18n-ok: data
+  ['toast', 'توست'], ['bread', 'خبز'], ['samoon', 'roll', 'rolls', 'صمون', 'صمونه', 'صمونات', 'رول'], ['arabic bread', 'pita', 'خبز عربي'], // i18n-ok: data
   ['croissant', 'croissants', 'كرواسون', 'كرواسان'], ['puff', 'puffs', 'فطيره', 'فطاير'], // i18n-ok: data
   ['cake', 'cakes', 'كيك', 'كيكه'], ['biscuit', 'biscuits', 'cookie', 'cookies', 'بسكويت'], ['cracker', 'crackers', 'كراكر'], // i18n-ok: data
   ['sandwich', 'sandwiches', 'سندويش', 'سندويشات', 'سندويتش', 'ساندويتش'], ['flour', 'طحين'], // i18n-ok: data
@@ -37,7 +37,7 @@ const SAME: string[][] = [ // i18n-ok: data (search words in both languages)
   ['topi', 'توبي'], ['muratbey', 'موراتبي', 'مراد بي'], // i18n-ok: data
   ['kdd', 'كي دي دي'], ['kfmb', 'المطاحن', 'مطاحن', 'kuwait flour mills'], ['lusine', 'لوزين'], // i18n-ok: data
   ['cupcake', 'cupcakes', 'cup cake', 'cup cakes', 'كب كيك', 'كاب كيك'], ['muffin', 'muffins', 'مافن', 'مفن'], ['brownie', 'براوني'], // i18n-ok: data
-  ['wrap', 'wraps', 'tortilla', 'تورتيلا', 'راب'], ['bun', 'buns', 'burger buns', 'خبز برغر'], ['roll', 'rolls', 'رول'], ['hot dog', 'hotdog', 'هوت دوق', 'هوت دوج'], // i18n-ok: data
+  ['wrap', 'wraps', 'tortilla', 'تورتيلا', 'راب'], ['bun', 'buns', 'burger buns', 'خبز برغر'], ['hot dog', 'hotdog', 'هوت دوق', 'هوت دوج'], // i18n-ok: data
   ['ogaily', 'عقيلي'], ['rugag', 'رقاق'], ['shaboura', 'شابوره'], ['logaimat', 'لقيمات'], ['chappati', 'chapati', 'جباتي'], ['tannur', 'تنور'], // i18n-ok: data
   ['lasagna', 'لازانيا'], ['vermicelli', 'شعيريه'], ['pancake', 'pancakes', 'بان كيك', 'بانكيك'], ['falafel', 'فلافل'], // i18n-ok: data
   ['halloumi', 'حلوم'], ['feta', 'فيتا'], ['coconut', 'جوز هند'], ['caramel', 'كراميل'], ['coffee', 'latte', 'mocha', 'espresso', 'قهوه'], // i18n-ok: data

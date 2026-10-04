@@ -227,4 +227,8 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
   drinks without a serving. Not in the database: McDonald's BBQ sauce, Pepsi/Diet Pepsi, samoon, turkey slices,
   cucumber, labneh (KDD labneh unapproved, 27 g/100 looks wrong). Open question for Dad: a food left out (sent to Dad)
   only warns today — should it stop the dose (samoon is ~half the breakfast's carbs)?
+- **Scenario follow-up (Dad, 2.30.2)** — «صمون» means the Flour Mills and Lusine rolls already in the list: search now
+  links them. Added from official/standard sources (approved, source on each): McDonald's BBQ sauce (11 g a packet),
+  Diet Pepsi (0), cucumber (USDA 3.6 g/100), turkey slices (generic 4.2 g/100), Baladna full-fat labneh (7 g/100).
+  KDD labneh stays unapproved (its store page says 27 g/100).
 

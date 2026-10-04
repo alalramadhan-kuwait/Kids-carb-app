@@ -2022,6 +2022,7 @@ console.log('search');
     assert.ok(matches(['World Famous Fries (Regular)', "McDonald's", 'نشويات'], 'ماكدونالدز'));
     assert.ok(matches(['1.2.3 Cocktail Drink (Kids) 125ml', 'KDD', 'مشروبات'], 'عصير كوكتيل'), 'a fruit drink is «عصير»');
     assert.ok(matches(['Samoon', null, 'خبز'], 'صمونه'));
+    assert.ok(matches(['Rolls', 'المطاحن', 'خبز'], 'صمون') && matches(['Sandwich Rolls', 'لوزين', 'خبز'], 'صمونه لوزين'), 'Flour Mills and Lusine rolls are «صمون»');
     assert.ok(matches(['Turkey Breast Slices', null, 'لحوم'], 'تركي'));
   });
   test('search: either language finds the item (foods, types and brands), whole words only', () => {
