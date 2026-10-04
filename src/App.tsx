@@ -35,7 +35,7 @@ import { Icon } from './components/Icon';
 import type { IconName } from './icons/defs';
 import { More, SnacksPage, SettingsPage } from './pages/More';
 import { themePref } from './lib/theme';
-import { t } from './i18n';
+import { t, useLang } from './i18n';
 import { LangSwitch } from './components/LangSwitch';
 
 function Centered({ children }: { children: React.ReactNode }) {
@@ -259,6 +259,10 @@ export default function App() {
     if (error) { setProblem(error.message); setMember(null); } else setMember(Boolean(data));
   };
   useEffect(() => { if (session) void check(); else setMember(null); }, [session?.user.id]);
+  // push alerts follow this phone's language: send it every time the app opens signed in, so a language chosen
+  // before signing in (or before the server kept it) still reaches the alerts
+  const lang = useLang();
+  useEffect(() => { if (member) void supabase.rpc('set_my_lang', { p_lang: lang }).then(() => undefined, () => undefined); }, [member, lang]);
 
   // a share link (#/s/<token>) is read-only and works without signing in
   const shared = location.hash.match(/^#\/s\/([0-9a-f]{48})$/);
