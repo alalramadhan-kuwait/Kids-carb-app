@@ -128,6 +128,18 @@ export interface Settings {
   child_birth_date?: string | null; child_birth_approx?: boolean; child_sex?: 'female' | 'male' | null;
   activity_level?: 'inactive' | 'low_active' | 'active' | 'very_active' | null;
   nutrition_targets?: import('../engine/nutrition').Targets;
+  /** care team: minutes between the rapid dose and eating (planned meals' eat time); null = eat right after */
+  dose_to_meal_min?: number | null;
+}
+
+/** One item of a planned meal: what a recipe ingredient holds, recomputed from the products when it is checked. */
+export type PlanItem = Pick<Ingredient, 'product_id' | 'slot_category' | 'label' | 'quantity' | 'unit' | 'state' | 'role'>;
+export interface PlannedMeal {
+  id: string; for_date: string; slot: 'breakfast' | 'lunch' | 'dinner' | 'snack'; name: string; recipe_id: string | null;
+  items: PlanItem[]; dose_at: string; eat_after_min: number; remind_min: number;
+  status: 'planned' | 'dosed' | 'eaten' | 'skipped';
+  dose_event_id: string | null; treatment_event_id: string | null; history_id: string | null;
+  recheck_at: string | null; dosed_at: string | null; eaten_at: string | null; note: string | null; created_by: string | null;
 }
 
 export interface HistoryLine {

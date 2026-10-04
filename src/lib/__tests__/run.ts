@@ -1531,6 +1531,42 @@ console.log('editing the items of a logged meal');
   });
 }
 
+console.log('planned meals');
+
+{
+  const MP = await import('../../engine/mealPlan');
+  const D = await import('../../engine/dose');
+  const M = 60000, at = (h: number, m = 0) => Date.UTC(2026, 9, 5, h - 3, m); // Kuwait time on 5 Oct
+  const plan = { dose_at: new Date(at(6, 40)).toISOString(), eat_after_min: 10, remind_min: 10, status: 'planned' as const, recheck_at: null };
+  test('planned meal: on hold until the reminder, then check; after the dose, wait 10 min to eat; done once eaten', () => {
+    assert.equal(MP.phase(plan, at(-2)), 'later', 'planned at 10 pm the night before');
+    assert.equal(MP.phase(plan, at(6, 29)), 'later');
+    assert.equal(MP.phase(plan, at(6, 30)), 'check', 'reminder 10 min before the dose');
+    const dosed = { ...plan, status: 'dosed' as const, dose_at: new Date(at(6, 42)).toISOString() };
+    assert.equal(MP.phase(dosed, at(6, 45)), 'wait_to_eat'); assert.equal(MP.eatAt(dosed), at(6, 52));
+    assert.equal(MP.phase(dosed, at(6, 52)), 'eat_now');
+    assert.equal(MP.phase({ ...plan, status: 'eaten' }, at(7)), 'done');
+    const treated = { ...plan, recheck_at: new Date(at(6, 46)).toISOString() };
+    assert.equal(MP.phase(treated, at(6, 40)), 'recheck'); assert.equal(MP.phase(treated, at(6, 46)), 'check');
+    assert.equal(MP.upcoming([plan, { ...plan, status: 'eaten' }], at(-2)).length, 1, 'shown on Now from 10 pm: dose within 12 h');
+  });
+  test('planned meal rehearsal: 48.8 g previews 3 U; low at 6:30 means treat first; after the juice, toast only gives 1 U', () => {
+    assert.equal(MP.expectedDose(48.8, 15, 1), 3);
+    const base = { ratio: { from: '00:00', cr: 15, isf: 54 }, target: { low: 99, high: 117 }, lowMg: 70, sensorStartedAt: null, iob: 0, lastRapidAt: null, gapMin: 120, step: 1 };
+    const low = D.suggestDose({ ...base, now: at(6, 30), carbs: 48.8, glucose: { mg: 63, at: at(6, 29), level: -1 } });
+    assert.equal(low.block, 'low');
+    const a = MP.planAlerts({ block: low.block, carbs: 48.8, fat: 15, protein: 12, maxCarbs: 60, fastDrinkCarbs: 18.75, lastLowAt: at(3, 52), now: at(6, 30) });
+    assert.deepEqual(a.map((x) => x.key), ['treat_first', 'recent_low', 'fast_drink', 'fatty']);
+    assert.equal(a[0].tone, 'red');
+    const after = D.suggestDose({ ...base, now: at(6, 46), carbs: 30, glucose: { mg: 90, at: at(6, 45), level: 1 } });
+    assert.equal(after.block, null); assert.equal(after.dose, 1, '30 ÷ 15 = 2, minus (99 − 90) ÷ 54, rounded down');
+    const normal = D.suggestDose({ ...base, now: at(6, 30), carbs: 48.8, glucose: { mg: 115, at: at(6, 29), level: 0 } });
+    assert.equal(normal.dose, 3);
+    assert.equal(MP.isFastDrink({ role: 'main', unit: 'ml' }, 'مشروبات', 18.75), true);
+    assert.equal(MP.isFastDrink({ role: 'main', unit: 'g' }, 'خبز', 30), false);
+  });
+}
+
 console.log('editing entries');
 
 {

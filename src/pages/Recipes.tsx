@@ -12,6 +12,7 @@ import { uploadPhoto } from '../lib/supabase';
 import type { Ingredient } from '../lib/types';
 import { Alert, Badge, Btn, CarbBadge, Card, Chip, Nutrition, NumInput, Page, Photo, Sheet, cx, recipeArt, toast } from '../components/ui';
 import { lineName, useChoose } from '../components/meal';
+import { PlanSheet } from '../components/Plans';
 import { isEn, t, tMaybe } from '../i18n';
 
 export function RecipeList() {
@@ -67,6 +68,7 @@ export function RecipeView() {
     ? computeMeal(ings.filter((i) => !(i.role === 'drink' && skip.drink) && !(i.role === 'snack' && skip.snack)), products, settings)
     : shown), [skip, ings, products, settings, shown]);
   const { choose, busy } = useChoose();
+  const [planning, setPlanning] = useState(false);
   const [linking, setLinking] = useState<Ingredient | null>(null);
   const link = async (productId: string | null) => {
     if (!linking) return;
@@ -202,6 +204,8 @@ export function RecipeView() {
       {recipe.instructions && <Card className="mb-3"><h2 className="mb-1 font-bold">{t('طريقة التحضير')}</h2><p className="whitespace-pre-line leading-loose text-slate-700">{recipe.instructions}</p></Card>}
       {recipe.notes && <Card className="mb-3"><h2 className="mb-1 font-bold">{t('ملاحظات')}</h2><p className="whitespace-pre-line text-slate-700">{recipe.notes}</p></Card>}
 
+      <Btn block kind="soft" className="mb-2" disabled={!meal.complete} onClick={() => setPlanning(true)}>{t('خطّط لوقت لاحق (جرعة ووقت أكل)')}</Btn>
+      <PlanSheet open={planning} seed={{ name: recipe.name, recipe_id: recipe.id, items: meal.lines.map((l) => ({ product_id: l.ing.product_id, slot_category: l.ing.slot_category, label: l.ing.label, quantity: l.ing.quantity, unit: l.ing.unit, state: l.ing.state, role: l.ing.role })) }} onClose={() => setPlanning(false)} />
       <div className="grid grid-cols-2 gap-2">
         <Btn kind="primary" disabled={busy || !meal.complete}
           onClick={async () => { if (await choose({ kind: 'meal', recipe_id: recipe.id, name: recipe.name, category: recipe.category, meal, modified })) nav('/'); }}>{t('اخترناها اليوم')}</Btn>

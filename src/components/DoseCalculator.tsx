@@ -1,22 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLiveDose } from '../lib/useLiveDose';
 import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
-import { callGlucose } from '../lib/api';
-import { formatGlucose, unitLabel, type GlucoseState } from '../lib/glucose';
+import { formatGlucose, unitLabel } from '../lib/glucose';
 import { fmt } from '../lib/carbs';
-import { kuwaitClock } from '../lib/schedule';
-import { carbsFrom, dosesFrom, iobAt, iobParamsOk } from '../engine/iob';
-import { ratioAt } from '../engine/status';
-import { suggestDose, type DoseBlock } from '../engine/dose';
-import { levelFromLibre, trendFrom } from '../engine/trend';
+import { carbsFrom, dosesFrom } from '../engine/iob';
+import type { DoseBlock } from '../engine/dose';
 import type { DoseCalc } from '../lib/types';
 import { NumInput, cx } from './ui';
 import { locale, t } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
 
 const MIN = 60000;
-/** Of the app's arrow and Libre's, the one pointing lower: no dose if either says falling fast. */
-const cautious = (a: number | null, b: number | null) => (a === null ? b : b === null ? a : Math.min(a, b));
 const n1 = (x: number) => (Math.round(x * 10) / 10).toFixed(1);
 const clock = (ms: number) => new Date(ms).toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit', hour12: true, numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
 
@@ -26,38 +21,18 @@ const clock = (ms: number) => new Date(ms).toLocaleTimeString(locale(), { hour: 
  */
 export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'meal' | 'correction' | 'both', calc: DoseCalc) => void }) {
   const { settings: s, history, events } = useData();
-  const [g, setG] = useState<GlucoseState | null>(null);
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const load = () => { setNow(Date.now()); callGlucose({ action: 'status' }).then(setG).catch(() => setG(null)); };
-    load();
-    const id = setInterval(load, MIN);
-    return () => clearInterval(id);
-  }, []);
-
-  const doses = useMemo(() => dosesFrom(events), [events]);
-  const lastRapidAt = doses.reduce<number | null>((m, d) => (d.t <= now && (m === null || d.t > m) ? d.t : m), null);
+  const [carbs, setCarbs] = useState<number | null>(null);
+  const { g, now, latest, iob, ratio, target, r } = useLiveDose(carbs ?? 0);
+  const lastRapidAt = useMemo(() => dosesFrom(events).reduce<number | null>((m, d) => (d.t <= now && (m === null || d.t > m) ? d.t : m), null), [events, now]);
   // carbs logged in the last 30 minutes and not yet covered by a rapid dose
   const recentCarbs = useMemo(() => carbsFrom(history, events)
     .filter((c) => c.t <= now && now - c.t <= 30 * MIN && (lastRapidAt === null || c.t > lastRapidAt))
     .reduce((sum, c) => sum + c.grams, 0), [history, events, now, lastRapidAt]);
-  const [carbs, setCarbs] = useState<number | null>(null);
   const box = useRef<HTMLElement>(null);
   // when the keyboard opens for the carbs, bring the whole calculator up so its answer stays in view
   const lift = () => window.setTimeout(() => box.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 350);
   useEffect(() => { setCarbs((c) => (c === null && recentCarbs > 0 ? Math.round(recentCarbs) : c)); }, [recentCarbs]);
 
-  const iobP = s.iob_dia_min && s.iob_peak_min ? { dia: s.iob_dia_min, peak: s.iob_peak_min } : null;
-  const iob = iobParamsOk(iobP) ? iobAt(now, doses, iobP) : null;
-  const ratio = ratioAt(s.ratios ?? [], kuwaitClock(now).min);
-  const target = s.target_mgdl !== null && s.target_high_mgdl !== null ? { low: s.target_mgdl, high: s.target_high_mgdl } : null;
-  const latest = g?.latest ?? null;
-  const r = suggestDose({
-    now, carbs: carbs ?? 0, ratio, target, lowMg: s.alert_low_mgdl ?? s.glucose_low_mgdl,
-    glucose: latest ? { mg: latest.mg_dl, at: Date.parse(latest.taken_at), level: cautious((g ? trendFrom(g.readings, now) : null)?.level ?? null, levelFromLibre(latest.trend)) } : null,
-    sensorStartedAt: g?.sensor?.started_at ? Date.parse(g.sensor.started_at) : null,
-    iob, lastRapidAt, gapMin: s.dose_gap_min ?? 120, step: s.pen_step ?? 1,
-  });
   const unit = s.glucose_unit, gl = (mg: number) => formatGlucose(mg, unit);
 
   const BLOCK: Record<DoseBlock, string> = {

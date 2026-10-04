@@ -1,6 +1,22 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.19.0",
+    "notes": [
+      "جديد: خطة وجبة لوقت لاحق (من «الوجبات» أو من أي وصفة): اختاروا الأصناف ووقت الجرعة، ويظهر وقت الأكل (بعد الجرعة بـ 10 د). تبقى الخطة معلّقة حتى تأكيدها.",
+      "وقت الجرعة: افتحوا الخطة من «الآن» لتروا السكر الحالي والتنبيهات والجرعة من خطة الطبيب، ثم «أعطوا … الآن» ووقت الأكل، ثم «أكلت: كلها / ¾ / ½ / ¼» لتسجيل الوجبة.",
+      "إذا كانت منخفضة: عالجوا أولًا، ويمكن استخدام عصير الخطة كعلاج مع إعادة القياس بعد 15 د.",
+      "الخطط مشتركة بين الهاتفين، والسجل يعرض فقط ما حدث فعلًا."
+    ],
+    "notes_en": [
+      "New: plan a meal for later (from Meals or any recipe): pick the items and the dose time, and the eat time shows (10 min after the dose). The plan stays on hold until you confirm it.",
+      "At dose time: open the plan from Now to see her glucose, alerts and the dose from the doctor's plan, then “Give … now” and the eat time, then “She ate: all / ¾ / ½ / ¼” to log the meal.",
+      "If she is low: treat first. The plan's juice can be used as the treatment, with a recheck after 15 min.",
+      "Plans are shared between both phones, and the Log shows only what actually happened."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.18.0",
     "notes": [
       "السجل: الوجبة المأخوذة من وصفة يظهر تحتها «وصفة»، وعند فتحها رابط للوصفة.",

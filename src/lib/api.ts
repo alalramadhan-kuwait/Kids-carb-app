@@ -90,7 +90,7 @@ export async function logMeal(input: {
     total_iron: meal.micro.iron === null ? null : r(meal.micro.iron), total_potassium: meal.micro.potassium === null ? null : Math.round(meal.micro.potassium),
     total_vit_d: meal.micro.vit_d === null ? null : r(meal.micro.vit_d),
     modified: input.modified, lines, notes: input.notes ?? null,
-  }));
+  }).select('id').single()) as { id: string };
 }
 
 export const deleteHistory = async (id: string) => ok(await supabase.from('meal_history').delete().eq('id', id));

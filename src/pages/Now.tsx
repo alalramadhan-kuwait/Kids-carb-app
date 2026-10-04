@@ -37,6 +37,7 @@ import { TrendArrow, TrendLine } from '../components/Trend';
 import { NextDose } from '../components/NextDose';
 import { OnBoardLanes } from '../components/OnBoardLanes';
 import { GrowthCard } from '../components/GrowthCard';
+import { PlanLines } from '../components/Plans';
 import { arrowSource, shownLevel } from '../lib/arrowChoice';
 
 const TONE_DOT: Record<Tone, string> = { ok: 'bg-ok-fill', low: 'bg-over-fill', urgent: 'bg-over', high: 'bg-near-fill', warn: 'bg-near-fill', plain: 'bg-slate-300' };
@@ -149,6 +150,7 @@ export default function Now() {
               <span className="text-slate-600">{t('ضمن النطاق')} <b className="num text-slate-800">{Math.round(today.pct_in)}%</b></span>
             </Link>
           )}
+          <PlanLines />
           <GrowthCard />
           <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
             <Line icon="meals" tone={KIND_STYLE.meal.icon} text={lastMeal ? <><span className="text-slate-500">{t('آخر أكل:')}</span> <bdi>{tMaybe(lastMeal.name)}</bdi> · {t('{g} غ', { g: fmt(lastMeal.total_carbs) })}</> : t('لا توجد وجبة مسجّلة')} when={lastMeal?.eaten_at} />

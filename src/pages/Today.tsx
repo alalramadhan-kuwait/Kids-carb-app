@@ -13,6 +13,7 @@ import { uploadPhoto } from '../lib/supabase';
 import { fmt } from '../lib/carbs';
 import type { Product, Snack } from '../lib/types';
 import { MealCard, useChoose } from '../components/meal';
+import { PlannedSection } from '../components/Plans';
 import { Icon } from '../components/Icon';
 import { isEn, t, tMaybe } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
@@ -62,6 +63,7 @@ export default function Today() {
         ))}
       </div>
 
+      <PlannedSection />
       <input type="search" enterKeyHint="search" dir="auto" className={cx(inputCls, 'mb-4')} value={q} onChange={(e) => setQ(e.target.value)}
         placeholder={t('ابحث: وصفة، سناك، منتج، أكل متكرر')} aria-label={t('بحث')} />
       {q.trim() ? <SearchResults q={q} /> : <>
