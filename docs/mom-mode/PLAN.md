@@ -33,6 +33,17 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
   Injection is «إبرة». Footer: «الأرقام من خطة الدكتور».
 - Mom **sees the carb total in small text** (yes). No clinic number (none shown; contact is Dad).
 
+## Screen and text rules (Dad, v7)
+
+- **No bottom sheets / slide-up panels in mom mode.** Every choice opens a **full new page** with a back arrow
+  (browser back works too), so she can go back and forth and nothing half-covers the screen.
+- **Very little text.** Simple words and numbers. One short line per screen at most; no explanations unless she
+  taps «ليش؟». Big buttons, big numbers, pictures.
+- Every step must be easy to **choose**, easy to **check** (what was chosen is visible before saving) and easy to
+  **change** (tap any item to edit it; undo after saving).
+- **No duplication**: each thing is done in one place only (one way to log a meal, one way to log a juice, one way
+  to log an injection).
+
 ## 1. Home
 
 - Header: «ليان», and how old the reading is («قبل دقيقتين»).
@@ -142,7 +153,9 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
 2. Portions + Dad's portion screen (start with her ~15 most-eaten foods).
 3. Saved meals.
 4. Mom mode: home + graph, products page, meal → dose → injection → site → amount eaten, juice, injection buttons.
-5. Agent test as Mom again, then Rawan tries it.
+5. **Test with three agent "moms" from different backgrounds** (after mom mode is built): each tests every screen and
+   flow in the real app (mock data) and reports on the interface — that everything follows the workflow, nothing is
+   duplicated, and every step is clear and easy to choose, check and change. Fix, then Rawan tries it.
 
 ## Feedback log
 
@@ -155,6 +168,9 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
   Tresiba light green); products as a full, grouped page.
 - **v4 (Dad)** — track where each injection is given, rotate between sites and suggest the next one.
 - **v5 (Dad)** — keep all details in this plan and update it after every feedback.
+- **v7 (Dad)** — full pages instead of bottom sheets for every choice (back and forth, no lag); very little text,
+  simple words and numbers; after building, three agent moms from different backgrounds test everything (workflow,
+  no duplication, easy to choose/check/change) and report.
 - **Defaults (until Dad/care team say otherwise):** 6 injection sites, no buttocks; Tresiba rotates over all sites.
 - **Step 1 built (2.27.0):** no 100 g preselected; dose calculator «أعطيتها X وحدة · سجّل» saves; an alert's
   «عالجتها» opens the treatment entry with her usual juice; a recheck push 15 min after every low treatment.
