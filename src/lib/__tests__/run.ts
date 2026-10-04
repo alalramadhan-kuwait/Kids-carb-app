@@ -1042,12 +1042,77 @@ console.log('status page');
     assert.equal(planPushDue({ ...p, status: 'eaten' }, DOSE + 10 * M), null);
     assert.equal(planPushDue({ ...p, status: 'skipped' }, DOSE - 10 * M), null);
   });
+  test('plan reminders after the meal: early result at 2 h, final review at the insulin-action time, once each', () => {
+    const e = DOSE + 10 * M, ate = { ...p, status: 'eaten', eating_at: new Date(e).toISOString() };
+    assert.equal(planPushDue(ate, e + 119 * M), null);
+    const early = planPushDue(ate, e + 120 * M)!; assert.equal(early.kind, 'early');
+    assert.equal(planPushDue({ ...ate, notified: { early: early.at } }, e + 125 * M), null);
+    assert.equal(planPushDue(ate, e + 360 * M)!.kind, 'final');
+    assert.equal(planPushDue(ate, e + 300 * M, { earlyMin: 120, diaMin: 300 })!.kind, 'final', 'follows the configured duration');
+    assert.equal(planPushDue({ ...p, status: 'eaten' }, e + 120 * M), null, 'no eating time: nothing to review');
+    assert.equal(planMessage('final', p, 'en').title, '🔵 Breakfast review ready');
+  });
   test('plan reminder text, in both languages', () => {
     assert.equal(planMessage('check', p, 'en').title, '🔵 Breakfast plan · dose at \u206607:00\u2069');
     assert.equal(planMessage('check', p, 'ar', { mg: 94, trend: 3, unit: 'mmol' }).body, 'الآن \u20665.2 →\u2069 ملمول/ل\nافحصوا السكر وأكّدوا الجرعة');
     assert.ok(planMessage('eat', p, 'en').body.startsWith('10 min since the dose'));
     assert.equal(planMessage('eat', p, 'ar').title, '🔵 وقت أكل الفطور');
     assert.equal(planMessage('recheck', p, 'ar').title, '🟠 أعيدوا قياس السكر');
+  });
+}
+
+{
+  const { reviewPlan, rulesOf, snapshotOf } = await import('../../engine/planReview');
+  const { mergeSeries, emptySeries } = await import('../../engine/series');
+  const M = 60000, E = Date.UTC(2026, 9, 5, 4, 10), R = { low: 70, high: 180 };
+  // readings every 5 min from 30 min before eating to 6 h after, from a shape f(minutes after eating)
+  const ser = (f: (m: number) => number | null) => { const t: number[] = [], v: number[] = []; for (let m = -30; m <= 370; m += 5) { const x = f(m); if (x !== null) { t.push(E + m * M); v.push(x); } } return mergeSeries(emptySeries(), t, v); };
+  const bell = (base: number, top: number) => (m: number) => m <= 0 ? base : m <= 60 ? base + (top - base) * m / 60 : m <= 180 ? top - (top - base) * (m - 60) / 120 : base;
+  const input = (o: Partial<Parameters<typeof reviewPlan>[0]> = {}) => ({
+    now: E + 400 * M, eatingAt: E, dosedAt: E - 10 * M, calcUnits: 3, givenUnits: 3, carbsPlanned: 45, carbsEaten: 45, part: 1, startLevel: 0,
+    series: ser(bell(110, 160)), others: [], range: R, diaMin: 360, fatty: false, fastShare: 0, estimatedItems: [], eatingTimeEstimated: false,
+    rules: rulesOf(null), ...o,
+  });
+  test('plan review: a clean meal in target is final after the insulin-action time, comparable, high quality', () => {
+    const r = reviewPlan(input());
+    assert.equal(r.stage, 'final'); assert.equal(r.outcome, 'in_target'); assert.equal(r.quality, 'high'); assert.equal(r.comparable, true);
+    assert.equal(r.final!.peak, 160); assert.equal(r.final!.ttp, 60); assert.equal(r.final!.rise, 50); assert.equal(r.interval, 10);
+    assert.equal(r.cleanMin, 360); assert.equal(r.returned, true); assert.deepEqual(r.contributors, []);
+    assert.equal(snapshotOf(r).outcome, 'in_target');
+  });
+  test('plan review: at 2 hours only the early result, never a verdict', () => {
+    const r = reviewPlan(input({ now: E + 125 * M }));
+    assert.equal(r.stage, 'early'); assert.equal(r.outcome, null); assert.ok(r.early!.at2h !== null); assert.equal(r.final, null);
+  });
+  test('plan review: food after 90 min ends the window there; too short to judge or compare', () => {
+    const r = reviewPlan(input({ others: [{ t: E + 90 * M, kind: 'food', label: 'snack', grams: 20 }] }));
+    assert.equal(r.endedBy!.label, 'snack'); assert.equal(r.cleanMin, 90); assert.equal(r.outcome, 'unclear');
+    assert.equal(r.comparable, false); assert.ok(r.notComparableWhy.includes('ended:90'));
+    assert.equal(reviewPlan(input({ others: [{ t: E + 90 * M, kind: 'food', label: 'bite', grams: 3 }] })).cleanMin, 360, 'a 3 g bite does not end it');
+  });
+  test('plan review: a low is a low even when ended early; facts that may have contributed', () => {
+    const dip = (m: number) => (m >= 140 && m <= 165 ? 62 : bell(110, 150)(m));
+    const r = reviewPlan(input({ series: ser(dip), givenUnits: 4, calcUnits: 3, part: 0.5 }));
+    assert.equal(r.outcome, 'low'); assert.equal(r.final!.low!.min, 62);
+    assert.deepEqual(r.contributors.map((c) => c.key), ['dose_higher', 'ate_less']);
+    assert.ok(r.notComparableWhy.includes('part:0.5'));
+  });
+  test('plan review: high with an early rise, juice, a lower dose than calculated', () => {
+    const r = reviewPlan(input({ series: ser(bell(110, 260)), dosedAt: E - 5 * M, givenUnits: 2, calcUnits: 3, fastShare: 0.4 }));
+    assert.equal(r.outcome, 'high'); assert.ok(r.final!.high!.minutes >= 30);
+    assert.deepEqual(r.contributors.map((c) => c.key), ['early_rise_interval', 'fast_carbs', 'dose_lower']);
+    assert.equal(r.contributors[0].m, 5);
+  });
+  test('plan review: limited quality says why and is not used for comparison', () => {
+    const gappy = (m: number) => (m > 60 && m < 200 ? null : bell(110, 160)(m));
+    const r = reviewPlan(input({ series: ser(gappy), estimatedItems: ['ملوخية'], eatingTimeEstimated: true }));
+    assert.equal(r.quality, 'limited'); assert.ok(r.qualityWhy.some((w) => w.startsWith('readings:')));
+    assert.ok(r.qualityWhy.includes('estimated:ملوخية') && r.qualityWhy.includes('eating_time'));
+    assert.equal(r.comparable, false);
+  });
+  test('plan review rules: stored values over the defaults', () => {
+    const rr = rulesOf({ high_min: 45, comparable: { carbs_pct: 20 } } as never);
+    assert.equal(rr.high_min, 45); assert.equal(rr.comparable.carbs_pct, 20); assert.equal(rr.comparable.iob_u, 0.5); assert.equal(rr.early_min, 120);
   });
 }
 

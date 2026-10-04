@@ -63,7 +63,7 @@ export default function Plan() {
   );
 
   return (
-    <Page title={t('خطة الأيام')} back={() => nav(-1)}>
+    <Page title={t('قائمة الأسبوع')} back={() => nav(-1)}>
       <Card className="mb-4 space-y-3">
         <div className="grid grid-cols-3 gap-3">
           <Field label={t('عدد الأيام')}><NumInput value={days} onChange={(v) => setDays(Math.min(14, Math.max(1, Math.round(v ?? 1))))} /></Field>

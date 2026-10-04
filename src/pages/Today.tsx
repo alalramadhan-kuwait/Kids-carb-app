@@ -58,7 +58,7 @@ export default function Today() {
     <Page title={t('الوجبات')}>
       <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
         <Link to="/scan" className="flex shrink-0 items-center gap-1.5 rounded-full bg-brand px-4 py-2 text-sm font-bold text-white"><Icon name="camera" size={16} /> {t('صوّر الأكل')}</Link>
-        {[['/recipes', t('الوصفات')], ['/products', t('المنتجات')], ['/plan', t('خطة الأيام')], ['/snacks', t('السناكات')]].map(([to, l]) => (
+        {[['/recipes', t('الوصفات')], ['/products', t('المنتجات')], ['/plan', t('قائمة الأسبوع')], ['/snacks', t('السناكات')]].map(([to, l]) => (
           <Link key={to} to={to} className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-medium ring-1 ring-slate-200">{l}</Link>
         ))}
       </div>

@@ -296,16 +296,22 @@ export function sensorMessage(due: '24' | '2', endsAt: number, lang: Lang = 'ar'
 }
 
 // ── Planned meals: a push at the check (the reminder before the dose), at the eat time and at a low's recheck ──
-export type PlanPush = 'check' | 'eat' | 'recheck';
-export interface PlanRow { status: string; name: string; slot: string; dose_at: string; eat_after_min: number; remind_min: number; recheck_at: string | null; notified: Record<string, string> | null }
+export type PlanPush = 'check' | 'eat' | 'recheck' | 'early' | 'final';
+export interface PlanRow { status: string; name: string; slot: string; dose_at: string; eat_after_min: number; remind_min: number; recheck_at: string | null; notified: Record<string, string> | null; eating_at?: string | null }
 const LATE_MIN = 30; // a reminder more than this late is not sent: the moment has passed
 
 /** The reminder a plan is due for now, if any. Each goes out once for the time it is about (moving that time sends it
  *  again), and none is sent once the moment is long past. */
-export function planPushDue(p: PlanRow, now: number): { kind: PlanPush; at: string } | null {
+export function planPushDue(p: PlanRow, now: number, review: { earlyMin: number; diaMin: number } = { earlyMin: 120, diaMin: 360 }): { kind: PlanPush; at: string } | null {
   const sent = p.notified ?? {};
   const due = (kind: PlanPush, at: number) => (now >= at && now - at <= LATE_MIN * MIN && sent[kind] !== new Date(at).toISOString() ? { kind, at: new Date(at).toISOString() } : null);
   const dose = Date.parse(p.dose_at);
+  // after the meal: the early result (about 2 h) and the final review (the insulin-action time)
+  if (p.status === 'eaten') {
+    if (!p.eating_at) return null;
+    const e = Date.parse(p.eating_at);
+    return due('final', e + review.diaMin * MIN) ?? due('early', e + review.earlyMin * MIN);
+  }
   if (p.status === 'dosed') return due('eat', dose + p.eat_after_min * MIN);
   if (p.status !== 'planned') return null;
   if (p.recheck_at) return due('recheck', Date.parse(p.recheck_at));
@@ -328,6 +334,14 @@ export function planMessage(kind: PlanPush, p: PlanRow, lang: Lang = 'ar', g?: {
   if (kind === 'eat') return {
     title: `${MARK.info} ${en ? `Time to eat: ${meal}` : `وقت أكل ${meal}`}`,
     body: join(en ? `${dur(p.eat_after_min, lang)} since the dose` : `مرّت ${dur(p.eat_after_min, lang)} على الجرعة`, en ? 'After eating, tap “She ate”' : 'بعد الأكل اضغطوا «أكلت»'),
+  };
+  if (kind === 'early') return {
+    title: `${MARK.info} ${en ? `Early result: ${meal}` : `النتيجة الأولية: ${meal}`}`,
+    body: join(now, en ? '2 h after eating · open to see how it is going' : 'بعد ساعتين من الأكل · افتحوها لتروا كيف تسير'),
+  };
+  if (kind === 'final') return {
+    title: `${MARK.info} ${en ? `${meal} review ready` : `مراجعة ${meal} جاهزة`}`,
+    body: en ? 'Open it to see the full result and add your note' : 'افتحوها لتروا النتيجة كاملة وتكتبوا ملاحظتكم',
   };
   return {
     title: `${MARK.warning} ${en ? 'Recheck her glucose' : 'أعيدوا قياس السكر'}`,

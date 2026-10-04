@@ -2,15 +2,15 @@
 // and the check that turns a plan into what really happened: dose (approved by a parent) → eat time → she ate. A plan
 // is on hold until then; a low first is treated first (with the plan's juice, if it has one).
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
-import { approveDose, ate, deletePlan, planMeal, savePlan, skipPlan, treatFromPlan, usePlans } from '../lib/plans';
+import { approveDose, ate, deletePlan, planMeal, savePlan, skipPlan, treatFromPlan, usePlanHistory, usePlans } from '../lib/plans';
 import { useLiveDose } from '../lib/useLiveDose';
 import { eatAt, expectedDose, isFastDrink, phase, planAlerts, remindAt, upcoming, type PlanAlert, type Phase, type Slot } from '../engine/mealPlan';
 import { fmt } from '../lib/carbs';
 import { formatGlucose, unitLabel } from '../lib/glucose';
-import { fmtTime, isoDate } from '../lib/constants';
-import type { PlanItem, PlannedMeal, Product, Recipe } from '../lib/types';
+import { fmtTime, isoDate, relDay } from '../lib/constants';
+import type { DoseSnapshot, PlanItem, PlannedMeal, Product, Recipe } from '../lib/types';
 import { ProductPicker } from './ProductPicker';
 import { Btn, NumInput, Sheet, cx, inputCls, toast } from './ui';
 import { ratioAt } from '../engine/status';
@@ -23,6 +23,7 @@ const SLOT_TIME: Record<Slot, string> = { breakfast: '07:00', lunch: '13:00', di
 const UNIT = tr({ g: 'غ', ml: 'مل', serving: 'حصة', tbsp: 'ملعقة' }) as Record<string, string>; // i18n-ok
 const PARTS: [number, string][] = [[1, ''], [0.75, '¾'], [0.5, '½'], [0.25, '¼']];
 const clock = (ms: number) => fmtTime(new Date(ms));
+const fmtDay = (ms: number) => `${relDay(new Date(ms))} ${clock(ms)}`;
 // the phone's own clock, as everywhere else on screen (the ratios stay on Kuwait time, as the care plan is)
 const dayOf = (ms: number) => isoDate(new Date(ms));
 const hmOf = (ms: number) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
@@ -75,6 +76,9 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
     setAdding(null); setReplacing(null);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const meal = useMemo(() => planMeal(items, products, settings), [items, products, settings]);
+  // what you wrote after the same meal before: shown while planning it again
+  const { plans: past } = usePlanHistory();
+  const notes = past.filter((p) => p.review_note && p.id !== plan?.id && ((recipeId && p.recipe_id === recipeId) || (name.trim() && p.name === name.trim()))).slice(0, 2);
   const doseAt = at(day, time);
   const lastLow = events.filter((e) => e.kind === 'treatment').map((e) => Date.parse(e.occurred_at)).sort((a, b) => b - a)[0] ?? null;
   const fast = meal.lines.reduce((s, l) => s + (isFastDrink(l.ing, l.product?.category, l.carbs) ? l.carbs ?? 0 : 0), 0);
@@ -148,6 +152,11 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
               </li>
             ))}
           </ul>
+          {notes.length > 0 && (
+            <ul className="space-y-1 rounded-xl bg-near-soft p-3 text-sm">
+              {notes.map((p) => <li key={p.id}><span className="text-xs text-slate-500">{t('ملاحظتك بعد {when}:', { when: fmtDay(Date.parse(p.eating_at ?? p.dose_at)) })}</span> <bdi>{p.review_note}</bdi></li>)}
+            </ul>
+          )}
           <div className="flex gap-4 text-sm font-bold text-brand">
             <button className="min-h-[40px]" onClick={() => setAdding('recipe')}>{t('+ وصفة')}</button>
             <button className="min-h-[40px]" onClick={() => setAdding('product')}>{t('+ منتج')}</button>
@@ -199,6 +208,15 @@ function CheckBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =
   const ph: Phase = phase(plan, now);
   const [units, setUnits] = useState<number | null>(null);
   useEffect(() => { if (!r.block) setUnits((u) => (u === null ? r.dose : u)); }, [r.block, r.dose]);
+  const [reason, setReason] = useState('');
+  // when she started eating: the eat time if "She ate" is tapped within the hour after it, else now (changeable)
+  const eatDefault = (() => { const e = eatAt(plan); return now < e ? now : now - e <= 60 * MIN ? e : now; })();
+  const [eatHm, setEatHm] = useState<string | null>(null);
+  const eatingAt = eatHm ? at(dayOf(eatDefault), eatHm) : eatDefault;
+  const snapshot = (): DoseSnapshot | null => {
+    const c = live.calc();
+    return c ? { ...c, at: new Date(now).toISOString(), level: live.level, reading_at: latest?.taken_at ?? null, dia_min: settings.iob_dia_min, peak_min: settings.iob_peak_min, pen_step: settings.pen_step ?? 1 } : null;
+  };
   const [busy, setBusy] = useState(false);
   const unit = settings.glucose_unit, gl = (mg: number) => formatGlucose(mg, unit);
   const lastLow = events.filter((e) => e.kind === 'treatment').map((e) => Date.parse(e.occurred_at)).sort((a, b) => b - a)[0] ?? null;
@@ -257,14 +275,21 @@ function CheckBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =
             {' · '}{t('التصحيح {x}', { x: (r.correction + r.iobUsed >= 0 ? '+' : '−') + (Math.round(Math.abs(r.correction + r.iobUsed) * 10) / 10).toFixed(1) })}
             {r.iobUsed > 0 && <> · {t('نشط −{x}', { x: (Math.round(r.iobUsed * 10) / 10).toFixed(1) })}</>}
           </div>
+          <div className="flex items-baseline justify-between rounded-xl bg-white px-3 py-2">
+            <span className="text-sm text-slate-600">{t('الجرعة المحسوبة (إعدادات الطبيب)')}</span>
+            <b className="num text-xl">{t('{u} و', { u: fmt(r.dose) })}</b>
+          </div>
           <div className="flex items-center gap-2">
-            <span className="flex-1 text-sm">{t('حسب خطة الطبيب: {u} وحدة', { u: fmt(r.dose) })}</span>
+            <span className="flex-1 text-sm font-medium">{t('الجرعة التي قررتُ إعطاءها')}</span>
             <button className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl shadow-sm" onClick={() => setUnits((u) => Math.max(0, (u ?? r.dose) - (settings.pen_step ?? 1)))} aria-label="−">−</button>
             <b className="num w-12 text-center text-2xl">{fmt(units ?? r.dose)}</b>
             <button className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl shadow-sm" onClick={() => setUnits((u) => (u ?? r.dose) + (settings.pen_step ?? 1))} aria-label="+">+</button>
           </div>
+          {(units ?? r.dose) !== r.dose && (
+            <input className={inputCls} dir="auto" maxLength={200} placeholder={t('لماذا تختلف؟ (اختياري)')} value={reason} onChange={(e) => setReason(e.target.value)} aria-label={t('لماذا تختلف؟ (اختياري)')} />
+          )}
           {(units ?? r.dose) > 0 && (
-            <Btn kind="primary" block disabled={busy} onClick={() => run(() => approveDose(plan, units ?? r.dose, live.purpose, live.calc()), t('سُجّلت الجرعة · الأكل بعد {m} د', { m: plan.eat_after_min }))}>
+            <Btn kind="primary" block disabled={busy} onClick={() => run(() => approveDose(plan, { given: units ?? r.dose, calc: r.dose, reason: (units ?? r.dose) !== r.dose ? reason : null, purpose: live.purpose, snapshot: snapshot(), carbs: meal.total.carbs }), t('سُجّلت الجرعة · الأكل بعد {m} د', { m: plan.eat_after_min }))}>
               {t('أعطِ {u} وحدة الآن · الأكل {time}', { u: fmt(units ?? r.dose), time: clock(Date.now() + plan.eat_after_min * MIN) })}
             </Btn>
           )}
@@ -275,9 +300,13 @@ function CheckBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =
       {/* she ate: logged now, scaled to what she ate */}
       {(dosed || (!treatFirst && r.block !== null) || (!r.block && (units ?? r.dose) === 0)) && (
         <div className="space-y-1.5">
+          <label className="flex items-center justify-between gap-2 text-sm">
+            <span className="text-slate-600">{t('بدأت الأكل')}</span>
+            <input type="time" dir="ltr" className={cx(inputCls, '!min-h-[40px] !w-36')} value={eatHm ?? hmOf(eatDefault)} onChange={(e) => setEatHm(e.target.value || null)} aria-label={t('بدأت الأكل')} />
+          </label>
           <div className="text-sm font-medium text-slate-600">{dosed ? t('أكلت:') : t('تسجيل الأكل بدون جرعة:')}</div>
           <div className="grid grid-cols-4 gap-1.5">
-            {PARTS.map(([f, l]) => <Btn key={f} kind={f === 1 ? 'primary' : 'soft'} disabled={busy} onClick={() => run(() => ate(plan, f, products, settings), t('سُجّلت الوجبة ✓'))}>{l || t('كلها')}</Btn>)}
+            {PARTS.map(([f, l]) => <Btn key={f} kind={f === 1 ? 'primary' : 'soft'} disabled={busy} onClick={() => run(() => ate(plan, f, Math.min(eatingAt, Date.now()), products, settings), t('سُجّلت الوجبة ✓'))}>{l || t('كلها')}</Btn>)}
           </div>
         </div>
       )}
@@ -340,6 +369,7 @@ export function PlanLines() {
 /** «مخططة» on Meals: today's and tomorrow's plans, and a new one. */
 export function PlannedSection() {
   const { plans } = usePlans();
+  const nav = useNavigate();
   const now = Date.now();
   const [open, setOpen] = useState<string | null>(null);
   const [sheet, setSheet] = useState<{ plan?: PlannedMeal | null } | null>(null);
@@ -348,7 +378,10 @@ export function PlannedSection() {
     <section className="mb-4 space-y-2">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold">{t('مخططة')}</h2>
-        <button className="min-h-[40px] text-sm font-bold text-brand" onClick={() => setSheet({})}>{t('+ خطة وجبة')}</button>
+        <span className="flex items-center gap-4">
+          <button className="min-h-[40px] text-sm font-bold text-brand" onClick={() => nav('/plans/history')}>{t('السجل')} {isEn() ? '›' : '‹'}</button>
+          <button className="min-h-[40px] text-sm font-bold text-brand" onClick={() => setSheet({})}>{t('+ خطة وجبة')}</button>
+        </span>
       </div>
       {list.length > 0 ? <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">{list.map((p) => <li key={p.id}><PlanRow p={p} now={now} onOpen={() => setOpen(p.id)} /></li>)}</ul>
         : <p className="text-sm text-slate-500">{t('خطّطوا الفطور من الليل: الجرعة ووقت الأكل، وتبقى معلّقة حتى تأكيدها.')}</p>}

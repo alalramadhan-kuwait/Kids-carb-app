@@ -5,6 +5,7 @@ import { openedFromRecovery, supabase } from './lib/supabase';
 import { DataProvider, useData } from './lib/data';
 import { Alert, Btn, Card, Field, Toaster, cx, inputCls } from './components/ui';
 import Today from './pages/Today';
+import { PlanHistoryPage, PlanPage } from './pages/PlanReview';
 import Now from './pages/Now';
 import Analysis from './pages/Analysis';
 import { RecipeList, RecipeView } from './pages/Recipes';
@@ -155,7 +156,7 @@ function Claim({ onDone }: { onDone: () => void }) {
 const TABS: { to: string; label: string; icon: IconName; match: string[] }[] = [
   { to: '/', label: 'الآن', icon: 'home', match: ['/'] }, // i18n-ok
   { to: '/timeline', label: 'السجل', icon: 'history', match: ['/timeline'] }, // i18n-ok
-  { to: '/meals', label: 'الوجبات', icon: 'meals', match: ['/meals', '/recipes', '/products', '/plan', '/snacks', '/scan'] }, // i18n-ok
+  { to: '/meals', label: 'الوجبات', icon: 'meals', match: ['/meals', '/recipes', '/products', '/plan', '/plans', '/snacks', '/scan'] }, // i18n-ok
   { to: '/analysis', label: 'التحليل', icon: 'advanced', match: ['/analysis', '/advanced'] }, // i18n-ok
   { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm', '/alerts', '/care-plan', '/share', '/widget', '/diet-sheet', '/report'] }, // i18n-ok
 ];
@@ -204,6 +205,8 @@ function Shell() {
         <Route path="/products/new" element={<ProductEdit />} />
         <Route path="/products/:id" element={<ProductEdit />} />
         <Route path="/plan" element={<Plan />} />
+        <Route path="/plans/history" element={<PlanHistoryPage />} />
+        <Route path="/plans/:id" element={<PlanPage />} />
         <Route path="/scan" element={<Scan />} />
         <Route path="/cgm" element={<Cgm />} />
         <Route path="/status" element={<Status />} />

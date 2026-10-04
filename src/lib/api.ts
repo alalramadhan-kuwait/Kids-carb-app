@@ -63,6 +63,7 @@ export async function logMeal(input: {
   meal: MealResult;
   modified: boolean;
   notes?: string;
+  eatenAt?: string; // when she started eating, if not now
 }) {
   const { meal } = input;
   const lines: HistoryLine[] = meal.lines.map((l) => ({
@@ -89,7 +90,7 @@ export async function logMeal(input: {
     total_sodium: meal.micro.sodium === null ? null : Math.round(meal.micro.sodium), total_calcium: meal.micro.calcium === null ? null : Math.round(meal.micro.calcium),
     total_iron: meal.micro.iron === null ? null : r(meal.micro.iron), total_potassium: meal.micro.potassium === null ? null : Math.round(meal.micro.potassium),
     total_vit_d: meal.micro.vit_d === null ? null : r(meal.micro.vit_d),
-    modified: input.modified, lines, notes: input.notes ?? null,
+    modified: input.modified, lines, notes: input.notes ?? null, ...(input.eatenAt ? { eaten_at: input.eatenAt } : {}),
   }).select('id').single()) as { id: string };
 }
 

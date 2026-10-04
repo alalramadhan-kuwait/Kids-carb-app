@@ -126,21 +126,22 @@ async function sensorReminder(db: Db, now: number) {
 
 /** Planned meals: one push to both parents at the check, the eat time and a low's recheck; claimed before sending. */
 async function planReminders(db: Db, now: number) {
-  const { data } = await db.from('planned_meals').select('id,status,name,slot,dose_at,eat_after_min,remind_min,recheck_at,notified')
-    .in('status', ['planned', 'dosed']).gte('dose_at', new Date(now - 6 * 3600000).toISOString()).lte('dose_at', new Date(now + 6 * 3600000).toISOString());
+  const { data } = await db.from('planned_meals').select('id,status,name,slot,dose_at,eat_after_min,remind_min,recheck_at,notified,eating_at')
+    .in('status', ['planned', 'dosed', 'eaten']).gte('dose_at', new Date(now - 9 * 3600000).toISOString()).lte('dose_at', new Date(now + 6 * 3600000).toISOString());
   if (!data?.length) return;
   const [{ data: set }, { data: last }] = await Promise.all([
-    db.from('settings').select('glucose_unit').eq('id', true).single(),
+    db.from('settings').select('glucose_unit,iob_dia_min,plan_review_rules').eq('id', true).single(),
     db.from('glucose_readings').select('taken_at,mg_dl,trend').order('taken_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
   const r = last as { taken_at: string; mg_dl: number; trend: number | null } | null;
   const g = r && now - Date.parse(r.taken_at) <= 15 * 60000 ? { mg: r.mg_dl, trend: r.trend, unit: ((set as any)?.glucose_unit === 'mmol' ? 'mmol' : 'mgdl') as 'mmol' | 'mgdl' } : null;
+  const rv = { earlyMin: Number((set as any)?.plan_review_rules?.early_min) || 120, diaMin: Number((set as any)?.iob_dia_min) || 360 };
   for (const p of data as (PlanRow & { id: string })[]) {
-    const due = planPushDue(p, now);
+    const due = planPushDue(p, now, rv);
     if (!due) continue;
     const { error } = await db.from('planned_meals').update({ notified: { ...(p.notified ?? {}), [due.kind]: due.at } }).eq('id', p.id); // claim first: never twice
     if (error) { console.error('plans: claim', error.message); continue; }
-    await pushAll(db, (lang) => ({ ...planMessage(due.kind, p, lang, g), tag: `plan-${p.id}`, url: `./#/?plan=${p.id}` }), { kind: `plan_${due.kind}`, urgency: 'high' });
+    await pushAll(db, (lang) => ({ ...planMessage(due.kind, p, lang, g), tag: `plan-${p.id}`, url: due.kind === 'early' || due.kind === 'final' ? `./#/plans/${p.id}` : `./#/?plan=${p.id}` }), { kind: `plan_${due.kind}`, urgency: due.kind === 'early' || due.kind === 'final' ? 'normal' : 'high' });
   }
 }
 

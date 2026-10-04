@@ -1,6 +1,28 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.24.0",
+    "notes": [
+      "الموافقة على الجرعة: تظهر «الجرعة المحسوبة (إعدادات الطبيب)» و«الجرعة التي قررتُ إعطاءها»، ومعها سبب اختياري إذا اختلفتا. تُحفظ الاثنتان.",
+      "«بدأت الأكل»: سجّل وقت بدء الأكل الفعلي.",
+      "كل وجبة مخططة لها مراجعة: نتيجة أولية بعد ساعتين، ومراجعة نهائية بعد مدة عمل الأنسولين (أو عند أول أكل آخر)، مع النتيجة وجودة المراجعة وهل تصلح للمقارنة.",
+      "«ماذا تعلّمنا»: اكتب ملاحظتك، وستظهر لك عند التخطيط لنفس الوجبة مرة أخرى.",
+      "الوجبات ← المخطط ← السجل: «للمراجعة» و«الكل».",
+      "إشعار عند جاهزية النتيجة الأولية والمراجعة النهائية.",
+      "«خطة الوجبات» الأسبوعية أصبح اسمها «قائمة الأسبوع»."
+    ],
+    "notes_en": [
+      "Dose approval: shows “Calculated dose (doctor’s settings)” and “Dose I decided to give”, with an optional reason when they differ. Both are saved.",
+      "“Started eating”: record when she actually started.",
+      "Every planned meal gets a review: an early result at 2 h and a final review after the insulin-action time (or at the next food), with the outcome, review quality and whether it can be compared.",
+      "“What we learned”: write a note, and it shows again when you plan the same meal.",
+      "Meals → Planned → History: “To review” and “All”.",
+      "A notification when the early result and the final review are ready.",
+      "The weekly “Meal plan” is now called “Weekly menu”."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.23.2",
     "notes": [
       "فحص الخطة: بجانب كل صنف كميته (غ، مل، أو حصص مع وزنها)، والرقم على اليمين مكتوب «غ كارب»."

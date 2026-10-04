@@ -116,6 +116,7 @@ export interface Settings {
   escalate_min: number;
   /** display-only IOB / COB, from the care team; null = off */
   iob_dia_min: number | null; iob_peak_min: number | null; cob_absorb_min: number | null;
+  plan_review_rules?: Record<string, unknown> | null;
   /** the doctor's carb ratio and correction factor by time of day; empty = no estimate */
   ratios: Ratio[];
   sensor_days: 14 | 15;
@@ -140,7 +141,13 @@ export interface PlannedMeal {
   status: 'planned' | 'dosed' | 'eaten' | 'skipped';
   dose_event_id: string | null; treatment_event_id: string | null; history_id: string | null;
   recheck_at: string | null; dosed_at: string | null; eaten_at: string | null; note: string | null; created_by: string | null;
+  // the permanent record (plan → what happened → review → what we learned)
+  calc_units?: number | null; given_units?: number | null; dose_reason?: string | null; dose_snapshot?: DoseSnapshot | null;
+  eating_at?: string | null; part_eaten?: number | null; carbs_planned?: number | null; carbs_eaten?: number | null;
+  review?: Record<string, unknown> | null; review_note?: string | null; reviewed_at?: string | null; reviewed_by?: string | null;
 }
+/** Everything the doctor's-settings calculation used at approval, kept with the plan. */
+export interface DoseSnapshot extends DoseCalc { at: string; level: number | null; reading_at: string | null; dia_min: number | null; peak_min: number | null; pen_step: number }
 
 export interface HistoryLine {
   name: string;
