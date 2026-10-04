@@ -32,6 +32,13 @@ export async function updateMeal(h: HistoryEntry, d: EditDraft, me: string | nul
   const f = d.part && d.part !== 1 && h.total_carbs > 0 && d.carbs != null ? d.carbs / h.total_carbs : null;
   if (f !== null && h.lines?.length) patch.lines = scaleLines(h.lines, f);
   else if (h.lines?.length === 1) patch.lines = [{ ...h.lines[0], carbs: d.carbs }];
+  // the other label nutrients follow a part portion; a hand-changed total makes them unknown (never wrong)
+  for (const k of ['total_sat_fat', 'total_sugar_added', 'total_sodium', 'total_calcium', 'total_iron', 'total_potassium', 'total_vit_d'] as const) {
+    const v = h[k];
+    if (v == null) continue;
+    if (f !== null) patch[k] = Math.round(v * f * 10) / 10;
+    else if (d.carbs !== h.total_carbs) patch[k] = null;
+  }
   const { error } = await supabase.from('meal_history').update(patch).eq('id', h.id);
   if (error) throw new Error(error.message);
   if (d.toQuick) await quickFromMeal(h.name, { name: d.name!.trim(), brand: d.brand ?? null, kind: h.kind === 'meal' ? 'meal' : 'snack', carbs: d.carbs!, fat: d.fat ?? null, protein: d.protein ?? null, kcal: d.kcal ?? null, fiber: d.fiber ?? null, at: patch.eaten_at as string, label: d.label ?? null });

@@ -84,6 +84,11 @@ export async function logMeal(input: {
     total_fiber: meal.missing.fiber ? null : r(meal.total.fiber),
     total_protein: meal.missing.protein ? null : r(meal.total.protein),
     total_kcal: meal.missing.kcal ? null : Math.round(meal.total.kcal),
+    // the other label nutrients: null unless every ingredient gave it (missing is never zero)
+    total_sat_fat: meal.micro.sat_fat === null ? null : r(meal.micro.sat_fat), total_sugar_added: meal.micro.sugar_added === null ? null : r(meal.micro.sugar_added),
+    total_sodium: meal.micro.sodium === null ? null : Math.round(meal.micro.sodium), total_calcium: meal.micro.calcium === null ? null : Math.round(meal.micro.calcium),
+    total_iron: meal.micro.iron === null ? null : r(meal.micro.iron), total_potassium: meal.micro.potassium === null ? null : Math.round(meal.micro.potassium),
+    total_vit_d: meal.micro.vit_d === null ? null : r(meal.micro.vit_d),
     modified: input.modified, lines, notes: input.notes ?? null,
   }));
 }

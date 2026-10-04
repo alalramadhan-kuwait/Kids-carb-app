@@ -39,11 +39,15 @@ const fixProduct = (p: any): Product => ({
   pack_size: num(p.pack_size), carbs_per_100: Number(p.carbs_per_100), fat_per_100: num(p.fat_per_100),
   fiber_per_100: num(p.fiber_per_100), protein_per_100: num(p.protein_per_100), kcal_per_100: num(p.kcal_per_100),
   serving_size: num(p.serving_size), carbs_per_serving: num(p.carbs_per_serving), cooked_yield: num(p.cooked_yield),
+  sat_fat_per_100: num(p.sat_fat_per_100), sugar_added_per_100: num(p.sugar_added_per_100), sodium_mg_per_100: num(p.sodium_mg_per_100),
+  calcium_mg_per_100: num(p.calcium_mg_per_100), iron_mg_per_100: num(p.iron_mg_per_100), potassium_mg_per_100: num(p.potassium_mg_per_100), vit_d_ug_per_100: num(p.vit_d_ug_per_100),
 });
 const fixIng = (i: any): Ingredient => ({ ...i, quantity: Number(i.quantity) });
 const fixHist = (h: any): HistoryEntry => ({
   ...h, total_carbs: Number(h.total_carbs), total_fat: num(h.total_fat), total_fiber: num(h.total_fiber),
   total_protein: num(h.total_protein), total_kcal: num(h.total_kcal),
+  total_sat_fat: num(h.total_sat_fat), total_sugar_added: num(h.total_sugar_added), total_sodium: num(h.total_sodium), total_calcium: num(h.total_calcium),
+  total_iron: num(h.total_iron), total_potassium: num(h.total_potassium), total_vit_d: num(h.total_vit_d),
   glucose_mgdl: num(h.glucose_mgdl), glucose_trend: num(h.glucose_trend),
 });
 

@@ -189,13 +189,15 @@ export function LogSheet({ open, onClose, low = false }: { open: boolean; onClos
           )}
           <div>
             <button onClick={() => setMore(!more)} aria-expanded={more} className="flex min-h-[44px] w-full items-center justify-between rounded-xl px-1 text-sm font-medium text-slate-600">
-              <span>{t('أخرى: ملاحظة، رياضة، نوم')}</span><span aria-hidden>{more ? '▴' : '▾'}</span>
+              <span>{t('أخرى: ملاحظة، رياضة، نوم، وزن')}</span><span aria-hidden>{more ? '▴' : '▾'}</span>
             </button>
             {more && (
               <div className="grid grid-cols-3 gap-2">
                 {KINDS.filter((k) => OTHER.includes(k.kind)).map((k) => (
                   <button key={k.kind} onClick={() => setKind(k.kind)} className={cx(SMALL, KIND_STYLE[k.kind].soft)}><Icon name={k.icon} size={22} />{t(k.label)}</button>
                 ))}
+                {/* weight and height live with growth; this only opens its form */}
+                <Link to="/growth?add=1" onClick={close} className={cx(SMALL, 'bg-slate-100 text-slate-700')}><Icon name="user" size={22} />{t('وزن / طول')}</Link>
               </div>
             )}
           </div>

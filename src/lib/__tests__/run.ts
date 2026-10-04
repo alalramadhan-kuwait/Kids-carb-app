@@ -1403,6 +1403,90 @@ console.log('research lab');
   });
 }
 
+console.log('growth and nutrition');
+
+{
+  const G = await import('../../engine/growth');
+  const E = await import('../../engine/energy');
+  const N = await import('../../engine/nutrition');
+  test('EER: the NASEM 2023 girls equations, plus 15 kcal for growth at 4–8 y, with the published ±221 range', () => {
+    const e = E.eer({ age: 7, sex: 'female', height_cm: 124, weight_kg: 23, activity: 'active' })!;
+    assert.deepEqual(e.byActivity, { inactive: 1353, low_active: 1484, active: 1547, very_active: 1737 });
+    assert.equal(e.low, 1547 - 221); assert.equal(e.high, 1547 + 221);
+    assert.equal(E.eer({ age: 7, sex: 'male', height_cm: 124, weight_kg: 23, activity: 'active' }), null, 'boys are not bundled: no number rather than a wrong one');
+    assert.equal(E.eer({ age: 2.5, sex: 'female', height_cm: 90, weight_kg: 13, activity: 'active' }), null);
+  });
+  test('WHO 2007: median is z 0, height uses LMS directly, weight and BMI use the restricted tail past ±3', () => {
+    close(G.zScore('bmi', 15.2697, 72)!, 0, 1e-6);
+    close(G.zScore('hfa', 121, 72)!, (121 - 115.1244) / (115.1244 * 0.04447), 1e-4);
+    close(G.zScore('wfa', 20.1639, 72)!, 0, 1e-6);
+    close(G.percentile(0), 50, 1e-6); close(G.percentile(1.96), 97.5, 0.01); close(G.percentile(-1), 15.87, 0.01);
+    const sd3 = G.valueAtZ('bmi', 72, 3)!, sd2 = G.valueAtZ('bmi', 72, 2)!;
+    close(G.zScore('bmi', sd3 + (sd3 - sd2), 72)!, 4, 1e-6);
+    assert.equal(G.zScore('wfa', 30, 130), null, 'weight-for-age stops at 10 years');
+    assert.equal(G.bmiBand(-2.5), 'thinness'); assert.equal(G.bmiBand(0.5), 'normal'); assert.equal(G.bmiBand(1.5), 'overweight');
+  });
+  test('growth: one measurement is a baseline; a trajectory needs 3 months; short-term changes are shown, not judged', () => {
+    const birth = '2019-03-01';
+    const one = G.growthStatus(G.points([{ on: '2025-09-01', weight_kg: 19.5, height_cm: 116 }], birth));
+    assert.equal(one.state, 'baseline'); assert.deepEqual(one.reasons, []);
+    close(one.latest!.bmi!, 14.49, 0.01);
+    const wobble = G.growthStatus(G.points([{ on: '2025-09-01', weight_kg: 19.5, height_cm: 116 }, { on: '2025-09-08', weight_kg: 18.9, height_cm: null }], birth));
+    assert.equal(wobble.state, 'baseline', 'a 7-day dip is not a growth warning'); assert.equal(wobble.change.d7, -0.6);
+    const loss = G.growthStatus(G.points([{ on: '2025-09-01', weight_kg: 19.5, height_cm: 116 }, { on: '2025-12-08', weight_kg: 18.8, height_cm: 117.5 }], birth));
+    assert.equal(loss.state, 'attention'); assert.ok(loss.reasons.includes('weight_down'));
+    const fine = G.growthStatus(G.points([{ on: '2025-09-01', weight_kg: 19.5, height_cm: 116 }, { on: '2025-12-08', weight_kg: 20.1, height_cm: 118 }], birth));
+    assert.equal(fine.state, 'stable');
+    const thin = G.growthStatus(G.points([{ on: '2025-09-01', weight_kg: 15, height_cm: 116 }], birth));
+    assert.ok(thin.reasons.includes('bmi_thinness'), 'WHO thinness (BMI-for-age < −2 SD) counts from the first measurement');
+    assert.deepEqual(G.implausible({ on: '2025-09-01', weight_kg: 19.5, height_cm: 116 }, { on: '2025-09-02', weight_kg: 12, height_cm: 108 }), ['weight', 'height']);
+  });
+  const today = '2026-10-10';
+  const at = (k: string, h: number) => Date.parse(k + 'T00:00:00Z') - 3 * 3600000 + h * 3600000;
+  const meal = (k: string, h: number, o: Partial<Record<string, number | null>> = {}, groups: string[] | null = ['grains']) => N.foodEntry({
+    eaten_at: new Date(at(k, h)).toISOString(), total_carbs: 50, total_kcal: 500, total_fat: 20, total_protein: 15, total_fiber: 4, ...o,
+    lines: groups ? groups.map((g) => ({ name: g, product: null, carbs: 50 / groups.length })) : [],
+  } as never, (l) => l.name as never);
+  test('nutrition: missing is never zero; "low" needs coverage; a minimum met by known food is adequate whatever the rest', () => {
+    const ks = ['2026-10-07', '2026-10-08', '2026-10-09'];
+    const food = ks.flatMap((k) => [meal(k, 8), meal(k, 13, { total_fiber: null }), meal(k, 19)]);
+    const a = N.average(N.days(food, [], today), 'd7', today);
+    assert.equal(a.days, 3); close(a.nutrients.fiber.coverage, 2 / 3, 1e-9); close(a.nutrients.fiber.known, 8, 1e-9);
+    assert.equal(N.nutrientState('fiber', a.nutrients.fiber, a.energy.est, { kind: 'min', value: 11, source: 'ispad_2022' }), 'insufficient', 'two thirds known: not enough to say low');
+    assert.equal(N.nutrientState('fiber', a.nutrients.fiber, a.energy.est, { kind: 'min', value: 7, source: 'ispad_2022' }), 'adequate', 'known part already reaches it');
+    assert.equal(N.nutrientState('fiber', a.nutrients.fiber, a.energy.est, { kind: 'min', value: 13, source: 'ispad_2022' }, 0.6), 'low', 'the threshold is configurable (8 g known ÷ ⅔ ≈ 12 g, below 13)');
+    assert.equal(N.nutrientState('calcium', a.nutrients.calcium, a.energy.est, { kind: 'min', value: 1000, source: 'iom_2011' }), 'insufficient', 'no label gave calcium');
+    assert.equal(N.nutrientState('fat', a.nutrients.fat, a.energy.est, { kind: 'pct_range', value: 30, high: 40, source: 'ispad_2022' }), 'within', '60 g of 1500 kcal = 36 %: context only');
+  });
+  test('nutrition: low treatments add to energy eaten but not to diet quality; incomplete days stay out of averages', () => {
+    const ks = ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08'];
+    const food = ks.flatMap((k) => [meal(k, 8, {}, ['grains', 'dairy']), meal(k, 13, {}, ['protein', 'vegetables']), meal(k, 19, {}, ['extras'])]).concat([meal('2026-10-09', 9)]);
+    const tr = [{ at: at('2026-10-06', 15), carbs: 20 }, { at: at('2026-10-08', 2), carbs: 20 }];
+    const ds = N.days(food, tr, today);
+    assert.equal(ds.find((d) => d.key === '2026-10-09')!.complete, false, 'one entry is not a full day');
+    const a = N.average(ds, 'd7', today);
+    assert.equal(a.days, 4); close(a.energy.est!, 1500, 1e-9); close(a.treatment.kcal, 40, 1e-9); close(a.totalKcal!, 1540, 1e-9);
+    const refs = N.references(7, 23);
+    const b = N.balance(a, refs);
+    assert.equal(b.states.carbs, 'within', 'carbs from food only: 600 of 1500 kcal = 40 %');
+    assert.equal(a.groupDays.vegetables, 4); assert.ok(!b.issues.includes('few_vegetables'));
+    close(a.extrasCarbShare!, 1 / 3, 1e-9);
+    const eref = N.energyRef(E.eer({ age: 7, sex: 'female', height_cm: 124, weight_kg: 23, activity: 'active' }), {})!;
+    assert.equal(N.energyState(a, eref), 'within');
+    assert.equal(N.energyState({ ...a, totalKcal: 1100 }, eref), 'below');
+    assert.equal(N.energyState(N.average(ds, 'd30', today), eref), 'insufficient', '30 days needs 7 complete days');
+    assert.equal(N.energyRef(null, { energy_kcal: 1600 })!.source, 'dietitian');
+  });
+  test('references: ISPAD 2022 ranges as context, minimums and limits by age, the dietitian overrides any of them', () => {
+    const r = N.references(7.2, 23);
+    assert.deepEqual([r.carbs!.value, r.carbs!.high, r.fat!.value, r.fat!.high, r.sat_fat!.value], [40, 50, 30, 40, 10]);
+    assert.equal(r.protein!.value, 21.8); assert.equal(r.fiber!.value, 12); assert.equal(r.calcium!.value, 1000); assert.equal(r.sodium!.value, 1500);
+    const d = N.references(7.2, 23, { refs: { fiber: { kind: 'min', value: 18 } } });
+    assert.equal(d.fiber!.value, 18); assert.equal(d.fiber!.source, 'dietitian');
+    assert.deepEqual(N.references(15, 50), {}, 'no bundled reference outside 4–13 y');
+  });
+}
+
 console.log('editing entries');
 
 {

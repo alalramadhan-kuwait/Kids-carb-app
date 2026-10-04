@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
-import { deriveLabel, fmt, labelMismatch, targetMiss } from '../lib/carbs';
+import { MICRO_FIELD, deriveLabel, fmt, labelMismatch, targetMiss, type Micro } from '../lib/carbs';
+import { GROUP, NUTRIENT_NAME } from '../components/growthText';
+import { CATEGORY_GROUP } from '../engine/nutrition';
 import { deleteProduct, saveProduct } from '../lib/api';
 import { supabase, uploadPhoto } from '../lib/supabase';
 import { PRODUCT_CATEGORIES } from '../lib/constants';
@@ -31,6 +33,9 @@ export default function ProductEdit() {
   const [fiber, setFiber] = useState<number | null>(p?.fiber_per_100 ?? null);
   const [protein, setProtein] = useState<number | null>(p?.protein_per_100 ?? null);
   const [kcal, setKcal] = useState<number | null>(p?.kcal_per_100 ?? null);
+  // more label nutrients, all optional (empty = not on the label, never zero), and a food group override
+  const [micro, setMicro] = useState<Record<Micro, number | null>>(() => Object.fromEntries((Object.keys(MICRO_FIELD) as Micro[]).map((m) => [m, (p?.[MICRO_FIELD[m]] as number | null | undefined) ?? null])) as Record<Micro, number | null>);
+  const [group, setGroup] = useState<string>(p?.food_group ?? '');
   const [basis, setBasis] = useState<'as_sold' | 'cooked'>(p?.label_basis ?? 'as_sold');
   const [cookedYield, setCookedYield] = useState<number | null>(p?.cooked_yield ?? null);
   const [approved, setApproved] = useState(p?.approved ?? true);
@@ -52,6 +57,7 @@ export default function ProductEdit() {
         id: p?.id, name: name.trim(), brand: brand.trim() || null, category: category.trim(), kind, image_path: image, source_url: source.trim() || null, unit,
         pack_size: packSize, carbs_per_100: derived.per100, serving_size: serving, carbs_per_serving: derived.perServing,
         fat_per_100: fat, fiber_per_100: fiber, protein_per_100: protein, kcal_per_100: kcal,
+        ...Object.fromEntries((Object.keys(MICRO_FIELD) as Micro[]).map((m) => [MICRO_FIELD[m], micro[m]])), food_group: group || null,
         label_basis: basis, cooked_yield: cookedYield, approved, available, notes: notes.trim() || null,
         label_updated_at: new Date().toISOString().slice(0, 10),
       });
@@ -129,6 +135,21 @@ export default function ProductEdit() {
             <Field label={t('بروتين / 100')}><NumInput value={protein} onChange={setProtein} /></Field>
             <Field label={t('سعرات / 100')}><NumInput value={kcal} onChange={setKcal} /></Field>
           </div>
+          <details>
+            <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between text-sm font-medium">{t('مغذيات أخرى من الملصق (اختياري)')}<span className="text-slate-300">▾</span></summary>
+            <p className="mb-2 text-xs text-slate-500">{t('اكتب فقط ما في الملصق. الفارغ يعني «غير معروف» ولا يُحسب صفرًا.')}</p>
+            <div className="grid grid-cols-2 gap-3">
+              {(Object.keys(MICRO_FIELD) as Micro[]).map((m) => (
+                <Field key={m} label={`${NUTRIENT_NAME[m]} / 100 (${m === 'sat_fat' || m === 'sugar_added' ? t('غ') : m === 'vit_d' ? 'µg' : t('ملغ')})`}><NumInput value={micro[m]} onChange={(v) => setMicro((x) => ({ ...x, [m]: v }))} /></Field>
+              ))}
+            </div>
+            <Field label={t('مجموعة الطعام')} hint={t('تلقائيًا من الفئة: {g}', { g: CATEGORY_GROUP[category] ? GROUP[CATEGORY_GROUP[category]] : '—' })}>
+              <select className={inputCls} value={group} onChange={(e) => setGroup(e.target.value)}>
+                <option value="">{t('حسب الفئة')}</option>
+                {(['vegetables', 'fruit', 'grains', 'protein', 'dairy', 'legumes_nuts', 'extras', 'fats', 'mixed'] as const).map((g) => <option key={g} value={g}>{GROUP[g]}</option>)}
+              </select>
+            </Field>
+          </details>
         </Card>
 
         <Card className="space-y-3">

@@ -26,8 +26,17 @@ export interface Line {
   fiber: number | null;
   protein: number | null;
   kcal: number | null;
+  /** more label nutrients (null = this product's label does not give it) */
+  micro?: Record<Micro, number | null>;
   problem: Problem | null;
 }
+
+export type Micro = 'sat_fat' | 'sugar_added' | 'sodium' | 'calcium' | 'iron' | 'potassium' | 'vit_d';
+export const MICRO_FIELD: Record<Micro, keyof Product> = {
+  sat_fat: 'sat_fat_per_100', sugar_added: 'sugar_added_per_100', sodium: 'sodium_mg_per_100', calcium: 'calcium_mg_per_100',
+  iron: 'iron_mg_per_100', potassium: 'potassium_mg_per_100', vit_d: 'vit_d_ug_per_100',
+};
+const MICROS = Object.keys(MICRO_FIELD) as Micro[];
 
 export type Level = 'normal' | 'near' | 'over';
 
@@ -47,6 +56,8 @@ export interface MealResult {
   nutritionPartial: boolean;
   /** which of them are partial: each total is shown (and saved) on its own when every line has it */
   missing: Record<'fat' | 'fiber' | 'protein' | 'kcal', boolean>;
+  /** the other label nutrients: a total only when every line has it, else null (never a partial sum) */
+  micro: Record<Micro, number | null>;
   byRole: Record<Role, number>;
   level: Level;
 }
@@ -121,6 +132,7 @@ export function computeLine(
     // calories the label does not give are worked out from its carbs, fat and protein (4 / 9 / 4 kcal per gram)
     kcal: per(product.kcal_per_100 ?? (product.fat_per_100 !== null && product.protein_per_100 !== null
       ? product.carbs_per_100 * 4 + product.fat_per_100 * 9 + product.protein_per_100 * 4 : null)),
+    micro: Object.fromEntries(MICROS.map((m) => [m, per((product[MICRO_FIELD[m]] as number | null | undefined) ?? null)])) as Record<Micro, number | null>,
   };
 }
 
@@ -150,9 +162,13 @@ export function computeMeal<T extends Computable>(
       else total[k] += l[k] as number;
     }
   }
+  const micro = Object.fromEntries(MICROS.map((m) => {
+    const vals = lines.filter((l) => l.carbs !== null).map((l) => l.micro?.[m] ?? null);
+    return [m, vals.length && vals.every((v) => v !== null) ? vals.reduce((a, v) => a + v!, 0) : null];
+  })) as Record<Micro, number | null>;
   const complete = lines.length > 0 && lines.every((l) => l.carbs !== null);
   const nutritionPartial = Object.values(missing).some(Boolean);
-  return { lines, complete, total, nutritionPartial, missing, byRole, level: levelFor(total.carbs, settings) };
+  return { lines, complete, total, nutritionPartial, missing, micro, byRole, level: levelFor(total.carbs, settings) };
 }
 
 export function computeSnack(s: Snack, products: Product[], settings: Settings) {

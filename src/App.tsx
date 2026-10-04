@@ -26,6 +26,7 @@ import Shared from './pages/Shared';
 import SharePage from './pages/Share';
 import WidgetPage from './pages/Widget';
 import DietSheetPage from './pages/DietSheet';
+import GrowthPage from './pages/Growth';
 import Report from './pages/Report';
 import Scan from './pages/Scan';
 import { isNight } from './lib/schedule';
@@ -215,6 +216,7 @@ function Shell() {
         <Route path="/share" element={<SharePage />} />
         <Route path="/widget" element={<WidgetPage />} />
         <Route path="/diet-sheet" element={<DietSheetPage />} />
+        <Route path="/growth" element={<GrowthPage />} />
         <Route path="/report" element={<Report />} />
         <Route path="/snacks" element={<SnacksPage />} />
         <Route path="/settings" element={<SettingsPage />} />

@@ -21,6 +21,11 @@ export interface Product {
   fiber_per_100: number | null;
   protein_per_100: number | null;
   kcal_per_100: number | null;
+  /** more label nutrients per 100 (all optional; null = not on the label, never zero) */
+  sat_fat_per_100?: number | null; sugar_added_per_100?: number | null; sodium_mg_per_100?: number | null; calcium_mg_per_100?: number | null;
+  iron_mg_per_100?: number | null; potassium_mg_per_100?: number | null; vit_d_ug_per_100?: number | null;
+  /** food group when the category's default is wrong (e.g. water among drinks) */
+  food_group?: string | null;
   serving_size: number | null; // also what "1 piece" means
   carbs_per_serving: number | null;
   label_basis: 'as_sold' | 'cooked';
@@ -119,6 +124,10 @@ export interface Settings {
   pen_step: number; dose_gap_min: number;
   /** the insulin brands, for clinical reports */
   rapid_insulin: string | null; basal_insulin: string | null;
+  /** growth & nutrition: the child's profile for the WHO and energy references, and the dietitian's targets */
+  child_birth_date?: string | null; child_birth_approx?: boolean; child_sex?: 'female' | 'male' | null;
+  activity_level?: 'inactive' | 'low_active' | 'active' | 'very_active' | null;
+  nutrition_targets?: import('../engine/nutrition').Targets;
 }
 
 export interface HistoryLine {
@@ -143,6 +152,9 @@ export interface HistoryEntry {
   total_fiber: number | null;
   total_protein: number | null;
   total_kcal: number | null;
+  /** more nutrients, each null when an ingredient's label lacks it */
+  total_sat_fat?: number | null; total_sugar_added?: number | null; total_sodium?: number | null; total_calcium?: number | null;
+  total_iron?: number | null; total_potassium?: number | null; total_vit_d?: number | null;
   modified: boolean;
   glucose_mgdl: number | null;
   glucose_trend: number | null;

@@ -1,5 +1,23 @@
 [
   {
+    "date": "2026-10-04",
+    "version": "2.17.0",
+    "notes": [
+      "جديد: «النمو والتغذية». بطاقة صغيرة في الآن تجيب: هل النمو والأكل والتوازن بخير؟ اضغطها للتفاصيل.",
+      "النمو: الوزن والطول ومؤشر الكتلة مع المئين حسب مرجع WHO 2007 للبنات، ومنحنى عبر الوقت. سجّلوا قياسًا جديدًا من الصفحة أو من «سجّل ← أخرى ← وزن / طول».",
+      "الطاقة: الاحتياج التقديري من معادلات NASEM 2023 بعمرها وطولها ووزنها ونشاطها، مقابل الأكل وعلاج الانخفاض، لليوم و7 و30 يومًا. تقدير مرجعي وليس حدًا.",
+      "التغذية: البروتين والألياف والدهون وغيرها مع نسبة التغطية. الناقص في الملصق لا يُحسب صفرًا، وعلاج الانخفاض لا يُحسب في التوازن.",
+      "مجموعات الطعام وتركيبة الوجبات، وأهداف أخصائية التغذية تحل محل المرجع العام. وفي المنتجات حقول اختيارية للصوديوم والكالسيوم والحديد وغيرها."
+    ],
+    "notes_en": [
+      "New: “Growth & nutrition”. A small card on Now answers: are growth, eating and balance okay? Tap it for details.",
+      "Growth: weight, height and BMI with percentiles from the WHO 2007 reference for girls, and a chart over time. Add a measurement from the page or from Log → Other → Weight / height.",
+      "Energy: the estimated requirement from the NASEM 2023 equations using her age, height, weight and activity, against food and low treatments, for today, 7 and 30 days. A reference estimate, not a limit.",
+      "Nutrition: protein, fibre, fat and more, with coverage. Missing label data never counts as zero, and low treatments do not count toward balance.",
+      "Food groups and meal composition, and dietitian targets that replace the general reference. Products get optional fields for sodium, calcium, iron and more."
+    ]
+  },
+  {
     "date": "2026-10-03",
     "version": "2.16.0",
     "notes": [
