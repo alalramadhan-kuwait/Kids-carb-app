@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.22.1",
+    "notes": [
+      "إصلاح: شريط الأزرار السفلي كان يرتفع إلى منتصف الشاشة بعد إغلاق لوحة المفاتيح في الآيفون؛ يبقى الآن في الأسفل."
+    ],
+    "notes_en": [
+      "Fix: on iPhone the bottom tab bar could jump to the middle of the screen after the keyboard closed; it now stays at the bottom."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.22.0",
     "notes": [
       "تنبيهات أوضح تُفهم بنظرة: السطر الأول ماذا يحدث ومتى (مثل «انخفاض متوقع خلال 20 دقيقة»)، ثم السكر الآن واتجاهه، ثم ماذا يعني أو ماذا تفعلون.",

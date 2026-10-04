@@ -9,10 +9,12 @@ import '@fontsource/rubik/700.css';
 import './index.css';
 import { registerSw } from './lib/push';
 import { applyLang, useLang } from './i18n';
+import { keepFixedBarsInPlace } from './lib/iosViewport';
 
 applyLang();
 // iOS Safari ignores user-scalable=no; block its pinch gesture directly
 document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+keepFixedBarsInPlace();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
