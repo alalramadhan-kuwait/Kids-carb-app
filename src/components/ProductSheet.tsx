@@ -24,7 +24,7 @@ function Body({ p, onClose, start }: { p: Product; onClose: () => void; start: '
   const { reload } = useData();
   const [mode, setMode] = useState<'choose' | 'log'>(start);
   const choices = amountChoices(p);
-  const [amount, setAmount] = useState<number | null>(choices[0]?.amount ?? null);
+  const [amount, setAmount] = useState<number | null>(null); // nothing preselected: a tap on Save never logs a guessed 100 g
   const [at, setAt] = useState(Date.now());
   const [kind, setKind] = useState<'snack' | 'meal'>('snack');
   const [busy, setBusy] = useState(false);
@@ -66,7 +66,7 @@ function Body({ p, onClose, start }: { p: Product; onClose: () => void; start: '
         <>
           {!p.approved && <Alert tone="near">{t('هذا المنتج غير معتمد: راجعوا الملصق واعتمدوه من «تعديل» قبل تسجيله.')}</Alert>}
           <div>
-            <div className="mb-1 text-xs font-medium text-slate-500">{t('الكمية')}</div>
+            <div className="mb-1 text-xs font-medium text-slate-500">{t('الكمية')}{amount === null && <span className="text-over"> · {t('اختاروا الكمية')}</span>}</div>
             <div className="flex flex-wrap items-center gap-1.5">
               {choices.map((c) => (
                 <button key={c.key} onClick={() => setAmount(c.amount)} className={cx('min-h-[40px] rounded-full px-3.5 text-sm font-medium', amount === c.amount ? 'bg-brand text-white' : 'bg-slate-50 text-slate-700')}>{label(c.key, c.amount)}</button>

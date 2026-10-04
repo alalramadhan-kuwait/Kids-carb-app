@@ -810,4 +810,8 @@ export const food: Record<string, string> = {
   "نزل {r} أو أكثر في الساعة في {n} من {of} فترات ليلية بالإنسولين الطويل وحده؛ {k} منها وصلت تحت النطاق.": "Fell {r} or more per hour in {n} of {of} overnight stretches with only long-acting insulin; {k} went below range.",
   "وصلت تحت النطاق": "went below range",
   "تغيير الوحدة": "Change unit",
+  "عالجتها · سجّل العلاج": "Treated · log it",
+  "أعطيتها {u} وحدة · سجّل": "Given {u} U · save",
+  "أعطيت رقمًا آخر: ضع الرقم لأعدّله": "Gave a different amount: put the number in to edit it",
+  "اختاروا الكمية": "choose the amount",
 };

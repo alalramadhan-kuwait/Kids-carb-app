@@ -16,13 +16,15 @@ const STYLE: Record<AlertKind, string> = {
 const clock = (iso: string) => new Date(iso).toLocaleTimeString(locale() + '-u-nu-latn', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kuwait' });
 
 /** Active alerts above the graph: what, since when, who is on it. Compact, never a full-screen banner. */
-export function AlertStrip({ alerts, onChange }: { alerts: AlertRow[]; onChange: () => void }) {
+const LOWS: AlertKind[] = ['urgent_low', 'low', 'predicted_low'];
+/** «عالجتها» on a low also opens the low-treatment entry (her usual juice chosen), so the juice is recorded too. */
+export function AlertStrip({ alerts, onChange, onTreat }: { alerts: AlertRow[]; onChange: () => void; onTreat?: () => void }) {
   const { settings, nameOf } = useData();
   const [busy, setBusy] = useState('');
   if (!alerts.length) return null;
   const act = async (a: AlertRow, ack: 'on_it' | 'treated') => {
     setBusy(a.id);
-    try { const r = await ackAlert(a.id, ack); if (r.error) toast(t('انتهى التنبيه')); onChange(); }
+    try { const r = await ackAlert(a.id, ack); if (r.error) toast(t('انتهى التنبيه')); onChange(); if (ack === 'treated' && LOWS.includes(a.kind)) onTreat?.(); }
     catch (e) { toast(t('تعذّر: {e}', { e: (e as Error).message })); } finally { setBusy(''); }
   };
   return (
@@ -40,7 +42,7 @@ export function AlertStrip({ alerts, onChange }: { alerts: AlertRow[]; onChange:
           <div className="mt-2 grid grid-cols-3 gap-2">
             {a.state === 'active'
               ? <Btn kind="primary" className="col-span-2 min-h-[48px]" disabled={busy === a.id} onClick={() => act(a, 'on_it')}>{t('أنا عليها')}</Btn>
-              : <Btn className="col-span-2 min-h-[48px]" disabled={busy === a.id} onClick={() => act(a, 'treated')}>{a.kind === 'no_data' ? t('تمّ التحقق') : t('عالجتها')}</Btn>}
+              : <Btn className="col-span-2 min-h-[48px]" disabled={busy === a.id} onClick={() => act(a, 'treated')}>{a.kind === 'no_data' ? t('تمّ التحقق') : LOWS.includes(a.kind) ? t('عالجتها · سجّل العلاج') : t('عالجتها')}</Btn>}
             <Link to="/care-plan" className="flex min-h-[48px] items-center justify-center rounded-xl bg-white/80 text-sm font-bold text-slate-800">{t('خطة الطبيب')}</Link>
           </div>
         </div>

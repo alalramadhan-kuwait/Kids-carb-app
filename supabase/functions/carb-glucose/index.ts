@@ -3,7 +3,7 @@
 // them. The login is kept in Supabase Vault; the browser can save it but never read it back.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { hostFor, LLU_PRODUCT, LLU_VERSION, LluError, loginProblem, maskEmail, readingsFromGraph, redirectRegion, sensorFrom, sensorReminderDue, sha256Hex, tooSoon } from './lib.ts';
-import { ackMessage, alertMessage, evaluate, lowNow, planMessage, planPushDue, rate15, recipients, sensorMessage, testMessage, type AlertCfg, type AlertKind, type Lang, type OpenAlert, type PlanRow } from './alerts.ts';
+import { ackMessage, alertMessage, evaluate, lowNow, planMessage, planPushDue, rate15, recipients, sensorMessage, testMessage, treatRecheckMessage, treatRechecksDue, type TreatRow, type AlertCfg, type AlertKind, type Lang, type OpenAlert, type PlanRow } from './alerts.ts';
 import { newVapid, sendPush, type Vapid } from './push.ts';
 
 const cors = {
@@ -145,6 +145,27 @@ async function planReminders(db: Db, now: number) {
   }
 }
 
+/** After every logged low treatment: one "check again" push to both parents; claimed before sending. */
+async function treatRechecks(db: Db, now: number) {
+  const since = new Date(now - 60 * 60000).toISOString();
+  const [{ data: rows }, { data: plans }, { data: set }, { data: last }] = await Promise.all([
+    db.from('events').select('id,occurred_at,recheck_sent_at').eq('kind', 'treatment').is('deleted_at', null).gte('occurred_at', since),
+    db.from('planned_meals').select('treatment_event_id').not('treatment_event_id', 'is', null).gte('dose_at', new Date(now - 12 * 3600000).toISOString()),
+    db.from('settings').select('glucose_unit,treat_recheck_min').eq('id', true).single(),
+    db.from('glucose_readings').select('taken_at,mg_dl,trend').order('taken_at', { ascending: false }).limit(1).maybeSingle(),
+  ]);
+  if (!rows?.length) return;
+  const min = Number((set as any)?.treat_recheck_min) || 15;
+  const due = treatRechecksDue(rows as TreatRow[], now, min, new Set((plans ?? []).map((p: any) => p.treatment_event_id)));
+  const r = last as { taken_at: string; mg_dl: number; trend: number | null } | null;
+  const g = r && now - Date.parse(r.taken_at) <= 15 * 60000 ? { mg: r.mg_dl, trend: r.trend, unit: ((set as any)?.glucose_unit === 'mmol' ? 'mmol' : 'mgdl') as 'mmol' | 'mgdl' } : null;
+  for (const t of due) {
+    const { data: claimed } = await db.from('events').update({ recheck_sent_at: new Date(now).toISOString() }).eq('id', t.id).is('recheck_sent_at', null).select('id');
+    if (!claimed?.length) continue; // another run sent it
+    await pushAll(db, (lang) => ({ ...treatRecheckMessage(lang, g, min), tag: `recheck-${t.id}`, url: './#/' }), { kind: 'treat_recheck', urgency: 'high' });
+  }
+}
+
 async function runAlerts(db: Db, now: number) {
   const [st, set, last, open, mem] = await Promise.all([
     db.from('cgm_state').select('connected').eq('id', true).single(),
@@ -232,6 +253,7 @@ Deno.serve(async (req) => {
       try { await runAlerts(db, Date.now()); } catch (e) { console.error('alerts', e instanceof Error ? e.message : e); }
       try { await sensorReminder(db, Date.now()); } catch (e) { console.error('sensor', e instanceof Error ? e.message : e); }
       try { await planReminders(db, Date.now()); } catch (e) { console.error('plans', e instanceof Error ? e.message : e); }
+      try { await treatRechecks(db, Date.now()); } catch (e) { console.error('rechecks', e instanceof Error ? e.message : e); }
       return json({ ok: !extra.error, ...extra });
     }
     const st = await state();

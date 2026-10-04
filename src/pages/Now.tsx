@@ -48,6 +48,7 @@ export default function Now() {
   const { settings, history, events, nameOf, members, products } = useData();
   const { g, failed, reload } = useGlucose();
   const [logOpen, setLogOpen] = useState(false);
+  const [logKind, setLogKind] = useState<'treatment' | null>(null);
   const alerts = useAlerts();
   const [today, setToday] = useState<GlucoseStats | null>(null);
 
@@ -95,7 +96,7 @@ export default function Now() {
       <LayanHeader alertCount={alerts.open.length} night={isNight(settings)} />
       <div className="space-y-4 pb-24">
         {/* the only things allowed above her glucose: alerts that need someone now */}
-        <AlertStrip alerts={alerts.open} onChange={alerts.reload} />
+        <AlertStrip alerts={alerts.open} onChange={alerts.reload} onTreat={() => { setLogKind('treatment'); setLogOpen(true); }} />
 
         {/* 1 · Primary: the current glucose, its direction and a short status — or the one action that gets it */}
         {notConnected ? (
@@ -191,7 +192,7 @@ export default function Now() {
           </button>
         </div>
       </div>
-      <LogSheet open={logOpen} onClose={() => setLogOpen(false)} low={!!latest && Date.now() - Date.parse(latest.taken_at) < 20 * 60000 && latest.mg_dl <= (rng.low ?? 70) + 5} />
+      <LogSheet open={logOpen} startKind={logKind} onClose={() => { setLogOpen(false); setLogKind(null); }} low={!!latest && Date.now() - Date.parse(latest.taken_at) < 20 * 60000 && latest.mg_dl <= (rng.low ?? 70) + 5} />
     </main>
   );
 }

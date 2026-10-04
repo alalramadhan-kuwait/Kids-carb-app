@@ -1,6 +1,22 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.27.0",
+    "notes": [
+      "تذكير «أعيدوا قياس السكر» يصل للوالدين بعد 15 دقيقة من أي علاج انخفاض.",
+      "«عالجتها» في تنبيه الانخفاض تفتح تسجيل العلاج وعصيرها المعتاد مختار؛ ضغطة «حفظ» تسجّله.",
+      "حاسبة الجرعة: زر «أعطيتها X وحدة · سجّل» يحفظ الجرعة مباشرة، و«أعطيت رقمًا آخر» يضع الرقم لتعديله.",
+      "تسجيل منتج: لا كمية مختارة مسبقًا، فلا يُسجَّل 100 غ بالخطأ."
+    ],
+    "notes_en": [
+      "A “Check her glucose again” reminder reaches both parents 15 minutes after any low treatment.",
+      "“Treated” on a low alert opens the low-treatment entry with her usual juice chosen; one tap on Save records it.",
+      "Dose calculator: “Given X U · save” saves the dose straight away; “Gave a different amount” puts the number in to edit.",
+      "Logging a product: no amount is preselected, so 100 g is never logged by mistake."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.26.5",
     "notes": [
       "منتج جديد: جبن توبي (Muratbey) مع صورته، ويظهر بالبحث «توبي» أو «جبن»."

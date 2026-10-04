@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { deleteEvent, restoreEvent, saveEvent, type NewEvent } from '../lib/api';
@@ -48,7 +48,7 @@ const AGO = [0, 15, 30, 60];
  * finger-prick up front; note, exercise and sleep under "أخرى". When glucose is low the low treatment comes first.
  * Rapid insulin shows the dose calculator (doctor's plan); the parent confirms.
  */
-export function LogSheet({ open, onClose, low = false }: { open: boolean; onClose: () => void; low?: boolean }) {
+export function LogSheet({ open, onClose, low = false, startKind = null }: { open: boolean; onClose: () => void; low?: boolean; startKind?: EventKind | null }) {
   const { events, me, nameOf, reload, settings, history } = useData();
   const [kind, setKind] = useState<EventKind | null>(null);
   const [clientId, setClientId] = useState(() => crypto.randomUUID());
@@ -66,6 +66,7 @@ export function LogSheet({ open, onClose, low = false }: { open: boolean; onClos
   const [busy, setBusy] = useState(false);
   const [dupAck, setDupAck] = useState(false);
   const [calc, setCalc] = useState<DoseCalc | null>(null);
+  const [saveSoon, setSaveSoon] = useState(false);               // «أعطيتها» in the calculator: save once the values are in
   const [bg, setBg] = useState<number | null>(null);          // finger-prick, in the family's unit
   const [clean, setClean] = useState(true);                     // hands washed and dried
   const quick = useQuickItems();
@@ -78,6 +79,12 @@ export function LogSheet({ open, onClose, low = false }: { open: boolean; onClos
   const ranked = useMemo(() => rankQuick(quick.items, history), [quick.items, history]);
   const quickShown = brandPick ? ranked.filter((q) => sameBrand(q.brand, brandPick)) : ranked.slice(0, 6);
   const usualLow = useMemo(() => usualLowTreatments(history, events), [history, events]);
+  // opened for a low treatment (from an alert's «عالجتها»): her usual one is chosen, one tap on Save
+  useEffect(() => {
+    if (!open || !startKind) return;
+    setKind(startKind);
+    if (startKind === 'treatment' && usualLow[0]) { setGrams(usualLow[0].carbs); setTreat(usualLow[0].name); }
+  }, [open, startKind]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const reset = () => {
     setKind(null); setClientId(crypto.randomUUID()); setUnits(null); setType('rapid'); setPurpose(null);
@@ -111,6 +118,7 @@ export function LogSheet({ open, onClose, low = false }: { open: boolean; onClos
     (kind === 'sleep' && !!draft.ends_at && sleepWindow(sleepFrom, sleepTo).minutes <= 16 * 60));
   const dup = draft && valid ? findDuplicate(events, draft) : null;
 
+  useEffect(() => { if (saveSoon) { setSaveSoon(false); void save(); } }); // eslint-disable-line react-hooks/exhaustive-deps
   const save = async () => {
     if (!draft || !valid) return;
     if (dup && !dupAck) return; // the question is on screen
@@ -244,7 +252,7 @@ export function LogSheet({ open, onClose, low = false }: { open: boolean; onClos
           {kind === 'insulin' && <>
             <Seg on={KIND_STYLE[kind!].solid} value={type} onChange={(v) => setType(v as 'rapid' | 'long')} options={[['rapid', t('سريع المفعول')], ['long', t('طويل المفعول')]]} />
             {type === 'rapid' && <Seg on={KIND_STYLE[kind!].solid} value={purpose ?? ''} onChange={(v) => setPurpose((v || null) as typeof purpose)} options={[['meal', t('لوجبة')], ['correction', t('تصحيح')], ['both', t('الاثنين')]]} allowNone />}
-            {type === 'rapid' && ago === 0 && <DoseCalculator onUse={(u, p, c) => { setUnits(u); setPurpose(p); setCalc(c); }} />}
+            {type === 'rapid' && ago === 0 && <DoseCalculator onUse={(u, p, c, now) => { setUnits(u); setPurpose(p); setCalc(c); if (now) setSaveSoon(true); }} />}
             {units !== null && units > 20 && <Alert tone="near">{t('رقم كبير. تأكد أنه صحيح قبل الحفظ.')}</Alert>}
           </>}
           {kind === 'treatment' && <Seg on={KIND_STYLE[kind!].solid} value={treat} onChange={setTreat} options={[['عصير', t('عصير')], ['أقراص جلوكوز', t('أقراص')], ['أخرى', t('أخرى')]]} /* i18n-ok: stored values */ />}

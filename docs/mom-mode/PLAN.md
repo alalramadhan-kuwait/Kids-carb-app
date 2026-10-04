@@ -1,6 +1,6 @@
 # Mom mode (الوضع البسيط) — living plan
 
-**Status:** design, not built. Updated after every piece of feedback (see the log at the end).
+**Status:** step 1 built (2.27.0); steps 2–5 not built. Updated after every piece of feedback (see the log at the end).
 **Mockups:** `v1-screens-1..3.png` (12 screens), `v2-home-products-pens.png`, `v3-injection-sites.png`; sources
 `mom.html`, `mom2.html`, `mom3.html` (open in a browser). All numbers in mockups are made up.
 
@@ -155,5 +155,8 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
   Tresiba light green); products as a full, grouped page.
 - **v4 (Dad)** — track where each injection is given, rotate between sites and suggest the next one.
 - **v5 (Dad)** — keep all details in this plan and update it after every feedback.
+- **Defaults (until Dad/care team say otherwise):** 6 injection sites, no buttocks; Tresiba rotates over all sites.
+- **Step 1 built (2.27.0):** no 100 g preselected; dose calculator «أعطيتها X وحدة · سجّل» saves; an alert's
+  «عالجتها» opens the treatment entry with her usual juice; a recheck push 15 min after every low treatment.
 - **v6 (Dad)** — doctor's rules written at the top: no NovoRapid within 2 h of the last dose (hard stop with a
   countdown); a dose has no effect after 3 h (doctor) — app counts 4 h by the family's cautious choice.

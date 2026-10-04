@@ -364,3 +364,24 @@ export function planMessage(kind: PlanPush, p: PlanRow, lang: Lang = 'ar', g?: {
     body: join(now, en ? `15 min since the low was treated · before the ${meal.toLowerCase()} dose` : `مرّت 15 دقيقة على علاج الانخفاض · قبل جرعة ${meal}`),
   };
 }
+
+// ── recheck after a low treatment ─────────────────────────────────────────────────────────────────
+// Every logged low treatment gets one push "check again" after the recheck time (15 min by default), unless a
+// newer treatment followed it (that one has its own timer) or it came from a planned meal (the plan reminds).
+export interface TreatRow { id: string; occurred_at: string; recheck_sent_at: string | null }
+export function treatRechecksDue(rows: TreatRow[], now: number, recheckMin = 15, skip: Set<string> = new Set()): TreatRow[] {
+  const MINUTE = 60000, sorted = [...rows].sort((a, b) => Date.parse(a.occurred_at) - Date.parse(b.occurred_at));
+  return sorted.filter((r, i) => {
+    const t = Date.parse(r.occurred_at), due = t + recheckMin * MINUTE;
+    if (r.recheck_sent_at || skip.has(r.id) || now < due || now > due + 30 * MINUTE) return false;
+    const next = sorted[i + 1];
+    return !next || Date.parse(next.occurred_at) > now;   // a newer treatment already happened: its own recheck covers it
+  });
+}
+export function treatRecheckMessage(lang: Lang = 'ar', g?: { mg: number; trend: number | null; unit: 'mgdl' | 'mmol' } | null, min = 15) {
+  const en = lang === 'en', now = g ? nowLine(g.mg, g.trend, g.unit, lang) : null;
+  return {
+    title: `${MARK.warning} ${en ? 'Check her glucose again' : 'أعيدوا قياس السكر'}`,
+    body: join(now, en ? `${dur(min, lang)} since the low treatment` : `مرّت ${dur(min, lang)} على علاج الانخفاض`),
+  };
+}

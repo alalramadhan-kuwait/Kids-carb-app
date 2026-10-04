@@ -2317,6 +2317,23 @@ test('Topi cheese is found by «توبي» and «جبن»', async () => {
   for (const q of ['توبي', 'جبن', 'cheese', 'topi', 'موراتبي']) assert.ok(matches(['Topi Cheese (كرات جبن طازجة) 200g', 'Muratbey', 'جبن'], q), q);
 });
 
+{
+  const { treatRechecksDue, treatRecheckMessage } = await import('../../../supabase/functions/carb-glucose/alerts');
+  const M = 60000, T = Date.UTC(2026, 9, 5, 0, 0);
+  const r = (id: string, m: number, sent: string | null = null) => ({ id, occurred_at: new Date(T + m * M).toISOString(), recheck_sent_at: sent });
+  test('a recheck push 15 min after every low treatment, once, not for an older one or a planned meal', () => {
+    assert.deepEqual(treatRechecksDue([r('a', 0)], T + 10 * M).map((x) => x.id), [], 'not yet');
+    assert.deepEqual(treatRechecksDue([r('a', 0)], T + 15 * M).map((x) => x.id), ['a']);
+    assert.deepEqual(treatRechecksDue([r('a', 0, 'x')], T + 16 * M), [], 'sent already');
+    assert.deepEqual(treatRechecksDue([r('a', 0), r('b', 5)], T + 16 * M).map((x) => x.id), [], 'a newer juice has its own timer');
+    assert.deepEqual(treatRechecksDue([r('a', 0), r('b', 5)], T + 20 * M).map((x) => x.id), ['b']);
+    assert.deepEqual(treatRechecksDue([r('a', 0)], T + 15 * M, 15, new Set(['a'])), [], 'a planned meal reminds itself');
+    assert.deepEqual(treatRechecksDue([r('a', 0)], T + 50 * M), [], 'too late to be useful');
+    assert.equal(treatRecheckMessage('ar').title, '🟠 أعيدوا قياس السكر');
+    assert.equal(treatRecheckMessage('en', null, 15).body, '15 min since the low treatment');
+  });
+}
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {

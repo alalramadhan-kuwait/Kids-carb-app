@@ -17,9 +17,10 @@ const clock = (ms: number) => new Date(ms).toLocaleTimeString(locale(), { hour: 
 
 /**
  * Dose calculator inside «سجّل ← إنسولين سريع»: the doctor's plan from Settings, the carbs just eaten (editable),
- * the glucose now and the insulin still working. Shows every step; «استخدم» only fills the field, the parent saves.
+ * the glucose now and the insulin still working. Shows every step. «أعطيتها» records the dose given in one tap;
+ * «ضع الرقم فقط» fills the field to change it first.
  */
-export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'meal' | 'correction' | 'both', calc: DoseCalc) => void }) {
+export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'meal' | 'correction' | 'both', calc: DoseCalc, save: boolean) => void }) {
   const { settings: s, history, events } = useData();
   const [carbs, setCarbs] = useState<number | null>(null);
   const { g, now, latest, iob, ratio, target, r } = useLiveDose(carbs ?? 0);
@@ -79,11 +80,18 @@ export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'mea
             </span>
             <b className="num text-2xl">{t('{u} وحدة', { u: fmt(r.dose) })}</b>
           </div>
-          {r.dose > 0
-            ? <button className={cx('min-h-[48px] w-full rounded-xl font-bold', KIND_STYLE.insulin.solid)} onClick={() => onUse(r.dose, purpose, {
-                suggested: r.dose, carbs: carbs ?? 0, glucose: latest!.mg_dl, iob: Math.round((iob ?? 0) * 100) / 100, cr: ratio!.cr, isf: ratio!.isf,
-                target: [target!.low, target!.high], food: Math.round(r.food * 100) / 100, correction: Math.round(r.correction * 100) / 100,
-              })}>{t('استخدم {u} وحدة', { u: fmt(r.dose) })}</button>
+          {r.dose > 0 ? (() => {
+            const c: DoseCalc = {
+              suggested: r.dose, carbs: carbs ?? 0, glucose: latest!.mg_dl, iob: Math.round((iob ?? 0) * 100) / 100, cr: ratio!.cr, isf: ratio!.isf,
+              target: [target!.low, target!.high], food: Math.round(r.food * 100) / 100, correction: Math.round(r.correction * 100) / 100,
+            };
+            return (
+              <div className="space-y-1.5">
+                <button className={cx('min-h-[52px] w-full rounded-xl text-lg font-bold', KIND_STYLE.insulin.solid)} onClick={() => onUse(r.dose, purpose, c, true)}>{t('أعطيتها {u} وحدة · سجّل', { u: fmt(r.dose) })}</button>
+                <button className="min-h-[40px] w-full rounded-xl text-sm font-medium text-slate-600 underline" onClick={() => onUse(r.dose, purpose, c, false)}>{t('أعطيت رقمًا آخر: ضع الرقم لأعدّله')}</button>
+              </div>
+            );
+          })()
             : <p className="text-sm font-medium text-slate-700">{t('لا حاجة لجرعة الآن.')}</p>}
           <p className="text-xs leading-relaxed text-slate-500">{t('من خطة الطبيب. راجعوا الرقم قبل الإعطاء؛ الرياضة والمرض والأكل غير المسجّل غير محسوبة.')}</p>
         </>
