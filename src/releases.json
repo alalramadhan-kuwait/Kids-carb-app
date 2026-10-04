@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.23.2",
+    "notes": [
+      "فحص الخطة: بجانب كل صنف كميته (غ، مل، أو حصص مع وزنها)، والرقم على اليمين مكتوب «غ كارب»."
+    ],
+    "notes_en": [
+      "Plan check: each item now shows its amount (g, ml, or servings with their weight), and the number on the right reads “g carbs”."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.23.1",
     "notes": [
       "استجابة المنتجات: علاج الانخفاض المسجّل باسم منتج يُحسب له دائمًا، حتى لو لم يُسجَّل هذا المنتج كأكل من قبل."

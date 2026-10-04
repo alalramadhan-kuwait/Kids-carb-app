@@ -29,6 +29,13 @@ const hmOf = (ms: number) => { const d = new Date(ms); return `${String(d.getHou
 const at = (date: string, hm: string) => new Date(`${date}T${hm}:00`).getTime();
 const until = (ms: number, now: number) => { const m = Math.max(0, Math.round((ms - now) / MIN)); return m >= 60 ? t('{h} س {m} د', { h: Math.floor(m / 60), m: m % 60 }) : t('{m} د', { m }); };
 
+/** How much of it: "120 غ", "125 مل", "2 حصة (60 غ)" — servings with their weight when the label gives one. */
+function amountOf(i: PlanItem, p: Product | null | undefined) {
+  const q = fmt(i.quantity);
+  const serv = isEn() ? (i.quantity === 1 ? 'serving' : 'servings') : UNIT.serving;
+  if (i.unit === 'serving') return `${q} ${serv}${p?.serving_size ? ` (${fmt(Math.round(i.quantity * p.serving_size))} ${UNIT[p.unit]})` : ''}`;
+  return `${q} ${UNIT[i.unit] ?? i.unit}`;
+}
 function itemName(i: PlanItem, products: Product[]) { return i.label ?? products.find((p) => p.id === i.product_id)?.name ?? (i.slot_category ? tMaybe(i.slot_category) : '?'); }
 const fromProduct = (p: Product): PlanItem => ({ product_id: p.id, slot_category: null, label: null, quantity: p.unit === 'ml' && (p.pack_size ?? 0) > 0 && (p.pack_size ?? 0) <= 500 ? Number(p.pack_size) : p.serving_size ? 1 : 100, unit: p.unit === 'ml' && (p.pack_size ?? 0) > 0 && (p.pack_size ?? 0) <= 500 ? 'ml' : p.serving_size ? 'serving' : p.unit, state: 'as_is', role: p.category === 'مشروبات' ? 'drink' : 'main' }); // i18n-ok: data value
 
@@ -219,7 +226,12 @@ function CheckBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =
 
       {/* the meal */}
       <ul className="divide-y divide-slate-100 text-sm">
-        {meal.lines.map((l, i) => <li key={i} className="flex justify-between gap-2 py-1"><bdi>{itemName(plan.items[i], products)}</bdi><span className="num">{l.carbs === null ? '—' : fmt(Math.round(l.carbs * 10) / 10)}</span></li>)}
+        {meal.lines.map((l, i) => (
+          <li key={i} className="flex items-baseline justify-between gap-2 py-1">
+            <span className="min-w-0"><bdi>{itemName(plan.items[i], products)}</bdi> <span className="text-xs text-slate-500">· {amountOf(plan.items[i], l.product)}</span></span>
+            <span className="shrink-0"><span className="num">{l.carbs === null ? '—' : fmt(Math.round(l.carbs * 10) / 10)}</span> <span className="text-xs text-slate-500">{t('غ كارب')}</span></span>
+          </li>
+        ))}
         <li className="flex justify-between gap-2 py-1 font-bold"><span>{t('المجموع')}</span><span className="num">{fmt(Math.round(meal.total.carbs * 10) / 10)} {t('غ')}</span></li>
       </ul>
 
