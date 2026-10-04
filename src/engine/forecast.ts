@@ -1,7 +1,7 @@
 // Forecast lines for the glucose graph. Pure, tested in Node. Display only: production calculations (the trend
 // arrow's 30-minute projection, the on-board estimate, the predictions frozen at each meal); no research model,
 // and nothing here feeds the dose calculator.
-import { cobAt, iobAt, type CarbEntry, type Dose, type IobParams } from './iob';
+import { iobFraction, type CarbEntry, type Dose, type IobParams } from './iob';
 import type { Ratio } from './status';
 
 const MIN = 60000;
@@ -20,15 +20,21 @@ export function trendForecast(last: Pt | null, projected30: number | null, now: 
  */
 export function onboardForecast(last: Pt | null, now: number, doses: Dose[], carbs: CarbEntry[], iob: IobParams | null, absorb: number | null, ratio: Ratio | null): Forecast | null {
   if (!last || !iob || !absorb || !ratio || now - last.t > 15 * MIN) return null;
-  const t0 = last.t, I0 = iobAt(t0, doses, iob), C0 = cobAt(t0, carbs, absorb);
+  // what is still to act at time t, counting everything logged up to now: a dose or meal logged after the last
+  // reading (the sensor is a few minutes behind) is fully "to act" until its time, never "already used" (2026-10-04:
+  // a dose logged 4 min after the reading drew the curve UP by dose × ISF)
+  const ds = doses.filter((d) => d.t <= now), cs = carbs.filter((c) => c.t <= now);
+  const insulinLeft = (t: number) => ds.reduce((s, d) => s + (t <= d.t ? d.units : t - d.t < iob.dia * MIN ? d.units * iobFraction((t - d.t) / MIN, iob) : 0), 0);
+  const carbsLeft = (t: number) => cs.reduce((s, c) => s + (t <= c.t ? c.grams : Math.max(0, 1 - (t - c.t) / (absorb * MIN)) * c.grams), 0);
+  const t0 = last.t, I0 = insulinLeft(t0), C0 = carbsLeft(t0);
   if (I0 < 0.05 && C0 < 1) return null; // nothing on board: no curve
   let end = t0;
-  for (const d of doses) if (d.t <= t0 && t0 - d.t < iob.dia * MIN) end = Math.max(end, d.t + iob.dia * MIN);
-  for (const c of carbs) if (c.t <= t0 && t0 - c.t < absorb * MIN) end = Math.max(end, c.t + absorb * MIN);
+  for (const d of ds) if (t0 - d.t < iob.dia * MIN) end = Math.max(end, d.t + iob.dia * MIN);
+  for (const c of cs) if (t0 - c.t < absorb * MIN) end = Math.max(end, c.t + absorb * MIN);
   end = Math.min(end, t0 + 6 * 60 * MIN);
   const pts: Pt[] = [];
   for (let t = t0; t <= end; t += 5 * MIN) {
-    const v = last.v + ((C0 - cobAt(t, carbs, absorb)) / ratio.cr) * ratio.isf - (I0 - iobAt(t, doses, iob)) * ratio.isf;
+    const v = last.v + ((C0 - carbsLeft(t)) / ratio.cr) * ratio.isf - (I0 - insulinLeft(t)) * ratio.isf;
     pts.push({ t, v: Math.max(20, Math.min(450, v)) });
   }
   return pts.length > 1 ? { kind: 'onboard', key: 'onboard', pts } : null;

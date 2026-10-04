@@ -1704,6 +1704,12 @@ console.log('graph forecasts');
     // 30 g and the matching 2 u: it ends about where it started
     const even = F.onboardForecast(last, T, [{ t: last.t, units: 2 }], [{ t: last.t, grams: 30 }], iob, 180, ratio)!;
     assert.ok(Math.abs(even.pts[even.pts.length - 1].v - 140) < 3);
+    // the sensor is a few minutes behind: a dose logged after the last reading must pull the curve down, never up
+    const late = F.onboardForecast(last, last.t + 5 * M, [{ t: last.t + 4 * M, units: 1 }], [], iob, 180, ratio)!;
+    assert.ok(late.pts.every((p) => p.v <= 140 + 1e-9), 'never above the start');
+    assert.ok(late.pts[late.pts.length - 1].v < 140 - 40);
+    const lateFood = F.onboardForecast(last, last.t + 5 * M, [], [{ t: last.t + 3 * M, grams: 15 }], iob, 180, ratio)!;
+    assert.ok(lateFood.pts.every((p) => p.v >= 140 - 1e-9) && lateFood.pts[lateFood.pts.length - 1].v > 180, 'food logged after the reading only raises it');
     assert.equal(F.onboardForecast(last, T, [], [], iob, 180, ratio), null, 'nothing on board: no curve');
     assert.equal(F.onboardForecast(last, T, [{ t: last.t, units: 2 }], [], null, 180, ratio), null, 'no care-team numbers: no curve');
 
