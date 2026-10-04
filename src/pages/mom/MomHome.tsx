@@ -68,7 +68,7 @@ export function MomHome() {
   const ack = () => { if (!juice) return; try { localStorage.setItem('mom-juice-ack', juice.id); } catch { /* blocked */ } setAcked(juice.id); };
 
   return (
-    <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col gap-3 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3">
+    <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col gap-3 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-[calc(12px+env(safe-area-inset-top))]">
       <div className="flex items-baseline justify-between"><b className="text-[22px]">{t('ليان')}</b><span className="text-sm text-slate-500">{at ? ago(at, now) : ''}</span></div>
       <div className={cx('flex items-center gap-4 rounded-3xl px-5 py-4', m.bg)} style={{ color: '#fff' }}>
         <div className="min-w-0 flex-1"><div className="text-[22px] font-bold leading-tight">{t(m.word)}</div><div className="text-[16px] opacity-90">{t(m.todo)}</div></div>

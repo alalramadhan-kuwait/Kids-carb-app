@@ -34,7 +34,7 @@ export const glucoseText = (mg: number, unit: 'mmol' | 'mgdl') => formatGlucose(
 export function MomPage({ title, back = -1, children, foot }: { title: string; back?: string | number | null; children: ReactNode; foot?: ReactNode }) {
   const nav = useNavigate();
   return (
-    <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3">
+    <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-[calc(12px+env(safe-area-inset-top))]">
       <header className="mb-3 flex min-h-[48px] items-center gap-3">
         {back !== null && <button aria-label={t('رجوع')} onClick={() => (typeof back === 'number' ? nav(back) : nav(back))} className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-2xl shadow-sm">{isEn() ? '←' : '→'}</button>}
         <h1 className="text-[24px] font-bold leading-tight">{title}</h1>
