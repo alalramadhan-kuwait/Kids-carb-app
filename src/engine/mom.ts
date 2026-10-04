@@ -3,8 +3,9 @@
 // Tested in Node. Nothing here proposes a dose; the dose always comes from engine/dose.ts and the care plan.
 import type { Ingredient, InjectionSite, PlanItem, Portion, Product, Recipe } from '../lib/types';
 
-/** One thing on her plate: a product or a recipe, in one of its portions. */
-export interface MomItem { kind: 'product' | 'recipe'; id: string; portion_id: string }
+/** One thing on her plate: a product or a recipe, in one of Dad's portions, or in an amount chosen on the spot
+ *  (label servings, grams/ml, or plates of a recipe). */
+export interface MomItem { kind: 'product' | 'recipe'; id: string; portion_id: string | null; amount?: number; unit?: 'serving' | 'g' | 'plate' }
 
 export interface Catalog {
   products: Product[];
@@ -15,18 +16,23 @@ export interface Catalog {
 
 /** The plan items for one mom item: a product's portion in its own unit, or a recipe's ingredients scaled. */
 export function planItemsOf(it: MomItem, c: Catalog): PlanItem[] | null {
-  const p = c.portions.find((x) => x.id === it.portion_id);
-  if (!p) return null;
+  const p = it.portion_id ? c.portions.find((x) => x.id === it.portion_id) : null;
+  if (it.portion_id && !p) return null;
+  const amount = p ? Number(p.amount) : Number(it.amount);
+  if (!(amount > 0)) return null;
   if (it.kind === 'product') {
     const pr = c.products.find((x) => x.id === it.id);
-    if (!pr || p.product_id !== pr.id) return null;
-    return [{ product_id: pr.id, slot_category: null, label: null, quantity: Number(p.amount), unit: pr.unit, state: 'as_is', role: pr.category === 'مشروبات' ? 'drink' : 'main' }]; // i18n-ok: stored value
+    if (!pr || (p && p.product_id !== pr.id)) return null;
+    const role = pr.category === 'مشروبات' ? 'drink' as const : 'main' as const; // i18n-ok: stored value
+    if (!p && it.unit === 'serving') return pr.serving_size ? [{ product_id: pr.id, slot_category: null, label: null, quantity: amount, unit: 'serving', state: 'as_is', role }] : null;
+    if (!p && it.unit !== 'g') return null;
+    return [{ product_id: pr.id, slot_category: null, label: null, quantity: amount, unit: pr.unit, state: 'as_is', role }];
   }
   const r = c.recipes.find((x) => x.id === it.id);
-  if (!r || p.recipe_id !== r.id) return null;
+  if (!r || (p && p.recipe_id !== r.id) || (!p && it.unit !== 'plate')) return null;
   const ings = (c.ingsByRecipe.get(r.id) ?? []).filter((i) => i.role !== 'snack');
   if (!ings.length) return null;
-  return ings.map((i) => ({ product_id: i.product_id, slot_category: i.slot_category, label: i.label, quantity: Number(i.quantity) * Number(p.amount), unit: i.unit, state: i.state, role: i.role }));
+  return ings.map((i) => ({ product_id: i.product_id, slot_category: i.slot_category, label: i.label, quantity: Number(i.quantity) * amount, unit: i.unit, state: i.state, role: i.role }));
 }
 
 /** Everything on the plate as plan items; null if any item is missing (no guessing). */
@@ -36,14 +42,14 @@ export function planItems(items: MomItem[], c: Catalog): PlanItem[] | null {
   return out;
 }
 
-/** Shown to Mom only when the parent has set at least one portion and the item is approved. */
+/** Shown to Mom when a parent approved it (its label is checked): any approved product with carbs on its label, any
+ *  approved recipe whose carbs are complete. Dad's portions are offered first, but are no longer required. */
 export function readyForMom(kind: 'product' | 'recipe', id: string, c: Catalog) {
-  const has = c.portions.some((p) => (kind === 'product' ? p.product_id === id : p.recipe_id === id));
-  if (!has) return false;
-  if (kind === 'product') return !!c.products.find((x) => x.id === id)?.approved;
+  if (kind === 'product') { const p = c.products.find((x) => x.id === id); return !!p && p.approved && p.carbs_per_100 !== null && p.carbs_per_100 !== undefined; }
   const r = c.recipes.find((x) => x.id === id);
-  return !!r && r.approved && !r.carb_pending;
+  return !!r && r.approved && !r.carb_pending && (c.ingsByRecipe.get(r.id) ?? []).some((i) => i.role !== 'snack');
 }
+export const hasPortions = (kind: 'product' | 'recipe', id: string, c: Catalog) => c.portions.some((p) => (kind === 'product' ? p.product_id === id : p.recipe_id === id));
 
 /** The home screen's one word and colour, from the reading, its age and the trend. */
 export type Mood = 'ok' | 'falling' | 'high' | 'low' | 'stale';

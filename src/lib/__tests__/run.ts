@@ -2352,7 +2352,17 @@ test('Topi cheese is found by «توبي» and «جبن»', async () => {
     assert.equal(M.planItemsOf({ kind: 'product', id: 'milk', portion_id: 'p1' }, cat), null, "another product's portion");
     assert.equal(M.planItems([{ kind: 'product', id: 'frost', portion_id: 'p1' }, { kind: 'product', id: 'frost', portion_id: 'zz' }], cat), null);
     assert.equal(M.readyForMom('product', 'frost', cat), true);
-    assert.equal(M.readyForMom('product', 'new', cat), false, 'not approved / no portion');
+    assert.equal(M.readyForMom('product', 'new', cat), false, 'not approved');
+    assert.equal(M.readyForMom('product', 'milk', cat), true, 'approved: shown even before Dad sets a portion');
+  });
+  test('mom meal: an amount chosen on the spot — grams, label servings, recipe plates; nothing without a known size', () => {
+    const c2 = { ...cat, products: [...cat.products, prod('toast', { serving_size: 28 })] };
+    assert.deepEqual(M.planItemsOf({ kind: 'product', id: 'frost', portion_id: null, amount: 45, unit: 'g' }, c2)!.map((i) => [i.quantity, i.unit]), [[45, 'g']]);
+    assert.deepEqual(M.planItemsOf({ kind: 'product', id: 'milk', portion_id: null, amount: 200, unit: 'g' }, c2)!.map((i) => [i.quantity, i.unit]), [[200, 'ml']], 'grams means the product\'s own unit');
+    assert.deepEqual(M.planItemsOf({ kind: 'product', id: 'toast', portion_id: null, amount: 2, unit: 'serving' }, c2)!.map((i) => [i.quantity, i.unit]), [[2, 'serving']]);
+    assert.equal(M.planItemsOf({ kind: 'product', id: 'frost', portion_id: null, amount: 1, unit: 'serving' }, c2), null, 'no serving size on the label');
+    assert.equal(M.planItemsOf({ kind: 'product', id: 'frost', portion_id: null, amount: 0, unit: 'g' }, c2), null, 'no amount');
+    assert.deepEqual(M.planItemsOf({ kind: 'recipe', id: 'r1', portion_id: null, amount: 0.5, unit: 'plate' }, c2)!.map((i) => i.quantity), [20]);
   });
   test('mom home word: stale beats everything, then low, falling, high', () => {
     assert.equal(M.moodOf(120, 20, 0, 70, 180), 'stale');

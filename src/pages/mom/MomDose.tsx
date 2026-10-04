@@ -12,7 +12,7 @@ import { SiteRow, useSite } from './MomShots';
 import { planItems } from '../../engine/mom';
 import { fmt } from '../../lib/carbs';
 import { toast, cx } from '../../components/ui';
-import { t } from '../../i18n';
+import { t, tMaybe } from '../../i18n';
 import type { DoseSnapshot, PlannedMeal } from '../../lib/types';
 import { Big, Choice, MomPage, ago, clock, glucoseText, left } from './MomUI';
 import { useCatalog } from './MomMeal';
@@ -34,7 +34,14 @@ export function MomDose() {
   const { settings: s, events, products, nameOf: who, me, reload } = useData();
   const d = useDraft();
   const { c, mealCarbs, nameOf } = useCatalog();
-  const carbs = correction ? 0 : mealCarbs(d.items);
+  // a planned meal (?plan=id): its own items; otherwise the plate being built
+  const { plans } = usePlans();
+  const plan = plans.find((p) => p.id === sp.get('plan')) ?? null;
+  const planM = plan ? planMeal(plan.items, products, s) : null;
+  const carbs = correction ? 0 : planM ? (planM.complete ? Math.round(planM.total.carbs * 10) / 10 : null) : mealCarbs(d.items);
+  const names = planM ? planM.lines.map((l, k) => tMaybe(plan!.items[k].label ?? l.product?.name ?? '?')) : d.items.map((i) => nameOf(i));
+  const leftOut = plan ? [] : d.left;
+  const backTo = correction ? '/mom/shot' : plan ? `/mom/plan/${plan.id}` : '/mom/meal';
   const live = useLiveDose(carbs ?? 0);
   const { r, latest, level } = live;
   const { site, suggest } = useSite('rapid');
@@ -67,20 +74,29 @@ export function MomDose() {
         nav('/mom', { replace: true });
         return;
       }
+      if (plan) {
+        await approveDose(plan, { given, calc: r.dose, reason: given !== r.dose ? reason : null, purpose: live.purpose, snapshot: snapshot(), carbs: carbs! });
+        const fresh = await fetchPlan(plan.id);
+        if (fresh?.dose_event_id && site) await setInjectionSite(fresh.dose_event_id, site);
+        await reload();
+        nav(`/mom/given/${plan.id}`, { replace: true });
+        return;
+      }
       const items = planItems(d.items, c)!;
-      const plan = await planNow({ name: d.name ?? SLOT[slotNow()], slot: slotNow(), items, eat_after_min: s.dose_to_meal_min ?? 10, note: d.left.length ? `${d.left.join(' · ')} ${t('ما ينحسب بالإبرة · كلّمي بابا')}` : null });
-      await approveDose(plan, { given, calc: r.dose, reason: given !== r.dose ? reason : null, purpose: live.purpose, snapshot: snapshot(), carbs: carbs! });
-      const fresh = await fetchPlan(plan.id);
+      const plan2 = await planNow({ name: d.name ?? SLOT[slotNow()], slot: slotNow(), items, eat_after_min: s.dose_to_meal_min ?? 10, note: d.left.length ? `${d.left.join(' · ')} ${t('ما ينحسب بالإبرة · كلّمي بابا')}` : null });
+      await approveDose(plan2, { given, calc: r.dose, reason: given !== r.dose ? reason : null, purpose: live.purpose, snapshot: snapshot(), carbs: carbs! });
+      const fresh = await fetchPlan(plan2.id);
       if (fresh?.dose_event_id && site) await setInjectionSite(fresh.dose_event_id, site);
       draftOps.clear();
       await reload();
-      nav(`/mom/given/${plan.id}`, { replace: true });
+      nav(`/mom/given/${plan2.id}`, { replace: true });
     } catch (e) { toast((e as Error).message); setBusy(false); }
   };
   const eatWithout = async () => {
     if (!window.confirm(t('تسجلين الأكل بدون إبرة؟'))) return;
     setBusy(true);
     try {
+      if (plan) { await ate(plan, 1, Date.now(), products, s); await reload(); toast(t('تم: الأكل بدون إبرة ✓')); nav('/mom', { replace: true }); return; }
       const items = planItems(d.items, c)!;
       const meal = planMeal(items, products, s);
       await logMeal({ kind: 'meal', recipe_id: null, name: d.name ?? SLOT[slotNow()], category: null, meal, modified: true });
@@ -90,7 +106,7 @@ export function MomDose() {
 
   if (!live.ready) return <MomPage title={t('الإبرة')}><p className="text-center text-slate-500">…</p></MomPage>;
   if (stop) return (
-    <MomPage title={t('الإبرة')} back={correction ? '/mom' : '/mom/meal'}>
+    <MomPage title={t('الإبرة')} back={correction ? '/mom' : backTo}>
       <div className="rounded-3xl border-2 border-over/40 bg-over-soft p-5 text-center">
         <div className="text-5xl">✋</div>
         <div className="mt-2 text-[24px] font-bold text-over">{t(STOP[stop] ?? STOP.recent_dose)}</div>
@@ -98,7 +114,7 @@ export function MomDose() {
         {stop === 'recent_dose' && r.until && <div className="mt-1 text-[22px] font-bold">{t('لا نوفورابيد قبل الساعة {c}', { c: clock(r.until) })}<div className="text-[17px] font-normal">{t('بعد {m}', { m: left(r.until) })}</div></div>}
         {latest && <div className="mt-2 text-[18px]">{t('السكر الحين')} <b className="num">{glucoseText(latest.mg_dl, unit)}</b></div>}
       </div>
-      {stop === 'missing' && <Big tone="soft" onClick={() => nav('/mom/meal')}>{t('رجوع للوجبة')}</Big>}
+      {stop === 'missing' && <Big tone="soft" onClick={() => nav(backTo)}>{t('رجوع للوجبة')}</Big>}
       {stop === 'low' && <Big tone="danger" onClick={() => nav('/mom/juice')}>🧃 {t('عطيتها عصير')}</Big>}
       {!correction && stop !== 'missing' && <Big tone="ghost" disabled={busy} onClick={eatWithout}>{t('سجّلي الأكل بدون إبرة')}</Big>}
       <p className="mt-auto text-center text-sm text-slate-500">{t('كلّمي بابا قبل أي إبرة')}</p>
@@ -106,13 +122,13 @@ export function MomDose() {
   );
   const differs = given !== null && given !== r.dose;
   const reasons = given !== null && given > r.dose ? REASONS.more : REASONS.less;
-  const leftNote = d.left.length > 0 && !correction && <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ <bdi>{d.left.join(' · ')}</bdi> {t('ما ينحسب بالإبرة · كلّمي بابا')}</p>;
+  const leftNote = leftOut.length > 0 && !correction && <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ <bdi>{leftOut.join(' · ')}</bdi> {t('ما ينحسب بالإبرة · كلّمي بابا')}</p>;
   return (
-    <MomPage title={correction ? t('إبرة تصحيح') : t('قبل الأكل')} back={correction ? '/mom/shot' : '/mom/meal'}
+    <MomPage title={correction ? t('إبرة تصحيح') : t('قبل الأكل')} back={backTo}
       foot={<>{differs && !reason && <p className="text-center text-[16px] font-bold text-near">{t('اختاري السبب')}</p>}<Big disabled={busy || !given || given <= 0 || (differs && !reason)} onClick={save}>💉 {t('سجّلي الإبرة')}</Big></>}>
       {leftNote}
       <div className="space-y-1.5 rounded-3xl border border-slate-100 bg-white px-4 py-3 text-[17px]">
-        {!correction && <div className="text-[16px] text-slate-600"><bdi>{d.items.map((i) => nameOf(i)).join(' · ')}</bdi></div>}
+        {!correction && <div className="text-[16px] text-slate-600"><bdi>{names.join(' · ')}</bdi></div>}
         {!correction && <div className="flex justify-between"><span>🍽️ {t('الكارب')}</span><b className="num">{fmt(carbs ?? 0)} {t('غرام')}</b></div>}
         {latest && <div className="flex justify-between"><span>{t('السكر الحين')}</span><b className="num" dir="ltr">{glucoseText(latest.mg_dl, unit)} {level !== null ? ARROW[level] : ''}</b></div>}
         <div className="flex justify-between"><span>{t('آخر إبرة')}</span><b>{lastRapid ? ago(Date.parse(lastRapid.occurred_at)) : '—'}</b></div>

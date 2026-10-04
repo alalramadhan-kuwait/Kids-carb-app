@@ -1,6 +1,6 @@
 // Mom mode home: how Layan is now (big coloured box like LibreLinkUp), a large simple 12-hour graph, the last
 // injections in pen colours with the doctor's 2-hour countdown, the meal in progress, and three big buttons.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { useGlucose } from '../../hooks/useGlucose';
@@ -10,10 +10,11 @@ import { levelFromLibre, trendFrom } from '../../engine/trend';
 import { effectiveRange } from '../../lib/glucose';
 import { moodOf, nextRapidAllowed, type Mood } from '../../engine/mom';
 import { usePlans } from '../../lib/plans';
-import { setFullModeNow } from '../../lib/mom';
+import { draftOps } from '../../lib/mom';
+import { phase } from '../../engine/mealPlan';
 import { cx } from '../../components/ui';
 import { t } from '../../i18n';
-import { Big, PEN, PEN_NAME, PenBar, TABS_PAD, ago, clock, glucoseText, left } from './MomUI';
+import { Big, PEN, PEN_NAME, PenBar, TABS_PAD, ago, clock, dayWord, glucoseText, left } from './MomUI';
 
 const H = 3600000;
 const ARROW: Record<number, string> = { [-3]: '⇊', [-2]: '↓', [-1]: '↘', 0: '→', 1: '↗', 2: '↑', 3: '⇈' };
@@ -27,6 +28,14 @@ const MOOD: Record<Mood, { bg: string; word: string; todo: string }> = {
 
 export function MomHome() {
   const nav = useNavigate();
+  // the graph fills its box: its drawing height follows the box's shape (no empty bands on tall phones)
+  const box = useRef<HTMLDivElement>(null);
+  const [aspect, setAspect] = useState(0.8);
+  useEffect(() => {
+    const el = box.current; if (!el) return;
+    const ro = new ResizeObserver(() => { const r = el.getBoundingClientRect(); if (r.width > 0 && r.height > 0) setAspect(r.height / r.width); });
+    ro.observe(el); return () => ro.disconnect();
+  }, []);
   const { settings: s, events, history } = useData();
   const { g } = useGlucose();
   const [now, setNow] = useState(Date.now());
@@ -59,6 +68,11 @@ export function MomHome() {
   const { plans } = usePlans();
   const open = plans.filter((p) => p.status === 'dosed' && now - Date.parse(p.dose_at) < 6 * H).sort((a, b) => Date.parse(b.dose_at) - Date.parse(a.dose_at))[0] ?? null;
   const lowNow = mood === 'low';
+  // a planned meal (on hold): due now → the main button; otherwise the next one as a small line
+  const waiting = plans.filter((p) => p.status === 'planned' && phase(p, now) !== 'done').sort((a, b) => Date.parse(a.dose_at) - Date.parse(b.dose_at));
+  const due = waiting.find((p) => phase(p, now) === 'check') ?? null;
+  const next = due ? null : waiting.find((p) => Date.parse(p.dose_at) - now < 18 * H) ?? null;
+  const build = (mode: 'now' | 'plan') => { draftOps.start(mode); nav('/mom/meal'); };
   // a juice given: its recheck stays on home until someone taps «فحصتها»
   const recheckMin = s.treat_recheck_min ?? 15;
   const lastJuice = events.filter((e) => e.kind === 'treatment' && !e.deleted_at).sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))[0] ?? null;
@@ -77,8 +91,8 @@ export function MomHome() {
       </div>
 
       <div className="flex min-h-[120px] flex-1 flex-col rounded-3xl border border-slate-100 bg-white px-1 pt-1">
-        <div className="min-h-0 flex-1">
-          {merged && <BigGraph s={merged} now={now} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} alarmHigh={s.alert_high_mgdl ?? 240}
+        <div ref={box} className="min-h-0 flex-1">
+          {merged && <BigGraph aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} alarmHigh={s.alert_high_mgdl ?? 240}
             shots={shots.map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
             meals={history.filter((h) => h.total_carbs >= 5).map((h) => Date.parse(h.eaten_at))} />}
         </div>
@@ -103,23 +117,24 @@ export function MomHome() {
         {juice ? <Big className={big} onClick={ack}>✓ {t('فحصتها')}</Big>
           : lowNow ? <Big tone="danger" className={big} onClick={() => nav('/mom/juice')}>🧃 {t('عطيتها عصير')}</Big>
           : open ? <Big className={big} onClick={() => nav(open.eating_at ? `/mom/ate/${open.id}` : `/mom/given/${open.id}`)}>🍽️ {open.eating_at ? t('شكثر أكلت؟') : t('بدأت تاكل؟')}</Big>
-          : <Big className={big} onClick={() => nav('/mom/meal')}>🍽️ {t('جهزي وجبتها')}</Big>}
+          : due ? <Big className={big} onClick={() => nav(`/mom/plan/${due.id}`)}>💉 {t('وقت {x}', { x: due.name })}</Big>
+          : <div className="grid grid-cols-2 gap-2">
+              <Big className={big} onClick={() => build('now')}>🍽️ {t('أضيفي وجبة')}</Big>
+              <Big tone="soft" className={big} onClick={() => build('plan')}>📅 {t('خططي وجبة')}</Big>
+            </div>}
       </div>
+      {next && <Link to={`/mom/plan/${next.id}`} className="shrink-0 rounded-2xl bg-white px-4 py-2 text-[16px]">📅 <bdi>{next.name}</bdi> · {dayWord(Date.parse(next.dose_at))} 💉 {clock(Date.parse(next.dose_at))} ›</Link>}
       <div className="grid shrink-0 grid-cols-2 gap-2">
-        {lowNow || juice ? <Big tone="ghost" className="min-h-[52px] text-[18px]" disabled={lowNow} onClick={() => nav('/mom/meal')}>🍽️ {t('وجبة')}</Big> : <Big tone="ghost" className="min-h-[52px] text-[18px]" onClick={() => nav('/mom/juice')}>🧃 {t('عصير')}</Big>}
+        {lowNow || juice ? <Big tone="ghost" className="min-h-[52px] text-[18px]" disabled={lowNow} onClick={() => build('now')}>🍽️ {t('وجبة')}</Big> : <Big tone="ghost" className="min-h-[52px] text-[18px]" onClick={() => nav('/mom/juice')}>🧃 {t('عصير')}</Big>}
         <Big tone="ghost" className="min-h-[52px] text-[18px]" disabled={lowNow} onClick={() => nav('/mom/shot')}>💉 {t('إبرة')}</Big>
-      </div>
-      <div className="flex shrink-0 items-center justify-between text-[15px]">
-        <Link to="/mom/sites" className="py-1 font-bold text-brand">💉 {t('أماكن الإبر')}</Link>
-        <button className="py-1 text-slate-500 underline" onClick={() => { if (window.confirm(t('تفتحين الوضع الكامل؟'))) { setFullModeNow(true); nav('/'); } }}>{t('الوضع الكامل')}</button>
       </div>
     </main>
   );
 }
 
 /** LibreLinkUp-style graph: last 12 h, fixed axis, target band, dashed low (red) and high (orange) lines, big last dot. */
-function BigGraph({ s, now, unit, low, high, band, alarmHigh, shots, meals }: { s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: number[] }) {
-  const W = 340, PL = 6, PR = 30, PT = 8, PH = 220, HH = PT + PH + 44;
+function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, meals }: { aspect: number; s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: number[] }) {
+  const W = 340, PL = 6, PR = 30, PT = 8, HH = Math.max(160, Math.round(W * aspect)), PH = HH - PT - 44;
   const t0 = now - 12 * H;
   const top = unit === 'mmol' ? 21 * 18.016 : 350, bottom = unit === 'mmol' ? 3 * 18.016 : 50;
   const ticks = unit === 'mmol' ? [3, 6, 9, 12, 15, 18, 21].map((v) => v * 18.016) : [50, 100, 150, 200, 250, 300, 350];

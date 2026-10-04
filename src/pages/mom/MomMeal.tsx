@@ -44,10 +44,12 @@ export function MomMeal() {
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
   const sameAsSaved = d.savedId && meals.find((m) => m.id === d.savedId && JSON.stringify(m.items) === JSON.stringify(d.items));
-  const portionLabel = (it: MomItem) => tMaybe(c.portions.find((p) => p.id === it.portion_id)?.label ?? '');
+  const portionLabel = (it: MomItem) => it.portion_id ? tMaybe(c.portions.find((p) => p.id === it.portion_id)?.label ?? '')
+    : `${fmt(it.amount ?? 0)} ${it.unit === 'serving' ? t('حصة') : it.unit === 'plate' ? t('صحن') : c.products.find((p) => p.id === it.id)?.unit === 'ml' ? t('مل') : t('غرام')}`;
   const Left = () => d.left.length ? <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ <bdi>{d.left.join(' · ')}</bdi> {t('ما ينحسب بالإبرة · كلّمي بابا')}</p> : null;
+  const title = d.mode === 'plan' ? t('خطة وجبة') : t('وجبة ليان');
   if (!d.items.length) return (
-    <MomPage title={t('وجبة ليان')} back="/mom">
+    <MomPage title={title} back="/mom">
       <Left />
       {meals.length > 0 && <h2 className="text-[17px] font-bold text-slate-500">⭐ {t('وجباتها')}</h2>}
       {meals.slice(0, 6).map((m) => <Choice key={m.id} icon="⭐" label={m.name} sub={m.items.map((i) => nameOf(i)).join(' · ')} onClick={() => draftOps.load(m)} />)}
@@ -55,7 +57,7 @@ export function MomMeal() {
     </MomPage>
   );
   return (
-    <MomPage title={d.name ?? t('وجبة ليان')} back="/mom" foot={<Big disabled={total === null} onClick={() => nav('/mom/dose')}>{t('التالي')}</Big>}>
+    <MomPage title={d.name ?? title} back="/mom" foot={<Big disabled={total === null} onClick={() => nav(d.mode === 'plan' ? '/mom/when' : '/mom/dose')}>{d.mode === 'plan' ? `${t('التالي')} · 🕐 ${t('متى؟')}` : t('التالي')}</Big>}>
       <ul className="divide-y divide-slate-100 rounded-3xl border border-slate-100 bg-white px-3">
         {d.items.map((it, k) => {
           const g = itemCarbs(it), p = photoOf(it);
@@ -141,7 +143,8 @@ export function MomAdd() {
   );
 }
 
-/** One item: its picture and portions as big choices. Nothing preselected unless changing an item already on the plate. */
+/** One item: its picture and label facts, Dad's portions first, then a label serving or grams (a recipe: plates).
+ *  Nothing preselected unless changing an item already on the plate. */
 export function MomPortion() {
   const nav = useNavigate();
   const { kind, id } = useParams() as { kind: 'product' | 'recipe'; id: string };
@@ -150,24 +153,56 @@ export function MomPortion() {
   const d = useDraft();
   const { c, itemCarbs, nameOf, photoOf } = useCatalog();
   const mine = c.portions.filter((p) => (kind === 'product' ? p.product_id === id : p.recipe_id === id));
-  const [sel, setSel] = useState<string | null>(k !== null ? d.items[Number(k)]?.portion_id ?? null : null);
+  const prod = kind === 'product' ? c.products.find((p) => p.id === id) ?? null : null;
+  const ss = prod?.serving_size ? Number(prod.serving_size) : null;
+  const gUnit = prod?.unit === 'ml' ? t('مل') : t('غرام');
+  const cur = k !== null ? d.items[Number(k)] ?? null : null;
+  // the choice: one of Dad's portions, or 'serving' / 'g' / 'plate' with an amount
+  const [sel, setSel] = useState<string | null>(cur ? cur.portion_id ?? cur.unit ?? null : null);
+  const [amt, setAmt] = useState<number | null>(cur && !cur.portion_id ? cur.amount ?? null : null);
+  const free = sel === 'serving' || sel === 'g' || sel === 'plate';
+  const item: MomItem | null = !sel ? null : free ? (amt && amt > 0 ? { kind, id, portion_id: null, amount: amt, unit: sel as 'serving' | 'g' | 'plate' } : null) : { kind, id, portion_id: sel };
+  const g = item ? itemCarbs(item) : null;
   const x = photoOf({ kind, id });
+  const pick = (v: string, a: number | null) => { setSel(v); setAmt(a); };
   const done = () => {
-    if (!sel) return;
-    const it: MomItem = { kind, id, portion_id: sel };
-    if (k !== null) draftOps.replace(Number(k), it); else draftOps.add(it);
+    if (!item || g === null) return;
+    if (k !== null) draftOps.replace(Number(k), item); else draftOps.add(item);
     remember({ kind, id });
     nav('/mom/meal', { replace: true });
   };
+  const carbsText = (v: number | null) => (v === null ? '' : v < 1 ? t('بدون كارب') : `${fmt(v)} ${t('غرام كارب')}`);
+  const step = sel === 'g' ? (ss && ss < 40 ? 5 : 10) : 0.5;
   return (
-    <MomPage title={nameOf({ kind, id })} foot={<Big disabled={!sel} onClick={done}>{k !== null ? t('تم') : t('إضافة')}</Big>}>
-      <Photo path={x?.image_path} category={x?.category} className="mx-auto h-40 w-40 rounded-3xl" />
+    <MomPage title={nameOf({ kind, id })} foot={<>
+      {item && g !== null && <div className="text-center text-[18px] font-bold text-brand">{carbsText(g)}</div>}
+      <Big disabled={!item || g === null} onClick={done}>{k !== null ? t('تم') : t('إضافة')}</Big>
+    </>}>
+      <div className="flex items-center gap-3 rounded-3xl bg-white p-3">
+        <Photo path={x?.image_path} category={x?.category} className="h-24 w-24 shrink-0 rounded-2xl" />
+        {prod ? (
+          <div className="space-y-0.5 text-[16px]">
+            <div><b className="num">{fmt(Number(prod.carbs_per_100))}</b> {t('غرام كارب بكل 100 {u}', { u: gUnit })}</div>
+            {ss && <div className="text-slate-600">{t('الحصة {s} {u} = {g}', { s: fmt(ss), u: gUnit, g: carbsText(itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'serving' })) })}</div>}
+            {prod.brand && <div className="text-sm text-slate-500"><bdi>{prod.brand}</bdi></div>}
+          </div>
+        ) : <div className="text-[16px]">{t('الصحن الواحد = {g}', { g: carbsText(itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'plate' })) })}</div>}
+      </div>
       <h2 className="text-[18px] font-bold">{t('كم؟')}</h2>
-      {mine.map((p) => {
-        const g = itemCarbs({ kind, id, portion_id: p.id });
-        return <Choice key={p.id} icon={p.photo_path ? <Photo path={p.photo_path} className="h-11 w-11" /> : '🥣'} label={tMaybe(p.label)} sub={g === null ? undefined : g < 1 ? t('بدون كارب') : `${fmt(g)} ${t('غرام')}`} on={sel === p.id} onClick={() => setSel(p.id)} />;
-      })}
-      {!mine.length && <p className="text-slate-500">{t('اسألي بابا')}</p>}
+      {mine.map((p) => <Choice key={p.id} icon={p.photo_path ? <Photo path={p.photo_path} className="h-11 w-11" /> : '⭐'} label={tMaybe(p.label)} sub={carbsText(itemCarbs({ kind, id, portion_id: p.id }))} on={sel === p.id} onClick={() => pick(p.id, null)} />)}
+      {prod && ss && <Choice icon="🥄" label={t('بالحصة')} sub={t('حصة = {s} {u}', { s: fmt(ss), u: gUnit })} on={sel === 'serving'} onClick={() => pick('serving', sel === 'serving' ? amt : 1)} />}
+      {prod && <Choice icon="⚖️" label={prod.unit === 'ml' ? t('بالمل') : t('بالغرام')} on={sel === 'g'} onClick={() => pick('g', sel === 'g' ? amt : ss ?? null)} />}
+      {!prod && <Choice icon="🍽️" label={t('بالصحون')} on={sel === 'plate'} onClick={() => pick('plate', sel === 'plate' ? amt : 1)} />}
+      {free && (
+        <div className="flex items-center justify-center gap-4">
+          <button aria-label="+" className="grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => setAmt(Math.round(((amt ?? 0) + step) * 10) / 10)}>+</button>
+          {sel === 'g'
+            ? <input inputMode="decimal" dir="ltr" className={cx(inputCls, '!w-28 !text-center !text-[28px] font-bold')} value={amt ?? ''} onChange={(e) => { const v = Number(e.target.value.replace(',', '.')); setAmt(e.target.value === '' || !Number.isFinite(v) ? null : v); }} />
+            : <span className="num w-24 text-center text-[40px] font-extrabold">{amt === null ? '—' : fmt(amt)}</span>}
+          <button aria-label="−" className="grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => setAmt(Math.max(0, Math.round(((amt ?? 0) - step) * 10) / 10))}>−</button>
+          <span className="text-[18px] text-slate-500">{sel === 'g' ? gUnit : sel === 'serving' ? t('حصة') : t('صحن')}</span>
+        </div>
+      )}
       {k !== null && <button className="min-h-[44px] font-bold text-over" onClick={() => { draftOps.remove(Number(k)); nav('/mom/meal', { replace: true }); }}>{t('شيليه من الصحن')}</button>}
     </MomPage>
   );

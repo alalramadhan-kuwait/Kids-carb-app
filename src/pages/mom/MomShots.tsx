@@ -190,7 +190,7 @@ export function MomSites() {
   const { counts, overused } = siteCounts(shots.map((e) => ({ t: Date.parse(e.occurred_at), site: e.injection_site ?? null, type: e.insulin_type === 'long' ? 'long' : 'rapid' })), now, allowed);
   const max = Math.max(1, ...counts.values());
   return (
-    <MomPage title={t('أماكن الإبر')} back="/mom">
+    <MomPage title={t('أماكن الإبر')} back="/mom/more">
       <div className="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 text-[15px]">
         {(['all', 'rapid', 'long'] as const).map((k) => <button key={k} onClick={() => setType(k)} className={cx('min-h-[44px] rounded-full', type === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{k === 'all' ? t('الكل') : t(PEN_NAME[k])}</button>)}
       </div>

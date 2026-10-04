@@ -278,5 +278,5 @@ export interface EventRow {
 export interface Member { user_id: string; display_name: string | null; alert_role?: 'primary' | 'backup' | 'off'; simple_mode?: boolean }
 /** A household measure for a product (grams/ml) or a recipe (how many of its plates), set once by a parent with a scale. */
 export interface Portion { id: string; product_id: string | null; recipe_id: string | null; label: string; amount: number; photo_path: string | null; sort: number }
-export interface SavedMeal { id: string; name: string; emoji: string | null; items: { kind: 'product' | 'recipe'; id: string; portion_id: string }[]; sort: number }
+export interface SavedMeal { id: string; name: string; emoji: string | null; items: { kind: 'product' | 'recipe'; id: string; portion_id: string | null; amount?: number; unit?: 'serving' | 'g' | 'plate' }[]; sort: number }
 export type InjectionSite = 'belly_r' | 'belly_l' | 'thigh_r' | 'thigh_l' | 'arm_r' | 'arm_l' | 'buttock_r' | 'buttock_l';

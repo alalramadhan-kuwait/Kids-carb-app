@@ -1,6 +1,22 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.30.0",
+    "notes": [
+      "الوضع البسيط: «أضيفي وجبة» للأكل الحين، و«خططي وجبة» لوجبة بعدين (نفس الوجبات المخططة: الوجبة، اليوم أو بكرة، وقت الإبرة، وتذكير).",
+      "إضافة أكل: صورته ومعلومات الملصق، بعدين كميات بابا أو بالحصة أو بالغرام (الطبخ بالصحون)، والكارب يبين قبل الإضافة.",
+      "الوجبة المخططة لما يجي وقتها تصير الزر الرئيسي، وصفحتها فيها الإبرة الحين، تغيير الوقت، أو الإلغاء.",
+      "تبويب «المزيد»: الوجبات المخططة، أماكن الإبر، الوضع الكامل."
+    ],
+    "notes_en": [
+      "Simple mode: “Add a meal” to eat now, and “Plan a meal” for later (the same planned meals: which meal, today or tomorrow, the injection time, a reminder).",
+      "Adding a food: its picture and label facts, then Dad's portions, a serving or grams (home cooking in plates), with the carbs shown before adding.",
+      "A planned meal becomes the main button when it is due; its page has the injection now, change the time, or cancel.",
+      "A “More” tab: planned meals, injection sites, full mode."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.29.0",
     "notes": [
       "الوضع البسيط: الرئيسية صفحة وحدة ثابتة، كل شي يبين بدون تمرير.",

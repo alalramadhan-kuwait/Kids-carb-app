@@ -211,3 +211,12 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
     the suggestion is the first site not used yet in this cycle (never the one just used); the cycle ends when all
     have had their turn, then starts again at the right arm.
   - Bottom tabs in mom mode: 🏠 Home · 📋 Log (last two days; a shot or juice opens to change or delete) · 🥗 Nutrition.
+- **v11 (Dad, 2.30.0)** —
+  - «جهزي وجبتها» splits in two: **«أضيفي وجبة»** (she eats now → dose) and **«خططي وجبة»** (the same planned meals
+    as the full app: which meal, today or tomorrow, the injection time; on hold until then, reminders to both phones).
+  - Adding a food: its picture and label facts (carbs per 100, the serving), then Dad's portions first, then
+    «بالحصة» or «بالغرام/بالمل» (recipes: «بالصحون»), with the carbs shown before adding. Every approved product
+    and complete recipe is listed; Dad's portions are no longer required.
+  - A planned meal due now becomes home's main button («وقت …»); the next one shows as a small line. Its page:
+    injection now (same dose page and stops), change the time, cancel. A reminder opens it.
+  - 4th tab «المزيد»: planned meals (on hold), injection sites, full mode.

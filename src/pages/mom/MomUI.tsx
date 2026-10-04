@@ -103,18 +103,18 @@ export function BodyMap({ allowed, last, suggest, sel, onPick, now }: { allowed:
   );
 }
 
-/** Mom mode's bottom tabs: home, the log, nutrition. */
+/** Mom mode's bottom tabs: home, the log, nutrition, more. */
 export function MomTabs({ pathname }: { pathname: string }) {
   const nav = useNavigate();
-  const tabs = [{ to: '/mom', icon: '🏠', label: 'الرئيسية' }, { to: '/mom/log', icon: '📋', label: 'السجل' }, { to: '/growth', icon: '🥗', label: 'التغذية' }]; // i18n-ok: translated where shown
+  const tabs = [{ to: '/mom', icon: '🏠', label: 'الرئيسية' }, { to: '/mom/log', icon: '📋', label: 'السجل' }, { to: '/growth', icon: '🥗', label: 'التغذية' }, { to: '/mom/more', icon: '☰', label: 'المزيد' }]; // i18n-ok: translated where shown
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white pb-[env(safe-area-inset-bottom)]">
-      <ul className="mx-auto grid max-w-md grid-cols-3">
+      <ul className="mx-auto grid max-w-md grid-cols-4">
         {tabs.map((x) => {
           const on = pathname === x.to;
           return (
             <li key={x.to}><button onClick={() => nav(x.to, { replace: true })} aria-current={on ? 'page' : undefined} className="flex min-h-[60px] w-full items-center justify-center">
-              <span className={cx('flex flex-col items-center rounded-2xl px-4 py-1 text-[15px]', on ? 'bg-brand-soft font-bold text-brand' : 'text-slate-500')}><span className="text-[22px] leading-none">{x.icon}</span>{t(x.label)}</span>
+              <span className={cx('flex flex-col items-center rounded-2xl px-3 py-1 text-[15px]', on ? 'bg-brand-soft font-bold text-brand' : 'text-slate-500')}><span className="text-[22px] leading-none">{x.icon}</span>{t(x.label)}</span>
             </button></li>
           );
         })}
@@ -124,3 +124,9 @@ export function MomTabs({ pathname }: { pathname: string }) {
 }
 /** Room left at the bottom of a page for MomTabs. */
 export const TABS_PAD = 'pb-[calc(76px+env(safe-area-inset-bottom))]';
+/** «اليوم», «بكرة», «أمس», or the weekday (planned meals can be tomorrow). */
+export const dayWord = (ms: number, now = Date.now()) => {
+  const a = new Date(ms), b = new Date(now);
+  const diff = Math.round((Date.UTC(a.getFullYear(), a.getMonth(), a.getDate()) - Date.UTC(b.getFullYear(), b.getMonth(), b.getDate())) / 86400000);
+  return diff === 1 ? t('بكرة') : relDay(a, b);
+};
