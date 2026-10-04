@@ -809,4 +809,5 @@ export const food: Record<string, string> = {
   "لا توجد فترات كهذه في هذه المدة.": "No such stretches in this period.",
   "نزل {r} أو أكثر في الساعة في {n} من {of} فترات ليلية بالإنسولين الطويل وحده؛ {k} منها وصلت تحت النطاق.": "Fell {r} or more per hour in {n} of {of} overnight stretches with only long-acting insulin; {k} went below range.",
   "وصلت تحت النطاق": "went below range",
+  "تغيير الوحدة": "Change unit",
 };

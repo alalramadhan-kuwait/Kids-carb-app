@@ -45,6 +45,19 @@ function itemName(i: PlanItem, products: Product[]) { return i.label ?? products
 const fromProduct = (p: Product): PlanItem => ({ product_id: p.id, slot_category: null, label: null, quantity: p.unit === 'ml' && (p.pack_size ?? 0) > 0 && (p.pack_size ?? 0) <= 500 ? Number(p.pack_size) : p.serving_size ? 1 : 100, unit: p.unit === 'ml' && (p.pack_size ?? 0) > 0 && (p.pack_size ?? 0) <= 500 ? 'ml' : p.serving_size ? 'serving' : p.unit, state: 'as_is', role: p.category === 'مشروبات' ? 'drink' : 'main' }); // i18n-ok: data value
 
 /** An item given a catalogue product: its name and amount stay; the unit too when the product is measured that way. */
+/** The item's unit, tappable when its product can be measured another way: grams (or ml) ⇄ servings, amount converted. */
+function UnitSwitch({ item, product, onChange }: { item: PlanItem; product: Product | null | undefined; onChange: (i: PlanItem) => void }) {
+  const ss = product?.serving_size ? Number(product.serving_size) : null;
+  const base = product?.unit ?? null;
+  const other = !product || !base || !ss ? null : item.unit === 'serving' ? base : item.unit === base ? 'serving' : null;
+  if (!other) return <span className="w-12 shrink-0 text-center text-xs text-slate-500">{UNIT[item.unit]}</span>;
+  const quantity = other === 'serving' ? Math.round((item.quantity / ss!) * 10) / 10 : Math.round(item.quantity * ss!);
+  return (
+    <button onClick={() => onChange({ ...item, unit: other, quantity })} aria-label={t('تغيير الوحدة')}
+      className="min-h-[40px] w-12 shrink-0 rounded-lg bg-brand-soft px-1 text-xs font-bold text-brand">{UNIT[item.unit]} ⇄</button>
+  );
+}
+
 function withProduct(i: PlanItem, p: Product): PlanItem {
   const fits = i.unit === p.unit || (i.unit === 'serving' && !!p.serving_size) || i.unit === 'tbsp';
   const d = fromProduct(p);
@@ -157,7 +170,7 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
                     ? <button onClick={() => setReplacing(i)} className="min-h-[32px] text-xs font-bold text-over underline">{t('الكارب غير معروف · اختيار منتج')}</button>
                     : <span className="text-xs text-slate-500"><span className="num">{fmt(Math.round(l.carbs * 10) / 10)}</span> {t('غ كارب')}</span>}</span>
                 <span className="w-20 shrink-0"><NumInput className="!min-h-[40px] !px-1 !text-center" value={items[i].quantity} onChange={(v) => setItems((x) => x.map((it, k) => (k === i ? { ...it, quantity: v ?? 0 } : it)))} /></span>
-                <span className="w-9 shrink-0 text-xs text-slate-500">{UNIT[items[i].unit]}</span>
+                <UnitSwitch item={items[i]} product={l.product} onChange={(it) => setItems((x) => x.map((o, k) => (k === i ? it : o)))} />
                 <button onClick={() => setItems((x) => x.filter((_, k) => k !== i))} aria-label={t('حذف')} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-500">✕</button>
               </li>
             ))}

@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.26.3",
+    "notes": [
+      "خطة الوجبة: اضغط على الوحدة بجانب الكمية للتبديل بين الحصص والغرامات (أو المل)، والكمية تتحوّل معها."
+    ],
+    "notes_en": [
+      "Meal plan: tap the unit beside the amount to switch between servings and grams (or ml); the amount converts with it."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.26.2",
     "notes": [
       "البحث: «كورن فليكس» و«كورنفليكس» و«النمر» تجد Kellogg’s Frosties، مع صورة العلبة."
