@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.34.1",
+    "notes": [
+      "مجموعات الأكل صار فيها أقسام أصغر: مثلًا اللحوم ← دجاج، لحم، سمك وروبيان، بيض؛ الخبز ← توست، خبز عربي وتورتيا، صمون وبرغر، معجنات، خبز…؛ الخضار ← بطاط وذرة، سلطة، مطبوخة؛ والكل بزر «الكل»."
+    ],
+    "notes_en": [
+      "Food groups are split into smaller sections: e.g. protein → chicken, meat, fish and shrimp, eggs; bread → toast, Arabic bread and tortilla, rolls and buns, pastries, loaves…; vegetables → potato and corn, salad, cooked; with an “All” button."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.34.0",
     "notes": [
       "صوت التنبيه: إذا السكر منخفض جدًا، منخفض، أو مرتفع وما أحد رد، التلفون يصفر بصوت عالي ويومض بشاشة كاملة لين أحد يضغط «أنا عليها» (يوصل للكل).",

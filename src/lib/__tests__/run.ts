@@ -2136,7 +2136,18 @@ console.log('short names');
 
 console.log('product groups');
 {
-  const { groupOf, groupsIn, typesIn, groupByKey } = await import('../productGroups');
+  const { groupOf, groupsIn, typesIn, groupByKey, subgroupOf, subgroupsIn } = await import('../productGroups');
+  test('sub-groups: one more level by category or name word; the last of each group takes the rest', () => {
+    const sg = (name: string, category: string) => subgroupOf({ name, category })?.key;
+    assert.equal(sg('صدر دجاج مشوي', 'لحوم ودجاج'), 'chicken'); assert.equal(sg('لحم غنم مشوي', 'لحوم ودجاج'), 'meat'); assert.equal(sg('روبيان مطبوخ', 'سمك وروبيان'), 'fish');
+    assert.equal(sg('بطاط مسلوق', 'خضار'), 'starchy'); assert.equal(sg('ذرة مسلوقة', 'خضار'), 'starchy'); assert.equal(sg('خيار', 'خضار'), 'salad'); assert.equal(sg('بروكلي مسلوق', 'خضار'), 'cooked');
+    assert.equal(sg('تمر مجهول', 'فواكه'), 'dried'); assert.equal(sg('موز', 'فواكه'), 'fresh');
+    assert.equal(sg('Sliced White Bread', 'توست'), 'toast'); assert.equal(sg('خبز عربي أبيض', 'خبز'), 'arabic'); assert.equal(sg('Sandwich Rolls', 'خبز'), 'rolls'); assert.equal(sg('صمون', 'خبز'), 'rolls'); assert.equal(sg('White Bread', 'خبز'), 'loaf'); assert.equal(sg('Fries (Small)', 'نشويات'), 'other'); assert.equal(sg('Half Cream Milk 1 LTR', 'كريمة طبخ'), 'milk'); assert.equal(sg('Garden Salad', 'خضار'), 'salad');
+    assert.equal(sg('عدس مطبوخ', 'حبوب وبقوليات'), 'legumes'); assert.equal(sg('شوفان (جاف)', 'حبوب وبقوليات'), 'grains');
+    assert.equal(sg('سباغيتي مطبوخة', 'باستا'), 'cooked'); assert.equal(sg('Spaghetti No. 5', 'باستا'), 'dry');
+    assert.equal(sg('لوز نيء', 'مكسرات'), undefined, 'a group without sub-groups');
+    assert.deepEqual(subgroupsIn([{ name: 'موز', category: 'فواكه' }, { name: 'تفاح', category: 'فواكه' }, { name: 'تمر', category: 'فواكه' }], 'fruit').map((x) => [x.sub.key, x.n]), [['dried', 1], ['fresh', 2]]);
+  });
   test('product groups: categories gather into groups; a brand shows only its groups, with counts, then the types inside', () => {
     assert.equal(groupOf('روب').key, 'dairy'); assert.equal(groupOf('آيس كريم').key, 'sweets'); assert.equal(groupOf('شيء جديد').key, 'other'); assert.equal(groupOf(null).key, 'other');
     const kdd = [{ category: 'حليب' }, { category: 'حليب' }, { category: 'لبن' }, { category: 'مشروبات' }, { category: 'آيس كريم' }, { category: 'غريب' }];

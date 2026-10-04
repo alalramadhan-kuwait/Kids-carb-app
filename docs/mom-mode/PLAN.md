@@ -264,4 +264,4 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
   switch with a test button in both modes. Limits: sound only while the app is open on screen (a browser cannot play
   in the background) — the server pushes and the LibreLinkUp app's own alarms stay the backup; the first tap after
   opening unlocks the sound (a hint says so).
-
+- **v19 (Dad, 2.34.1)** — groups divided more: each group opens on sub-group tiles (`SUB_GROUPS` in productGroups.ts, by category or name word, tested): veg (starchy / salad / cooked), fruit (dates & dried / fresh), protein (chicken / meat / fish & shrimp / eggs), rice (white / brown & wild), bread (toast / Arabic & tortilla / rolls & buns / pastries / sandwiches / flour / loaves / fries & other), pasta (cooked / dry), grains (legumes / oats & grains), dairy (milk / laban & yogurt / cheese / cream), drinks (natural juice / packaged), breakfast, sauces (sugar & honey / oils / sauces), sweets (biscuits / cake / ice cream / chocolate / chips / sweets); «الكل» lists the whole group.

@@ -6,7 +6,7 @@ import { useData } from '../../lib/data';
 import { compareOps, draftOps, saveMeal, useCompare, useDraft, usePortions, useSavedMeals } from '../../lib/mom';
 import { planMeal } from '../../lib/plans';
 import { COMPARE_MAX, planItems, planItemsOf, readyForMom, type Catalog, type MomItem } from '../../engine/mom';
-import { groupByKey, groupOf, groupsIn } from '../../lib/productGroups';
+import { groupByKey, groupOf, groupsIn, subgroupOf, subgroupsIn } from '../../lib/productGroups';
 import { matches } from '../../lib/search';
 import { fmt } from '../../lib/carbs';
 import { supabase, uploadPhoto } from '../../lib/supabase';
@@ -198,15 +198,30 @@ function GroupTile({ emoji, label, sub, n, onClick }: { emoji: string; label: st
   );
 }
 
-/** One group's page (/mom/food/g/:key, /mom/add/g/:key): every approved food in it, what is at home first. */
+/** One group's page (/mom/food/g/:key, /mom/add/g/:key): its sub-groups as big tiles (chicken, meat, fish…) when
+ *  it has more than one; a sub-group's page (…/g/:key/:sub) lists its foods, what is at home first. */
 export function MomGroup({ browse = false }: { browse?: boolean }) {
-  const { key } = useParams() as { key: string };
+  const nav = useNavigate();
+  const { key, sub } = useParams() as { key: string; sub?: string };
   const gr = groupByKey(key);
   const { products, homeFirst, tile } = useFoods(browse);
-  const list = homeFirst(products.filter((p) => groupOf(p.category).key === key));
-  const bar = useCompareBar(browse), back = useBack(browse ? '/mom/food' : '/mom/add?tab=products');
+  const inGroup = products.filter((p) => groupOf(p.category).key === key);
+  const subs = subgroupsIn(inGroup, key);
+  const base = `${browse ? '/mom/food' : '/mom/add'}/g/${key}`;
+  const one = subs.find((x) => x.sub.key === sub)?.sub ?? null;
+  const list = homeFirst(one ? inGroup.filter((p) => subgroupOf(p)?.key === one.key) : inGroup);
+  const bar = useCompareBar(browse), back = useBack(one || sub === 'all' ? base : browse ? '/mom/food' : '/mom/add?tab=products');
+  const title = one ? `${one.emoji} ${tMaybe(one.label)}` : gr ? `${gr.emoji} ${tMaybe(gr.label)}` : t('أكل');
+  if (!one && sub !== 'all' && subs.length > 1) return (
+    <MomPage title={title} back={back} foot={bar}>
+      <div className="grid grid-cols-2 gap-2">
+        {subs.map(({ sub: x, n }) => <GroupTile key={x.key} emoji={x.emoji} label={tMaybe(x.label)} n={n} onClick={() => nav(`${base}/${x.key}`)} />)}
+      </div>
+      <button className="min-h-[48px] text-[16px] font-bold text-brand" onClick={() => nav(`${base}/all`)}>{t('الكل')} ({inGroup.length})</button>
+    </MomPage>
+  );
   return (
-    <MomPage title={gr ? `${gr.emoji} ${tMaybe(gr.label)}` : t('أكل')} back={back} foot={bar}>
+    <MomPage title={title} back={back} foot={bar}>
       {list.length ? <div className="grid grid-cols-2 gap-2">{list.map((p) => tile('product', p))}</div> : <p className="text-center text-slate-500">{t('ما في شي هني بعد')}</p>}
     </MomPage>
   );

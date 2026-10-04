@@ -216,6 +216,7 @@ function Shell() {
         <Route path="/mom/meal" element={<MomMeal />} />
         <Route path="/mom/add" element={<MomAdd />} />
         <Route path="/mom/add/g/:key" element={<MomGroup />} />
+        <Route path="/mom/add/g/:key/:sub" element={<MomGroup />} />
         <Route path="/mom/item/:kind/:id" element={<MomPortion />} />
         <Route path="/mom/new" element={<MomNew />} />
         <Route path="/mom/dose" element={<MomDose />} />
@@ -231,6 +232,7 @@ function Shell() {
         <Route path="/mom/more" element={<MomMore />} />
         <Route path="/mom/food" element={<MomAdd browse />} />
         <Route path="/mom/food/g/:key" element={<MomGroup browse />} />
+        <Route path="/mom/food/g/:key/:sub" element={<MomGroup browse />} />
         <Route path="/mom/food/:kind/:id" element={<MomFoodItem />} />
         <Route path="/mom/compare" element={<MomCompare />} />
         <Route path="/mom/sensor" element={<MomSensor />} />
