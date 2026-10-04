@@ -175,7 +175,14 @@ export const analysis: Record<string, string> = {
 
   // ── meal response ──
   'ابحث عن وصفة': 'Search recipes',
-  'لم تُسجَّل وجبات من الوصفات بعد. بعد تسجيل الوجبة نفسها 3 مرات تظهر استجابتها هنا.': 'No recipe meals logged yet. Once the same meal is logged 3 times, its response shows here.',
+  'ابحث عن منتج': 'Search products',
+  'لم تُسجَّل وجبات من الوصفات بعد. بعد تسجيل الوجبة نفسها مرتين تظهر استجابتها هنا.': 'No recipe meals logged yet. Once the same meal is logged twice, its response shows here.',
+  'يظهر المنتج هنا عندما يكون معظم كارب ما أُكل (70% أو أكثر)، أو عندما يُسجَّل علاجًا باسمه.': 'A product shows here when it was most of the carbs eaten (70% or more), or when it is logged as a treatment by name.',
+  'أكل آخر': 'Other food',
+  'لكل 10 غ كارب': 'Per 10 g carbs',
+  '{n} منها بدأت منخفضة (يرتفع السكر أكثر بعد الانخفاض)': '{n} started low (glucose rises more after a low)',
+  'بدأت منخفضة': 'Started low',
+  'حتى {m} د': 'to {m} min',
   '{n} مرة': '{n} time|{n} times',
   'رجوع': 'Back',
   'أُكلت': 'Eaten',
@@ -193,7 +200,6 @@ export const analysis: Record<string, string> = {
   'نظيفة': 'Clean',
   'استجابة السكر بعد الوجبة': 'Glucose response after the meal',
   'الأكل': 'Meal',
-  'أكل آخر خلال 4 ساعات': 'Other food within 4 hours',
   'كارب إضافي': 'Extra carbs',
   'جرعة تصحيح': 'Correction dose',
   'قراءات ناقصة': 'Missing readings',

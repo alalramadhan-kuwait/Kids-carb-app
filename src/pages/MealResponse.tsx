@@ -7,48 +7,74 @@ import { effectiveRange, formatGlucose, unitLabel } from '../lib/glucose';
 import { fmt } from '../lib/carbs';
 import { relDay } from '../lib/constants';
 import { Badge, Card, cx, inputCls } from '../components/ui';
-import { GRID, MIN_CLEAN, buildOccurrence, medianCurve, summary, windowSeries, type Occurrence } from '../engine/meals';
+import { GRID, MIN_CLEAN, buildOccurrence, medianCurve, summary, windowSeries, type Occurrence, type Speed } from '../engine/meals';
+import type { HistoryEntry, HistoryLine } from '../lib/types';
 import { isEn, t } from '../i18n';
 
-/** الوجبات: how glucose usually responds to one recipe — every time it was eaten, aligned at the first bite. */
+// A product's own response: the times it was most of what she ate (at least 70 % of the carbs), and the low
+// treatments that name it. Drinks are followed 2 hours, the rest 3.
+const MAIN_SHARE = 0.7;
+const keyOf = (l: HistoryLine) => (l.product ?? l.name).split(' — ')[0].trim();
+interface Item { id: string; name: string; n: number; speed: Speed; entries: HistoryEntry[] }
+
+/** الوجبات: how glucose usually responds to one recipe or one product — every time, aligned at the first bite. */
 export function MealResponse() {
   const { settings, history, events } = useData();
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState('');
-  const recipeId = params.get('recipe');
+  const tab = params.get('of') === 'products' ? 'products' : 'recipes';
+  const sel = params.get(tab === 'products' ? 'product' : 'recipe');
   const unit = settings.glucose_unit;
 
-  const recipes = useMemo(() => {
-    const m = new Map<string, { id: string; name: string; n: number }>();
-    for (const h of history) if (h.kind === 'meal' && h.recipe_id) {
-      const r = m.get(h.recipe_id) ?? { id: h.recipe_id, name: h.name, n: 0 }; r.n++; m.set(h.recipe_id, r);
+  const items = useMemo(() => {
+    const m = new Map<string, Item>();
+    const add = (id: string, name: string, h: HistoryEntry, speed: Speed) => {
+      const r = m.get(id) ?? { id, name, n: 0, speed, entries: [] };
+      r.n++; r.entries.push(h); if (speed === 'quick') r.speed = 'quick'; m.set(id, r);
+    };
+    for (const h of history) {
+      if (h.kind !== 'meal') continue;
+      if (tab === 'recipes') { if (h.recipe_id) add(h.recipe_id, h.name, h, 'meal'); continue; }
+      for (const l of h.lines ?? []) {
+        if (l.product && h.total_carbs > 0 && (l.carbs ?? 0) / h.total_carbs >= MAIN_SHARE) add(keyOf(l), keyOf(l), h, l.role === 'drink' || l.unit === 'ml' ? 'quick' : 'meal');
+      }
     }
+    if (tab === 'products') for (const e of events) {
+      const name = e.treatment?.split(' — ')[0].trim();
+      if (e.deleted_at || e.kind !== 'treatment' || !name || !m.has(name) || !e.carbs_g) continue;
+      add(name, name, { id: e.id, kind: 'meal', recipe_id: null, name, eaten_at: e.occurred_at, total_carbs: e.carbs_g, lines: [] } as unknown as HistoryEntry, 'quick');
+    }
+    for (const r of m.values()) r.entries.sort((a, b) => Date.parse(b.eaten_at) - Date.parse(a.eaten_at));
     return [...m.values()].sort((a, b) => b.n - a.n);
-  }, [history]);
-  const meals = useMemo(() => history.filter((h) => h.kind === 'meal' && h.recipe_id === recipeId).slice(0, 200), [history, recipeId]);
+  }, [history, events, tab]);
+  const item = items.find((r) => r.id === sel) ?? null;
+  const meals = useMemo(() => (item?.entries ?? []).slice(0, 200), [item]);
   const [occ, setOcc] = useState<Occurrence[] | null>(null);
 
   useEffect(() => {
-    if (!recipeId || !meals.length) { setOcc(null); return; }
+    if (!item || !meals.length) { setOcc(null); return; }
     setOcc(null);
     supabase.rpc('glucose_windows', { p_times: meals.map((m) => m.eaten_at), p_before: 60, p_after: 240 }).then(({ data }) => {
       const byT = new Map((data as { t0: string; o: number[]; v: number[] }[] ?? []).map((w) => [Date.parse(w.t0), w]));
-      setOcc(meals.map((m) => { const t0 = Date.parse(m.eaten_at), w = byT.get(t0); return buildOccurrence(m, windowSeries(t0, (w?.o ?? []).map(Number), w?.v ?? []), history, events); }));
+      setOcc(meals.map((m) => { const t0 = Date.parse(m.eaten_at), w = byT.get(t0); return buildOccurrence(m, windowSeries(t0, (w?.o ?? []).map(Number), w?.v ?? []), history, events, Date.now(), item.speed); }));
     });
-  }, [recipeId, meals, history, events]);
+  }, [item, meals, history, events]);
 
-  const pick = (id: string | null) => setParams(id ? { mode: 'meals', recipe: id } : { mode: 'meals' }, { replace: true });
-  if (!recipeId) {
-    const list = recipes.filter((r) => matches([r.name], q));
+  const pick = (id: string | null, of = tab) => setParams({ mode: 'meals', ...(of === 'products' ? { of } : {}), ...(id ? { [of === 'products' ? 'product' : 'recipe']: id } : {}) }, { replace: true });
+  if (!item) {
+    const list = items.filter((r) => matches([r.name], q));
     return (
       <div className="space-y-3 pb-4">
-        <input className={inputCls} placeholder={t('ابحث عن وصفة')} value={q} onChange={(e) => setQ(e.target.value)} />
-        {list.length === 0 ? <Card><p className="text-sm text-slate-500">{t('لم تُسجَّل وجبات من الوصفات بعد. بعد تسجيل الوجبة نفسها 3 مرات تظهر استجابتها هنا.')}</p></Card> : (
+        <div className="grid grid-cols-2 gap-1 rounded-full bg-slate-100 p-1 text-sm">
+          {(['recipes', 'products'] as const).map((k) => <button key={k} onClick={() => pick(null, k)} className={cx('min-h-[40px] rounded-full', tab === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{k === 'recipes' ? t('الوصفات') : t('المنتجات')}</button>)}
+        </div>
+        <input className={inputCls} placeholder={tab === 'recipes' ? t('ابحث عن وصفة') : t('ابحث عن منتج')} value={q} onChange={(e) => setQ(e.target.value)} />
+        {list.length === 0 ? <Card><p className="text-sm text-slate-500">{tab === 'recipes' ? t('لم تُسجَّل وجبات من الوصفات بعد. بعد تسجيل الوجبة نفسها مرتين تظهر استجابتها هنا.') : t('يظهر المنتج هنا عندما يكون معظم كارب ما أُكل (70% أو أكثر)، أو عندما يُسجَّل علاجًا باسمه.')}</p></Card> : (
           <Card className="!p-0 overflow-hidden">
             <ul className="divide-y divide-slate-100">
               {list.map((r) => (
                 <li key={r.id}><button onClick={() => pick(r.id)} className="flex min-h-[52px] w-full items-center gap-3 px-4 text-start active:bg-slate-50">
-                  <span className="flex-1 font-medium">{r.name}</span><span className="text-sm text-slate-500">{t('{n} مرة', { n: r.n })}</span><span className="text-slate-400">{isEn() ? '›' : '‹'}</span>
+                  <span className="flex-1 font-medium"><bdi>{r.name}</bdi></span><span className="text-sm text-slate-500">{t('{n} مرة', { n: r.n })}</span><span className="text-slate-400">{isEn() ? '›' : '‹'}</span>
                 </button></li>
               ))}
             </ul>
@@ -61,7 +87,7 @@ export function MealResponse() {
   const clean = occ?.filter((o) => o.reasons.length === 0 && o.response.g0 !== null) ?? [];
   const sum = summary(clean);
   const g = (mg: number | null) => (mg === null ? '—' : formatGlucose(mg, unit));
-  const name = meals[0]?.name ?? recipes.find((r) => r.id === recipeId)?.name ?? '';
+  const name = item.name;
   return (
     <div className="space-y-3 pb-4">
       <div className="flex items-center gap-2">
@@ -81,8 +107,8 @@ export function MealResponse() {
           <S label={t('أعلى قراءة')} value={g(sum.peak)} />
           <S label={t('الارتفاع')} value={sum.rise !== null ? `+${formatGlucose(sum.rise, unit)}` : '—'} />
           <S label={t('الذروة بعد')} value={sum.ttp !== null ? t('{n} د', { n: Math.round(sum.ttp) }) : '—'} />
-          <S label={t('بعد 3 ساعات')} value={g(sum.at180)} />
-          <p className="col-span-3 text-[11px] text-slate-400">{t('الوسيط من {n} وجبات نظيفة', { n: clean.length })} · {unitLabel(unit)} · {t('ملاحظات تاريخية وليست توصية.')}</p>
+          <S label={item.speed === 'quick' ? t('لكل 10 غ كارب') : t('بعد 3 ساعات')} value={item.speed === 'quick' ? (sum.per10 !== null ? `+${formatGlucose(sum.per10, unit)}` : '—') : g(sum.at180)} />
+          <p className="col-span-3 text-[11px] text-slate-400">{t('الوسيط من {n} وجبات نظيفة', { n: clean.length })}{sum.lowStarts > 0 && <> · {t('{n} منها بدأت منخفضة (يرتفع السكر أكثر بعد الانخفاض)', { n: sum.lowStarts })}</>} · {unitLabel(unit)} · {t('ملاحظات تاريخية وليست توصية.')}</p>
         </Card>
       )}
       {occ && (
@@ -93,7 +119,8 @@ export function MealResponse() {
                 <span className="w-20 shrink-0 text-slate-500">{relDay(new Date(o.t0))}</span>
                 <span className="num shrink-0">{t('{v} غ', { v: fmt(o.meal.total_carbs) })}</span>
                 <span className="flex-1 text-slate-600">{o.response.rise !== null ? <>{t('ارتفاع')} <b className="num">+{formatGlucose(o.response.rise, unit)}</b></> : '—'}</span>
-                {o.reasons.length ? <span className="text-xs text-slate-500">{o.reasons[0]}</span> : <span className="text-xs font-medium text-brand">{t('نظيفة')}</span>}
+                {o.reasons.length ? <span className="text-xs text-slate-500">{o.reasons[0]}</span>
+                  : <span className="text-xs font-medium text-brand">{(o.response.g0 ?? 999) < 70 ? t('بدأت منخفضة') : t('نظيفة')}{o.until < o.t0 + (item.speed === 'quick' ? 120 : 180) * 60000 && <span className="font-normal text-slate-500"> · {t('حتى {m} د', { m: Math.round((o.until - o.t0) / 60000) })}</span>}</span>}
               </li>
             ))}
           </ul>

@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.21.0",
+    "notes": [
+      "استجابة الوجبة: جديد قسم «المنتجات» (مثل العصير أو التوست) يُظهر كيف يرتفع السكر بعد المنتج وحده، والارتفاع لكل 10 غ كارب.",
+      "شروط أخف لقبول الوجبة: تُتابَع 3 ساعات (المشروب ساعتين)، والأكل بعد الذروة لا يلغيها بل يُوقف المنحنى عنده، واللقمة الصغيرة (أقل من 5 غ) لا تُحسب، ويكفي وجبتان لإظهار المتوسط.",
+      "يظهر إن بدأت الوجبة والسكر منخفض، لأن السكر يرتفع أكثر بعد الانخفاض."
+    ],
+    "notes_en": [
+      "Meal response: a new “Products” section (e.g. a juice or toast) shows how glucose rises after that product alone, and the rise per 10 g carbs.",
+      "Easier rules for a meal to count: followed for 3 hours (a drink 2), food after the peak no longer discards it but ends the curve there, a small bite (under 5 g) is ignored, and two meals are enough for the median.",
+      "It shows when a meal started low, because glucose rises more after a low."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.20.1",
     "notes": [
       "خطة الوجبة: الصنف الذي لا يُعرف كاربه يظهر بالأحمر «الكارب غير معروف · اختيار منتج»، ويمكن اختيار منتجه مع بقاء الكمية. رسالة الحفظ تذكر اسم الصنف."

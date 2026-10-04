@@ -17,7 +17,7 @@ import { buildCsv } from '../export';
 import { adrrBand, grid, hbgiBand, lbgiBand, riskF, variability } from '../../engine/variability';
 import { findPatterns, visible } from '../../engine/patterns';
 import { carbLane, cobAt, dosesFrom, insulinLane, iobAt, iobFraction, iobParamsOk } from '../../engine/iob';
-import { GRID, alignCurve, buildOccurrence, coverage, medianCurve, notClean, summary, windowSeries } from '../../engine/meals';
+import { GRID, alignCurve, assess, buildOccurrence, coverage, medianCurve, summary, windowSeries } from '../../engine/meals';
 import { ackMessage, alertMessage, evaluate, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
 import { PERIODS, delta15, freshness, gapsIn, mergeSeries, emptySeries, nearest, rateAt, runsFor, timeTicks, tickLabel, yDomain, yGrid, zoomAt } from '../../engine/series';
@@ -755,18 +755,29 @@ test('meal response per recipe: clean meals, aligned curves and medians', () => 
     const meal = { id: 'm' + k, kind: 'meal', recipe_id: 'r', name: 'مجبوس', eaten_at: new Date(tk).toISOString(), total_carbs: 45 } as any;
     return buildOccurrence(meal, windowSeries(tk, c.o, c.v), [meal], [], tk + 6 * 3600000);
   });
-  assert.equal(coverage(occ[0].series, occ[0].t0), 1);
+  assert.equal(coverage(occ[0].series, occ[0].t0, 180), 1);
   assert.deepEqual(occ.map((o) => o.reasons.length), [0, 0, 0, 0]);
   const s = summary(occ);
-  assert.equal(s.n, 4); assert.equal(s.rise, 55); assert.equal(s.ttp, 60); assert.equal(s.g0, 110); // the 200 outlier moves the median only a little
+  assert.equal(s.n, 4); assert.equal(s.rise, 55); assert.ok(Math.abs(s.per10! - 55 / 4.5) < 1e-9); assert.equal(s.ttp, 60); assert.equal(s.g0, 110); // the 200 outlier moves the median only a little
   const mc = medianCurve(occ.map((o) => o.curve));
   assert.equal(mc[GRID.indexOf(60)]!.p50, 110 + 55);
   assert.equal(alignCurve(windowSeries(t0, [0, 100], [100, 120]), t0)[GRID.indexOf(50)], null); // no reading within ±5 min of +50
-  // not clean: a snack 90 minutes later, a hypo treatment, and missing readings
-  const meal = { id: 'x', eaten_at: new Date(t0).toISOString(), total_carbs: 45 } as any;
-  const snack = { id: 'y', eaten_at: new Date(t0 + 90 * 60000).toISOString() } as any;
-  const treat = evr({ id: 't', kind: 'treatment', carbs_g: 15, occurred_at: new Date(t0 + 120 * 60000).toISOString() });
-  assert.deepEqual(notClean(meal, [meal, snack], [treat as any], windowSeries(t0, [0, 30], [100, 120])), ['أكل آخر خلال 4 ساعات', 'علاج انخفاض', 'قراءات ناقصة']);
+  // what still counts: food after the peak cuts the curve there; food before it, a hypo treatment, too few readings do not
+  const M = 60000, full = (() => { const o: number[] = [], v: number[] = []; for (let m = 0; m <= 240; m += 5) { o.push(m); v.push(120); } return windowSeries(t0, o, v); })();
+  const own = new Set(['x']);
+  const at = (id: string, min: number, carbs: number) => ({ id, eaten_at: new Date(t0 + min * M).toISOString(), total_carbs: carbs }) as any;
+  const late = assess(t0, own, [at('y', 90, 20)], [], full);
+  assert.deepEqual(late.reasons, []); assert.equal(late.until, t0 + 90 * M, 'a snack 90 min later cuts the meal there');
+  assert.deepEqual(assess(t0, own, [at('y', 30, 20)], [], full).reasons, ['أكل آخر'], 'food before the peak: unusable');
+  assert.deepEqual(assess(t0, own, [at('y', 20, 3)], [], full).reasons, [], 'a 3 g bite does not count');
+  assert.equal(assess(t0, own, [], [], full).until, t0 + 180 * M, 'a meal is followed 3 hours');
+  assert.equal(assess(t0, own, [], [], full, 'quick').until, t0 + 120 * M, 'a drink 2 hours');
+  assert.deepEqual(assess(t0, own, [at('y', 45, 20)], [], full, 'quick').reasons, [], 'a drink peaks within 40 min');
+  const treat = evr({ id: 't', kind: 'treatment', carbs_g: 15, occurred_at: new Date(t0 + 20 * M).toISOString() });
+  assert.deepEqual(assess(t0, own, [], [treat as any], full).reasons, ['علاج انخفاض']);
+  assert.deepEqual(assess(t0, own, [], [], windowSeries(t0, [0, 30], [100, 120])).reasons, ['قراءات ناقصة']);
+  const cutOcc = buildOccurrence(at('x', 0, 45), full, [at('x', 0, 45), at('y', 90, 20)], [], t0 + 6 * 3600000);
+  assert.equal(cutOcc.curve[GRID.indexOf(85)], 120); assert.equal(cutOcc.curve[GRID.indexOf(100)], null, 'nothing after the snack');
 });
 
 test('period stats on the phone follow carb.glucose_stats (time-weighted, 15-minute cap, weekday filter)', () => {
