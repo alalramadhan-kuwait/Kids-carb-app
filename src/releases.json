@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.23.1",
+    "notes": [
+      "استجابة المنتجات: علاج الانخفاض المسجّل باسم منتج يُحسب له دائمًا، حتى لو لم يُسجَّل هذا المنتج كأكل من قبل."
+    ],
+    "notes_en": [
+      "Product response: a low treatment logged with a product's name always counts for that product, even if it was never logged as food."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.23.0",
     "notes": [
       "الرسم البياني: ساعات الليل مظلّلة ومكتوب عليها «☾ ليل» عند عرض 6 ساعات أو أكثر، حسب ساعات الليل في إعدادات التنبيهات."

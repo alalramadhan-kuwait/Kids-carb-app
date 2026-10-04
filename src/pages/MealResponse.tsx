@@ -19,7 +19,7 @@ interface Item { id: string; name: string; n: number; speed: Speed; entries: His
 
 /** الوجبات: how glucose usually responds to one recipe or one product — every time, aligned at the first bite. */
 export function MealResponse() {
-  const { settings, history, events } = useData();
+  const { settings, history, events, products } = useData();
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState('');
   const tab = params.get('of') === 'products' ? 'products' : 'recipes';
@@ -39,14 +39,16 @@ export function MealResponse() {
         if (l.product && h.total_carbs > 0 && (l.carbs ?? 0) / h.total_carbs >= MAIN_SHARE) add(keyOf(l), keyOf(l), h, l.role === 'drink' || l.unit === 'ml' ? 'quick' : 'meal');
       }
     }
+    // a low treatment that names a product counts for it, even when that product is only ever given for lows
+    const known = new Set(products.map((p) => p.name));
     if (tab === 'products') for (const e of events) {
       const name = e.treatment?.split(' — ')[0].trim();
-      if (e.deleted_at || e.kind !== 'treatment' || !name || !m.has(name) || !e.carbs_g) continue;
+      if (e.deleted_at || e.kind !== 'treatment' || !name || !(m.has(name) || known.has(name)) || !e.carbs_g) continue;
       add(name, name, { id: e.id, kind: 'meal', recipe_id: null, name, eaten_at: e.occurred_at, total_carbs: e.carbs_g, lines: [] } as unknown as HistoryEntry, 'quick');
     }
     for (const r of m.values()) r.entries.sort((a, b) => Date.parse(b.eaten_at) - Date.parse(a.eaten_at));
     return [...m.values()].sort((a, b) => b.n - a.n);
-  }, [history, events, tab]);
+  }, [history, events, tab, products]);
   const item = items.find((r) => r.id === sel) ?? null;
   const meals = useMemo(() => (item?.entries ?? []).slice(0, 200), [item]);
   const [occ, setOcc] = useState<Occurrence[] | null>(null);
