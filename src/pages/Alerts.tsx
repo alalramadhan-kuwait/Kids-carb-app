@@ -127,7 +127,7 @@ export default function AlertsPage() {
             <Field label={t('نزول أسرع من')}><NumInput value={fall} onChange={setFall} /></Field>
             <Field label={t('صعود أسرع من')}><NumInput value={rise} onChange={setRise} /></Field>
           </div>
-          <Field label={t('منخفض متوقع: نبّه قبل (دقائق)')} hint={t('إذا استمر النزول الحالي ووصل حد المنخفض خلال هذه المدة. فارغ = متوقف.')}>
+          <Field label={t('منخفض متوقع: نبّه قبل (دقائق)')} hint={t('ينبّه إذا كانت تنزل والنزول (وهو يخفّ تدريجيًا) يقرّبها من حد المنخفض خلال هذه المدة، ونصف ساعة على الأقل. فارغ = متوقف.')}>
             <NumInput value={s.alert_predict_low_min} onChange={(v) => setS({ ...s, alert_predict_low_min: v })} />
           </Field>
           <Btn kind="primary" block disabled={!!problem} onClick={save}>{t('حفظ')}</Btn>

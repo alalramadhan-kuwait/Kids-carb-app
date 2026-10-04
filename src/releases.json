@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.26.1",
+    "notes": [
+      "توقع 30 دقيقة («≈ … عند …») والخط المنقّط على الرسم صارا يخفّان تدريجيًا بدل الخط المستقيم. على بياناتها قلّ الخطأ من حوالي 39 إلى 25 ملغ/دل.",
+      "تنبيه «انخفاض متوقع» صار يحسب النزول وهو يخفّ، وينبّه إذا كانت تقترب من حد المنخفض خلال نصف ساعة. على بياناتها: لقط انخفاضًا أكثر، وقلّت التنبيهات الكاذبة بحوالي 40%."
+    ],
+    "notes_en": [
+      "The 30-minute forecast (“≈ … at …”) and the dotted line on the graph now ease off instead of running in a straight line. On her data the average miss fell from about 39 to 25 mg/dL.",
+      "“Low expected” now follows the fall as it eases and warns when she is heading close to the low limit within half an hour. On her data it caught one more low with about 40% fewer false alarms."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.26.0",
     "notes": [
       "تقرير فريق الرعاية: قسم جديد «الليل: الإنسولين الطويل فقط». يجمع فترات الليل التي لم يُعطَ فيها إنسولين سريع لـ 6 ساعات ولم تأكل لـ 3 ساعات، ويعرض ما فعله السكر فيها: رسم لكل ليلة، التغير في الساعة، أدنى قراءة، وكيف انتهت. وإذا تكرر النزول يظهر «مراجعة مع فريق الرعاية» دون أي اقتراح للجرعة."

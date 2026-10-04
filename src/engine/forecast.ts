@@ -3,15 +3,18 @@
 // and nothing here feeds the dose calculator.
 import { iobFraction, type CarbEntry, type Dose, type IobParams } from './iob';
 import type { Ratio } from './status';
+import { DAMP } from './trend';
 
 const MIN = 60000;
 export interface Pt { t: number; v: number }
 export interface Forecast { kind: 'trend' | 'onboard' | 'past'; pts: Pt[]; key: string }
 
-/** The trend arrow's projection: a straight line from the newest reading to where the same rate leads in 30 min. */
+/** The trend's 30-minute projection, drawn as it fades (steep first, then levelling) from the newest reading. */
 export function trendForecast(last: Pt | null, projected30: number | null, now: number): Forecast | null {
   if (!last || projected30 === null || now - last.t > 15 * MIN) return null;
-  return { kind: 'trend', key: 'trend', pts: [last, { t: last.t + 30 * MIN, v: projected30 }] };
+  const full = 1 - DAMP ** 6;
+  const pts = [0, 5, 10, 15, 20, 25, 30].map((m) => ({ t: last.t + m * MIN, v: last.v + (projected30 - last.v) * (1 - DAMP ** (m / 5)) / full }));
+  return { kind: 'trend', key: 'trend', pts };
 }
 
 /**

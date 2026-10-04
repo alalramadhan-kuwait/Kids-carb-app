@@ -498,6 +498,21 @@ test('profiles: night and school windows in Kuwait time change the thresholds; n
   assert.equal(highAtNight[0].kind, 'high'); assert.equal(highAtNight[0].silent, true);
 });
 
+test('the server rate leaves out Libre history points beside minute readings, like the app', () => {
+  const r = (m: number, v: number, trend: number | null) => ({ taken_at: new Date(at(m)).toISOString(), mg_dl: v, trend });
+  const minute = [r(0, 150, 2), r(3, 144, 2), r(6, 138, 2), r(9, 132, 2), r(12, 126, 2)];
+  assert.equal(Math.round(rate15(minute)! * 10) / 10, -2);
+  assert.equal(Math.round(rate15([...minute.slice(0, 4), r(10, 150, null), minute[4]])! * 10) / 10, -2, 'the odd history point at 10 min is ignored');
+});
+
+test('low expected looks ahead with a fading trend: a slow fall far above the limit does not warn', () => {
+  const cfg: AlertCfg = { ...CFG, predictLowMin: 20 };
+  const slow = Array.from({ length: 15 }, (_, i) => rd(i, 112 - i)); // 1 mg/dL a minute down, now 98
+  assert.equal(evaluate(at(14), slow, cfg, [], true).find((x) => x.kind === 'predicted_low'), undefined, 'a straight line said 78 in 20 min; fading, she levels near 88');
+  const near = Array.from({ length: 15 }, (_, i) => rd(i, 102 - i)); // now 88
+  assert.ok(evaluate(at(14), near, cfg, [], true).find((x) => x.kind === 'predicted_low'), 'close to the limit and falling: warns');
+});
+
 test('rapid fall: a sustained slope beyond the set rate, never from a single jump or across a gap', () => {
   const pts = (vals: number[], step = 5) => vals.map((v, k) => ({ taken_at: new Date(at(k * step)).toISOString(), mg_dl: v, trend: null }));
   assert.equal(Math.round(rate15(pts([180, 165, 150, 135])) ?? 0), -3);
@@ -534,8 +549,10 @@ test('push wording: what is happening first, then glucose now, then what it mean
   assert.equal(alertMessage('rapid_rise', 'alert', { value: 160, trend: 5, unit: 'mgdl', minutes: 2 }).urgency, 'normal');
   assert.equal(alertMessage('no_data', 'alert', { value: null, trend: null, unit: 'mgdl', minutes: 21 }).title, '🟠 لا توجد قراءة منذ 21 دقيقة');
   assert.equal(alertMessage('low', 'resolved', { value: 90, trend: 4, unit: 'mgdl', minutes: 30 }).title, '✅ انتهى الانخفاض');
-  const rf = alertMessage('rapid_fall', 'alert', { value: 130, trend: 1, unit: 'mgdl', minutes: 2, low: 70, rate: -3 });
-  assert.equal(rf.body, `الآن ${I('130 ↓')} ملغ/دل\nقد ينزل تحت ${I('70')} خلال 20 دقيقة`);
+  // the time to the low limit follows the fading trend: from 90 at −3 a minute it gets there in about 12 minutes; from 130 it levels off first
+  const rf = alertMessage('rapid_fall', 'alert', { value: 90, trend: 1, unit: 'mgdl', minutes: 2, low: 70, rate: -3 });
+  assert.equal(rf.body, `الآن ${I('90 ↓')} ملغ/دل\nقد ينزل تحت ${I('70')} خلال 12 دقيقة`);
+  assert.equal(alertMessage('rapid_fall', 'alert', { value: 130, trend: 1, unit: 'mgdl', minutes: 2, low: 70, rate: -3 }).body, `الآن ${I('130 ↓')} ملغ/دل`);
   for (const k of ['urgent_low', 'low', 'predicted_low', 'high', 'no_data', 'rapid_fall', 'rapid_rise'] as const) for (const n of ['alert', 'repeat', 'resolved', 'escalate'] as const) {
     const m = alertMessage(k, n, { value: 60, trend: 1, unit: 'mgdl', minutes: 3, low: 70, rate: -2 });
     const t = m.title + '\n' + m.body;
@@ -547,7 +564,7 @@ test('push wording: what is happening first, then glucose now, then what it mean
 
 test('push wording in English: same layout, no Arabic, no doses', () => {
   const m = alertMessage('predicted_low', 'alert', { value: 94, trend: null, unit: 'mmol', minutes: 0, low: 70, rate: -1.2 }, 'en');
-  assert.equal(m.title, '🟠 Low expected in 20 min');
+  assert.equal(m.title, '🟠 Low expected in 30 min'); // levels off near the limit: the look-ahead, not a made-up time
   assert.equal(m.body, 'Now \u20665.2 ↘\u2069 mmol/L\nMay drop below \u20663.9\u2069');
   assert.equal(alertMessage('no_data', 'escalate', { value: null, trend: null, unit: 'mgdl', minutes: 21 }, 'en').title, '🔴 No one answered · no reading for 21 min');
   assert.equal(ackMessage('urgent_low', null, 'treated', 'en').title, '✅ A parent treated it');
@@ -1213,7 +1230,9 @@ console.log('trend');
   test('rate from a straight fit over the last 15–20 minutes', () => {
     const tr = trendFrom(R([-15, -12, -9, -6, -3, 0], (m) => 120 + 2 * m), T)!;
     assert.ok(Math.abs(tr.rate - 2) < 1e-9); assert.ok(Math.abs(tr.change15 - 30) < 1e-9); assert.equal(tr.level, 2);
-    assert.ok(Math.abs(tr.projected30! - 180) < 1e-9);
+    // the projection fades: 2 mg/dL a minute adds about 10 in 30 minutes, not 60 (a straight line overshot her turns)
+    assert.ok(Math.abs(tr.projected30! - (120 + 5 * 2 * 0.5 * (1 - 0.5 ** 6) / 0.5)) < 1e-9);
+    assert.ok(tr.projected30! > 125 && tr.projected30! < 135);
   });
   test('one odd reading does not flip it', () => {
     const tr = trendFrom(R([-15, -12, -9, -6, -3, 0], (m) => (m === 0 ? 112 : 100)), T)!;
@@ -1878,7 +1897,9 @@ console.log('graph forecasts');
     const T = Date.parse('2026-10-02T12:00:00Z'), M = 60000;
     const last = { t: T - 2 * M, v: 140 };
     const tr = F.trendForecast(last, 170, T)!;
-    assert.deepEqual(tr.pts, [last, { t: last.t + 30 * M, v: 170 }]);
+    assert.deepEqual(tr.pts[0], last);
+    assert.deepEqual(tr.pts[tr.pts.length - 1], { t: last.t + 30 * M, v: 170 });
+    assert.ok(tr.pts[1].v - last.v > (170 - last.v) / 2, 'steep first, then levelling');
     assert.equal(F.trendForecast({ t: T - 20 * M, v: 140 }, 170, T), null, 'an old reading draws no trend line');
     assert.equal(F.trendForecast(last, null, T), null);
 

@@ -62,8 +62,23 @@ export function lowNow(now: number, cfg: AlertCfg): number | null {
   return p === 'night' ? cfg.night?.low ?? cfg.low : p === 'school' ? cfg.school?.low ?? cfg.low : cfg.low;
 }
 
-/** Least-squares slope over the 15 minutes up to the last reading (mg/dL per minute); needs ≥ 3 points over ≥ 5 min, no gap. */
-export function rate15(readings: Reading[]): number | null {
+/**
+ * "Low expected" looks ahead with a fading trend, not a straight line: each next 5 minutes keeps only FADE of the
+ * last one's change. Tested on her readings (Oct 2026): the straight 20-minute line warned 66 times in 6 days and
+ * two in three were false; this one, warning when she is falling and heads under the low limit + 10 within 30
+ * minutes, caught one more of the 23 lows with about 40% fewer false warnings (about 22 minutes ahead).
+ */
+export const FADE = 0.7, LOOK_MIN = 30, LOW_MARGIN = 10;
+export const fadedChange = (rate: number, minutes: number) => rate * 5 * FADE * (1 - FADE ** (minutes / 5)) / (1 - FADE);
+
+/**
+ * Least-squares slope over the 15 minutes up to the last reading (mg/dL per minute); needs ≥ 3 points over ≥ 5 min,
+ * no gap. LibreLinkUp's 15-minute history points (no arrow) sit a few mg/dL off the minute readings beside them, so
+ * where minute readings exist the history point within 2 minutes is left out (as the app's own trend does).
+ */
+export function rate15(all: Reading[]): number | null {
+  const marked = all.filter((r) => r.trend !== null).map((r) => Date.parse(r.taken_at));
+  const readings = all.filter((r) => r.trend !== null || !marked.some((m) => Math.abs(m - Date.parse(r.taken_at)) <= 2 * MIN));
   if (readings.length < 3) return null;
   const last = Date.parse(readings[readings.length - 1].taken_at);
   const pts: [number, number][] = [];
@@ -93,8 +108,8 @@ export function evaluate(now: number, readings: Reading[], cfg: AlertCfg, open: 
   const rate = fresh ? rate15(readings) : null;
   const RF = cfg.fallRate ?? cfg.rapidRate ?? null, RR = cfg.riseRate ?? cfg.rapidRate ?? null;
   const P = cfg.predictLowMin ?? null;
-  // where the last 15 minutes' fall leads in P minutes (a straight line: the trend, not a forecast of food or insulin)
-  const ahead = fresh && v !== null && rate !== null && P !== null ? v + rate * P : null;
+  // where the last 15 minutes' fall leads in the next half hour, fading (the trend, not a forecast of food or insulin)
+  const ahead = fresh && v !== null && rate !== null && P !== null ? v + fadedChange(rate, Math.max(P, LOOK_MIN)) : null;
   const byKind = new Map(open.map((a) => [a.kind, a]));
   const urgentOpen = byKind.get('urgent_low');
   const urgentSounding = !!urgentOpen && urgentOpen.state !== 'pending';
@@ -116,8 +131,8 @@ export function evaluate(now: number, readings: Reading[], cfg: AlertCfg, open: 
       case 'predicted_low':
         // still above the low limit but heading below it within P minutes; once she is low, the low alert takes over
         enabled = low !== null && P !== null; delay = 2; renotify = 24 * 60;
-        cond = ahead !== null && rate! < 0 && v! > low! && ahead <= low!;
-        clear = fresh && (v! <= low! || ahead === null || ahead > low! + 5); break;
+        cond = ahead !== null && rate! < 0 && v! > low! && ahead <= low! + LOW_MARGIN;
+        clear = fresh && (v! <= low! || ahead === null || ahead > low! + LOW_MARGIN + 5); break;
       case 'rapid_fall':
         enabled = RF !== null; delay = 2; renotify = 24 * 60;
         cond = rate !== null && rate <= -RF!; clear = rate !== null && rate > -RF! * 0.6; break;
@@ -224,10 +239,11 @@ export interface AlertFacts {
   rate?: number | null; // mg/dL per minute over the last 15 minutes
   ahead?: number | null; // the "low expected" look-ahead (minutes), when the rate cannot give a time
 }
-/** Minutes until the current fall reaches the low limit, if it is falling. */
+/** Minutes until the current fall, fading, reaches the low limit (within an hour); null if it levels off above it. */
 export function minutesToLow(f: AlertFacts): number | null {
   if (f.value === null || f.low == null || f.rate == null || f.rate >= 0 || f.value <= f.low) return null;
-  return (f.value - f.low) / -f.rate;
+  for (let m = 1; m <= 60; m++) if (f.value + fadedChange(f.rate, m) <= f.low) return m;
+  return null;
 }
 
 /** Push wording, in each parent's app language (carb.members.lang). */
@@ -253,7 +269,7 @@ export function alertMessage(kind: AlertKind, notify: Notify, f: AlertFacts, lan
     case 'low':
       return out(en ? (still ? 'Still low' : 'Low · needs treatment') : still ? 'ما زال منخفضًا' : 'منخفض · يحتاج علاجًا', now, since && (en ? `For ${since}` : `منذ ${since}`));
     case 'predicted_low': {
-      const m = Math.round(eta ?? f.ahead ?? 20);
+      const m = Math.round(eta ?? f.ahead ?? LOOK_MIN);
       return out(en ? `Low expected in ${dur(m, lang)}` : `انخفاض متوقع خلال ${dur(m, lang)}`, now, lowTxt && (en ? `May drop below ${lowTxt}` : `قد ينزل تحت ${lowTxt}`));
     }
     case 'high':

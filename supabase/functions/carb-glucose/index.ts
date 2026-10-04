@@ -187,7 +187,7 @@ async function runAlerts(db: Db, now: number) {
     const value = step.kind === 'no_data' ? null : (latest?.mg_dl ?? null);
     const fresh = latest && now - Date.parse(latest.taken_at) <= 15 * 60000;
     const msg = (lang: Lang) => alertMessage(step.kind, step.notify!, { value, trend: latest?.trend ?? null, unit: s.glucose_unit === 'mmol' ? 'mmol' : 'mgdl', minutes,
-      low: lowNow(now, cfg), rate: fresh ? rate15(readings) : null, ahead: s.alert_predict_low_min ?? null }, lang);
+      low: lowNow(now, cfg), rate: fresh ? rate15(readings) : null, ahead: s.alert_predict_low_min == null ? null : Math.max(s.alert_predict_low_min, 30) }, lang);
     await pushAll(db, (lang) => { const m = msg(lang); return { title: m.title, body: m.body, tag: `alert-${step.kind}`, url: './#/', kind: step.kind, sticky: m.severity === 'urgent' }; },
       { kind: step.notify, alertId: id, urgency: msg('ar').urgency, users: recipients(members, step.notify) });
   }

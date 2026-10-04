@@ -363,5 +363,6 @@ export const settings: Record<string, string> = {
   "صعود أسرع من": "Rising faster than",
   "منخفض متوقع: نبّه قبل (دقائق)": "Low expected: warn ahead (minutes)",
   "إذا استمر النزول الحالي ووصل حد المنخفض خلال هذه المدة. فارغ = متوقف.": "If the current fall would reach the low limit within this time. Empty = off.",
+  "ينبّه إذا كانت تنزل والنزول (وهو يخفّ تدريجيًا) يقرّبها من حد المنخفض خلال هذه المدة، ونصف ساعة على الأقل. فارغ = متوقف.": "Warns when she is falling and the fall, easing as it goes, brings her close to the low limit within this time (half an hour at least). Empty = off.",
   "منخفض متوقع": "Low expected",
 };

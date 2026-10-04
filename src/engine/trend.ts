@@ -10,7 +10,7 @@ export interface Trend {
   rate: number;              // mg/dL per minute
   change15: number;          // mg/dL over 15 minutes at that rate
   level: Level;              // ⇊ ↓ ↘ → ↗ ↑ ⇈
-  projected30: number | null; // where the same rate leads in 30 minutes (only from a solid fit)
+  projected30: number | null; // where the trend leads in 30 minutes, fading as it goes (only from a solid fit)
   at: number;                // time of the newest reading used
 }
 
@@ -42,6 +42,15 @@ export function minuteOnly<T>(t: number[], arrow: (number | null)[], rows: T[]):
   });
 }
 
+/**
+ * A trend fades: her glucose turns well before a straight line says it will (a child's swings are short), so each
+ * next 5 minutes keeps only DAMP of the last one's change. Tested on her readings (Oct 2026), a straight 30-minute
+ * line missed by about 39 mg/dL on average; this fading one by about 25, the same as saying "no change", while
+ * still showing the direction. Change over `minutes` at `rate` mg/dL per minute.
+ */
+export const DAMP = 0.5;
+export const dampedChange = (rate: number, minutes: number, phi = DAMP) => rate * 5 * phi * (1 - phi ** (minutes / 5)) / (1 - phi);
+
 export function trendFrom(all: Reading[], now: number): Trend | null {
   const times = all.map((r) => Date.parse(r.taken_at));
   const readings = minuteOnly(times, all.map((r) => r.trend), all);
@@ -68,7 +77,7 @@ export function trendFrom(all: Reading[], now: number): Trend | null {
   const end = mv + rate * ((last - mt) / MIN);                   // the fitted value now, steadier than the last point
   return {
     rate, change15: rate * 15, level: levelOf(rate), at: last,
-    projected30: solid ? Math.max(40, Math.min(400, end + rate * 30)) : null,
+    projected30: solid ? Math.max(40, Math.min(400, end + dampedChange(rate, 30))) : null,
   };
 }
 
