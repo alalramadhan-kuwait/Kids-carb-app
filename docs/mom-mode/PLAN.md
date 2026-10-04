@@ -202,3 +202,12 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
     شي ثاني) with «اختاري السبب».
   - Words: «لا نوفورابيد قبل الساعة X»; «ساعة و43 د»; «أنت عطيتيها»; «بدون كارب»; «غرام»; tabs
     «وجباتها / طبخ البيت / أكل»; unavailable products hidden; juice names not repeated.
+- **v9 (Dad, 2.28.1–2.28.2)** — the top hid under the iPhone's Dynamic Island: pages now keep their top clear and fixed.
+- **v10 (Dad, 2.29.0)** —
+  - Home is one fixed screen, nothing scrolls: smaller status box, the graph takes the room left.
+  - Injection flow: «إبرة» → pen → **where** (suggested) → the number → saved with its site. On the meal dose page and
+    Tresiba the site is a row to change. No site page after saving.
+  - Rotation in cycles, in order: right arm, left arm, belly right, belly left, right leg, left leg. She can mix;
+    the suggestion is the first site not used yet in this cycle (never the one just used); the cycle ends when all
+    have had their turn, then starts again at the right arm.
+  - Bottom tabs in mom mode: 🏠 Home · 📋 Log (last two days; a shot or juice opens to change or delete) · 🥗 Nutrition.

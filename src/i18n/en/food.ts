@@ -815,6 +815,11 @@ export const food: Record<string, string> = {
   "أعطيت رقمًا آخر: ضع الرقم لأعدّله": "Gave a different amount: put the number in to edit it",
   "اختاروا الكمية": "choose the amount",
   // mom mode
+  "ما في شي بعد": "Nothing yet",
+  "وين الإبرة؟": "Where does it go?",
+  "باقي {k} أماكن": "{k} sites left",
+  "الرئيسية": "Home",
+  "التغذية": "Nutrition",
   "بعد {m}": "in {m}",
   "قليل وايد: {g} غ كارب. الكمية بالغرام مو بالحبة": "Very little: {g} g carbs. The amount is in grams, not pieces",
   "بعيد وايد عن باقي الكميات · تأكد": "Far from the other portions · check it",

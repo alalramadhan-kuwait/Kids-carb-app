@@ -2367,8 +2367,18 @@ test('Topi cheese is found by «توبي» and «جبن»', async () => {
     const H = 3600000, now = 100 * H;
     const shots = [{ t: now - 2 * H, site: 'belly_r', type: 'rapid' }, { t: now - 30 * H, site: 'belly_l', type: 'rapid' }, { t: now - 80 * H, site: 'thigh_r', type: 'long' }] as any;
     const allowed = ['belly_r', 'belly_l', 'thigh_r', 'thigh_l'] as any;
-    assert.equal(M.siteSuggestion(shots, allowed).suggest, 'thigh_l', 'never used first');
-    assert.equal(M.siteSuggestion([...shots, { t: now - H, site: 'thigh_l', type: 'rapid' }], allowed).suggest, 'thigh_r');
+    assert.equal(M.siteSuggestion(shots, allowed).suggest, 'thigh_l', 'the one left in this cycle');
+    // all four used: a new cycle starts at the top of the order (belly right)
+    assert.equal(M.siteSuggestion([...shots, { t: now - H, site: 'thigh_l', type: 'rapid' }], allowed).suggest, 'belly_r');
+    // arms → belly → legs, right before left; mixing is fine, the cycle waits for the sites not yet used
+    const six = ['arm_r', 'arm_l', 'belly_r', 'belly_l', 'thigh_r', 'thigh_l'] as any;
+    const at = (sites: string[]) => sites.map((x, k) => ({ t: now - (sites.length - k) * H, site: x, type: 'rapid' })) as any;
+    assert.equal(M.siteSuggestion([], six).suggest, 'arm_r', 'starts at the right arm');
+    assert.equal(M.siteSuggestion(at(['arm_r']), six).suggest, 'arm_l');
+    assert.equal(M.siteSuggestion(at(['arm_r', 'thigh_l']), six).suggest, 'arm_l', 'mixed: the order goes on with what is left');
+    assert.equal(M.siteSuggestion(at(['arm_r', 'arm_l', 'belly_r', 'belly_l', 'thigh_r', 'thigh_l']), six).suggest, 'arm_r', 'full cycle: start again');
+    assert.equal(M.siteSuggestion(at(['arm_l', 'belly_r', 'belly_l', 'thigh_r', 'thigh_l', 'arm_r']), six).suggest, 'arm_l', 'never the site just used');
+    assert.equal(M.siteSuggestion(at(['arm_r', 'arm_l', 'belly_r']), six).used.size, 3);
     const many = Array.from({ length: 6 }, (_, k) => ({ t: now - k * H, site: 'belly_r', type: 'rapid' })) as any;
     assert.deepEqual(M.siteCounts(many, now, allowed).overused, ['belly_r']);
     assert.equal(M.nextRapidAllowed(now - 40 * 60000, 120, now), now + 80 * 60000);

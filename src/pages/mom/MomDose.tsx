@@ -7,7 +7,8 @@ import { useData } from '../../lib/data';
 import { useLiveDose } from '../../lib/useLiveDose';
 import { draftOps, useDraft } from '../../lib/mom';
 import { approveDose, ate, fetchPlan, planMeal, planNow, startEating, usePlans } from '../../lib/plans';
-import { logMeal, saveEvent } from '../../lib/api';
+import { logMeal, saveEvent, setInjectionSite } from '../../lib/api';
+import { SiteRow, useSite } from './MomShots';
 import { planItems } from '../../engine/mom';
 import { fmt } from '../../lib/carbs';
 import { toast, cx } from '../../components/ui';
@@ -36,6 +37,7 @@ export function MomDose() {
   const carbs = correction ? 0 : mealCarbs(d.items);
   const live = useLiveDose(carbs ?? 0);
   const { r, latest, level } = live;
+  const { site, suggest } = useSite('rapid');
   const [given, setGiven] = useState<number | null>(null);
   const [reason, setReason] = useState<string | null>(null);
   const [why, setWhy] = useState(false);
@@ -58,19 +60,21 @@ export function MomDose() {
     setBusy(true);
     try {
       if (correction) {
-        const id = await saveEvent({ client_id: crypto.randomUUID(), kind: 'insulin', occurred_at: new Date().toISOString(), insulin_units: given, insulin_type: 'rapid', bolus_purpose: 'correction',
-          carbs_g: null, treatment: null, note: given !== r.dose ? reason : null, activity_min: null, activity_level: null, ends_at: null, dose_calc: snapshot(), bg_mgdl: null });
+        await saveEvent({ client_id: crypto.randomUUID(), kind: 'insulin', occurred_at: new Date().toISOString(), insulin_units: given, insulin_type: 'rapid', bolus_purpose: 'correction',
+          carbs_g: null, treatment: null, note: given !== r.dose ? reason : null, activity_min: null, activity_level: null, ends_at: null, dose_calc: snapshot(), bg_mgdl: null, injection_site: site });
         await reload();
-        nav(`/mom/site?e=${id}&type=rapid&next=/mom`, { replace: true });
+        toast(t('تم تسجيل الإبرة ✓'));
+        nav('/mom', { replace: true });
         return;
       }
       const items = planItems(d.items, c)!;
       const plan = await planNow({ name: d.name ?? SLOT[slotNow()], slot: slotNow(), items, eat_after_min: s.dose_to_meal_min ?? 10, note: d.left.length ? `${d.left.join(' · ')} ${t('ما ينحسب بالإبرة · كلّمي بابا')}` : null });
       await approveDose(plan, { given, calc: r.dose, reason: given !== r.dose ? reason : null, purpose: live.purpose, snapshot: snapshot(), carbs: carbs! });
       const fresh = await fetchPlan(plan.id);
+      if (fresh?.dose_event_id && site) await setInjectionSite(fresh.dose_event_id, site);
       draftOps.clear();
       await reload();
-      nav(`/mom/site?e=${fresh?.dose_event_id ?? ''}&type=rapid&next=/mom/given/${plan.id}`, { replace: true });
+      nav(`/mom/given/${plan.id}`, { replace: true });
     } catch (e) { toast((e as Error).message); setBusy(false); }
   };
   const eatWithout = async () => {
@@ -137,6 +141,7 @@ export function MomDose() {
               <span className="num w-20 text-center text-[48px] font-extrabold">{given === null ? '—' : fmt(given)}</span>
               <button aria-label="−" className="grid h-16 w-16 place-items-center rounded-full bg-brand-soft text-4xl font-bold text-brand" onClick={() => { setGiven(Math.max(0, Math.round(((given ?? 0) - step) * 10) / 10)); setReason(null); }}>−</button>
             </div>
+            <SiteRow type="rapid" site={site} suggest={suggest} />
             {differs && <div className="flex flex-wrap justify-center gap-2">{reasons.map((x) => <button key={x} onClick={() => setReason(x)} className={cx('min-h-[44px] rounded-full px-4 text-[16px]', reason === x ? 'bg-brand font-bold text-white' : 'bg-white border border-slate-200')}>{t(x)}</button>)}</div>}
           </>
         )}

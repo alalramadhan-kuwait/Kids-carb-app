@@ -102,7 +102,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
 // ── basics ──────────────────────────────────────────────────────────────────
 export function Page({ title, back, action, children }: { title: string; back?: () => void; action?: ReactNode; children: ReactNode }) {
   return (
-    <main className="mx-auto max-w-2xl px-4 pb-28 pt-3">
+    <main className="mx-auto max-w-2xl px-4 pb-28 pt-[max(12px,env(safe-area-inset-top))]">
       <header className="mb-3 flex items-center gap-3">
         {back && <button onClick={back} aria-label={t('رجوع')} className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl shadow-sm">{isEn() ? '←' : '→'}</button>}
         <h1 className="flex-1 text-[22px] font-bold tracking-tight">{title}</h1>

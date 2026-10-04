@@ -44,6 +44,8 @@ import { MomAdd, MomMeal, MomNew, MomPortion } from './pages/mom/MomMeal';
 import { MomAte, MomDose, MomGiven } from './pages/mom/MomDose';
 import { MomJuice, MomShot, MomSite, MomSites, MomTresiba } from './pages/mom/MomShots';
 import { MomEntry } from './pages/mom/MomEntry';
+import { MomLog } from './pages/mom/MomLog';
+import { MomTabs } from './pages/mom/MomUI';
 import { PortionEdit, PortionList } from './pages/Portions';
 import { fullModeNow } from './lib/mom';
 
@@ -194,6 +196,8 @@ function Shell() {
   // mom mode: this person's phone opens in the simple screens (one tap «الوضع الكامل» for this visit)
   const simple = !!members.find((m) => m.user_id === me)?.simple_mode && !fullModeNow();
   const mom = pathname === '/mom' || pathname.startsWith('/mom/');
+  // mom mode's own tabs (home, log, nutrition) on its three main pages
+  const momTabs = pathname === '/mom' || pathname === '/mom/log' || (simple && pathname === '/growth');
   // the research lab runs by itself every 12 hours (one phone per slot); it never touches doses or readings
   useLabRunner({ loading: loading || !!error, settings, events, history });
   if (loading) return <Centered><p className="text-center text-slate-500">{t('جاري التحميل…')}</p></Centered>;
@@ -217,6 +221,7 @@ function Shell() {
         <Route path="/mom/site" element={<MomSite />} />
         <Route path="/mom/sites" element={<MomSites />} />
         <Route path="/mom/entry/:id" element={<MomEntry />} />
+        <Route path="/mom/log" element={<MomLog />} />
         <Route path="/portions" element={<PortionList />} />
         <Route path="/portions/:kind/:id" element={<PortionEdit />} />
         <Route path="/meals" element={<Today />} />
@@ -254,7 +259,8 @@ function Shell() {
         <Route path="/more" element={<More />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {!mom && <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+      {momTabs && <MomTabs pathname={pathname} />}
+      {!mom && !momTabs && <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         <ul className="mx-auto grid max-w-2xl grid-cols-5">
           {TABS.map((tab) => {
             const on = tab.to === '/' ? pathname === '/' : tab.match.some((m) => pathname === m || pathname.startsWith(m + '/'));

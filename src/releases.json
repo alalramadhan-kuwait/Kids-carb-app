@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.29.0",
+    "notes": [
+      "الوضع البسيط: الرئيسية صفحة وحدة ثابتة، كل شي يبين بدون تمرير.",
+      "الإبرة: تختارين المكان أول (مقترح)، بعدين الرقم. الترتيب: ذراع يمين، ذراع يسار، بطن يمين، بطن يسار، فخذ يمين، فخذ يسار — أو خلطي لين تخلص الدورة.",
+      "أزرار تحت: الرئيسية · السجل · التغذية."
+    ],
+    "notes_en": [
+      "Simple mode: home is one fixed screen, everything visible without scrolling.",
+      "Injection: choose the site first (suggested), then the number. Order: right arm, left arm, belly right, belly left, right leg, left leg — or mix until the round is done.",
+      "Bottom tabs: Home · Log · Nutrition."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.28.2",
     "notes": [
       "الوضع البسيط: اسم ليان ومربع السكر ثابتين فوق، والباقي يتحرك تحتهم. أزرار الصفحات ثابتة تحت."

@@ -13,16 +13,16 @@ import { usePlans } from '../../lib/plans';
 import { setFullModeNow } from '../../lib/mom';
 import { cx } from '../../components/ui';
 import { t } from '../../i18n';
-import { Big, PEN, PEN_NAME, PenBar, ago, clock, glucoseText, left } from './MomUI';
+import { Big, PEN, PEN_NAME, PenBar, TABS_PAD, ago, clock, glucoseText, left } from './MomUI';
 
 const H = 3600000;
 const ARROW: Record<number, string> = { [-3]: '⇊', [-2]: '↓', [-1]: '↘', 0: '→', 1: '↗', 2: '↑', 3: '⇈' };
 const MOOD: Record<Mood, { bg: string; word: string; todo: string }> = {
-  ok: { bg: 'bg-[#2f8f55]', word: 'زين', todo: 'ما يحتاج شي الحين' }, // i18n-ok
-  falling: { bg: 'bg-[#c27a00]', word: 'قاعد ينزل', todo: 'انتبهي وافحصيها' }, // i18n-ok
-  high: { bg: 'bg-[#c27a00]', word: 'مرتفع', todo: 'شوفي خطة الدكتور' }, // i18n-ok
-  low: { bg: 'bg-[#c62f3a]', word: 'نازل', todo: 'عطيها عصير الحين' }, // i18n-ok
-  stale: { bg: 'bg-slate-500', word: 'ما في قراءة جديدة', todo: 'افحصيها بالإصبع' }, // i18n-ok
+  ok: { bg: '#2f8f55', word: 'زين', todo: 'ما يحتاج شي الحين' }, // i18n-ok
+  falling: { bg: '#c27a00', word: 'قاعد ينزل', todo: 'انتبهي وافحصيها' }, // i18n-ok
+  high: { bg: '#c27a00', word: 'مرتفع', todo: 'شوفي خطة الدكتور' }, // i18n-ok
+  low: { bg: '#c62f3a', word: 'نازل', todo: 'عطيها عصير الحين' }, // i18n-ok
+  stale: { bg: '#64748b', word: 'ما في قراءة جديدة', todo: 'افحصيها بالإصبع' }, // i18n-ok
 }; // i18n: translated where shown
 
 export function MomHome() {
@@ -67,53 +67,51 @@ export function MomHome() {
   const juiceDue = juice ? Date.parse(juice.occurred_at) + recheckMin * 60000 : 0;
   const ack = () => { if (!juice) return; try { localStorage.setItem('mom-juice-ack', juice.id); } catch { /* blocked */ } setAcked(juice.id); };
 
+  const big = 'min-h-[60px] text-[21px]';
   return (
-    <main className="mx-auto flex h-[100dvh] max-w-md flex-col">
-      {/* name and status stay put below the phone's clock/camera; only what is under them scrolls */}
-      <div className="shrink-0 space-y-2 px-4 pb-2 pt-[calc(12px+env(safe-area-inset-top))]">
-        <div className="flex items-baseline justify-between"><b className="text-[22px]">{t('ليان')}</b><span className="text-sm text-slate-500">{at ? ago(at, now) : ''}</span></div>
-        <div className={cx('flex items-center gap-4 rounded-3xl px-5 py-4', m.bg)} style={{ color: '#fff' }}>
-          <div className="min-w-0 flex-1"><div className="text-[22px] font-bold leading-tight">{t(m.word)}</div><div className="text-[16px] opacity-90">{t(m.todo)}</div></div>
-          {latest && mood !== 'stale' && <div dir="ltr" className="flex items-baseline gap-1.5"><span className="text-[56px] font-extrabold leading-none">{glucoseText(latest.mg_dl, unit)}</span><span className="text-[34px]">{level !== null ? ARROW[level] : ''}</span></div>}
+    // one fixed screen: nothing scrolls; the graph takes whatever room is left
+    <main className={cx('mx-auto flex h-[100dvh] max-w-md flex-col gap-2 overflow-hidden px-4 pt-[calc(8px+env(safe-area-inset-top))]', TABS_PAD)}>
+      <div className="flex shrink-0 items-center gap-3 rounded-3xl px-4 py-2.5" style={{ color: '#fff', background: m.bg }}>
+        <div className="min-w-0 flex-1"><div className="text-[14px] opacity-90">{t('ليان')} · {at ? ago(at, now) : ''}</div><div className="text-[20px] font-bold leading-tight">{t(m.word)}</div><div className="text-[15px] opacity-90">{t(m.todo)}</div></div>
+        {latest && mood !== 'stale' && <div dir="ltr" className="flex items-baseline gap-1"><span className="text-[48px] font-extrabold leading-none">{glucoseText(latest.mg_dl, unit)}</span><span className="text-[30px]">{level !== null ? ARROW[level] : ''}</span></div>}
+      </div>
+
+      <div className="flex min-h-[120px] flex-1 flex-col rounded-3xl border border-slate-100 bg-white px-1 pt-1">
+        <div className="min-h-0 flex-1">
+          {merged && <BigGraph s={merged} now={now} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} alarmHigh={s.alert_high_mgdl ?? 240}
+            shots={shots.map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
+            meals={history.filter((h) => h.total_carbs >= 5).map((h) => Date.parse(h.eaten_at))} />}
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-1">
-      <div className="rounded-3xl border border-slate-100 bg-white px-1 pb-1 pt-2">
-        {merged ? <BigGraph s={merged} now={now} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} alarmHigh={s.alert_high_mgdl ?? 240}
-          shots={shots.map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
-          meals={history.filter((h) => h.total_carbs >= 5).map((h) => Date.parse(h.eaten_at))} /> : <div className="h-[260px]" />}
-        <div className="flex justify-center gap-4 pb-1 text-xs text-slate-500"><span><b style={{ color: PEN.rapid }}>●</b> {t(PEN_NAME.rapid)}</span><span><b style={{ color: PEN.long }}>●</b> {t(PEN_NAME.long)}</span><span>🍽️ {t('أكل')}</span></div>
-      </div>
-
-      <div className="space-y-2 rounded-3xl border border-slate-100 bg-white px-4 py-3">
+      <div className="shrink-0 rounded-3xl border border-slate-100 bg-white px-4 py-1.5">
         {[lastRapid && { type: 'rapid' as const, e: lastRapid }, lastLong && { type: 'long' as const, e: lastLong }].filter(Boolean).map((x) => x && (
-          <Link key={x.type} to={`/mom/entry/${x.e.id}`} className="flex min-h-[44px] items-center gap-3"><PenBar type={x.type} /><span className="flex-1 text-[17px]">{t(PEN_NAME[x.type])} <b className="num">{x.e.insulin_units}</b> {t('وحدة')}</span><span className="text-[15px] text-slate-500">{ago(Date.parse(x.e.occurred_at), now)}</span></Link>
+          <Link key={x.type} to={`/mom/entry/${x.e.id}`} className="flex min-h-[40px] items-center gap-3"><PenBar type={x.type} /><span className="flex-1 text-[17px]">{t(PEN_NAME[x.type])} <b className="num">{x.e.insulin_units}</b> {t('وحدة')}</span><span className="text-[15px] text-slate-500">{ago(Date.parse(x.e.occurred_at), now)}</span></Link>
         ))}
-        {nextAt && !lowNow && <div className="rounded-xl bg-near-soft px-3 py-2 text-[16px] font-bold text-near">{t('لا نوفورابيد قبل الساعة {c}', { c: clock(nextAt) })}</div>}
+        {nextAt && !lowNow && <div className="mb-1 rounded-xl bg-near-soft px-3 py-1.5 text-[16px] font-bold text-near">{t('لا نوفورابيد قبل الساعة {c}', { c: clock(nextAt) })}</div>}
       </div>
 
       {juice && (
-        <Link to={`/mom/entry/${juice.id}`} className="flex items-center gap-3 rounded-3xl bg-near-soft px-4 py-3 text-near">
-          <span className="text-3xl">🧃</span>
-          <span className="flex-1 text-[17px] font-bold">{t('عصير {c}', { c: clock(Date.parse(juice.occurred_at)) })} · {juiceDue > now ? t('افحصيها بعد {m}', { m: left(juiceDue, now) }) : t('افحصيها الحين')}</span>
+        <Link to={`/mom/entry/${juice.id}`} className="flex shrink-0 items-center gap-3 rounded-2xl bg-near-soft px-4 py-2 text-near">
+          <span className="text-2xl">🧃</span>
+          <span className="flex-1 text-[16px] font-bold">{t('عصير {c}', { c: clock(Date.parse(juice.occurred_at)) })} · {juiceDue > now ? t('افحصيها بعد {m}', { m: left(juiceDue, now) }) : t('افحصيها الحين')}</span>
         </Link>
       )}
 
       {/* one main button: the next step of whatever is going on */}
-      {juice ? <Big className="min-h-[72px] text-[22px]" onClick={ack}>✓ {t('فحصتها')}</Big>
-        : lowNow ? <Big tone="danger" className="min-h-[72px] text-[22px]" onClick={() => nav('/mom/juice')}>🧃 {t('عطيتها عصير')}</Big>
-        : open ? <Big className="min-h-[72px] text-[22px]" onClick={() => nav(open.eating_at ? `/mom/ate/${open.id}` : `/mom/given/${open.id}`)}>🍽️ {open.eating_at ? t('شكثر أكلت؟') : t('بدأت تاكل؟')}</Big>
-        : <Big className="min-h-[72px] text-[22px]" onClick={() => nav('/mom/meal')}>🍽️ {t('جهزي وجبتها')}</Big>}
-      <div className="grid grid-cols-2 gap-2">
-        {lowNow || juice ? <Big tone="ghost" disabled={lowNow} onClick={() => nav('/mom/meal')}>🍽️ {t('وجبة')}</Big> : <Big tone="ghost" onClick={() => nav('/mom/juice')}>🧃 {t('عصير')}</Big>}
-        <Big tone="ghost" disabled={lowNow} onClick={() => nav('/mom/shot')}>💉 {t('إبرة')}</Big>
+      <div className="shrink-0">
+        {juice ? <Big className={big} onClick={ack}>✓ {t('فحصتها')}</Big>
+          : lowNow ? <Big tone="danger" className={big} onClick={() => nav('/mom/juice')}>🧃 {t('عطيتها عصير')}</Big>
+          : open ? <Big className={big} onClick={() => nav(open.eating_at ? `/mom/ate/${open.id}` : `/mom/given/${open.id}`)}>🍽️ {open.eating_at ? t('شكثر أكلت؟') : t('بدأت تاكل؟')}</Big>
+          : <Big className={big} onClick={() => nav('/mom/meal')}>🍽️ {t('جهزي وجبتها')}</Big>}
       </div>
-      <div className="mt-auto flex items-center justify-between gap-2 pt-2 text-[15px]">
-        <Link to="/mom/sites" className="min-h-[44px] rounded-full bg-white px-4 py-2.5 font-bold">💉 {t('أماكن الإبر')}</Link>
-        <button className="min-h-[44px] px-2 text-slate-500 underline" onClick={() => { if (window.confirm(t('تفتحين الوضع الكامل؟'))) { setFullModeNow(true); nav('/'); } }}>{t('الوضع الكامل')}</button>
+      <div className="grid shrink-0 grid-cols-2 gap-2">
+        {lowNow || juice ? <Big tone="ghost" className="min-h-[52px] text-[18px]" disabled={lowNow} onClick={() => nav('/mom/meal')}>🍽️ {t('وجبة')}</Big> : <Big tone="ghost" className="min-h-[52px] text-[18px]" onClick={() => nav('/mom/juice')}>🧃 {t('عصير')}</Big>}
+        <Big tone="ghost" className="min-h-[52px] text-[18px]" disabled={lowNow} onClick={() => nav('/mom/shot')}>💉 {t('إبرة')}</Big>
       </div>
-      <p className="text-center text-[13px] text-slate-500">{t('الأرقام من خطة الدكتور')}</p>
+      <div className="flex shrink-0 items-center justify-between text-[15px]">
+        <Link to="/mom/sites" className="py-1 font-bold text-brand">💉 {t('أماكن الإبر')}</Link>
+        <button className="py-1 text-slate-500 underline" onClick={() => { if (window.confirm(t('تفتحين الوضع الكامل؟'))) { setFullModeNow(true); nav('/'); } }}>{t('الوضع الكامل')}</button>
       </div>
     </main>
   );
@@ -135,7 +133,7 @@ function BigGraph({ s, now, unit, low, high, band, alarmHigh, shots, meals }: { 
   const dot = lastV === null ? '#64748b' : lastV < low ? '#c62f3a' : lastV > high ? '#c27a00' : '#2f8f55'; // the newest reading drawn, same as the box
   const first = Math.ceil(t0 / (3 * H)) * 3 * H; const hours = [0, 1, 2, 3].map((k) => first + k * 3 * H).filter((h) => h <= now);
   return (
-    <svg viewBox={`0 0 ${W} ${HH}`} className="w-full" direction="ltr" role="img" aria-label={t('السكر آخر 12 ساعة')}>
+    <svg viewBox={`0 0 ${W} ${HH}`} className="h-full w-full" direction="ltr" role="img" aria-label={t('السكر آخر 12 ساعة')}>
       <rect x={PL} y={y(band[1])} width={W - PL - PR} height={y(band[0]) - y(band[1])} fill="#2f8f55" opacity="0.14" />
       {ticks.map((v) => <g key={v}><line x1={PL} x2={W - PR} y1={y(v)} y2={y(v)} stroke="rgb(var(--text-3))" strokeOpacity="0.25" /><text x={W - PR + 4} y={y(v) + 4} fontSize="14" fill="#8a84a0">{glucoseText(v, unit).replace(/\.0$/, '')}</text></g>)}
       <line x1={PL} x2={W - PR} y1={y(alarmHigh)} y2={y(alarmHigh)} stroke="#f0a020" strokeWidth="2" strokeDasharray="6 5" />

@@ -31,7 +31,7 @@ export const left = (ms: number, now = Date.now()) => {
 };
 export const glucoseText = (mg: number, unit: 'mmol' | 'mgdl') => formatGlucose(mg, unit);
 
-export function MomPage({ title, back = -1, children, foot }: { title: string; back?: string | number | null; children: ReactNode; foot?: ReactNode }) {
+export function MomPage({ title, back = -1, children, foot, tabs }: { title: string; back?: string | number | null; children: ReactNode; foot?: ReactNode; tabs?: boolean }) {
   const nav = useNavigate();
   return (
     <main className="mx-auto flex h-[100dvh] max-w-md flex-col">
@@ -40,7 +40,7 @@ export function MomPage({ title, back = -1, children, foot }: { title: string; b
         {back !== null && <button aria-label={t('رجوع')} onClick={() => (typeof back === 'number' ? nav(back) : nav(back))} className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-2xl shadow-sm">{isEn() ? '←' : '→'}</button>}
         <h1 className="text-[24px] font-bold leading-tight">{title}</h1>
       </header>
-      <div className={cx('flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4', !foot && 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{children}</div>
+      <div className={cx('flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4', tabs ? TABS_PAD : !foot && 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{children}</div>
       {foot && <div className="shrink-0 space-y-2 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3">{foot}</div>}
     </main>
   );
@@ -102,3 +102,25 @@ export function BodyMap({ allowed, last, suggest, sel, onPick, now }: { allowed:
     </svg>
   );
 }
+
+/** Mom mode's bottom tabs: home, the log, nutrition. */
+export function MomTabs({ pathname }: { pathname: string }) {
+  const nav = useNavigate();
+  const tabs = [{ to: '/mom', icon: '🏠', label: 'الرئيسية' }, { to: '/mom/log', icon: '📋', label: 'السجل' }, { to: '/growth', icon: '🥗', label: 'التغذية' }]; // i18n-ok: translated where shown
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white pb-[env(safe-area-inset-bottom)]">
+      <ul className="mx-auto grid max-w-md grid-cols-3">
+        {tabs.map((x) => {
+          const on = pathname === x.to;
+          return (
+            <li key={x.to}><button onClick={() => nav(x.to, { replace: true })} aria-current={on ? 'page' : undefined} className="flex min-h-[60px] w-full items-center justify-center">
+              <span className={cx('flex flex-col items-center rounded-2xl px-4 py-1 text-[15px]', on ? 'bg-brand-soft font-bold text-brand' : 'text-slate-500')}><span className="text-[22px] leading-none">{x.icon}</span>{t(x.label)}</span>
+            </button></li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+/** Room left at the bottom of a page for MomTabs. */
+export const TABS_PAD = 'pb-[calc(76px+env(safe-area-inset-bottom))]';

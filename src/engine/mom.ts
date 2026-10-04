@@ -60,12 +60,23 @@ export function moodOf(mg: number | null, ageMin: number | null, level: number |
 export const SITES: InjectionSite[] = ['belly_r', 'belly_l', 'thigh_r', 'thigh_l', 'arm_r', 'arm_l', 'buttock_r', 'buttock_l'];
 export interface Shot { t: number; site: InjectionSite | null; type: 'rapid' | 'long' }
 
-/** When each allowed site was last used (any insulin), and the suggestion: the one used longest ago (never used first). */
+/** The rotation order: arms, then belly, then legs (buttocks if allowed), right before left. */
+export const SITE_ORDER: InjectionSite[] = ['arm_r', 'arm_l', 'belly_r', 'belly_l', 'thigh_r', 'thigh_l', 'buttock_r', 'buttock_l'];
+
+/** Rotation in cycles: every allowed site once, then a new cycle. The suggestion is the first site in SITE_ORDER not
+ *  yet used in this cycle (never the one just used), so she can follow the order or mix freely; either way the cycle
+ *  only ends when all sites have had their turn. Also when each site was last used (any insulin). */
 export function siteSuggestion(shots: Shot[], allowed: InjectionSite[]) {
   const last = new Map<InjectionSite, number>();
   for (const s of shots) if (s.site && (!last.has(s.site) || s.t > last.get(s.site)!)) last.set(s.site, s.t);
-  const order = [...allowed].sort((a, b) => (last.get(a) ?? -Infinity) - (last.get(b) ?? -Infinity) || allowed.indexOf(a) - allowed.indexOf(b));
-  return { suggest: order[0] ?? null, last };
+  const order = SITE_ORDER.filter((x) => allowed.includes(x));
+  const seq = shots.filter((s) => s.site && order.includes(s.site)).sort((a, b) => a.t - b.t);
+  const used = new Set<InjectionSite>();
+  for (const s of seq) { if (used.size === order.length) used.clear(); used.add(s.site!); }
+  if (used.size === order.length) used.clear();
+  const prev = seq.length ? seq[seq.length - 1].site : null;
+  const suggest = order.find((x) => !used.has(x) && x !== prev) ?? order.find((x) => !used.has(x)) ?? order[0] ?? null;
+  return { suggest, last, used, total: order.length };
 }
 
 /** Uses per site in the last `days` days, and the sites used much more than the rest (≥ 2× the average, at least 4). */
