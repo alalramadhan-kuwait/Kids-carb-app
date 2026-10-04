@@ -32,6 +32,13 @@ const until = (ms: number, now: number) => { const m = Math.max(0, Math.round((m
 function itemName(i: PlanItem, products: Product[]) { return i.label ?? products.find((p) => p.id === i.product_id)?.name ?? (i.slot_category ? tMaybe(i.slot_category) : '?'); }
 const fromProduct = (p: Product): PlanItem => ({ product_id: p.id, slot_category: null, label: null, quantity: p.unit === 'ml' && (p.pack_size ?? 0) > 0 && (p.pack_size ?? 0) <= 500 ? Number(p.pack_size) : p.serving_size ? 1 : 100, unit: p.unit === 'ml' && (p.pack_size ?? 0) > 0 && (p.pack_size ?? 0) <= 500 ? 'ml' : p.serving_size ? 'serving' : p.unit, state: 'as_is', role: p.category === 'مشروبات' ? 'drink' : 'main' }); // i18n-ok: data value
 
+/** An item given a catalogue product: its name and amount stay; the unit too when the product is measured that way. */
+function withProduct(i: PlanItem, p: Product): PlanItem {
+  const fits = i.unit === p.unit || (i.unit === 'serving' && !!p.serving_size) || i.unit === 'tbsp';
+  const d = fromProduct(p);
+  return { ...i, product_id: p.id, slot_category: null, label: i.label ?? i.slot_category, quantity: fits ? i.quantity : d.quantity, unit: fits ? i.unit : d.unit };
+}
+
 /* ------------------------------------------------------------ plan sheet */
 
 export interface PlanSeed { name: string; recipe_id: string | null; items: PlanItem[] }
@@ -48,6 +55,7 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
   const [items, setItems] = useState<PlanItem[]>([]);
   const [recipeId, setRecipeId] = useState<string | null>(null);
   const [adding, setAdding] = useState<null | 'product' | 'recipe'>(null);
+  const [replacing, setReplacing] = useState<number | null>(null); // the item whose product is being chosen
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!open) return;
@@ -57,7 +65,7 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
       setSlot(s); setTime(SLOT_TIME[s]); setName(seed?.name ?? ''); setItems(seed?.items ?? []); setRecipeId(seed?.recipe_id ?? null);
       setDay(at(dayOf(now), SLOT_TIME[s]) > now ? dayOf(now) : dayOf(now + 86400000));
     }
-    setAdding(null);
+    setAdding(null); setReplacing(null);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const meal = useMemo(() => planMeal(items, products, settings), [items, products, settings]);
   const doseAt = at(day, time);
@@ -75,7 +83,8 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
   };
   const save = async () => {
     if (!items.length) return toast(t('أضيفوا صنفًا واحدًا على الأقل'));
-    if (!meal.complete) return toast(t('لا يمكن التسجيل: الكارب غير مكتمل'));
+    const gap = meal.lines.findIndex((l) => l.carbs === null);
+    if (gap >= 0) return toast(t('{name}: الكارب غير معروف. اختاروا منتجه أو احذفوه.', { name: itemName(items[gap], products) }));
     if (doseAt < now - 5 * MIN && !plan) return toast(t('وقت الجرعة مضى'));
     setBusy(true);
     try {
@@ -87,8 +96,15 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
 
   return (
     <Sheet open={open} onClose={onClose} title={plan ? t('تعديل الخطة') : t('خطة وجبة')}>
-      {adding === 'product' ? (
-        <div className="space-y-2"><ProductPicker onPick={(p) => { setItems((x) => [...x, fromProduct(p)]); setAdding(null); }} /><Btn block kind="ghost" onClick={() => setAdding(null)}>{t('رجوع')}</Btn></div>
+      {adding === 'product' || replacing !== null ? (
+        <div className="space-y-2">
+          <ProductPicker onPick={(p) => {
+            if (replacing !== null) setItems((x) => x.map((it, k) => (k === replacing ? withProduct(it, p) : it)));
+            else setItems((x) => [...x, fromProduct(p)]);
+            setAdding(null); setReplacing(null);
+          }} />
+          <Btn block kind="ghost" onClick={() => { setAdding(null); setReplacing(null); }}>{t('رجوع')}</Btn>
+        </div>
       ) : adding === 'recipe' ? (
         <div className="space-y-2">
           <ul className="max-h-[60vh] divide-y divide-slate-100 overflow-y-auto">
@@ -115,7 +131,10 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
           <ul className="divide-y divide-slate-100">
             {meal.lines.map((l, i) => (
               <li key={i} className="flex items-center gap-2 py-1.5">
-                <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium"><bdi>{itemName(items[i], products)}</bdi></span><span className="text-xs text-slate-500"><span className="num">{l.carbs === null ? '—' : fmt(Math.round(l.carbs * 10) / 10)}</span> {t('غ كارب')}</span></span>
+                <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium"><bdi>{itemName(items[i], products)}</bdi></span>
+                  {l.carbs === null
+                    ? <button onClick={() => setReplacing(i)} className="min-h-[32px] text-xs font-bold text-over underline">{t('الكارب غير معروف · اختيار منتج')}</button>
+                    : <span className="text-xs text-slate-500"><span className="num">{fmt(Math.round(l.carbs * 10) / 10)}</span> {t('غ كارب')}</span>}</span>
                 <span className="w-20 shrink-0"><NumInput className="!min-h-[40px] !px-1 !text-center" value={items[i].quantity} onChange={(v) => setItems((x) => x.map((it, k) => (k === i ? { ...it, quantity: v ?? 0 } : it)))} /></span>
                 <span className="w-9 shrink-0 text-xs text-slate-500">{UNIT[items[i].unit]}</span>
                 <button onClick={() => setItems((x) => x.filter((_, k) => k !== i))} aria-label={t('حذف')} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-slate-500">✕</button>

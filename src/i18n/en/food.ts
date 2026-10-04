@@ -619,6 +619,8 @@ export const food: Record<string, string> = {
   "مخططة": "Planned",
   "معلّقة · الجرعة {d} · الأكل {e}": "On hold · dose {d} · eat {e}",
   "معلّقة": "On hold",
+  "{name}: الكارب غير معروف. اختاروا منتجه أو احذفوه.": "{name}: carbs unknown. Choose its product or remove it.",
+  "الكارب غير معروف · اختيار منتج": "Carbs unknown · choose a product",
   "منخفض أو ينزل بسرعة: عالجوا أولًا حسب خطة الرعاية (15 غ ثم إعادة القياس بعد 15 د). لا جرعة ولا أكل الآن.": "Low or falling fast: treat first per the care plan (15 g, recheck after 15 min). No dose and no meal now.",
   "نشط −{x}": "active −{x}",
   "وجبة دسمة: قد يرتفع السكر بعد 2–5 ساعات.": "Fatty meal: glucose may rise 2–5 h later.",

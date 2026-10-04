@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.20.1",
+    "notes": [
+      "خطة الوجبة: الصنف الذي لا يُعرف كاربه يظهر بالأحمر «الكارب غير معروف · اختيار منتج»، ويمكن اختيار منتجه مع بقاء الكمية. رسالة الحفظ تذكر اسم الصنف."
+    ],
+    "notes_en": [
+      "Meal plan: an item with unknown carbs shows in red, “Carbs unknown · choose a product”, and you can pick its product while keeping the amount. The save message names the item."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.20.0",
     "notes": [
       "تنبيهات الخطط على الهاتفين: قبل الجرعة بـ 10 د للفحص، ووقت الأكل، ووقت إعادة القياس بعد علاج الانخفاض.",
