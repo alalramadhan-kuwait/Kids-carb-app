@@ -51,8 +51,9 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
   dayParts?: boolean; highlight?: number | null; tracks?: Tracks;
   forecasts?: Forecast[]; ahead?: number;
 }) {
-  // the readout strip sits under the plot (never over the data); the canvas gets the rest of the height
-  const BAR = 48, height = total - BAR;
+  // the readout floats just above the plot while a point is read, so the finger on the graph never covers it;
+  // the canvas keeps its full height and never moves under the finger
+  const height = total - 48;
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [width, setWidth] = useState(0);
@@ -477,14 +478,13 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
   const valueTone = (v: number) => (range.low !== null && v < range.low ? 'text-over' : range.high !== null && v > range.high ? 'text-near' : 'text-ok');
 
   return (
-    // the readout strip under the plot takes room only while a point is being read
-    <div ref={wrap} className="relative select-none" style={{ height: inspect ? total : height }} dir="ltr">
+    <div ref={wrap} className="relative select-none" style={{ height }} dir="ltr">
       <canvas
         ref={canvas} style={{ width: '100%', height, touchAction: 'pan-y' }}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onCancel} onWheel={onWheel}
         role="img" aria-label={t('رسم السكر {from}–{to}، {state}', { from: clock(view.end - view.span), to: clock(view.end), state: freshness(lastT, now) === 'live' ? t('مباشر') : t('غير محدّث') })}
       />
-      <div className={cx('flex items-center gap-2.5 overflow-hidden px-3 text-sm', inspect && 'h-12 border-t border-slate-100')} dir={dir()} aria-live="polite">
+      <div className={cx('flex items-center gap-2.5 overflow-hidden px-3 text-sm', inspect && 'absolute inset-x-2 bottom-[calc(100%+6px)] z-20 h-12 rounded-2xl border border-slate-100 bg-white shadow-lg')} dir={dir()} aria-live="polite">
         {inspect ? (
           <>
             <button onClick={() => setInspect(null)} aria-label={t('إغلاق')} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg text-slate-500 active:bg-slate-50">✕</button>
