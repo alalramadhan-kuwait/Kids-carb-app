@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fcf7f8;--surface:#fffdfd;--s2:#f4effd;--brand:#5b48d6;--brand2:#8a6df2;--soft:#e9e0fd;--text:#231b3d;--muted:#6e6788;--ok:#1f8a5b;--okSoft:#dcf4e8;--near:#b26a00;--nearSoft:#fff1d6;--over:#c62f3a;--overSoft:#fde3e5;--line:#ece6f6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Rubik,system-ui,sans-serif;background:#e9e4f2;color:var(--text);padding:24px;display:flex;flex-wrap:wrap;gap:28px}
+.wrap{display:flex;flex-direction:column;gap:10px;align-items:center}
+.cap{font-size:15px;font-weight:700;color:#3b3160;max-width:390px;text-align:center}
+.phone{width:390px;height:844px;background:var(--bg);border-radius:44px;overflow:hidden;position:relative;box-shadow:0 10px 30px rgba(40,20,90,.18);border:10px solid #1d1830;display:flex;flex-direction:column}
+.sb{height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font-weight:600;font-size:15px;direction:ltr}
+.island{width:120px;height:30px;background:#000;border-radius:20px}
+.body{flex:1;padding:6px 18px 18px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.top{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px}
+.back{width:40px;height:40px;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:20px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:16px}
+.center{text-align:center}
+.big{font-size:64px;font-weight:800;line-height:1;direction:ltr;display:inline-block}
+.word{font-size:24px;font-weight:700;margin-top:6px}
+.small{font-size:13px;color:var(--muted)}
+.act{border-radius:16px;padding:12px 14px;font-weight:600;font-size:17px;text-align:center}
+.okb{background:var(--okSoft);color:var(--ok)}.nearb{background:var(--nearSoft);color:var(--near)}.overb{background:var(--overSoft);color:var(--over)}.brandb{background:var(--soft);color:var(--brand)}
+.btn{border-radius:18px;padding:16px;font-weight:700;font-size:19px;text-align:center}
+.primary{background:var(--brand);color:#fff}.soft{background:var(--soft);color:var(--brand)}.ghost{background:#fff;border:1px solid var(--line);color:var(--text)}
+.row{display:flex;gap:10px}.row>*{flex:1}
+.last{display:flex;flex-direction:column;gap:6px;font-size:16px}
+.last div{display:flex;justify-content:space-between}
+.tabs{display:flex;background:var(--s2);border-radius:999px;padding:4px;font-size:14px}
+.tabs span{flex:1;text-align:center;padding:9px 0;border-radius:999px;color:var(--muted)}
+.tabs .on{background:#fff;color:var(--text);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{background:#fff;border:1px solid var(--line);border-radius:18px;padding:10px;text-align:center;font-weight:600;font-size:15px}
+.tile .im{height:74px;display:grid;place-items:center;font-size:44px}
+.tile img{max-height:74px;max-width:100%;border-radius:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:#fff;border:1px solid var(--line);border-radius:999px;padding:9px 14px;font-weight:600;font-size:15px}
+.sec{font-size:14px;font-weight:700;color:var(--muted)}
+.search{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;color:#aaa;font-size:15px}
+.item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border:0}
+.item .ic{width:48px;height:48px;border-radius:12px;background:var(--s2);display:grid;place-items:center;font-size:26px;overflow:hidden}
+.item .ic img{width:48px;height:48px;object-fit:cover}
+.item .t{flex:1}.item .t b{display:block;font-size:16px}.item .t span{font-size:13px;color:var(--muted)}
+.portion{background:#fff;border:2px solid var(--line);border-radius:18px;padding:14px 16px;display:flex;align-items:center;gap:12px;font-size:18px;font-weight:600}
+.portion.sel{border-color:var(--brand);background:var(--soft)}
+.portion .p{font-size:30px}
+.total{display:flex;justify-content:space-between;align-items:center;font-size:15px;color:var(--muted)}
+.dose{font-size:56px;font-weight:800;color:var(--brand);direction:ltr;display:inline-block}
+.step{display:flex;align-items:center;justify-content:center;gap:20px;font-size:34px;font-weight:800}
+.step i{font-style:normal;width:54px;height:54px;border-radius:50%;background:var(--soft);color:var(--brand);display:grid;place-items:center;font-size:30px}
+.reasons{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.reasons span{font-size:13px;padding:6px 10px;border-radius:999px;background:#fff;border:1px solid var(--line)}
+.foot{font-size:12px;color:var(--muted);text-align:center;margin-top:auto}
+.spark{height:70px}
+.check{width:72px;height:72px;border-radius:50%;background:var(--okSoft);color:var(--ok);display:grid;place-items:center;font-size:40px;margin:0 auto}
+.dad{position:absolute;top:52px;left:18px;background:#231b3d;color:#fff;font-size:11px;padding:4px 10px;border-radius:999px}
+.why{background:var(--s2);border-radius:14px;padding:10px 12px;font-size:14px;line-height:1.7}
+.why div{display:flex;justify-content:space-between}
+</style>
+</head>
+<body>
+
+<!-- 1 Home (OK) -->
+<div class="wrap"><div class="phone" id="s1"><div class="sb"><span>7:05</span><span class="island"></span><span>📶 🔋</span></div>
+<div class="body">
+  <div class="card center">
+    <div class="small">ليان</div>
+    <div style="margin-top:6px"><span class="big">6.8 →</span></div>
+    <div class="word" style="color:var(--ok)">زين ومستقر</div>
+    <div class="small" style="margin-top:4px">قبل دقيقتين</div>
+    <svg class="spark" viewBox="0 0 320 70" style="width:100%;margin-top:8px"><rect x="0" y="18" width="320" height="34" rx="6" fill="#dcf4e8"/><path d="M0 40 C40 30 70 22 110 28 S170 50 210 44 S270 36 320 38" fill="none" stroke="#5b48d6" stroke-width="3"/><circle cx="320" cy="38" r="5" fill="#5b48d6"/></svg>
+    <div class="small">آخر 6 ساعات</div>
+  </div>
+  <div class="act okb">ما يحتاج تسوين شي الحين</div>
+  <div class="card last">
+    <div class="sec">آخر شي</div>
+    <div><span>💉 تريسيبا 11 وحدة</span><span class="small">أمس 7:10 م</span></div>
+    <div><span>🍽️ أكلت عشاها</span><span class="small">أمس 8:00 م</span></div>
+  </div>
+  <div class="btn primary" style="font-size:22px;padding:20px">🍽️ جهزي وجبتها</div>
+  <div class="row"><div class="btn ghost">🧃 عطيتها عصير</div><div class="btn ghost">💉 عطيتها إبرة</div></div>
+  <div class="foot">الأرقام من خطة الدكتور · <u>الوضع الكامل</u></div>
+</div></div><div class="cap">1 · الرئيسية: شلونها الحين وشنو أسوي</div></div>
+
+<!-- 2 Home (low) -->
+<div class="wrap"><div class="phone" id="s2"><div class="sb"><span>3:42</span><span class="island"></span><span>📶 🔋</span></div>
+<div class="body">
+  <div class="card center" style="border-color:#f3b8bd">
+    <div class="small">ليان</div>
+    <div style="margin-top:6px;color:var(--over)"><span class="big">3.6 ↘</span></div>
+    <div class="word" style="color:var(--over)">نازل</div>
+    <div class="small" style="margin-top:4px">قبل دقيقة</div>
+  </div>
+  <div class="act overb" style="font-size:19px">عطيها عصير الحين<br><span style="font-size:14px;font-weight:500">وافحصيها بعد ربع ساعة · خطة الدكتور</span></div>
+  <div class="btn primary" style="background:var(--over);font-size:22px;padding:20px">🧃 عطيتها العصير</div>
+  <div class="small center">1.2.3 كوكتيل 125 مل · عصيرها المعتاد</div>
+  <div class="card last">
+    <div class="sec">آخر شي</div>
+    <div><span>💉 تريسيبا 11 وحدة</span><span class="small">أمس 7:10 م</span></div>
+  </div>
+  <div class="row" style="margin-top:auto"><div class="btn ghost" style="opacity:.45">🍽️ جهزي وجبتها</div><div class="btn ghost" style="opacity:.45">💉 إبرة</div></div>
+  <div class="small center">الإبرة مقفلة لين يرتفع</div>
+</div></div><div class="cap">2 · الرئيسية وهي نازلة: زر واحد واضح</div></div>
+
+<!-- 3 Picker -->
+<div class="wrap"><div class="phone" id="s3"><div class="sb"><span>7:06</span><span class="island"></span><span>📶 🔋</span></div>
+<div class="body">
+  <div class="top"><span class="back">→</span>شنو بتاكل ليان؟</div>
+  <div class="tabs"><span class="on">وجبات محفوظة</span><span>وصفات</span><span>منتجات</span></div>
+  <div class="item"><div class="ic">🥣</div><div class="t"><b>فطور كورن فليكس</b><span>كورن فليكس · حليب · توبي</span></div><span class="chip">اختاري</span></div>
+  <div class="item"><div class="ic">🍞</div><div class="t"><b>توست وبيض وجبن</b><span>3 أشياء</span></div><span class="chip">اختاري</span></div>
+  <div class="item"><div class="ic">🍚</div><div class="t"><b>مجبوس دجاج</b><span>صحن ليان الوسط</span></div><span class="chip">اختاري</span></div>
+  <div class="sec" style="margin-top:4px">الأكثر استخداماً</div>
+  <div class="grid">
+    <div class="tile"><div class="im"><img src="../../public/products/kelloggs-frosties.webp"></div>كورن فليكس</div>
+    <div class="tile"><div class="im"><img src="../../public/products/muratbey-topi-cheese.webp" style="max-height:52px"></div>جبن توبي</div>
+    <div class="tile"><div class="im">🥛</div>حليب KDD</div>
+    <div class="tile"><div class="im">🍳</div>بيض</div>
+  </div>
+  <div class="search">🔍 ابحثي: رز، توست، عصير…</div>
+</div></div><div class="cap">3 · جهزي وجبتها: صور من قاعدة ليان</div></div>
+
+<!-- 4 Portion -->
+<div class="wrap"><div class="phone" id="s4"><div class="sb"><span>7:06</span><span class="island"></span><span>📶 🔋</span></div>
+<div class="body">
+  <div class="top"><span class="back">→</span>كورن فليكس</div>
+  <div class="card center"><img src="../../public/products/kelloggs-frosties.webp" style="height:150px;border-radius:12px"></div>
+  <div class="sec">كم بتاكل؟</div>
+  <div class="portion sel"><span class="p">🥣</span>صحن ليان الصغير<span style="margin-right:auto;color:var(--brand)">✓</span></div>
+  <div class="portion"><span class="p">🥣</span>صحن ليان الكبير</div>
+  <div class="portion"><span class="p">◐</span>نص صحن</div>
+  <div class="small center">الكميات وزنها بابا بالميزان</div>
+  <div class="btn primary" style="margin-top:auto">إضافة للوجبة</div>
+  <div class="small center"><u>كمية ثانية (للمتقدم)</u></div>
+</div></div><div class="cap">4 · الكمية بصحونها، بدون غرامات</div></div>
+
+<!-- 5 Meal -->
+<div class="wrap"><div class="phone" id="s5"><div class="sb"><span>7:07</span><span class="island"></span><span>📶 🔋</span></div>
+<div class="body">
+  <div class="top"><span class="back">→</span>وجبة ليان</div>
+  <div class="card">
+    <div class="item"><div class="ic"><img src="../../public/products/kelloggs-frosties.webp"></div><div class="t"><b>كورن فليكس</b><span>صحن ليان الصغير</span></div><span class="small">26 غ</span></div>
+    <div class="item"><div class="ic">🥛</div><div class="t"><b>حليب KDD</b><span>كوب ليان</span></div><span class="small">7 غ</span></div>
+    <div class="item"><div class="ic"><img src="../../public/products/muratbey-topi-cheese.webp"></div><div class="t"><b>جبن توبي</b><span>3 كرات</span></div><span class="small">ما فيه سكريات تُذكر</span></div>
+  </div>
+  <div class="total"><span>الكارب الكلي</span><b style="color:var(--text);font-size:20px">33 غ</b></div>
+  <div class="btn soft">+ إضافة شي</div>
+  <div class="act brandb" style="font-size:14px">⭐ تحفظينها «فطور كورن فليكس»؟ <u>احفظي</u></div>
+  <div class="btn primary" style="margin-top:auto">التالي</div>
+</div></div><div class="cap">5 · الوجبة جاهزة، والتطبيق يحسب</div></div>
+
+<!-- 6 Review / dose -->
+<div class="wrap"><div class="phone" id="s6"><div class="sb"><span>7:08</span><span class="island"></span><span>📶 🔋</span></div>
+<div class="body">
+  <div class="top"><span class="back">→</span>قبل الأكل</div>
+  <div class="card last">
+    <div><span>🍽️ وجبة ليان</span><b>33 غ</b></div>
+    <div><span>السكر الحين</span><b style="color:var(--ok)">6.8 → زين</b></div>
+    <div><span>آخر إبرة سريعة</span><b>أمس 8:00 م</b></div>
+  </div>
+  <div class="card center">
+    <div class="small">حسب خطة الدكتور</div>
+    <div><span class="dose">2</span> <span style="font-size:22px;font-weight:700">وحدة</span></div>
+    <div class="why" style="margin-top:8px;text-align:right">
+      <div><span>للأكل (33 غ ÷ 15)</span><b>2.2</b></div>
+      <div><span>تصحيح</span><b>0.1</b></div>
+      <div><span>إبرة باقي مفعولها</span><b>0</b></div>
+      <div><span>القلم يعطي وحدة كاملة</span><b>= 2</b></div>
+    </div>
+  </div>
+  <div class="sec center">كم عطيتيها؟</div>
+  <div class="step"><i>−</i><span>2</span><i>+</i></div>
+  <div class="btn primary">💉 سجّلي الإبرة بعد ما تعطينها</div>
+  <div class="foot">الأرقام من خطة الدكتور</div>
+</div></div><div class="cap">6 · الإبرة: الرقم من خطة الدكتور و«ليش؟»</div></div>
+
+<!-- 7 Stop -->
+<div class="wrap"><div class="phone" id="s7"><div class="sb"><span>1:20</span><span class="island"></span><span>📶 🔋</span></div>
+<div class="body">
+  <div class="top"><span class="back">→</span>قبل الأكل</div>
+  <div class="card center" style="border-color:#f3b8bd">
+    <div style="font-size:44px">✋</div>
+    <div class="word" style="color:var(--over)">لا تعطينها إبرة الحين</div>
+    <div style="margin-top:10px;font-size:16px;line-height:1.7">بابا عطاها <b>3 وحدات</b> قبل 40 دقيقة<br>والسكر <b>قاعد ينزل ↘ 5.1</b></div>
+  </div>
+  <div class="card last">
+    <div class="sec">ليش وقفنا؟</div>
+    <div>• في إبرة قريبة ومفعولها باقي</div>
+    <div>• السكر ينزل</div>
+  </div>
+  <div class="act nearb" style="font-size:15px">إذا بتاكل الحين: كلّمي بابا قبل أي إبرة</div>
+  <div class="btn ghost">📞 اتصلي ببابا</div>
+  <div class="btn soft" style="margin-top:auto">سجّلي الأكل بدون إبرة</div>
+</div></div><div class="cap">7 · لما يكون في خطر: يوقف ولا يخمّن</div></div>
+
+<!-- 8 After injection -->
+<div class="wrap"><div class="phone" id="s8"><div class="sb"><span>7:20</span><span class="island"></span><span>📶 🔋</span></div>
+<div class="body center">
+  <div style="height:30px"></div>
+  <div class="check">✓</div>
+  <div class="word">تم تسجيل الإبرة</div>
+  <div style="font-size:20px;font-weight:600">2 وحدة · الساعة 7:20</div>
+  <div class="card" style="margin-top:12px">
+    <div class="small">الأكل بعد</div>
+    <div style="font-size:52px;font-weight:800;color:var(--brand);direction:ltr">9:34</div>
+    <div class="small">الساعة 7:30</div>
+  </div>
+  <div class="small">بابا يشوفها الحين: 💉 2 وحدة · قبل دقيقة</div>
+  <div class="btn primary" style="margin-top:auto;font-size:22px;padding:20px">🍽️ بدأت تاكل</div>
+</div></div><div class="cap">8 · بعد الإبرة: عدّاد للأكل، والأب يشوفها</div></div>
+
+<!-- 9 How much -->
+<div class="wrap"><div class="phone" id="s9"><div class="sb"><span>7:55</span><span class="island"></span><span>📶 🔋</span></div>
+<div class="body">
+  <div class="top">شكثر أكلت ليان؟</div>
+  <div class="small">فطور كورن فليكس · 33 غ</div>
+  <div class="portion sel" style="font-size:22px"><span class="p">🟢</span>كلها</div>
+  <div class="portion" style="font-size:22px"><span class="p">◐</span>تقريباً نصها</div>
+  <div class="portion" style="font-size:22px"><span class="p">◔</span>شوي (ربع)</div>
+  <div class="portion" style="font-size:18px"><span class="p">✏️</span>أعدّل كل شي لحاله</div>
+  <div class="act nearb" style="font-size:14px">إذا أكلت أقل بعد الإبرة: خطة الدكتور تقول افحصيها بعد ساعة · بنذكّرك</div>
+  <div class="btn primary" style="margin-top:auto">تم</div>
+  <div class="small center">المخطط 33 غ · اللي أكلته ينحفظ للمراجعة</div>
+</div></div><div class="cap">9 · شكثر أكلت فعلاً</div></div>
+
+<!-- 10 Juice -->
+<div class="wrap"><div class="phone" id="s10"><div class="sb"><span>3:43</span><span class="island"></span><span>📶 🔋</span></div>
+<div class="body center">
+  <div style="height:30px"></div>
+  <div class="check">🧃</div>
+  <div class="word">تم: عطيتها العصير</div>
+  <div style="font-size:17px">1.2.3 كوكتيل 125 مل · الساعة 3:43</div>
+  <div class="card" style="margin-top:12px">
+    <div class="small">افحصيها بعد</div>
+    <div style="font-size:52px;font-weight:800;color:var(--brand);direction:ltr">14:21</div>
+    <div class="small">بنرن عليج الساعة 3:58</div>
+  </div>
+  <div class="small">إذا ما ردّيتي خلال 5 دقايق نبلّغ بابا</div>
+  <div class="row" style="margin-top:auto"><div class="btn ghost">عطيتها غيره</div><div class="btn soft">تراجع</div></div>
+</div></div><div class="cap">10 · عصير بضغطة، وتذكير فحص بعد ربع ساعة</div></div>
+
+<!-- 11 Not found -->
+<div class="wrap"><div class="phone" id="s11"><div class="sb"><span>1:10</span><span class="island"></span><span>📶 🔋</span></div>
+<div class="body">
+  <div class="top"><span class="back">→</span>مو موجود بقاعدة ليان</div>
+  <div class="card center" style="height:190px;display:grid;place-items:center;background:var(--s2);border-style:dashed">
+    <div><div style="font-size:48px">📷</div><div style="font-weight:600">صوّري الأكل أو الملصق</div></div>
+  </div>
+  <div class="search" style="color:var(--text)">الاسم: كيكة من المدرسة</div>
+  <div class="btn primary">أرسليه لبابا يضيفه</div>
+  <div class="sec" style="margin-top:6px">وبالحين؟</div>
+  <div class="portion"><span class="p">➖</span>احسبي باقي الوجبة بدونه</div>
+  <div class="portion"><span class="p">⏳</span>انتظري بابا</div>
+  <div class="small center" style="margin-top:auto">ما نحسب إبرة لشي مو مأكد</div>
+</div></div><div class="cap">11 · أكل جديد: يروح للأب، وما نخمّن</div></div>
+
+<!-- 12 Dad portions -->
+<div class="wrap"><div class="phone" id="s12"><div class="dad">شاشة بابا</div><div class="sb"><span>9:00</span><span class="island"></span><span>📶 🔋</span></div>
+<div class="body">
+  <div class="top"><span class="back">→</span>كميات ليان</div>
+  <div class="small">زِن بالميزان مرة وحدة. ماما تشوف الأسماء والصور بس.</div>
+  <div class="card">
+    <div class="item"><div class="ic"><img src="../../public/products/kelloggs-frosties.webp"></div><div class="t"><b>Kellogg's Frosties</b><span>87 غ كارب / 100 غ</span></div></div>
+    <div class="item"><div class="ic">🥣</div><div class="t"><b>صحن ليان الصغير</b><span>30 غ → 26 غ كارب</span></div><span class="chip">⚖️ زِن</span></div>
+    <div class="item"><div class="ic">🥣</div><div class="t"><b>صحن ليان الكبير</b><span>45 غ → 39 غ كارب</span></div><span class="chip">⚖️ زِن</span></div>
+    <div class="item"><div class="ic">◐</div><div class="t"><b>نص صحن</b><span>15 غ → 13 غ كارب</span></div><span class="chip">تعديل</span></div>
+  </div>
+  <div class="btn soft">+ كمية جديدة (اسم + صورة + وزن)</div>
+  <div class="card last">
+    <div class="sec">ينتظرك</div>
+    <div><span>📷 كيكة من المدرسة</span><span class="chip">كمّل</span></div>
+    <div><span>🍚 مجبوس دجاج: صحن كبير</span><span class="chip">زِن</span></div>
+  </div>
+</div></div><div class="cap">12 · الأب: يضبط الكميات ويكمّل الناقص</div></div>
+
+</body></html>

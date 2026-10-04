@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fcf7f8;--surface:#fffdfd;--s2:#f4effd;--brand:#5b48d6;--brand2:#8a6df2;--soft:#e9e0fd;--text:#231b3d;--muted:#6e6788;--ok:#1f8a5b;--okSoft:#dcf4e8;--near:#b26a00;--nearSoft:#fff1d6;--over:#c62f3a;--overSoft:#fde3e5;--line:#ece6f6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Rubik,system-ui,sans-serif;background:#e9e4f2;color:var(--text);padding:24px;display:flex;flex-wrap:wrap;gap:28px}
+.wrap{display:flex;flex-direction:column;gap:10px;align-items:center}
+.cap{font-size:15px;font-weight:700;color:#3b3160;max-width:390px;text-align:center}
+.phone{width:390px;height:844px;background:var(--bg);border-radius:44px;overflow:hidden;position:relative;box-shadow:0 10px 30px rgba(40,20,90,.18);border:10px solid #1d1830;display:flex;flex-direction:column}
+.sb{height:44px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font-weight:600;font-size:15px;direction:ltr}
+.island{width:120px;height:30px;background:#000;border-radius:20px}
+.body{flex:1;padding:6px 18px 18px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.top{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px}
+.back{width:40px;height:40px;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:20px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:16px}
+.center{text-align:center}
+.big{font-size:64px;font-weight:800;line-height:1;direction:ltr;display:inline-block}
+.word{font-size:24px;font-weight:700;margin-top:6px}
+.small{font-size:13px;color:var(--muted)}
+.act{border-radius:16px;padding:12px 14px;font-weight:600;font-size:17px;text-align:center}
+.okb{background:var(--okSoft);color:var(--ok)}.nearb{background:var(--nearSoft);color:var(--near)}.overb{background:var(--overSoft);color:var(--over)}.brandb{background:var(--soft);color:var(--brand)}
+.btn{border-radius:18px;padding:16px;font-weight:700;font-size:19px;text-align:center}
+.primary{background:var(--brand);color:#fff}.soft{background:var(--soft);color:var(--brand)}.ghost{background:#fff;border:1px solid var(--line);color:var(--text)}
+.row{display:flex;gap:10px}.row>*{flex:1}
+.last{display:flex;flex-direction:column;gap:6px;font-size:16px}
+.last div{display:flex;justify-content:space-between}
+.tabs{display:flex;background:var(--s2);border-radius:999px;padding:4px;font-size:14px}
+.tabs span{flex:1;text-align:center;padding:9px 0;border-radius:999px;color:var(--muted)}
+.tabs .on{background:#fff;color:var(--text);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{background:#fff;border:1px solid var(--line);border-radius:18px;padding:10px;text-align:center;font-weight:600;font-size:15px}
+.tile .im{height:74px;display:grid;place-items:center;font-size:44px}
+.tile img{max-height:74px;max-width:100%;border-radius:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:#fff;border:1px solid var(--line);border-radius:999px;padding:9px 14px;font-weight:600;font-size:15px}
+.sec{font-size:14px;font-weight:700;color:var(--muted)}
+.search{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;color:#aaa;font-size:15px}
+.item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border:0}
+.item .ic{width:48px;height:48px;border-radius:12px;background:var(--s2);display:grid;place-items:center;font-size:26px;overflow:hidden}
+.item .ic img{width:48px;height:48px;object-fit:cover}
+.item .t{flex:1}.item .t b{display:block;font-size:16px}.item .t span{font-size:13px;color:var(--muted)}
+.portion{background:#fff;border:2px solid var(--line);border-radius:18px;padding:14px 16px;display:flex;align-items:center;gap:12px;font-size:18px;font-weight:600}
+.portion.sel{border-color:var(--brand);background:var(--soft)}
+.portion .p{font-size:30px}
+.total{display:flex;justify-content:space-between;align-items:center;font-size:15px;color:var(--muted)}
+.dose{font-size:56px;font-weight:800;color:var(--brand);direction:ltr;display:inline-block}
+.step{display:flex;align-items:center;justify-content:center;gap:20px;font-size:34px;font-weight:800}
+.step i{font-style:normal;width:54px;height:54px;border-radius:50%;background:var(--soft);color:var(--brand);display:grid;place-items:center;font-size:30px}
+.reasons{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.reasons span{font-size:13px;padding:6px 10px;border-radius:999px;background:#fff;border:1px solid var(--line)}
+.foot{font-size:12px;color:var(--muted);text-align:center;margin-top:auto}
+.spark{height:70px}
+.check{width:72px;height:72px;border-radius:50%;background:var(--okSoft);color:var(--ok);display:grid;place-items:center;font-size:40px;margin:0 auto}
+.dad{position:absolute;top:52px;left:18px;background:#231b3d;color:#fff;font-size:11px;padding:4px 10px;border-radius:999px}
+.why{background:var(--s2);border-radius:14px;padding:10px 12px;font-size:14px;line-height:1.7}
+.why div{display:flex;justify-content:space-between}
+</style>
+</head>
+<body><div class="wrap"><div class="phone" id="r0"><div class="sb"><span>7:21</span><span class="island"></span><span>📶 🔋</span></div><div class="body" style="gap:10px">
+ <div class="top"><span class="back">→</span>وين عطيتيها الإبرة؟</div>
+ <div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:28px;border-radius:5px;background:#f28c28"></span><b>نوفورابيد 2 وحدة</b><span class="small" style="margin-right:auto">7:20 ص</span></div>
+ <div class="act okb" style="font-size:16px">⭐ المقترح: <b>الفخذ اليمين</b><br><span style="font-size:13px;font-weight:500">آخر مرة فيه قبل 9 أيام</span></div>
+ <div class="card" style="padding:6px"><svg viewBox="0 0 300 330" style="width:100%"><circle cx="150" cy="52" r="30" fill="#f3e1d4"/><rect x="100" y="88" width="100" height="132" rx="34" fill="#f3e1d4"/><rect x="56" y="96" width="34" height="110" rx="17" fill="#f3e1d4" transform="rotate(8 73 96)"/><rect x="210" y="96" width="34" height="110" rx="17" fill="#f3e1d4" transform="rotate(-8 227 96)"/><rect x="104" y="210" width="44" height="110" rx="20" fill="#f3e1d4"/><rect x="152" y="210" width="44" height="110" rx="20" fill="#f3e1d4"/><rect x="58" y="118" width="26" height="58" rx="12" fill="#f4effd" stroke="#b9a8f0" stroke-width="1.5"/><text x="71.0" y="152.0" font-size="13" font-weight="700" text-anchor="middle" fill="#231b3d">3 أيام</text><rect x="216" y="118" width="26" height="58" rx="12" fill="#e9e0fd" stroke="#b9a8f0" stroke-width="1.5"/><text x="229.0" y="152.0" font-size="13" font-weight="700" text-anchor="middle" fill="#231b3d"></text><rect x="108" y="150" width="40" height="48" rx="12" fill="#fde3e5" stroke="#b9a8f0" stroke-width="1.5"/><text x="128.0" y="179.0" font-size="13" font-weight="700" text-anchor="middle" fill="#231b3d">اليوم</text><rect x="152" y="150" width="40" height="48" rx="12" fill="#fde3e5" stroke="#b9a8f0" stroke-width="1.5"/><text x="172.0" y="179.0" font-size="13" font-weight="700" text-anchor="middle" fill="#231b3d">أمس</text><rect x="108" y="226" width="38" height="70" rx="12" fill="#dcf4e8" stroke="#1f8a5b" stroke-width="3"/><text x="127.0" y="266.0" font-size="13" font-weight="700" text-anchor="middle" fill="#231b3d">⭐</text><rect x="154" y="226" width="38" height="70" rx="12" fill="#f4effd" stroke="#b9a8f0" stroke-width="1.5"/><text x="173.0" y="266.0" font-size="13" font-weight="700" text-anchor="middle" fill="#231b3d">5 أيام</text><text x="40" y="20" font-size="11" fill="#8a84a0">يمينها</text><text x="232" y="20" font-size="11" fill="#8a84a0">يسارها</text></svg></div>
+ <div style="display:flex;gap:12px;justify-content:center;font-size:12px;color:#6e6788"><span><b style="color:#1f8a5b">■</b> المقترح</span><span><b style="color:#e8a0a6">■</b> آخر يومين</span><span><b style="color:#d6cbfd">■</b> متاح</span></div>
+ <div class="btn primary">✓ عطيتها بالفخذ اليمين</div>
+ <div class="small center">أو اضغطي على مكان ثاني في الرسم</div>
+</div></div><div class="cap">هـ · بعد تسجيل الإبرة: وين؟ مع اقتراح المكان الجاي</div></div><div class="wrap"><div class="phone" id="r1"><div class="sb"><span>7:21</span><span class="island"></span><span>📶 🔋</span></div><div class="body" style="gap:10px">
+ <div class="top"><span class="back">→</span>أماكن الإبر</div>
+ <div class="tabs"><span class="on">آخر 14 يوم</span><span>نوفورابيد</span><span>تريسيبا</span></div>
+ <div class="card" style="padding:12px">
+  <div class="sec" style="margin-bottom:8px">كم مرة بكل مكان</div>
+  <div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span style="width:74px;font-size:14px">بطن يمين</span><span style="height:14px;border-radius:7px;background:#c62f3a;width:144px"></span><b style="font-size:13px">9</b></div><div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span style="width:74px;font-size:14px">بطن يسار</span><span style="height:14px;border-radius:7px;background:#8a6df2;width:112px"></span><b style="font-size:13px">7</b></div><div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span style="width:74px;font-size:14px">ذراع يمين</span><span style="height:14px;border-radius:7px;background:#8a6df2;width:64px"></span><b style="font-size:13px">4</b></div><div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span style="width:74px;font-size:14px">ذراع يسار</span><span style="height:14px;border-radius:7px;background:#8a6df2;width:32px"></span><b style="font-size:13px">2</b></div><div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span style="width:74px;font-size:14px">فخذ يمين</span><span style="height:14px;border-radius:7px;background:#8a6df2;width:48px"></span><b style="font-size:13px">3</b></div><div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span style="width:74px;font-size:14px">فخذ يسار</span><span style="height:14px;border-radius:7px;background:#8a6df2;width:80px"></span><b style="font-size:13px">5</b></div>
+ </div>
+ <div class="act nearb" style="font-size:14px">البطن اليمين مستخدم وايد · جربي أماكن ثانية · ولا تعطين بمكان فيه تكتل أو انتفاخ</div>
+ <div class="card" style="padding:4px 14px"><div class="item"><span style="width:10px;height:34px;border-radius:5px;background:#f28c28"></span><div class="t"><b>بطن يمين</b><span>اليوم 7:20 ص</span></div><span class="small">نوفورابيد 2</span></div><div class="item"><span style="width:10px;height:34px;border-radius:5px;background:#8dc63f"></span><div class="t"><b>فخذ يسار</b><span>أمس 7:10 م</span></div><span class="small">تريسيبا 11</span></div><div class="item"><span style="width:10px;height:34px;border-radius:5px;background:#f28c28"></span><div class="t"><b>بطن يسار</b><span>أمس 1:30 م</span></div><span class="small">نوفورابيد 3</span></div><div class="item"><span style="width:10px;height:34px;border-radius:5px;background:#f28c28"></span><div class="t"><b>ذراع يمين</b><span>أمس 7:05 ص</span></div><span class="small">نوفورابيد 2</span></div><div class="item"><span style="width:10px;height:34px;border-radius:5px;background:#8dc63f"></span><div class="t"><b>فخذ يمين</b><span>قبل يومين 7:10 م</span></div><span class="small">تريسيبا 11</span></div></div>
+</div></div><div class="cap">و · سجل الأماكن: يبيّن المكان المستخدم وايد</div></div></body></html>
