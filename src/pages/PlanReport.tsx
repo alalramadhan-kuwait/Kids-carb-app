@@ -9,6 +9,7 @@ import { evidenceOf, groupsOf, patternOf, type PlanFacts } from '../engine/planC
 import { rulesOf } from '../engine/planReview';
 import { EvidenceList, OutcomePill, PatternCard, gOf, whyText } from '../components/PlanCompare';
 import { dur } from './PlanReview';
+import { OvernightBasal } from '../components/Overnight';
 import { fmt } from '../lib/carbs';
 import { fmtTime, relDay } from '../lib/constants';
 import { unitLabel } from '../lib/glucose';
@@ -51,6 +52,7 @@ export function PlanReport() {
       <p className="text-xs text-slate-500">
         {t('من {a} إلى {b}', { a: dateOf(from), b: dateOf(Date.now()) })} · {unitLabel(settings.glucose_unit)} · {t('الإعدادات الحالية: مدة عمل الإنسولين {d} · الجرعة قبل الأكل بـ {m} د', { d: dur(settings.iob_dia_min ?? 360), m: settings.dose_to_meal_min ?? 0 })}
       </p>
+      <OvernightBasal from={from} pattern={rules.pattern_min} />
       {!loaded ? <p className="text-slate-500">…</p> : list.length === 0 ? <Card><p className="text-sm text-slate-500">{t('لا توجد وجبات مخططة بمراجعة نهائية في هذه الفترة.')}</p></Card> : (
         <>
           <Card className="space-y-2">
@@ -74,10 +76,10 @@ export function PlanReport() {
           <Card className="!p-0 overflow-hidden">
             <ul className="divide-y divide-slate-100">{list.map((p) => <MealRow key={p.id} p={p} g={g} />)}</ul>
           </Card>
-          <Btn block kind="ghost" className="print:hidden" onClick={() => window.print()}>{t('طباعة أو حفظ PDF')}</Btn>
-          <p className="text-center text-[11px] text-slate-400">{t('ملاحظات من بياناتها، وليست توصية بجرعة.')}</p>
         </>
       )}
+      <Btn block kind="ghost" className="print:hidden" onClick={() => window.print()}>{t('طباعة أو حفظ PDF')}</Btn>
+      <p className="text-center text-[11px] text-slate-400">{t('ملاحظات من بياناتها، وليست توصية بجرعة.')}</p>
     </main>
   );
 }

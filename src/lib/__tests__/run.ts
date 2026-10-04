@@ -2258,6 +2258,34 @@ console.log('iphone widget');
   });
 }
 
+{
+  const { basalStretches, basalSummary, atNight } = await import('../../engine/basal');
+  const { mergeSeries, emptySeries } = await import('../../engine/series');
+  const M = 60000, H = 3600000, T = Date.UTC(2026, 0, 10, 16); // synthetic, 16:00 UTC
+  // readings every 5 min for 16 h: flat 150 until 22:00, then falling 30 mg/dL per hour
+  const t: number[] = [], v: number[] = [];
+  for (let m = 0; m <= 16 * 60; m += 5) { t.push(T + m * M); v.push(m < 360 ? 150 : 150 - (m - 360) / 2); }
+  const s = mergeSeries(emptySeries(), t, v);
+  test('long-acting-only stretches: 6 h after rapid insulin, 3 h after food, while the log is kept', () => {
+    const marks = [{ t: T, kind: 'rapid' as const }, { t: T + 30 * M, kind: 'food' as const }, { t: T + 14 * H, kind: 'treatment' as const }];
+    const long = [{ t: T - H, units: 11 }];
+    const st = basalStretches(s, marks, long, 70, T, T + 16 * H);
+    assert.equal(st.length, 1);
+    assert.equal(st[0].from, T + 6 * H);                 // 6 h after the rapid dose
+    assert.equal(st[0].to, T + 14 * H - 5 * M);          // until the treatment
+    assert.equal(st[0].endedBy, 'treatment');
+    assert.ok(Math.abs(st[0].rate - -24) < 7, `rate ${st[0].rate}`);
+    assert.equal(st[0].low, true);
+    assert.deepEqual(st[0].long, { t: T - H, units: 11 });
+    // without a logged long-acting dose nothing is shown (the log may be incomplete)
+    assert.equal(basalStretches(s, marks, [], 70, T, T + 16 * H).length, 0);
+    const sum = basalSummary(st, { rapid_gap_min: 360, food_gap_min: 180, min_len_min: 60, fall_mgdl_h: 18 }, () => 'n1');
+    assert.deepEqual([sum.n, sum.falling, sum.low, sum.treated, sum.nights], [1, 1, 1, 1, 1]);
+    assert.equal(atNight(st[0], (ms) => new Date(ms).getUTCHours() * 60, '20:30', '06:30'), true);
+    assert.equal(atNight({ ...st[0], from: T + H, to: T + 3 * H }, (ms) => new Date(ms).getUTCHours() * 60, '20:30', '06:30'), false); // 17:00–19:00: daytime
+  });
+}
+
 console.log('releases');
 
 test('the newest release notes are for the version being built', () => {

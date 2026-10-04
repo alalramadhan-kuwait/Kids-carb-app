@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.26.0",
+    "notes": [
+      "تقرير فريق الرعاية: قسم جديد «الليل: الإنسولين الطويل فقط». يجمع فترات الليل التي لم يُعطَ فيها إنسولين سريع لـ 6 ساعات ولم تأكل لـ 3 ساعات، ويعرض ما فعله السكر فيها: رسم لكل ليلة، التغير في الساعة، أدنى قراءة، وكيف انتهت. وإذا تكرر النزول يظهر «مراجعة مع فريق الرعاية» دون أي اقتراح للجرعة."
+    ],
+    "notes_en": [
+      "Care-team report: a new “Overnight: long-acting insulin only” section. It gathers night stretches with no rapid insulin for 6 hours and no food for 3, and shows what her glucose did: a chart of each night, the change per hour, the lowest reading, and how it ended. A repeated fall shows a “Care-team review” flag, never a dose suggestion."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.25.0",
     "notes": [
       "خطة وجبة: آخر 3 مرات للوجبة نفسها (الجرعة المعطاة، الوقت قبل الأكل، السكر عند البداية، الذروة، النهاية، النتيجة وملاحظتك)، ولماذا لا تشبه هذه المرة إن اختلفت.",
