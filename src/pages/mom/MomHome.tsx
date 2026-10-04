@@ -68,13 +68,17 @@ export function MomHome() {
   const ack = () => { if (!juice) return; try { localStorage.setItem('mom-juice-ack', juice.id); } catch { /* blocked */ } setAcked(juice.id); };
 
   return (
-    <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col gap-3 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-[calc(12px+env(safe-area-inset-top))]">
-      <div className="flex items-baseline justify-between"><b className="text-[22px]">{t('ليان')}</b><span className="text-sm text-slate-500">{at ? ago(at, now) : ''}</span></div>
-      <div className={cx('flex items-center gap-4 rounded-3xl px-5 py-4', m.bg)} style={{ color: '#fff' }}>
-        <div className="min-w-0 flex-1"><div className="text-[22px] font-bold leading-tight">{t(m.word)}</div><div className="text-[16px] opacity-90">{t(m.todo)}</div></div>
-        {latest && mood !== 'stale' && <div dir="ltr" className="flex items-baseline gap-1.5"><span className="text-[56px] font-extrabold leading-none">{glucoseText(latest.mg_dl, unit)}</span><span className="text-[34px]">{level !== null ? ARROW[level] : ''}</span></div>}
+    <main className="mx-auto flex h-[100dvh] max-w-md flex-col">
+      {/* name and status stay put below the phone's clock/camera; only what is under them scrolls */}
+      <div className="shrink-0 space-y-2 px-4 pb-2 pt-[calc(12px+env(safe-area-inset-top))]">
+        <div className="flex items-baseline justify-between"><b className="text-[22px]">{t('ليان')}</b><span className="text-sm text-slate-500">{at ? ago(at, now) : ''}</span></div>
+        <div className={cx('flex items-center gap-4 rounded-3xl px-5 py-4', m.bg)} style={{ color: '#fff' }}>
+          <div className="min-w-0 flex-1"><div className="text-[22px] font-bold leading-tight">{t(m.word)}</div><div className="text-[16px] opacity-90">{t(m.todo)}</div></div>
+          {latest && mood !== 'stale' && <div dir="ltr" className="flex items-baseline gap-1.5"><span className="text-[56px] font-extrabold leading-none">{glucoseText(latest.mg_dl, unit)}</span><span className="text-[34px]">{level !== null ? ARROW[level] : ''}</span></div>}
+        </div>
       </div>
 
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-1">
       <div className="rounded-3xl border border-slate-100 bg-white px-1 pb-1 pt-2">
         {merged ? <BigGraph s={merged} now={now} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} alarmHigh={s.alert_high_mgdl ?? 240}
           shots={shots.map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
@@ -110,6 +114,7 @@ export function MomHome() {
         <button className="min-h-[44px] px-2 text-slate-500 underline" onClick={() => { if (window.confirm(t('تفتحين الوضع الكامل؟'))) { setFullModeNow(true); nav('/'); } }}>{t('الوضع الكامل')}</button>
       </div>
       <p className="text-center text-[13px] text-slate-500">{t('الأرقام من خطة الدكتور')}</p>
+      </div>
     </main>
   );
 }

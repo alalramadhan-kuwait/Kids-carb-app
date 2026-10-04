@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.28.2",
+    "notes": [
+      "الوضع البسيط: اسم ليان ومربع السكر ثابتين فوق، والباقي يتحرك تحتهم. أزرار الصفحات ثابتة تحت."
+    ],
+    "notes_en": [
+      "Simple mode: Layan's name and the glucose box stay fixed at the top while the rest scrolls; page buttons stay at the bottom."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.28.1",
     "notes": [
       "الوضع البسيط: أعلى الشاشة ما يختفي تحت الساعة والكاميرا في الآيفون."

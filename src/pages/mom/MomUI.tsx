@@ -34,13 +34,14 @@ export const glucoseText = (mg: number, unit: 'mmol' | 'mgdl') => formatGlucose(
 export function MomPage({ title, back = -1, children, foot }: { title: string; back?: string | number | null; children: ReactNode; foot?: ReactNode }) {
   const nav = useNavigate();
   return (
-    <main className="mx-auto flex min-h-[100dvh] max-w-md flex-col px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-[calc(12px+env(safe-area-inset-top))]">
-      <header className="mb-3 flex min-h-[48px] items-center gap-3">
+    <main className="mx-auto flex h-[100dvh] max-w-md flex-col">
+      {/* the title and back arrow stay put below the phone's clock/camera; the page scrolls under them, the buttons stay at the bottom */}
+      <header className="flex min-h-[48px] shrink-0 items-center gap-3 px-4 pb-3 pt-[calc(12px+env(safe-area-inset-top))]">
         {back !== null && <button aria-label={t('رجوع')} onClick={() => (typeof back === 'number' ? nav(back) : nav(back))} className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-2xl shadow-sm">{isEn() ? '←' : '→'}</button>}
         <h1 className="text-[24px] font-bold leading-tight">{title}</h1>
       </header>
-      <div className="flex flex-1 flex-col gap-3">{children}</div>
-      {foot && <div className="mt-3 space-y-2">{foot}</div>}
+      <div className={cx('flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4', !foot && 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{children}</div>
+      {foot && <div className="shrink-0 space-y-2 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3">{foot}</div>}
     </main>
   );
 }
