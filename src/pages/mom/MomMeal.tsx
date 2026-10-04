@@ -88,11 +88,12 @@ export function MomMeal() {
 }
 
 /** «شنو بتاكل؟»: saved meals | recipes | products (grouped with pictures), most used first, search. Full page. */
-export function MomAdd() {
+export function MomAdd({ browse = false }: { browse?: boolean }) {
   const nav = useNavigate();
   const [sp, setSp] = useSearchParams();
   const { meals } = useSavedMeals();
-  const tab = (sp.get('tab') ?? (meals.length ? 'saved' : 'products')) as 'saved' | 'recipes' | 'products';
+  // browse: the «التغذية» tab — the same food list, but a tap opens the item's nutrition values
+  const tab = (sp.get('tab') ?? (meals.length && !browse ? 'saved' : 'products')) as 'saved' | 'recipes' | 'products';
   const group = sp.get('g');
   const [q, setQ] = useState('');
   const { c, mealCarbs, nameOf } = useCatalog();
@@ -100,7 +101,7 @@ export function MomAdd() {
   const products = c.products.filter((p) => readyForMom('product', p.id, c) && (q.trim() !== '' || p.available !== false));
   const recipes = c.recipes.filter((r) => readyForMom('recipe', r.id, c));
   const rec = recent().filter((r) => readyForMom(r.kind, r.id, c)).slice(0, 6);
-  const pick = (kind: 'product' | 'recipe', id: string) => nav(`/mom/item/${kind}/${id}`);
+  const pick = (kind: 'product' | 'recipe', id: string) => nav(browse ? `/mom/food/${kind}/${id}` : `/mom/item/${kind}/${id}`);
   const shown = products.filter((p) => (!group || groupOf(p.category).key === group) && matches([p.name, p.brand, p.category], q))
     .sort((a, b) => Number(b.available !== false) - Number(a.available !== false)); // what is at home first
   const groups = [...new Map(products.map((p) => [groupOf(p.category).key, groupOf(p.category)])).values()];
@@ -115,9 +116,9 @@ export function MomAdd() {
     );
   };
   return (
-    <MomPage title={t('شنو بتاكل؟')} back="/mom/meal">
-      <div className="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 text-[15px]">
-        {(['saved', 'recipes', 'products'] as const).map((k) => <button key={k} onClick={() => setSp({ tab: k }, { replace: true })} className={cx('min-h-[44px] rounded-full', tab === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{k === 'saved' ? t('وجباتها') : k === 'recipes' ? t('طبخ البيت') : t('أكل')}</button>)}
+    <MomPage title={browse ? t('التغذية') : t('شنو بتاكل؟')} back={browse ? null : '/mom/meal'} tabs={browse}>
+      <div className={cx('grid gap-1 rounded-full bg-slate-100 p-1 text-[15px]', browse ? 'grid-cols-2' : 'grid-cols-3')}>
+        {(browse ? ['products', 'recipes'] as const : ['saved', 'recipes', 'products'] as const).map((k) => <button key={k} onClick={() => setSp({ tab: k }, { replace: true })} className={cx('min-h-[44px] rounded-full', tab === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{k === 'saved' ? t('وجباتها') : k === 'recipes' ? t('طبخ البيت') : t('أكل')}</button>)}
       </div>
       {tab === 'saved' && (meals.length ? meals.map((m) => {
         const g = mealCarbs(m.items);
@@ -140,7 +141,7 @@ export function MomAdd() {
           {!products.length && <p className="text-center text-slate-500">{t('بابا ما جهّز الكميات بعد')}</p>}
         </>
       )}
-      <Big tone="ghost" className={cx(missing ? '' : 'mt-auto')} onClick={() => nav('/mom/new')}>{t('مو موجود؟')}</Big>
+      <Big tone="ghost" className={cx('shrink-0', missing ? '' : 'mt-auto')} onClick={() => nav('/mom/new')}>{t('مو موجود؟')}</Big>
     </MomPage>
   );
 }
@@ -248,6 +249,59 @@ export function MomNew() {
       <input ref={input} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
       <input className={inputCls} dir="auto" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('الاسم')} maxLength={60} />
       <Big disabled={busy || !name.trim()} onClick={send}>{t('أرسليه لبابا')}</Big>
+    </MomPage>
+  );
+}
+
+/** «التغذية»: one food's values — carbs first, then sugar, fat, protein, fiber, calories — per 100 and per serving
+ *  (a recipe: per plate). A value the label does not give shows «—», never 0. Then add it to a meal. */
+export function MomFoodItem() {
+  const nav = useNavigate();
+  const { kind, id } = useParams() as { kind: 'product' | 'recipe'; id: string };
+  const { products, settings } = useData();
+  const { c, nameOf, photoOf } = useCatalog();
+  const x = photoOf({ kind, id });
+  const prod = kind === 'product' ? products.find((p) => p.id === id) ?? null : null;
+  const u = prod?.unit === 'ml' ? t('مل') : t('غرام');
+  const n = (v: number | null | undefined, f = 1) => (v === null || v === undefined || Number.isNaN(Number(v)) ? null : Math.round(Number(v) * f * 10) / 10);
+  type Row = { label: string; a: number | null; b: number | null; unit: string; main?: boolean };
+  let head: [string, string | null], rows: Row[];
+  if (prod) {
+    const ss = prod.serving_size ? Number(prod.serving_size) : null, f = ss ? ss / 100 : null;
+    const both = (v: number | null | undefined) => ({ a: n(v), b: f === null ? null : n(v, f) });
+    head = [t('بكل 100 {u}', { u }), ss ? t('الحصة {s} {u}', { s: fmt(ss), u }) : null];
+    rows = [
+      { label: t('كارب'), ...both(prod.carbs_per_100), unit: t('غرام'), main: true },
+      ...(prod.sugar_added_per_100 !== null && prod.sugar_added_per_100 !== undefined ? [{ label: t('سكر مضاف'), ...both(prod.sugar_added_per_100), unit: t('غرام') }] : []),
+      { label: t('دهون'), ...both(prod.fat_per_100), unit: t('غرام') },
+      { label: t('بروتين'), ...both(prod.protein_per_100), unit: t('غرام') },
+      { label: t('ألياف'), ...both(prod.fiber_per_100), unit: t('غرام') },
+      { label: t('سعرات'), ...both(prod.kcal_per_100), unit: '' },
+    ];
+  } else {
+    const items = planItemsOf({ kind, id, portion_id: null, amount: 1, unit: 'plate' }, c);
+    const m = items ? planMeal(items, products, settings) : null;
+    const v = (k: 'carbs' | 'fat' | 'protein' | 'fiber' | 'kcal') => (!m || (k === 'carbs' ? !m.complete : m.missing[k]) ? null : n(m.total[k]));
+    head = [t('الصحن الواحد'), null];
+    rows = [
+      { label: t('كارب'), a: v('carbs'), b: null, unit: t('غرام'), main: true },
+      { label: t('دهون'), a: v('fat'), b: null, unit: t('غرام') },
+      { label: t('بروتين'), a: v('protein'), b: null, unit: t('غرام') },
+      { label: t('ألياف'), a: v('fiber'), b: null, unit: t('غرام') },
+      { label: t('سعرات'), a: v('kcal'), b: null, unit: '' },
+    ];
+  }
+  const cell = (v: number | null, r: Row) => (v === null ? <span className="text-slate-400">—</span> : <span className={r.main ? 'text-[22px] font-extrabold text-brand' : 'font-bold'}>{fmt(v)}{r.unit ? <span className="text-[13px] font-normal text-slate-500"> {r.unit}</span> : null}</span>);
+  return (
+    <MomPage title={nameOf({ kind, id })} back="/mom/food" foot={<Big onClick={() => { draftOps.start('now'); nav(`/mom/item/${kind}/${id}`); }}>🍽️ {t('أضيفيها لوجبة')}</Big>}>
+      <Photo path={x?.image_path} category={x?.category} className="mx-auto h-36 w-36 shrink-0 rounded-3xl" />
+      {prod?.brand && <p className="text-center text-[15px] text-slate-500"><bdi>{prod.brand}</bdi></p>}
+      <table className="w-full overflow-hidden rounded-3xl bg-white text-[17px]">
+        <thead><tr className="text-[14px] text-slate-500"><th className="px-4 py-2 text-start font-normal" /><th className="px-2 py-2 font-normal">{head[0]}</th>{head[1] && <th className="px-2 py-2 font-normal">{head[1]}</th>}</tr></thead>
+        <tbody className="divide-y divide-slate-100">
+          {rows.map((r) => <tr key={r.label}><td className="px-4 py-2.5">{r.label}</td><td className="px-2 py-2.5 text-center">{cell(r.a, r)}</td>{head[1] && <td className="px-2 py-2.5 text-center">{cell(r.b, r)}</td>}</tr>)}
+        </tbody>
+      </table>
     </MomPage>
   );
 }

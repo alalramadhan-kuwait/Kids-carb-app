@@ -157,10 +157,10 @@ export function BodyMap({ allowed, last, suggest, sel, onPick, now, sensor = nul
   );
 }
 
-/** Mom mode's bottom tabs: home, the log, nutrition, more. */
+/** Mom mode's bottom tabs: home, the log, nutrition (the food list with its values), more. */
 export function MomTabs({ pathname }: { pathname: string }) {
   const nav = useNavigate();
-  const tabs = [{ to: '/mom', icon: '🏠', label: 'الرئيسية' }, { to: '/mom/log', icon: '📋', label: 'السجل' }, { to: '/growth', icon: '🥗', label: 'التغذية' }, { to: '/mom/more', icon: '☰', label: 'المزيد' }]; // i18n-ok: translated where shown
+  const tabs = [{ to: '/mom', icon: '🏠', label: 'الرئيسية' }, { to: '/mom/log', icon: '📋', label: 'السجل' }, { to: '/mom/food', icon: '🥗', label: 'التغذية' }, { to: '/mom/more', icon: '☰', label: 'المزيد' }]; // i18n-ok: translated where shown
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white pb-[env(safe-area-inset-bottom)]">
       <ul className="mx-auto grid max-w-md grid-cols-4">

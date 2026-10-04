@@ -240,3 +240,4 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
   never suggested or selectable. Time left shows in Home's status line; on the last day a red card shows the end time
   (the 24 h / 2 h pushes still go to both phones).
 - **v15 (Dad, 2.31.1)** — injection-site picture like the care chart Dad sent, but girly: a girl from the back and the front (hair with a bow, pink top, lilac shorts); back of the upper arms (both views), belly around the navel, outer thighs, buttocks (back view, only when enabled). Sides labelled per view.
+- **v16 (Dad, 2.32.0)** — «التغذية» means the food list, not the growth page: the tab now opens the same simple food browser (foods by group with search, home cooking); an item shows its values per 100 and per serving (recipes per plate), «—» when the label does not give one, and «أضيفيها لوجبة». The growth page stays in the full app.

@@ -40,7 +40,7 @@ import { themePref } from './lib/theme';
 import { t, useLang } from './i18n';
 import { LangSwitch } from './components/LangSwitch';
 import { MomHome } from './pages/mom/MomHome';
-import { MomAdd, MomMeal, MomNew, MomPortion } from './pages/mom/MomMeal';
+import { MomAdd, MomFoodItem, MomMeal, MomNew, MomPortion } from './pages/mom/MomMeal';
 import { MomAte, MomDose, MomGiven } from './pages/mom/MomDose';
 import { MomJuice, MomShot, MomSite, MomSites, MomTresiba } from './pages/mom/MomShots';
 import { MomEntry } from './pages/mom/MomEntry';
@@ -200,7 +200,7 @@ function Shell() {
   // mom mode's pages are one fixed screen each: the document is locked so it cannot slide under the clock
   useEffect(() => { document.documentElement.classList.toggle('mom-lock', mom); if (mom) window.scrollTo(0, 0); }, [mom]);
   // mom mode's own tabs (home, log, nutrition) on its three main pages
-  const momTabs = pathname === '/mom' || pathname === '/mom/log' || pathname === '/mom/more' || (simple && pathname === '/growth');
+  const momTabs = pathname === '/mom' || pathname === '/mom/log' || pathname === '/mom/food' || pathname === '/mom/more';
   // the research lab runs by itself every 12 hours (one phone per slot); it never touches doses or readings
   useLabRunner({ loading: loading || !!error, settings, events, history });
   if (loading) return <Centered><p className="text-center text-slate-500">{t('جاري التحميل…')}</p></Centered>;
@@ -226,6 +226,8 @@ function Shell() {
         <Route path="/mom/entry/:id" element={<MomEntry />} />
         <Route path="/mom/log" element={<MomLog />} />
         <Route path="/mom/more" element={<MomMore />} />
+        <Route path="/mom/food" element={<MomAdd browse />} />
+        <Route path="/mom/food/:kind/:id" element={<MomFoodItem />} />
         <Route path="/mom/sensor" element={<MomSensor />} />
         <Route path="/mom/when" element={<MomWhen />} />
         <Route path="/mom/plans" element={<MomPlans />} />

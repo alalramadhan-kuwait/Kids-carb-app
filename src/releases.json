@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.32.0",
+    "notes": [
+      "تبويب «التغذية» صار قائمة الأكل: تتصفحين الأكل وطبخ البيت مقسّم بالأنواع مع البحث، وتفتحين أي صنف تشوفين قيمه (الكارب، الدهون، البروتين، الألياف، السعرات) لكل 100 وللحصة، أو للصحن بطبخ البيت، وتضيفينه لوجبة."
+    ],
+    "notes_en": [
+      "The “Nutrition” tab is now the food list: browse foods and home cooking by group or search, open any item to see its values (carbs, fat, protein, fiber, calories) per 100 and per serving — per plate for home cooking — and add it to a meal."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.31.1",
     "notes": [
       "صورة أماكن الإبرة الجديدة: بنت من ورا ومن قدّام، الذراع من ورا، البطن حول السرة، الفخذ من برا، والمقعدة إذا مفعّلة."
