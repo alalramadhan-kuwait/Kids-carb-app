@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { setAlarmSound, testAlarm, useAlarmSound } from '../components/Alarm';
 import { supabase, uploadPhoto } from '../lib/supabase';
 import { useData } from '../lib/data';
 import { computeSnack, fmt, problemText } from '../lib/carbs';
@@ -40,6 +41,18 @@ function Appearance() {
   );
 }
 
+/** The alarm sound on this phone (both modes): on by default; turning it on plays it once. */
+function AlarmRow() {
+  const on = useAlarmSound();
+  return (
+    <li className="flex min-h-[56px] items-center gap-3 px-4 py-2">
+      <span className="min-w-0 flex-1"><span className="block font-medium">🔔 {t('صوت التنبيه')}</span><span className="block text-sm text-slate-500">{t('منخفض، مرتفع، أو لا قراءة 15 د — على هذا الهاتف والتطبيق مفتوح')}</span></span>
+      <button className="min-h-[40px] px-2 text-sm font-bold text-brand" onClick={() => testAlarm('low')}>{t('جرّب')}</button>
+      <Toggle on={on} label={t('صوت التنبيه')} onChange={(v) => { setAlarmSound(v); if (v) testAlarm('low'); }} />
+    </li>
+  );
+}
+
 /** Simple (mom) mode: who opens in it, and a way in to see it from this phone. */
 function SimpleModeRows() {
   const nav = useNavigate();
@@ -50,6 +63,7 @@ function SimpleModeRows() {
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="home" size={20} /></span>
         <span className="min-w-0 flex-1"><span className="block font-semibold">{t('افتح الوضع البسيط')}</span><span className="block truncate text-sm text-slate-500">{t('شاشات كبيرة وكلام قليل')}</span></span>
       </button></li>
+      <AlarmRow />
       {members.map((m) => (
         <li key={m.user_id} className="flex min-h-[56px] items-center gap-3 px-4 py-2">
           <span className="min-w-0 flex-1"><span className="block font-medium"><bdi>{m.display_name ?? '—'}</bdi>{m.user_id === me ? ` (${t('أنت')})` : ''}</span><span className="block text-sm text-slate-500">{t('يفتح على الوضع البسيط')}</span></span>

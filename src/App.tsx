@@ -45,6 +45,7 @@ import { MomCompare } from './pages/mom/MomCompare';
 import { MomAte, MomDose, MomGiven } from './pages/mom/MomDose';
 import { MomJuice, MomShot, MomSite, MomSites, MomTresiba } from './pages/mom/MomShots';
 import { MomEntry } from './pages/mom/MomEntry';
+import { Alarm } from './components/Alarm';
 import { MomLog } from './pages/mom/MomLog';
 import { MomMore, MomPlanView, MomPlans, MomSensor, MomWhen } from './pages/mom/MomPlan';
 import { MomTabs } from './pages/mom/MomUI';
@@ -274,6 +275,7 @@ function Shell() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {momTabs && <MomTabs pathname={pathname} />}
+      <Alarm />
       {!mom && !momTabs && <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         <ul className="mx-auto grid max-w-2xl grid-cols-5">
           {TABS.map((tab) => {

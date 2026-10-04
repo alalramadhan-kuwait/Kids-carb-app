@@ -14,6 +14,7 @@ import { cx, inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import type { PlannedMeal, Product } from '../../lib/types';
 import { Big, Choice, MomPage, SITE_NAME, clock, dayWord, sensorLeft } from './MomUI';
+import { setAlarmSound, testAlarm, useAlarmSound } from '../../components/Alarm';
 import type { InjectionSite } from '../../lib/types';
 import { useCatalog } from './MomMeal';
 
@@ -150,8 +151,11 @@ export function MomMore() {
   const nav = useNavigate();
   const n = useOpenPlans().length;
   const sensor = useSensor();
+  const sound = useAlarmSound();
   return (
     <MomPage title={t('المزيد')} back={null} tabs>
+      <Choice icon={sound ? '🔔' : '🔕'} label={t('صوت التنبيه')} sub={sound ? t('شغّال على هالتلفون · اضغطي للإطفاء') : t('طافي على هالتلفون · اضغطي للتشغيل')} on={sound}
+        onClick={() => { setAlarmSound(!sound); if (!sound) testAlarm('low'); }} />
       <Choice icon="📡" label={t('الحساس')} onClick={() => nav('/mom/sensor')}
         sub={sensor ? `${sensor.site ? t(SITE_NAME[sensor.site]) : t('وين؟')} · ${t('ينتهي بعد {x}', { x: sensorLeft(sensor.life.left) })}` : t('ما في حساس')} />
       <Choice icon="📅" label={t('مخططة')} sub={n ? t('{n} معلّقة', { n }) : undefined} onClick={() => nav('/mom/plans')} />

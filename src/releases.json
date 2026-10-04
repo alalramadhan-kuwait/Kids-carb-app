@@ -1,6 +1,22 @@
 [
   {
     "date": "2026-10-04",
+    "version": "2.34.0",
+    "notes": [
+      "صوت التنبيه: إذا السكر منخفض جدًا، منخفض، أو مرتفع وما أحد رد، التلفون يصفر بصوت عالي ويومض بشاشة كاملة لين أحد يضغط «أنا عليها» (يوصل للكل).",
+      "انقطاع الاتصال: إذا ما وصلت قراءة 15 دقيقة، أو التلفون بدون إنترنت 15 دقيقة، يصفر بعد.",
+      "تنبيه «ما في قراءة» للتلفونات صار بعد 15 دقيقة بدل 20.",
+      "الصوت تقدرين تطفينه أو تشغلينه لكل تلفون: «المزيد ← صوت التنبيه» (وفيه زر تجربة)."
+    ],
+    "notes_en": [
+      "Alarm sound: when glucose is very low, low or high and nobody has answered, the phone sounds loudly and flashes full-screen until someone taps “I'm on it” (shared with everyone).",
+      "Lost connection: no reading for 15 minutes, or this phone offline for 15 minutes, sounds too.",
+      "The “no reading” push now goes out after 15 minutes instead of 20.",
+      "Turn the sound on or off for each phone: “More → Alarm sound” (with a test button)."
+    ]
+  },
+  {
+    "date": "2026-10-04",
     "version": "2.33.0",
     "notes": [
       "قائمة أكل أساسية جاهزة (165 صنف): خضار، فواكه، مكسرات، لحوم وسمك وبيض، رز بأنواعه، خبز، معكرونة، حبوب وبقوليات، ألبان، عصائر، فطور، صلصات، حلويات وسناكات — القيم من مصدر غذائي موثوق (USDA).",

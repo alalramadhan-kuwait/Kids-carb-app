@@ -255,4 +255,13 @@ recheck time, maximum dose) is read from the care plan, not written into Mom mod
     own مجبوس دجاج/لحم kept, not duplicated). Not in USDA, so not added: date syrup, corn flakes/crisped rice (brand-only),
     muesli, watermelon juice. Group grid, group pages, search across groups, carbs on every tile, item page with sugar
     and household portions, and «⚖️ قارني» (up to 3 foods side by side, per 100 g or per portion; lowest-carb marked).
+- **v18 (Dad, 2.34.0) — alarm sound (§13) + connection lost 15 min.** A full-screen flashing alarm with a loud
+  repeating sound (Web Audio, no files; plays even with the iPhone's silent switch where Safari allows it) while a
+  very-low / low / high / no-reading alert is open and unanswered; «أنا عليها» answers it for everyone. Urgent: fast
+  beeps; low: double beep; no reading: two tones every 5 s; high: softer chime every 6 s. The phone also checks itself:
+  no reading for 15 min (if readings were coming in), or no answer from the server for 15 min (offline) → «ما في
+  قراءة/اتصال» with «تمام» (quiet until a new reading or 30 min). Server «no reading» push moved 20 → 15 min. Per-phone
+  switch with a test button in both modes. Limits: sound only while the app is open on screen (a browser cannot play
+  in the background) — the server pushes and the LibreLinkUp app's own alarms stay the backup; the first tap after
+  opening unlocks the sound (a hint says so).
 
