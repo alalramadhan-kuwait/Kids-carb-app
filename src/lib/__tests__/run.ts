@@ -17,6 +17,7 @@ import { buildCsv } from '../export';
 import { adrrBand, grid, hbgiBand, lbgiBand, riskF, variability } from '../../engine/variability';
 import { findPatterns, visible } from '../../engine/patterns';
 import { ACT_DELAY_MIN, activityAt, activityFraction, activityPeaks, carbLane, cobAt, dosesFrom, insulinLane, iobAt, iobFraction, iobParamsOk } from '../../engine/iob';
+import { doseSteps, suggestDose } from '../../engine/dose';
 import { GRID, alignCurve, assess, buildOccurrence, coverage, medianCurve, summary, windowSeries } from '../../engine/meals';
 import { ackMessage, alertMessage, evaluate, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
@@ -839,6 +840,23 @@ test('CSV export: Kuwait time, both units, logged entries in order, commas quote
   assert.ok(lines[3].startsWith('2026-10-01 07:20,وجبة,,,42'));
 });
 
+test('the saved dose is told back step by step with the same arithmetic', () => {
+  // 42.3 g at 1:15, glucose 216 mg/dL (12.0) over a 99–117 target, correction factor 54 (3.0), nothing on board
+  const a = doseSteps({ carbs: 42.3, cr: 15, glucose: 216, isf: 54, target: [99, 117], iob: 0, pen_step: 1 });
+  assert.ok(Math.abs(a.food - 2.82) < 1e-9); assert.equal(a.side, 'above'); assert.ok(Math.abs(a.correction - 1.8333) < 1e-3);
+  assert.ok(Math.abs(a.raw - 4.6533) < 1e-3); assert.equal(a.dose, 4);
+  // insulin still working takes from the correction only, never from the food
+  const b = doseSteps({ carbs: 30, cr: 15, glucose: 171, isf: 54, target: [99, 117], iob: 3, pen_step: 0.5 });
+  assert.equal(b.iobUsed, 1); assert.equal(b.raw, 2); assert.equal(b.dose, 2);
+  // below the range the dose is lowered; inside it there is no correction
+  const c = doseSteps({ carbs: 30, cr: 15, glucose: 72, isf: 54, target: [99, 117], iob: 1 });
+  assert.equal(c.side, 'below'); assert.equal(c.iobUsed, 0); assert.equal(c.raw, 1.5); assert.equal(c.dose, 1);
+  assert.equal(doseSteps({ carbs: 15, cr: 15, glucose: 108, isf: 54, target: [99, 117], iob: 0 }).correction, 0);
+  // matches the calculator itself
+  const live = suggestDose({ now: 0, carbs: 42.3, ratio: { from: '00:00', cr: 15, isf: 54 } as any, target: { low: 99, high: 117 }, lowMg: 70, glucose: { mg: 216, at: 0, level: 0 }, sensorStartedAt: null, iob: 0, lastRapidAt: null, gapMin: 120, step: 1 });
+  assert.equal(live.dose, a.dose);
+});
+
 test('insulin activity is the slope of IOB, peaks at the peak time and adds up to the dose', () => {
   const p = { dia: 240, peak: 65 };
   assert.equal(activityFraction(0, p), 0); assert.equal(activityFraction(240, p), 0);
@@ -1156,7 +1174,7 @@ console.log('status page');
 console.log('dose calculator');
 
 {
-  const { suggestDose } = await import('../../engine/dose');
+  // suggestDose imported at the top
   const T = Date.UTC(2026, 9, 1, 9, 0), M = 60000;
   const base = { now: T, carbs: 45, ratio: { from: '00:00', cr: 15, isf: 54 }, target: { low: 99, high: 117 }, lowMg: 70,
     glucose: { mg: 171, at: T - 2 * M, level: 0 }, sensorStartedAt: T - 5 * 86400000, iob: 0, lastRapidAt: null, gapMin: 120, step: 1 };

@@ -10,7 +10,8 @@ import { fmt } from '../lib/carbs';
 import { fmtTime, relDay } from '../lib/constants';
 import type { Contributor, Other, Review, Window } from '../engine/planReview';
 import type { Series } from '../engine/series';
-import type { PlannedMeal } from '../lib/types';
+import type { DoseSnapshot, PlannedMeal } from '../lib/types';
+import { doseSteps } from '../engine/dose';
 import { Btn, Card, cx, inputCls, toast } from '../components/ui';
 import { isEn, t, tMaybe, tr } from '../i18n';
 
@@ -179,6 +180,7 @@ function PlanBody({ plan, back }: { plan: PlannedMeal; back: () => void }) {
           <Row k={t('السكر عند الجرعة')} v={`${g(snap?.glucose ?? review?.atDose)}${snap?.level != null ? ` ${['↓', '↘', '→', '↗', '↑'][snap.level + 2]}` : ''}`} />
           <Row k={t('الإنسولين النشط عند الجرعة')} v={snap ? t('{u} و', { u: fmt(snap.iob) }) : '—'} />
           <Row k={t('الجرعة المحسوبة (إعدادات الطبيب)')} v={plan.calc_units != null ? t('{u} و', { u: fmt(plan.calc_units) }) : '—'} sub={snap ? t('نسبة الكارب {cr} · الحساسية {isf} · الهدف {a}–{b}', { cr: fmt(snap.cr), isf: g(snap.isf).replace(/\.0$/, ''), a: g(snap.target[0]), b: g(snap.target[1]) }) : undefined} />
+          {snap && <DoseWorking snap={snap} g={g} />}
           <Row k={t('الجرعة المعطاة')} v={plan.given_units != null ? t('{u} و', { u: fmt(plan.given_units) }) : '—'} sub={plan.dose_reason ? t('السبب: {x}', { x: plan.dose_reason }) : undefined} strong={plan.given_units != null && plan.calc_units != null && plan.given_units !== plan.calc_units} />
           <Row k={t('وقت الجرعة')} v={plan.dosed_at ? clock(Date.parse(plan.dosed_at)) : '—'} />
           <Row k={t('بدء الأكل')} v={eating !== null ? clock(eating) : '—'} />
@@ -229,6 +231,28 @@ function PlanBody({ plan, back }: { plan: PlannedMeal; back: () => void }) {
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return <Card className="space-y-2"><div><h2 className="font-bold">{title}</h2>{hint && <p className="text-xs text-slate-500">{hint}</p>}</div>{children}</Card>;
 }
+/** How the calculated dose was worked out, from the numbers saved with it: food, correction, insulin still working, rounding. */
+function DoseWorking({ snap, g }: { snap: DoseSnapshot; g: (mg: number | null | undefined) => string }) {
+  const d = doseSteps(snap);
+  const n = (x: number) => String(Math.round(x * 100) / 100); // two decimals, so the parts visibly add up
+  const gg = (mg: number) => g(mg);
+  const f = (x: string) => <bdi dir="ltr" className="num">{x}</bdi>;
+  const u = (x: number) => t('{u} و', { u: n(x) });
+  return (
+    <div className="my-1 space-y-1 rounded-xl bg-slate-50 px-3 py-2 text-sm">
+      <div className="text-xs font-bold text-slate-600">{t('كيف انحسبت الجرعة')}</div>
+      <div className="flex justify-between gap-2"><span>🍽️ {t('الأكل')}</span><span>{f(`${n(d.carbs)} ${t('غ')} ÷ ${n(d.cr)}`)} = <b className="num">{u(d.food)}</b></span></div>
+      <div className="flex justify-between gap-2"><span>🩸 {t('التصحيح')}</span>{d.side === 'inside'
+        ? <span className="text-slate-600">{t('السكر ضمن الهدف · بلا تصحيح')}</span>
+        : <span>{f(`(${gg(d.glucose)} − ${gg(d.side === 'above' ? d.target[1] : d.target[0])}) ÷ ${g(d.isf).replace(/\.0$/, '')}`)} = <b className="num" dir="ltr">{d.correction < 0 ? '−' : ''}{u(Math.abs(d.correction))}</b></span>}</div>
+      {d.side === 'below' && <p className="text-xs text-slate-500">{t('السكر تحت الهدف، فالتصحيح ينقص الجرعة')}</p>}
+      {d.iob > 0 && <div className="flex justify-between gap-2"><span>💉 {t('إنسولين ما زال يشتغل')} <span className="text-xs text-slate-500">({u(d.iob)})</span></span><span>{d.iobUsed > 0 ? <b className="num" dir="ltr">−{u(d.iobUsed)}</b> : <span className="text-xs text-slate-500">{t('يُخصم من التصحيح فقط')}</span>}</span></div>}
+      <div className="flex justify-between gap-2 border-t border-slate-200 pt-1"><span>{t('المجموع')}</span><span>{f(n(d.raw))} → <b className="num">{u(d.dose)}</b></span></div>
+      {d.raw !== d.dose && <p className="text-xs text-slate-500">{t('يُقرّب لتحت لأقرب {s} (قلم الإنسولين)', { s: u(d.step) })}</p>}
+    </div>
+  );
+}
+
 function Row({ k, v, sub, strong }: { k: string; v: string; sub?: string; strong?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-b border-slate-50 py-1 text-sm last:border-0">

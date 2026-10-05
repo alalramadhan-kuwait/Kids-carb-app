@@ -60,3 +60,24 @@ export function doseGap(doses: { t: number; units: number }[], now: number, gapM
   const until = last.t + gapMin * MIN;
   return { lastAt: last.t, lastUnits: units, until, left: Math.max(0, until - now), frac: Math.min(1, (now - last.t) / (gapMin * MIN)) };
 }
+
+/**
+ * The calculation told back, step by step, from what was saved with a logged dose (its snapshot): food, the
+ * correction before and after the insulin still working, the total and its rounding down to the pen step.
+ * Rebuilt from the saved inputs with the same arithmetic as suggestDose; display only.
+ */
+export interface DoseSteps {
+  carbs: number; cr: number; food: number;
+  glucose: number; target: [number, number]; isf: number;
+  side: 'above' | 'below' | 'inside'; correction: number; // before the insulin still working
+  iob: number; iobUsed: number; raw: number; step: number; dose: number;
+}
+export function doseSteps(s: { carbs: number; cr: number; glucose: number; isf: number; target: [number, number]; iob: number; pen_step?: number | null }): DoseSteps {
+  const food = Math.max(0, s.carbs) / s.cr;
+  const side = s.glucose > s.target[1] ? 'above' : s.glucose < s.target[0] ? 'below' : 'inside';
+  const correction = side === 'above' ? (s.glucose - s.target[1]) / s.isf : side === 'below' ? (s.glucose - s.target[0]) / s.isf : 0;
+  const iobUsed = correction > 0 ? Math.min(correction, Math.max(0, s.iob)) : 0;
+  const raw = Math.max(0, food + correction - iobUsed);
+  const step = s.pen_step ?? 1;
+  return { carbs: s.carbs, cr: s.cr, food, glucose: s.glucose, target: s.target, isf: s.isf, side, correction, iob: s.iob, iobUsed, raw, step, dose: Math.floor(raw / step + 1e-9) * step };
+}

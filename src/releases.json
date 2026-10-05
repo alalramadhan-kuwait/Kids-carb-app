@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.37.0",
+    "notes": [
+      "مراجعة الوجبة صارت تبيّن «كيف انحسبت الجرعة» خطوة خطوة: الأكل (الكارب ÷ نسبة الكارب)، التصحيح (السكر − الهدف ÷ الحساسية)، الإنسولين اللي ما زال يشتغل، المجموع وتقريبه لتحت حسب القلم."
+    ],
+    "notes_en": [
+      "A meal's review now shows “How the dose was worked out” step by step: food (carbs ÷ carb ratio), correction (glucose − target ÷ sensitivity), insulin still working, and the total rounded down to the pen."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.36.2",
     "notes": [
       "صفحة «الوجبات المخططة لفريق الرعاية» صارت أبسط: الليل بسطر واحد ورسم، والوجبات بعددها (ضمن النطاق / ارتفع / انخفض) وما يحتاج مراجعة. التفاصيل كلها تحت «التفاصيل» وتنطبع كاملة."
