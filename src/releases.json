@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.41.0",
+    "notes": [
+      "جدول أخصائية التغذية صار كله بلغة وحدة (لغة التطبيق): كل المنتجات والوصفات صار لها اسم عربي واسم إنجليزي، بدون أحجام العلب.",
+      "في صفحة المنتج تقدرون تعدّلون «الاسم بالعربي» و«الاسم بالإنجليزي».",
+      "أي اسم مكتوب يدوي وما له ترجمة يطلع وجنبه † (كما كتبه الأهل)."
+    ],
+    "notes_en": [
+      "The dietitian sheet is now in one language (the app's): every product and recipe has an Arabic and an English name, without pack sizes.",
+      "On a product's page you can edit “Name in Arabic” and “Name in English”.",
+      "A name typed by hand with no translation shows with † (as typed by parents)."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.40.0",
     "notes": [
       "جدول أخصائية التغذية صار أدق: العصير أو السناك اللي ينعطى وقت الانخفاض ينحسب «علاج انخفاض» حسب الحساس، وله سطر خاص، وما يدخل في الوجبات.",

@@ -8,6 +8,7 @@ import { dayStartOf } from '../engine/day';
 import { effectiveRange, formatGlucose, unitLabel, type GlucoseUnit } from '../lib/glucose';
 import { UNIT_TEXT, fmt, unitText } from '../lib/carbs';
 import { displayName } from '../lib/shortName';
+import { foodName, untranslated } from '../lib/foodName';
 import { usePortions } from '../lib/mom';
 import { Icon } from '../components/Icon';
 import { fmtTime } from '../lib/constants';
@@ -40,7 +41,7 @@ function loadStarts(): SlotStarts {
  */
 export default function DietSheetPage() {
   const nav = useNavigate();
-  const { settings, products } = useData();
+  const { settings, products, recipes } = useData();
   const { portions } = usePortions();
   const today = dayStartOf(Date.now());
   const [from, setFrom] = useState(isoDay(today - 6 * DAY));
@@ -99,6 +100,7 @@ export default function DietSheetPage() {
         ...((ri.data ?? []) as { recipe_id: string; qty_confirmed: boolean | null; product_id: string | null; slot_category: string | null }[]).filter((r) => r.qty_confirmed === false || (!r.product_id && !r.slot_category)).map((r) => r.recipe_id),
       ]);
       const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+      const productFor = (key: string | null, name: string) => products.find((p) => key && [p.name, p.brand].filter(Boolean).join(' — ') === key) ?? products.find((p) => p.name === name) ?? null;
       const slotKey = (x: string | undefined): Food['slot'] => (x === 'breakfast' || x === 'lunch' || x === 'dinner' || x === 'snack' ? x : null);
       const foods: Food[] = [], treatments: Treat[] = [];
       for (const x of hist) {
@@ -109,9 +111,16 @@ export default function DietSheetPage() {
         if (imported) flags.push('imported');
         if (x.needs_review) flags.push('review');
         if (x.recipe_id && unsure.has(x.recipe_id)) flags.push('recipe');
-        const lines: Line[] = (x.lines ?? []).map((l) => ({ name: l.name, quantity: imported && l.unit === 'serving' && l.quantity === 1 ? null : l.quantity ?? null, unit: l.unit ?? null, carbs: l.carbs ?? null, productKey: l.product ?? null }));
+        const lines: Line[] = (x.lines ?? []).map((l) => {
+          const p = productFor(l.product ?? null, l.name);
+          return { name: p ? foodName(p) : l.name, named: !!p && !untranslated(p), quantity: imported && l.unit === 'serving' && l.quantity === 1 ? null : l.quantity ?? null, unit: l.unit ?? null, carbs: l.carbs ?? null, productKey: l.product ?? null };
+        });
+        // the meal's own name: its recipe, or its one product, in the page's language
+        const rec = x.recipe_id ? recipes.find((r) => r.id === x.recipe_id) : null;
+        const one = !rec && (x.lines ?? []).length === 1 ? productFor(x.lines[0].product ?? null, x.lines[0].name) : null;
+        const own = rec ?? one ?? productFor(null, x.name);
         const note = x.notes && !/^gluroo\b/i.test(x.notes.trim()) ? x.notes.trim() : null;
-        foods.push({ t: t0, id: x.id, name: x.name, detail: null, carbs, fat: num(x.total_fat), protein: num(x.total_protein), kcal: num(x.total_kcal), fiber: num(x.total_fiber),
+        foods.push({ t: t0, id: x.id, name: own ? foodName(own) : x.name, named: !!own && !untranslated(own), detail: null, carbs, fat: num(x.total_fat), protein: num(x.total_protein), kcal: num(x.total_kcal), fiber: num(x.total_fiber),
           slot: slotKey(plan?.slot), planned: !!plan, recipe: !!x.recipe_id, lines, note, flags, partEaten: num(plan?.part_eaten), carbsPlanned: num(plan?.carbs_planned) });
       }
       const doses: Dose[] = [], pricks: Prick[] = [], acts: Activity[] = [];
@@ -134,7 +143,7 @@ export default function DietSheetPage() {
       if (live) setSheets(out);
     })().catch((x) => { if (live) setErr((x as Error).message); }).finally(() => { if (live) setBusy(false); });
     return () => { live = false; };
-  }, [from, to, starts, low, high]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [from, to, starts, low, high, products.length, recipes.length, isEn()]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const span = days && to === isoDay(today) ? days : 0;   // which quick period is showing (0: custom dates)
   const quick = (n: number) => { setFrom(isoDay(today - (n - 1) * DAY)); setTo(isoDay(today)); setCustom(false); };
@@ -208,7 +217,7 @@ function nameOf(raw: string): { text: string; asTyped: boolean } {
   const ar = /[\u0600-\u06FF]/.test(text), lat = /[A-Za-z]{3}/.test(text);
   return { text, asTyped: isEn() ? ar : lat && !ar };
 }
-const Name = ({ raw }: { raw: string }) => { const n = nameOf(raw); return <><bdi>{n.text}</bdi>{n.asTyped ? <sup>†</sup> : null}</>; };
+const Name = ({ raw, named }: { raw: string; named?: boolean }) => { const n = nameOf(raw); return <><bdi>{n.text}</bdi>{n.asTyped && !named ? <sup>†</sup> : null}</>; };
 const roundQ = (q: number) => (q < 10 ? Math.round(q * 2) / 2 : Math.round(q));
 /** "150 ml (~½ cup)": the amount eaten, and a household measure only when one of her saved portions is within 15 %. */
 function amountOf(l: Line, ctx: Ctx): string | null {
@@ -278,14 +287,14 @@ function DayCard({ s, unit, low, high, ctx }: { s: DaySheet; unit: GlucoseUnit; 
               {x.occasions.map((o) => (
                 <div key={o.t} className="space-y-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="min-w-0 text-sm leading-snug"><b className="num">{time(o.t)}</b> · {o.foods.map((f, i) => <span key={i}>{i ? sep() : ''}<Name raw={f.name} /></span>)}</span>
+                    <span className="min-w-0 text-sm leading-snug"><b className="num">{time(o.t)}</b> · {o.foods.map((f, i) => <span key={i}>{i ? sep() : ''}<Name raw={f.name} named={f.named} /></span>)}</span>
                     <b className="num shrink-0 text-kcarb">{carbsText(o.carbs)}</b>
                   </div>
                   <details className="text-xs text-slate-600">
                     <summary className="cursor-pointer text-brand">{t('المكوّنات')}</summary>
                     <ul className="mt-1 space-y-0.5">
                       {o.foods.flatMap((f) => (f.lines?.length ? f.lines : [{ name: f.name, quantity: null, unit: null, carbs: f.carbs, productKey: null }]).map((l, i) => (
-                        <li key={f.t + ':' + i} className="flex justify-between gap-2"><span><Name raw={l.name} />{' · '}{amountOf(l, ctx) ?? <span className="text-slate-400">{t('كمية غير مسجّلة')}</span>}</span><span className="num">{carbsText(l.carbs)}</span></li>
+                        <li key={f.t + ':' + i} className="flex justify-between gap-2"><span><Name raw={l.name} named={l.named} />{' · '}{amountOf(l, ctx) ?? <span className="text-slate-400">{t('كمية غير مسجّلة')}</span>}</span><span className="num">{carbsText(l.carbs)}</span></li>
                       )))}
                       {o.foods.map((f) => partText(f)).filter(Boolean).map((p, i) => <li key={'p' + i}>{p}</li>)}
                       {o.foods.filter((f) => f.note).map((f, i) => <li key={'n' + i}>{t('ملاحظة')}: <bdi>{f.note}</bdi></li>)}
@@ -316,7 +325,7 @@ function DayCard({ s, unit, low, high, ctx }: { s: DaySheet; unit: GlucoseUnit; 
           <div className="text-sm font-bold text-over">{t('علاج الانخفاض')} · {t('المجموع {g} غ', { g: fmt(Math.round(s.totals.treatmentCarbs)) })}</div>
           <ul className="mt-1 space-y-1 text-sm">
             {s.treatments.map((x, i) => (
-              <li key={i}><b className="num">{time(x.t)}</b> · <Name raw={x.name} /> <b className="num">{carbsText(x.carbs)}</b>
+              <li key={i}><b className="num">{time(x.t)}</b> · <Name raw={x.name} named={x.named} /> <b className="num">{carbsText(x.carbs)}</b>
                 <div className="text-xs text-slate-500">{treatLine(x, g)}{x.byCgm ? ` · ${t('حسب الحساس')}` : ''}{x.duplicate ? ` · ${t('مكرر؟')}` : ''}</div></li>
             ))}
           </ul>
@@ -406,8 +415,8 @@ function SheetPage({ s, unit, low, high, child, rapidName, basalName, ratios, ct
               const shown = big.slice(0, maxLines);
               return <>
                 <div>{tm(o)}<b style={{ color: C.carb, fontSize: `${base + 2}pt` }}>{carbsText(o.carbs)}</b>{o.foods.map((f) => partText(f)).filter(Boolean).map((p, i) => <span key={i} style={small}> · {p}</span>)}</div>
-                {o.foods.length > 1 || (o.foods[0].lines?.length ?? 0) > 1 ? <div style={{ fontWeight: 600 }}>{o.foods.map((f, i) => <span key={i}>{i ? sep() : ''}<Name raw={f.name} /></span>)}</div> : null}
-                {shown.map((l, i) => <div key={i}><Name raw={l.name} /><span style={small}> · {amountOf(l, ctx) ?? t('كمية غير مسجّلة')} · {carbsText(l.carbs)}</span></div>)}
+                {o.foods.length > 1 || (o.foods[0].lines?.length ?? 0) > 1 ? <div style={{ fontWeight: 600 }}>{o.foods.map((f, i) => <span key={i}>{i ? sep() : ''}<Name raw={f.name} named={f.named} /></span>)}</div> : null}
+                {shown.map((l, i) => <div key={i}><Name raw={l.name} named={l.named} /><span style={small}> · {amountOf(l, ctx) ?? t('كمية غير مسجّلة')} · {carbsText(l.carbs)}</span></div>)}
                 {big.length > shown.length && <div style={small}>{t('+{n} أخرى', { n: big.length - shown.length })}</div>}
                 {tiny.length > 0 && <div style={small}>+ {tiny.map((l) => nameOf(l.name).text).join(sep())} ({t('أقل من 1 غ')})</div>}
                 {dense < 2 && <div style={small}>{[sumText(o.fat, t('غ دهون')), sumText(o.protein, t('غ بروتين')), o.fiber.v !== null ? sumText(o.fiber, t('غ ألياف')) : null, o.kcal.v !== null ? `${o.kcal.partial ? '≥ ' : ''}${t('{n} سعرة', { n: Math.round(o.kcal.v) })}` : null].filter(Boolean).join(' · ')}</div>}
@@ -446,7 +455,7 @@ function SheetPage({ s, unit, low, high, child, rapidName, basalName, ratios, ct
           <tr>
             <td style={{ ...label, color: C.low }}>{t('علاج الانخفاض')}</td>
             <td colSpan={5} style={cell}>{s.treatments.length ? <>
-              {s.treatments.map((x, i) => <span key={i} style={{ marginInlineEnd: '3mm', display: 'inline-block' }}><b>{time(x.t)}</b> <Name raw={x.name} /> <b style={{ color: C.low }}>{carbsText(x.carbs)}</b> <span style={small}>({treatLine(x, g)}{x.byCgm ? ` · ${t('حسب الحساس')}` : ''}{x.duplicate ? ` · ${t('مكرر؟')}` : ''})</span></span>)}
+              {s.treatments.map((x, i) => <span key={i} style={{ marginInlineEnd: '3mm', display: 'inline-block' }}><b>{time(x.t)}</b> <Name raw={x.name} named={x.named} /> <b style={{ color: C.low }}>{carbsText(x.carbs)}</b> <span style={small}>({treatLine(x, g)}{x.byCgm ? ` · ${t('حسب الحساس')}` : ''}{x.duplicate ? ` · ${t('مكرر؟')}` : ''})</span></span>)}
               <b> · {t('المجموع {g} غ', { g: fmt(Math.round(s.totals.treatmentCarbs)) })}</b>
             </> : <span style={small}>{t('لا يوجد')}</span>}</td>
           </tr>

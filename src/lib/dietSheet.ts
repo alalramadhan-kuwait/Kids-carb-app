@@ -18,11 +18,13 @@ export const AFTER_MIN = 120;          // "after eating" = 2 hours after the sta
 export const BUMP = { fromMin: 120, toMin: 300, riseMg: 36 } as const; // a late rise: +2 mmol/L between 2 and 5 h
 
 /** One ingredient of a logged entry, as logged (the page formats the amount). */
-export interface Line { name: string; quantity: number | null; unit: string | null; carbs: number | null; productKey: string | null }
+export interface Line { name: string; quantity: number | null; unit: string | null; carbs: number | null; productKey: string | null; /** the name came from the catalogue in the page's language */ named?: boolean }
 export type Flag = 'estimate' | 'imported' | 'review' | 'recipe' | 'unnamed' | 'duplicate';
 export interface Food {
   t: number; name: string; detail: string | null; carbs: number; fat: number | null; protein: number | null; kcal: number | null; fiber: number | null;
   id?: string;
+  /** the name came from the catalogue in the page's language (no † needed) */
+  named?: boolean;
   /** the meal it was planned as (breakfast…dinner, or 'snack'); wins over the clock */
   slot?: SlotKey | 'snack' | null;
   /** a recipe or a planned meal is never a low treatment, whatever its size */
@@ -41,7 +43,7 @@ export interface Dose {
 }
 export interface Prick { t: number; mg: number }
 export interface Treat {
-  t: number; name: string; carbs: number;
+  t: number; name: string; carbs: number; named?: boolean;
   /** found by the sensor (a small snack logged while she was low), not logged as a treatment */
   byCgm?: boolean;
   startMg?: number | null; lowestMg?: number | null; after15?: number | null; followedByFood?: boolean; duplicate?: boolean;
@@ -140,7 +142,7 @@ export function buildDay(start: number, starts: SlotStarts, d: { foods: Food[]; 
   // 1. low treatments: logged as such, or a small snack eaten while the sensor read low
   const treatAll: Treat[] = [...d.treatments];
   const foodsAll: Food[] = [];
-  for (const f of d.foods) (isTreatment(f, d.series, d.low) ? treatAll.push({ t: f.t, name: f.name, carbs: f.carbs, byCgm: true }) : foodsAll.push(f));
+  for (const f of d.foods) (isTreatment(f, d.series, d.low) ? treatAll.push({ t: f.t, name: f.name, named: f.named, carbs: f.carbs, byCgm: true }) : foodsAll.push(f));
   const foods = foodsAll.filter((f) => inDay(f.t)).sort((a, b) => a.t - b.t);
   // 2. columns: the meal it was planned as, else the clock
   const night: Food[] = [];

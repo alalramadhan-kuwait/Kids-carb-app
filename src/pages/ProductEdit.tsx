@@ -19,6 +19,8 @@ export default function ProductEdit() {
 
   const [name, setName] = useState(p?.name ?? '');
   const [brand, setBrand] = useState(p?.brand ?? '');
+  const [nameAr, setNameAr] = useState(p?.name_ar ?? '');
+  const [nameEn, setNameEn] = useState(p?.name_en ?? '');
   const [category, setCategory] = useState(p?.category ?? sp.get('category') ?? '');
   const [kind, setKind] = useState<'natural' | 'commercial'>(p?.kind ?? 'commercial');
   const [image, setImage] = useState(p?.image_path ?? null);
@@ -54,7 +56,7 @@ export default function ProductEdit() {
     setBusy(true);
     try {
       await saveProduct({
-        id: p?.id, name: name.trim(), brand: brand.trim() || null, category: category.trim(), kind, image_path: image, source_url: source.trim() || null, unit,
+        id: p?.id, name: name.trim(), name_ar: nameAr.trim() || null, name_en: nameEn.trim() || null, brand: brand.trim() || null, category: category.trim(), kind, image_path: image, source_url: source.trim() || null, unit,
         pack_size: packSize, carbs_per_100: derived.per100, serving_size: serving, carbs_per_serving: derived.perServing,
         fat_per_100: fat, fiber_per_100: fiber, protein_per_100: protein, kcal_per_100: kcal,
         ...Object.fromEntries((Object.keys(MICRO_FIELD) as Micro[]).map((m) => [MICRO_FIELD[m], micro[m]])), food_group: group || null,
@@ -73,6 +75,10 @@ export default function ProductEdit() {
       <div className="space-y-4">
         <Card className="space-y-3">
           <Field label={t('اسم المنتج')}><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label={t('الاسم بالعربي')}><input className={inputCls} dir="rtl" value={nameAr} onChange={(e) => setNameAr(e.target.value)} placeholder={name} /></Field>
+            <Field label={t('الاسم بالإنجليزي')}><input className={inputCls} dir="ltr" value={nameEn} onChange={(e) => setNameEn(e.target.value)} placeholder={name} /></Field>
+          </div>
           <Field label={t('الشركة')}><input className={inputCls} value={brand} onChange={(e) => setBrand(e.target.value)} placeholder={t('مثل: المطاحن، KDD، Americana')} /></Field>
           <Field label={t('الفئة')}>
             <input className={inputCls} list="pcats" value={category} onChange={(e) => setCategory(e.target.value)} />

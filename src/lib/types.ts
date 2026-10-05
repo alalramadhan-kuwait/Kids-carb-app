@@ -8,6 +8,8 @@ export type Role = 'main' | 'drink' | 'snack';
 export interface Product {
   id: string;
   name: string;
+  /** curated names in each language (reports show one language); null: use `name` */
+  name_ar?: string | null; name_en?: string | null;
   brand: string | null;
   category: string;
   kind: 'natural' | 'commercial';
@@ -56,6 +58,7 @@ export interface Ingredient {
 export interface Recipe {
   id: string;
   name: string;
+  name_ar?: string | null; name_en?: string | null;
   category: string | null;
   image_path: string | null;
   instructions: string | null;
