@@ -143,6 +143,27 @@ export function MomHome() {
 }
 
 /** LibreLinkUp-style graph: last 12 h, fixed axis, target band, dashed low (red) and high (orange) lines, big last dot. */
+/** A monotone cubic curve (Fritsch–Carlson) through the points: smooth, and never above or below the real values
+ *  between two of them. Breaks into separate pieces where readings are missing for longer than `gap`. */
+function smoothPath(p: { x: number; y: number; t: number }[], gap: number): string {
+  let d = '';
+  const runs: typeof p[] = [];
+  for (const q of p) { const r = runs[runs.length - 1]; if (r && q.t - r[r.length - 1].t <= gap) r.push(q); else runs.push([q]); }
+  for (const r of runs) {
+    d += `M${r[0].x.toFixed(1)},${r[0].y.toFixed(1)}`;
+    if (r.length < 2) continue;
+    const k = r.length, dx: number[] = [], m: number[] = [], tan: number[] = [];
+    for (let i = 0; i < k - 1; i++) { dx[i] = r[i + 1].x - r[i].x; m[i] = dx[i] ? (r[i + 1].y - r[i].y) / dx[i] : 0; }
+    tan[0] = m[0]; tan[k - 1] = m[k - 2];
+    for (let i = 1; i < k - 1; i++) tan[i] = m[i - 1] * m[i] <= 0 ? 0 : (3 * (dx[i - 1] + dx[i])) / ((2 * dx[i] + dx[i - 1]) / m[i - 1] + (dx[i] + 2 * dx[i - 1]) / m[i]);
+    for (let i = 0; i < k - 1; i++) {
+      const h = dx[i] / 3;
+      d += `C${(r[i].x + h).toFixed(1)},${(r[i].y + tan[i] * h).toFixed(1)} ${(r[i + 1].x - h).toFixed(1)},${(r[i + 1].y - tan[i + 1] * h).toFixed(1)} ${r[i + 1].x.toFixed(1)},${r[i + 1].y.toFixed(1)}`;
+    }
+  }
+  return d;
+}
+
 function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, meals }: { aspect: number; s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: number[] }) {
   const W = 340, PL = 6, PR = 30, PT = 8, HH = Math.max(160, Math.round(W * aspect)), PH = HH - PT - 44;
   const t0 = now - 12 * H;
@@ -150,11 +171,21 @@ function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, mea
   const ticks = unit === 'mmol' ? [3, 6, 9, 12, 15, 18, 21].map((v) => v * 18.016) : [50, 100, 150, 200, 250, 300, 350];
   const x = (t: number) => PL + ((t - t0) / (12 * H)) * (W - PL - PR);
   const y = (v: number) => PT + PH - ((Math.min(Math.max(v, bottom), top) - bottom) / (top - bottom)) * PH;
-  let d = '', prev = 0, lastV: number | null = null, lastT = 0;
+  // like Libre's graph: one point per 15 minutes (their average) and the newest reading, joined by a smooth curve
+  // that never overshoots the real values; a gap of more than 20 minutes stays a gap
+  let lastV: number | null = null, lastT = 0;
+  const pts: { t: number; v: number }[] = [];
+  let bucket = -1, sum = 0, n = 0, bt = 0;
+  const flush = () => { if (n) pts.push({ t: bt / n, v: sum / n }); sum = 0; n = 0; bt = 0; };
   for (let i = 0; i < s.t.length; i++) {
     const t = s.t[i]; if (t < t0 || t > now + 60000) continue;
-    d += `${!d || t - prev > 20 * 60000 ? 'M' : 'L'}${x(t).toFixed(1)},${y(s.v[i]).toFixed(1)}`; prev = t; lastV = s.v[i]; lastT = t;
+    const b = Math.floor(t / (15 * 60000));
+    if (b !== bucket) { flush(); bucket = b; }
+    sum += s.v[i]; bt += t; n++; lastV = s.v[i]; lastT = t;
   }
+  flush();
+  if (lastV !== null && pts.length) pts[pts.length - 1] = { t: lastT, v: lastV };
+  const d = smoothPath(pts.map((p) => ({ x: x(p.t), y: y(p.v), t: p.t })), 20 * 60000);
   const dot = lastV === null ? '#64748b' : lastV < low ? '#c62f3a' : lastV > high ? '#c27a00' : '#2f8f55'; // the newest reading drawn, same as the box
   const first = Math.ceil(t0 / (3 * H)) * 3 * H; const hours = [0, 1, 2, 3].map((k) => first + k * 3 * H).filter((h) => h <= now);
   return (
