@@ -2521,6 +2521,32 @@ test('Topi cheese is found by «توبي» and «جبن»', async () => {
 }
 
 {
+  const S = await import('../../engine/sameMeal');
+  const h = (id: string, at: string, carbs: number, lines: [string, number][], name = id) => ({ id, kind: 'meal', recipe_id: null, name, category: null, eaten_at: at, total_carbs: carbs,
+    lines: lines.map(([n, c]) => ({ name: n.split(' — ')[0], product: n, quantity: 1, unit: 'serving', state: 'as_is', role: 'main', carbs: c })) }) as any;
+  const fri = [h('n', '2026-10-02T18:22:29Z', 15, [["Chicken McNuggets 6 pcs — McDonald's", 15]]), h('f', '2026-10-02T18:22:37Z', 42.8, [["World Famous Fries (Regular) — McDonald's", 42.8]])];
+  const mon = h('d', '2026-10-05T16:32:48Z', 53.7, [["Chicken McNuggets 6 pcs — McDonald's", 18], ["Fries (Small) — McDonald's", 24.7], ["Barbeque Sauce (صوص باربيكيو) — McDonald's", 11]]);
+  const other = h('r', '2026-10-03T12:00:00Z', 45, [['Rice with stew + Fish', 45]]);
+  test('same meal: food words without brand, size or count', () => {
+    assert.deepEqual(S.foodKey("World Famous Fries (Regular) — McDonald's"), ['fries']);
+    assert.deepEqual(S.foodKey('Chicken McNuggets 6 pcs'), ['chicken', 'mcnuggets']);
+    assert.deepEqual(S.foodKey('1.2.3 Cocktail Drink (Kids) 125ml'), ['1.2.3', 'cocktail', 'drink']);
+    assert.ok(S.sameFood(['fries'], ['fries']) && S.sameFood(['chicken', 'mcnuggets'], ['mcnuggets']) && !S.sameFood(['fries'], ['rice']));
+    assert.deepEqual(S.foodKey('أرز أبيض مطبوخ'), S.foodKey('رز أبيض مطبوخ'), 'one rice, two spellings'); // i18n-ok
+    assert.ok(S.sameFood(S.foodKey('عيش أبيض'), S.foodKey('رز أبيض مطبوخ')), 'عيش is rice'); // i18n-ok
+  });
+  test('same meal: Friday nuggets and fries logged as two entries match Monday\'s one dinner with sauce', () => {
+    const all = S.sittings([...fri, other, mon]);
+    assert.equal(all.length, 3, 'the two Friday entries are one sitting');
+    const target = S.sittingOf('d', all)!;
+    const found = S.sameMeals(target, all);
+    assert.deepEqual(found.map((x) => x.s.id), ['n'], 'Friday, not the rice');
+    assert.ok(Math.abs(found[0].score - 42.7 / 53.7) < 0.01, 'the sauce is the only part Friday did not have');
+    assert.deepEqual(S.sameMeals(S.sittingOf('r', all)!, all), [], 'nothing like the rice before');
+  });
+}
+
+{
   const { activityMessage, activityRecipients } = await import('../../../supabase/functions/carb-activity/activity');
   const strip = (x: string) => x.replace(/[\u2066\u2069]/g, '');
   const at = new Date(Date.UTC(2026, 9, 5, 17, 5)).toISOString(); // 8:05 PM in Kuwait

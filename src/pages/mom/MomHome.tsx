@@ -13,6 +13,7 @@ import { usePlans } from '../../lib/plans';
 import { draftOps, useSensor } from '../../lib/mom';
 import { phase } from '../../engine/mealPlan';
 import { cx } from '../../components/ui';
+import { SameMealLink, useRecentSame } from '../../components/SameMeal';
 import { t } from '../../i18n';
 import { Big, PEN, PEN_NAME, PenBar, TABS_PAD, ago, clock, dayWord, glucoseText, left, sensorLeft } from './MomUI';
 
@@ -29,6 +30,7 @@ const MOOD: Record<Mood, { bg: string; word: string; todo: string }> = {
 export function MomHome() {
   const nav = useNavigate();
   const focusAt = Number(useSearchParams()[0].get('at')) || null; // a tapped "Rawan added …" push
+  const same = useRecentSame();
   // the graph fills its box: its drawing height follows the box's shape (no empty bands on tall phones)
   const box = useRef<HTMLDivElement>(null);
   const [aspect, setAspect] = useState(0.8);
@@ -108,6 +110,9 @@ export function MomHome() {
         ))}
         {nextAt && !lowNow && <div className="mb-1 rounded-xl bg-near-soft px-3 py-1.5 text-[16px] font-bold text-near">{t('لا نوفورابيد قبل الساعة {c}', { c: clock(nextAt) })}</div>}
       </div>
+
+      {same && <SameMealLink to={`/mom/same/${same.target.id}`} target={same.target} matches={same.matches}
+        className="flex min-h-[48px] shrink-0 items-center gap-2 rounded-3xl bg-brand-soft px-4 py-2 text-[17px] font-bold text-brand" />}
 
       {sensor && (sensorSoon || !sensor.site) && (
         <Link to="/mom/sensor" className={cx('flex shrink-0 items-center gap-3 rounded-2xl px-4 py-2 text-[16px] font-bold', sensorSoon ? 'bg-over-soft text-over' : 'bg-white text-brand')}>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SameMealLink, useSameMeal } from './SameMeal';
 import { useData } from '../lib/data';
 import { canLogAgain, mealSlot, similar } from '../lib/entryActions';
 import { eventAgain, mealAgain, setEntryNote, setEntryTime } from '../lib/entrySave';
@@ -33,6 +34,7 @@ export function EntryActions({ e, h, onEdit, onRemove, onOpenOther, onClose }: {
   const [pick, setPick] = useState(at);
   const edited = (h ?? e)?.edited_at;
   const before = h ? similar(h, history) : [];
+  const same = useSameMeal(h?.id);
   const run = async (f: () => Promise<void>) => { setBusy(true); try { await f(); } catch (x) { toast((x as Error).message); } finally { setBusy(false); } };
 
   const again = () => run(async () => {
@@ -94,6 +96,7 @@ export function EntryActions({ e, h, onEdit, onRemove, onOpenOther, onClose }: {
         </div>
       )}
 
+      {same && same.matches.length > 0 && <SameMealLink to={`/same/${same.target.id}`} target={same.target} matches={same.matches} />}
       {before.length > 0 && (
         <div>
           <div className="mb-1 text-sm font-bold">{t('مرات سابقة')}</div>

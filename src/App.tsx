@@ -48,6 +48,7 @@ import { MomEntry } from './pages/mom/MomEntry';
 import { Alarm } from './components/Alarm';
 import { useKeepAwake } from './lib/keepAwake';
 import { MomLog } from './pages/mom/MomLog';
+import { SameMealPage, MomSame } from './pages/SameMeal';
 import { MomActivity, MomMore, MomPlanView, MomPlans, MomSensor, MomWhen } from './pages/mom/MomPlan';
 import { MomTabs } from './pages/mom/MomUI';
 import { PortionEdit, PortionList } from './pages/Portions';
@@ -251,6 +252,8 @@ function Shell() {
         <Route path="/mom/compare" element={<MomCompare />} />
         <Route path="/mom/sensor" element={<MomSensor />} />
         <Route path="/mom/activity" element={<MomActivity />} />
+        <Route path="/mom/same/:id" element={<MomSame />} />
+        <Route path="/same/:id" element={<SameMealPage />} />
         <Route path="/mom/when" element={<MomWhen />} />
         <Route path="/mom/plans" element={<MomPlans />} />
         <Route path="/mom/plan/:id" element={<MomPlanView />} />

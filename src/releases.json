@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.46.0",
+    "notes": [
+      "نفس الوجبة: لما تاكل ليان وجبة أكلتها قبل، يطلع تحت الرسم «🔁 نفس وجبة الجمعة … قارن». تفتح رسم السكر لهالمرة فوق المرات اللي قبل، كلها من أول لقمة، مع الكارب والجرعة ووقتها والأعلى وبعد ساعتين.",
+      "يعرف الوجبة حتى لو انسجلت بشكل مختلف: أصناف مسجّلة كل واحد لحاله، أو حجم ثاني (بطاطس صغير أو عادي)، أو صوص زيادة.",
+      "تفتح المقارنة أيضًا من تفاصيل أي وجبة في السجل."
+    ],
+    "notes_en": [
+      "Same meal: when Layan eats a meal she had before, “🔁 Same meal as Friday … Compare” appears under the graph. It opens this time's glucose over the earlier times, all from the first bite, with carbs, dose and its timing, the highest reading and the reading 2 hours after.",
+      "It recognises the meal even when it was logged differently: items logged one by one, another size (small or regular fries), or an extra sauce.",
+      "The comparison also opens from any meal's details in the log."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.45.5",
     "notes": [
       "لما أحد الوالدين يسجّل إبرة نوفورابيد أو تريسيبا أو وجبة أو علاج انخفاض أو قياس وخز، يوصل إشعار للثاني: مثلاً «نوفورابيد 4 وحدة · من رَوان». اللي سجّل ما يوصله إشعار.",

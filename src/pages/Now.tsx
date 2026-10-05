@@ -39,6 +39,7 @@ import { NextDose } from '../components/NextDose';
 import { OnBoardLanes } from '../components/OnBoardLanes';
 import { GrowthCard } from '../components/GrowthCard';
 import { PlanLines } from '../components/Plans';
+import { SameMealLink, useRecentSame } from '../components/SameMeal';
 import { arrowSource, shownLevel } from '../lib/arrowChoice';
 
 const TONE_DOT: Record<Tone, string> = { ok: 'bg-ok-fill', low: 'bg-over-fill', urgent: 'bg-over', high: 'bg-near-fill', warn: 'bg-near-fill', plain: 'bg-slate-300' };
@@ -139,6 +140,8 @@ export default function Now() {
         )}
         {/* the graph runs edge to edge with no box around it, so it can use the whole width and plenty of height */}
         {g?.connected && <HomeChart live={g.readings} />}
+        {/* she just ate a meal she had before: one tap shows both curves over each other */}
+        <RecentSame />
         {/* insulin and carbs still working, as two thin timelines: how much is left, from what, for how long */}
         {!notConnected && <OnBoardLanes statusLink={!(sensor && sensor.state !== 'ok')} />}
 
@@ -273,6 +276,11 @@ function Line({ icon, text, when, who, tone }: { icon: IconName; text: React.Rea
  * on the rail, long-press to read any point), full width, three hours ending now. It can be dragged back in time;
  * «الآن» brings it back.
  */
+function RecentSame() {
+  const same = useRecentSame();
+  return same ? <SameMealLink to={`/same/${same.target.id}`} target={same.target} matches={same.matches} /> : null;
+}
+
 function HomeChart({ live }: { live: Reading[] }) {
   const { settings, history, events } = useData();
   const SPAN = 3 * 3600000;
