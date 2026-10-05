@@ -17,7 +17,7 @@ import { buildCsv } from '../export';
 import { adrrBand, grid, hbgiBand, lbgiBand, riskF, variability } from '../../engine/variability';
 import { findPatterns, visible } from '../../engine/patterns';
 import { ACT_DELAY_MIN, activityAt, activityFraction, activityPeaks, carbLane, cobAt, dosesFrom, insulinLane, iobAt, iobFraction, iobParamsOk } from '../../engine/iob';
-import { doseSteps, suggestDose } from '../../engine/dose';
+import { doseSteps, mealChangeDose, suggestDose } from '../../engine/dose';
 import { GRID, alignCurve, assess, buildOccurrence, coverage, medianCurve, summary, windowSeries } from '../../engine/meals';
 import { ackMessage, alertMessage, evaluate, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
@@ -838,6 +838,14 @@ test('CSV export: Kuwait time, both units, logged entries in order, commas quote
   assert.equal(lines[1], '2026-10-01 07:05,إنسولين,,,,3,سريع,"قبل الفطور, بسرعة",ماما');
   assert.equal(lines[2], '2026-10-01 07:15,قراءة,126,7.0,,,,,');
   assert.ok(lines[3].startsWith('2026-10-01 07:20,وجبة,,,42'));
+});
+
+test('a meal edited after its dose: the extra food dose at the same ratio, rounded down; less food is a warning', () => {
+  const more = mealChangeDose(42, 67.8, 15, 1);
+  assert.ok(Math.abs(more.raw - 1.72) < 0.01); assert.equal(more.extra, 1); assert.equal(more.over, 0);
+  assert.equal(mealChangeDose(42, 50, 15, 1).extra, 0, '8 g more is under one unit at 1:15');
+  assert.equal(mealChangeDose(42, 50, 15, 0.5).extra, 0.5);
+  const less = mealChangeDose(60, 30, 15, 1); assert.equal(less.extra, 0); assert.equal(less.over, 2); assert.equal(less.diff, -30);
 });
 
 test('the saved dose is told back step by step with the same arithmetic', () => {

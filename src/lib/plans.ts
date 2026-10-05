@@ -72,6 +72,16 @@ export async function setDoseTime(p: PlannedMeal, at: number, me: string | null)
   }
   await patch(p.id, { dosed_at: iso, dose_at: iso });
 }
+/** More food after the dose: the extra dose is logged as a second meal dose; the plan adds it to what was given and
+ *  calculated, and keeps the new carbs it now covers. */
+export async function topUpDose(p: PlannedMeal, d: { given: number; calc: number; carbs: number }) {
+  const id = await saveEvent({
+    client_id: uuid(), kind: 'insulin', occurred_at: new Date().toISOString(), insulin_units: d.given, insulin_type: 'rapid', bolus_purpose: 'meal',
+    carbs_g: null, treatment: null, note: 'إضافة للوجبة بعد تعديلها', /* i18n-ok: stored, shown with tMaybe */ activity_min: null, activity_level: null, ends_at: null, dose_calc: null, bg_mgdl: null,
+  });
+  if (!id) throw new Error('save');
+  await patch(p.id, { given_units: (p.given_units ?? 0) + d.given, calc_units: (p.calc_units ?? 0) + d.calc, carbs_planned: Math.round(d.carbs * 10) / 10 });
+}
 export async function deletePlan(id: string) {
   const { error } = await supabase.from('planned_meals').delete().eq('id', id);
   if (error) throw new Error(error.message);

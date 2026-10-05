@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.45.0",
+    "notes": [
+      "إذا عدّلتوا الوجبة بعد الجرعة، الجرعة تنحسب من جديد بنفس نسبة الكارب: إذا زاد الأكل يطلع «أعطِ X وحدة إضافية» وتنسجل مع الوجبة؛ وإذا قلّ يطلع تنبيه إن الجرعة أكثر من الأكل وراقبوا السكر."
+    ],
+    "notes_en": [
+      "If you edit the meal after the dose, the dose is worked out again at the same carb ratio: more food shows “Give X extra units” and logs it with the meal; less food shows a warning that the dose is more than the food, so watch her glucose."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.44.0",
     "notes": [
       "بعد ما تعطون الجرعة من الخطة، تقدرون تغيّرون وقت الجرعة (إذا انعطت قبل أو بعد الضغطة)، ووقت الأكل يتحرك معها.",

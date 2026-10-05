@@ -81,3 +81,16 @@ export function doseSteps(s: { carbs: number; cr: number; glucose: number; isf: 
   const step = s.pen_step ?? 1;
   return { carbs: s.carbs, cr: s.cr, food, glucose: s.glucose, target: s.target, isf: s.isf, side, correction, iob: s.iob, iobUsed, raw, step, dose: Math.floor(raw / step + 1e-9) * step };
 }
+
+/**
+ * The meal changed after its dose was given: the same carb ratio applied to the difference. More food → the extra
+ * food dose, rounded down to the pen step like every dose; less food → how much of the given insulin now has no food
+ * (shown as a warning, never "taken back"). The correction part of the first dose is not touched. Display only until
+ * a parent gives it.
+ */
+export function mealChangeDose(oldCarbs: number, newCarbs: number, cr: number, step: number) {
+  const diff = newCarbs - oldCarbs;
+  const raw = diff / cr;
+  const extra = raw > 0 ? Math.floor(raw / step + 1e-9) * step : 0;
+  return { diff, raw, extra, over: raw < 0 ? -raw : 0 };
+}

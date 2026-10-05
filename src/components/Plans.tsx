@@ -4,7 +4,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
-import { approveDose, ate, deletePlan, planMeal, savePlan, setDoseTime, skipPlan, treatFromPlan, usePlanHistory, usePlans } from '../lib/plans';
+import { mealChangeDose } from '../engine/dose';
+import { approveDose, ate, deletePlan, planMeal, savePlan, setDoseTime, skipPlan, topUpDose, treatFromPlan, usePlanHistory, usePlans } from '../lib/plans';
 import { useLiveDose } from '../lib/useLiveDose';
 import { eatAt, expectedDose, isFastDrink, phase, planAlerts, remindAt, upcoming, type PlanAlert, type Phase, type Slot } from '../engine/mealPlan';
 import { fmt } from '../lib/carbs';
@@ -321,6 +322,9 @@ function CheckBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =
         </div>
       )}
 
+      {/* the meal changed after the dose: the difference at the same ratio (more food: the extra dose; less: a warning) */}
+      {dosed && <MealChange plan={plan} carbs={meal.total.carbs} complete={meal.complete} ratio={live.ratio?.cr ?? null} />}
+
       {/* after the dose: when it was really given can still be set (the eating time follows) */}
       {dosed && plan.dosed_at && <DoseTimeRow plan={plan} />}
 
@@ -342,6 +346,32 @@ function CheckBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =
         <button className="min-h-[44px] font-bold text-brand" onClick={() => { onClose(); onEdit(plan); }}>{dosed ? t('تعديل الوجبة') : t('تعديل الخطة')}</button>
         <button className="min-h-[44px] text-slate-500" disabled={busy} onClick={() => run(() => skipPlan(plan.id), t('أُلغيت الخطة'))}>{t('لم تُؤكل · إلغاء')}</button>
       </div>
+    </div>
+  );
+}
+
+/** After the dose the meal was edited: what the dose was for, the carbs now, and the extra at the same carb ratio. */
+function MealChange({ plan, carbs, complete, ratio }: { plan: PlannedMeal; carbs: number; complete: boolean; ratio: number | null }) {
+  const { settings, reload } = useData();
+  const [busy, setBusy] = useState(false);
+  const was = plan.carbs_planned ?? plan.dose_snapshot?.carbs ?? null;
+  const cr = plan.dose_snapshot?.cr ?? ratio;
+  if (was === null || !cr || !complete || Math.abs(carbs - was) < 1) return null;
+  const step = settings.pen_step ?? 1;
+  const c = mealChangeDose(was, carbs, cr, step);
+  const r1 = (x: number) => Math.round(x * 10) / 10;
+  return (
+    <div className={cx('space-y-2 rounded-2xl p-3 text-sm', c.diff > 0 ? 'bg-brand-soft' : 'bg-near-soft')}>
+      <div className="font-bold">{t('الوجبة تغيّرت بعد الجرعة: {a} غ ← {b} غ', { a: fmt(r1(was)), b: fmt(r1(carbs)) })}</div>
+      <div className="text-slate-700">{t('بنفس نسبة الكارب (1 لكل {cr} غ): {d} غ = {u} وحدة', { cr: fmt(cr), d: (c.diff > 0 ? '+' : '−') + fmt(r1(Math.abs(c.diff))), u: (c.diff > 0 ? '+' : '−') + r1(Math.abs(c.raw)).toFixed(1) })}</div>
+      {c.diff > 0 ? (c.extra > 0 ? (
+        <Btn kind="primary" block disabled={busy} onClick={async () => {
+          setBusy(true);
+          try { await topUpDose(plan, { given: c.extra, calc: c.extra, carbs }); await reload(); toast(t('سُجّلت {u} وحدة إضافية', { u: fmt(c.extra) })); } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
+        }}>{t('أعطِ {u} وحدة إضافية الآن', { u: fmt(c.extra) })}</Btn>
+      ) : <p className="text-slate-600">{t('أقل من خطوة القلم ({s} و): لا جرعة إضافية', { s: fmt(step) })}</p>)
+        : <p className="font-medium text-near">{t('الجرعة المعطاة أكثر من الوجبة الجديدة بحوالي {u} وحدة. راقبوا السكر، قد ينزل.', { u: r1(c.over).toFixed(1) })}</p>}
+      {c.extra > 0 && <p className="text-[11px] text-slate-500">{t('من خطة الطبيب. راجعوا الرقم قبل الإعطاء.')}</p>}
     </div>
   );
 }
