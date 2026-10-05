@@ -1,6 +1,24 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.40.0",
+    "notes": [
+      "جدول أخصائية التغذية صار أدق: العصير أو السناك اللي ينعطى وقت الانخفاض ينحسب «علاج انخفاض» حسب الحساس، وله سطر خاص، وما يدخل في الوجبات.",
+      "الوجبة تنحط في عمودها الصحيح (فطور، غدا…) حسب الخطة، مو حسب الساعة بس. وكل وقت أكل له قراءته قبل وبعد ساعتين وجرعته.",
+      "كل مكوّن ينكتب بكميته وكاربه (مثلاً العسل والقيمر والخبز)، و«أكلت ¾».",
+      "تنبيهات واضحة للأخصائية: «انخفاض بعد الأكل»، «متأثرة بأكل أو علاج»، «بدأت وهي منخفضة»، وتقسيم الجرعة وجبة + تصحيح.",
+      "المجاميع الناقصة تبين «ناقص»، والأيام بلا بيانات «غير مسجّل»."
+    ],
+    "notes_en": [
+      "The dietitian sheet is more accurate: juice or a snack given during a low now counts as a “low treatment” using the sensor, has its own row, and is kept out of meals.",
+      "Each meal goes in its real column (breakfast, lunch…) from the plan, not only by the clock, and each time she ate has its own before / 2 h after reading and dose.",
+      "Every ingredient is listed with its amount and carbs (e.g. the honey, qeemar and bread), plus “ate ¾”.",
+      "Clear flags for the dietitian: “low after meal”, “affected by food or treatment”, “started while low”, and the dose split meal + correction.",
+      "Incomplete totals say “incomplete”, and days without data say “not recorded”."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.39.0",
     "notes": [
       "«جدول أخصائية التغذية» صار في «المزيد ← التقارير والمشاركة».",

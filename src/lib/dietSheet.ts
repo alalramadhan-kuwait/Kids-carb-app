@@ -17,26 +17,68 @@ export const DEFAULT_STARTS: SlotStarts = { breakfast: 5 * 60, snack1: 10 * 60, 
 export const AFTER_MIN = 120;          // "after eating" = 2 hours after the start of the meal (the usual check)
 export const BUMP = { fromMin: 120, toMin: 300, riseMg: 36 } as const; // a late rise: +2 mmol/L between 2 and 5 h
 
-export interface Food { t: number; name: string; detail: string | null; carbs: number; fat: number | null; protein: number | null; kcal: number | null; fiber: number | null }
-export interface Dose { t: number; units: number; type: 'rapid' | 'long'; purpose: string | null }
+/** One ingredient of a logged entry, as logged (the page formats the amount). */
+export interface Line { name: string; quantity: number | null; unit: string | null; carbs: number | null; productKey: string | null }
+export type Flag = 'estimate' | 'imported' | 'review' | 'recipe' | 'unnamed' | 'duplicate';
+export interface Food {
+  t: number; name: string; detail: string | null; carbs: number; fat: number | null; protein: number | null; kcal: number | null; fiber: number | null;
+  id?: string;
+  /** the meal it was planned as (breakfast…dinner, or 'snack'); wins over the clock */
+  slot?: SlotKey | 'snack' | null;
+  /** a recipe or a planned meal is never a low treatment, whatever its size */
+  recipe?: boolean; planned?: boolean;
+  lines?: Line[]; note?: string | null; flags?: Flag[];
+  /** part of the planned meal eaten (0–1) and the planned carbs */
+  partEaten?: number | null; carbsPlanned?: number | null;
+}
+export interface Dose {
+  t: number; units: number; type: 'rapid' | 'long'; purpose: string | null;
+  id?: string;
+  /** the meal entry this dose was given for (from the plan), when known */
+  forFood?: string | null;
+  /** what the calculator said: units for food and for correction, and the carbs it was worked out for */
+  calc?: { food: number; correction: number; carbs: number | null; suggested: number | null } | null;
+}
 export interface Prick { t: number; mg: number }
-export interface Treat { t: number; name: string; carbs: number }
+export interface Treat {
+  t: number; name: string; carbs: number;
+  /** found by the sensor (a small snack logged while she was low), not logged as a treatment */
+  byCgm?: boolean;
+  startMg?: number | null; lowestMg?: number | null; after15?: number | null; followedByFood?: boolean; duplicate?: boolean;
+}
 export interface Activity { t: number; text: string }
 
 export interface Reading { mg: number; t: number; prick: boolean }
 export interface Bump { rise: number; peakAt: number; fromMg: number; toMg: number }
+/** A sum that may be missing parts: v is what is known, partial when some items had no value. */
+export interface Sum { v: number | null; partial: boolean }
+/** One time she ate within a column (items less than 30 minutes apart). */
+export interface Occasion {
+  t: number; foods: Food[]; carbs: number; fat: Sum; protein: Sum; kcal: Sum; fiber: Sum;
+  before: Reading | null; after: Reading | null;
+  /** what else happened between eating and the 2-hour reading, so the reading is not the meal's alone */
+  affected: { kind: 'food' | 'treatment' | 'correction'; t: number }[];
+  startedLow: boolean;
+  /** the lowest reading within 4 hours, when it went below range */
+  lowAfter: { mg: number; t: number } | null;
+  doses: Dose[]; fatty: boolean; noFatData: boolean; bump: Bump | null;
+}
 export interface Slot {
-  key: SlotKey; foods: Food[]; carbs: number; fat: number | null; protein: number | null; kcal: number | null; fiber: number | null;
+  key: SlotKey; occasions: Occasion[];
+  // the column as a whole (first occasion for times and readings), kept for the summary and the tests
+  foods: Food[]; carbs: number; fat: number | null; protein: number | null; kcal: number | null; fiber: number | null;
   start: number | null; before: Reading | null; after: Reading | null; afterNextMeal: boolean; doses: Dose[];
   fatty: boolean; noFatData: boolean; bump: Bump | null;
 }
 export interface DaySheet {
   start: number; slots: Slot[]; night: Food[]; treatments: Treat[]; otherDoses: Dose[]; basal: Dose[]; activities: Activity[];
-  totals: { carbs: number; fat: number | null; protein: number | null; kcal: number | null; rapid: number; basal: number; treatmentCarbs: number };
+  totals: { carbs: number; fat: number | null; protein: number | null; kcal: number | null; rapid: number; basal: number; treatmentCarbs: number; partial: { fat: boolean; protein: boolean; kcal: boolean } };
   glucose: { n: number; mean: number | null; inRange: number | null; below: number | null; above: number | null; min: number | null; max: number | null };
   lows: { t: number; nadir: number; minutes: number }[];
   /** the day's readings, for the graph */
   points: [number, number][];
+  /** nothing logged and no readings: "not recorded"; readings start late: from when */
+  recorded: boolean; cgmFrom: number | null;
 }
 
 /** The reading nearest to t within tol minutes. */
@@ -63,6 +105,8 @@ export function lateBump(s: Series, t0: number, otherFood: number[]): Bump | nul
   return best;
 }
 
+/** Missing values are not zero: the known part, marked partial. */
+export const sumOf = (xs: (number | null)[]): Sum => ({ v: xs.every((x) => x === null) ? null : xs.reduce<number>((a, x) => a + (x ?? 0), 0), partial: xs.some((x) => x === null) && xs.some((x) => x !== null) });
 const sumOrNull = (xs: (number | null)[]) => (xs.some((x) => x === null) ? (xs.every((x) => x === null) ? null : xs.reduce<number>((a, x) => a + (x ?? 0), 0)) : xs.reduce<number>((a, x) => a + (x as number), 0));
 
 /** Which column a time of day falls in; null before breakfast (night). */
@@ -73,38 +117,90 @@ export function slotOf(minuteOfDay: number, starts: SlotStarts): SlotKey | null 
   return cur;
 }
 
+export const TREAT_MAX_G = 25;          // a low treatment is small: a meal started during a low is still a meal
+export const OCCASION_GAP_MIN = 30;     // items closer than this are one time she ate
+
+/** The sensor was below the low limit from 30 minutes before to 5 minutes after t. */
+export function lowAround(s: Series, t: number, low: number): boolean {
+  for (let i = lowerBound(s.t, t - 30 * MIN); i < s.t.length && s.t[i] <= t + 5 * MIN; i++) if (s.v[i] < low) return true;
+  return false;
+}
+/** A small snack logged while she was low, that is not a recipe or a planned meal, was a low treatment. */
+export const isTreatment = (f: Food, s: Series, low: number) => !f.recipe && !f.planned && f.carbs > 0 && f.carbs <= TREAT_MAX_G && lowAround(s, f.t, low);
+
+function minIn(s: Series, from: number, to: number): { mg: number; t: number } | null {
+  let best: { mg: number; t: number } | null = null;
+  for (let i = lowerBound(s.t, from); i < s.t.length && s.t[i] <= to; i++) if (!best || s.v[i] < best.mg) best = { mg: s.v[i], t: s.t[i] };
+  return best;
+}
+
 export function buildDay(start: number, starts: SlotStarts, d: { foods: Food[]; doses: Dose[]; pricks: Prick[]; treatments: Treat[]; activities: Activity[]; series: Series; low: number; high: number }): DaySheet {
   const end = start + DAY;
   const inDay = (t: number) => t >= start && t < end;
-  const foods = d.foods.filter((f) => inDay(f.t)).sort((a, b) => a.t - b.t);
+  // 1. low treatments: logged as such, or a small snack eaten while the sensor read low
+  const treatAll: Treat[] = [...d.treatments];
+  const foodsAll: Food[] = [];
+  for (const f of d.foods) (isTreatment(f, d.series, d.low) ? treatAll.push({ t: f.t, name: f.name, carbs: f.carbs, byCgm: true }) : foodsAll.push(f));
+  const foods = foodsAll.filter((f) => inDay(f.t)).sort((a, b) => a.t - b.t);
+  // 2. columns: the meal it was planned as, else the clock
   const night: Food[] = [];
   const by = new Map<SlotKey, Food[]>(SLOT_KEYS.map((k) => [k, []]));
-  for (const f of foods) { const k = slotOf(Math.floor((f.t - start) / MIN), starts); if (k) by.get(k)!.push(f); else night.push(f); }
-  const allFoodTimes = [...d.foods.map((f) => f.t), ...d.treatments.map((x) => x.t)];
+  for (const f of foods) {
+    const minute = Math.floor((f.t - start) / MIN);
+    const k = f.slot === 'snack' ? (minute < starts.lunch ? 'snack1' : 'snack2') : f.slot ?? slotOf(minute, starts);
+    if (k) by.get(k)!.push(f); else night.push(f);
+  }
+  const otherFoodAt = foodsAll.map((f) => f.t);
+  const treatAt = treatAll.map((x) => x.t);
   const mealStarts = SLOT_KEYS.map((k) => by.get(k)![0]?.t).filter((t): t is number => t !== undefined);
 
-  const rapid = d.doses.filter((x) => x.type === 'rapid' && inDay(x.t));
+  const rapid = d.doses.filter((x) => x.type === 'rapid' && inDay(x.t)).sort((a, b) => a.t - b.t);
   const used = new Set<Dose>();
+  // doses given for a known meal entry go with it first
+  const linked = new Map<string, Dose[]>();
+  for (const x of rapid) if (x.forFood) { linked.set(x.forFood, [...(linked.get(x.forFood) ?? []), x]); used.add(x); }
+
+  const occasionOf = (fs: Food[]): Occasion => {
+    const t0 = fs[0].t, tLast = fs[fs.length - 1].t;
+    const prick = d.pricks.filter((p) => Math.abs(p.t - t0) <= 15 * MIN).sort((a, b) => Math.abs(a.t - t0) - Math.abs(b.t - t0))[0];
+    const cgm = readingAt(d.series, t0, 10);
+    const before: Reading | null = prick ? { mg: prick.mg, t: prick.t, prick: true } : cgm ? { ...cgm, prick: false } : null;
+    const a = readingAt(d.series, t0 + AFTER_MIN * MIN, 10);
+    const mine = new Set(fs);
+    // the meal's insulin: the dose given for it, else rapid doses from 45 minutes before to 30 minutes after
+    const doses: Dose[] = fs.flatMap((f) => (f.id ? linked.get(f.id) ?? [] : []));
+    if (!doses.length) for (const x of rapid) if (!used.has(x) && x.t >= t0 - 45 * MIN && x.t <= tLast + 30 * MIN) { doses.push(x); used.add(x); }
+    const win = (t: number) => t > tLast + 15 * MIN && t <= t0 + AFTER_MIN * MIN;
+    const affected: Occasion['affected'] = [
+      ...foodsAll.filter((f) => !mine.has(f) && win(f.t)).map((f) => ({ kind: 'food' as const, t: f.t })),
+      ...treatAll.filter((x) => win(x.t)).map((x) => ({ kind: 'treatment' as const, t: x.t })),
+      ...rapid.filter((x) => win(x.t) && !doses.includes(x)).map((x) => ({ kind: 'correction' as const, t: x.t })),
+    ].sort((p, q) => p.t - q.t);
+    const lo = minIn(d.series, t0, t0 + 4 * HOUR);
+    const fat = sumOf(fs.map((f) => f.fat)), protein = sumOf(fs.map((f) => f.protein));
+    return {
+      t: t0, foods: fs, carbs: fs.reduce((x, f) => x + f.carbs, 0), fat, protein, kcal: sumOf(fs.map((f) => f.kcal)), fiber: sumOf(fs.map((f) => f.fiber)),
+      before, after: a ? { ...a, prick: false } : null, affected,
+      startedLow: before !== null && before.mg < d.low,
+      lowAfter: lo && lo.mg < d.low && !(before && before.mg < d.low && lo.t - t0 < 30 * MIN) ? lo : null,
+      doses, fatty: isFatty(fat.v, protein.v), noFatData: fat.v === null,
+      bump: lateBump(d.series, t0, [...otherFoodAt, ...treatAt].filter((t) => t > tLast)),
+    };
+  };
+
   const slots: Slot[] = SLOT_KEYS.map((key) => {
     const fs = by.get(key)!;
-    const t0 = fs[0]?.t ?? null, tLast = fs[fs.length - 1]?.t ?? null;
-    let before: Reading | null = null, after: Reading | null = null, bump: Bump | null = null, afterNextMeal = false;
-    const doses: Dose[] = [];
-    if (t0 !== null && tLast !== null) {
-      const prick = d.pricks.filter((p) => Math.abs(p.t - t0) <= 15 * MIN).sort((a, b) => Math.abs(a.t - t0) - Math.abs(b.t - t0))[0];
-      const cgm = readingAt(d.series, t0, 10);
-      before = prick ? { mg: prick.mg, t: prick.t, prick: true } : cgm ? { ...cgm, prick: false } : null;
-      const a = readingAt(d.series, t0 + AFTER_MIN * MIN, 10);
-      after = a ? { ...a, prick: false } : null;
-      afterNextMeal = mealStarts.some((t) => t > tLast && t < t0 + AFTER_MIN * MIN);
-      // the meal's insulin: rapid doses from 45 minutes before the first food to 30 minutes after the last
-      for (const x of rapid) if (!used.has(x) && x.t >= t0 - 45 * MIN && x.t <= tLast + 30 * MIN) { doses.push(x); used.add(x); }
-      bump = lateBump(d.series, t0, allFoodTimes.filter((t) => t > tLast));
-    }
+    const groups: Food[][] = [];
+    for (const f of fs) { const g = groups[groups.length - 1]; if (g && f.t - g[g.length - 1].t <= OCCASION_GAP_MIN * MIN) g.push(f); else groups.push([f]); }
+    const occasions = groups.map(occasionOf);
+    const first = occasions[0] ?? null;
+    const tLast = fs[fs.length - 1]?.t ?? null;
     const fat = sumOrNull(fs.map((f) => f.fat)), protein = sumOrNull(fs.map((f) => f.protein));
     return {
-      key, foods: fs, carbs: fs.reduce((a, f) => a + f.carbs, 0), fat, protein, kcal: sumOrNull(fs.map((f) => f.kcal)), fiber: sumOrNull(fs.map((f) => f.fiber)),
-      start: t0, before, after, afterNextMeal, doses, fatty: fs.length > 0 && isFatty(fat, protein), noFatData: fs.length > 0 && fat === null, bump,
+      key, occasions, foods: fs, carbs: fs.reduce((a, f) => a + f.carbs, 0), fat, protein, kcal: sumOrNull(fs.map((f) => f.kcal)), fiber: sumOrNull(fs.map((f) => f.fiber)),
+      start: first?.t ?? null, before: first?.before ?? null, after: first?.after ?? null,
+      afterNextMeal: first !== null && tLast !== null && mealStarts.some((t) => t > tLast && t < first.t + AFTER_MIN * MIN),
+      doses: occasions.flatMap((o) => o.doses), fatty: occasions.some((o) => o.fatty), noFatData: fs.length > 0 && fat === null, bump: first?.bump ?? null,
     };
   });
 
@@ -128,19 +224,30 @@ export function buildDay(start: number, starts: SlotStarts, d: { foods: Food[]; 
 
   const points: [number, number][] = [];
   for (let i = lowerBound(d.series.t, start); i < d.series.t.length && d.series.t[i] < end; i++) points.push([d.series.t[i], d.series.v[i]]);
-  const treatments = d.treatments.filter((x) => inDay(x.t)).sort((a, b) => a.t - b.t);
+  // each treatment: glucose at the start, the lowest around it, 15 minutes later, and whether food followed
+  const treatments = treatAll.filter((x) => inDay(x.t)).sort((a, b) => a.t - b.t).map((x, i, all) => ({
+    ...x,
+    startMg: readingAt(d.series, x.t, 10)?.mg ?? null,
+    lowestMg: minIn(d.series, x.t - 30 * MIN, x.t + 30 * MIN)?.mg ?? null,
+    after15: readingAt(d.series, x.t + 15 * MIN, 5)?.mg ?? null,
+    followedByFood: foodsAll.some((f) => f.t > x.t && f.t <= x.t + 30 * MIN),
+    duplicate: all.some((y, j) => j !== i && y.name === x.name && Math.abs(y.t - x.t) <= 15 * MIN),
+  }));
   const basal = d.doses.filter((x) => x.type === 'long' && inDay(x.t));
   const dayFoods = foods;
+  const fatS = sumOf(dayFoods.map((f) => f.fat)), protS = sumOf(dayFoods.map((f) => f.protein)), kcalS = sumOf(dayFoods.map((f) => f.kcal));
   return {
     start, slots, night, treatments, basal,
     otherDoses: rapid.filter((x) => !used.has(x)).sort((a, b) => a.t - b.t),
     activities: d.activities.filter((x) => inDay(x.t)).sort((a, b) => a.t - b.t),
     totals: {
-      carbs: dayFoods.reduce((a, f) => a + f.carbs, 0), fat: sumOrNull(dayFoods.map((f) => f.fat)), protein: sumOrNull(dayFoods.map((f) => f.protein)),
-      kcal: sumOrNull(dayFoods.map((f) => f.kcal)), rapid: rapid.reduce((a, x) => a + x.units, 0), basal: basal.reduce((a, x) => a + x.units, 0),
-      treatmentCarbs: treatments.reduce((a, x) => a + x.carbs, 0),
+      carbs: dayFoods.reduce((a, f) => a + f.carbs, 0), fat: fatS.v, protein: protS.v, kcal: kcalS.v,
+      rapid: rapid.reduce((a, x) => a + x.units, 0), basal: basal.reduce((a, x) => a + x.units, 0),
+      treatmentCarbs: treatments.reduce((a, x) => a + x.carbs, 0), partial: { fat: fatS.partial, protein: protS.partial, kcal: kcalS.partial },
     },
     glucose: { n, mean: n ? sum / n : null, inRange: pct(inR), below: pct(lo), above: pct(hi), min, max },
     lows, points,
+    recorded: n > 0 || dayFoods.length > 0 || treatments.length > 0 || rapid.length > 0,
+    cgmFrom: points.length && points[0][0] - start > 2 * HOUR ? points[0][0] : null,
   };
 }

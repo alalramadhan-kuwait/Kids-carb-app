@@ -2150,6 +2150,50 @@ console.log('dietitian sheet');
     assert.ok(sheet.glucose.inRange! > 80); assert.equal(sheet.glucose.min, 62);
     assert.equal(D.slotOf(4 * 60 + 59, D.DEFAULT_STARTS), null); assert.equal(D.slotOf(16 * 60, D.DEFAULT_STARTS), 'snack2');
   });
+  // a second made-up day: a low at 7:50, a juice + crackers logged as a snack at 7:56 (the logged glucose already 72),
+  // the real breakfast at 10:58 planned as breakfast, a low 40 minutes after dinner treated with juice
+  const pts2: [number, number][] = [];
+  for (let k = 0; k < 288; k++) {
+    const h = k / 12;
+    let v = 110;
+    if (h >= 7.5 && h < 8) v = 65;
+    if (h >= 20.5 && h < 21) v = 45;
+    pts2.push([day + k * 5 * M, v]);
+  }
+  const series2 = { t: Float64Array.from(pts2.map((p) => p[0])), v: Float64Array.from(pts2.map((p) => p[1])) };
+  const f2 = (t: number, name: string, carbs: number, o: Record<string, unknown> = {}) => ({ t, name, detail: null, carbs, fat: null, protein: null, kcal: null, fiber: null, ...o });
+  const day2 = D.buildDay(day, D.DEFAULT_STARTS, {
+    foods: [f2(at(7, 56), 'Cocktail drink', 15), f2(at(7, 57), 'Crackers', 6), f2(at(10, 58), 'Milk', 12, { slot: 'breakfast', planned: true, id: 'b' }),
+      f2(at(10, 59), 'Egg sandwich', 33, { slot: 'breakfast', planned: true, id: 'b2', fat: 9 }), f2(at(12, 0), 'Rice', 40), f2(at(13, 30), 'Apple', 10),
+      f2(at(20, 0), 'Qeemar and honey', 37, { recipe: true }), f2(at(20, 38), 'Mango nectar', 19)],
+    doses: [{ t: at(10, 51), units: 2, type: 'rapid', purpose: 'meal', forFood: 'b', calc: { food: 2.6, correction: 0, carbs: 40, suggested: 2 } }, { t: at(19, 40), units: 3, type: 'rapid', purpose: null }],
+    pricks: [], treatments: [], activities: [], series: series2, low: 70, high: 180,
+  });
+  const s2 = Object.fromEntries(day2.slots.map((x) => [x.key, x]));
+  test('dietitian sheet: a small snack eaten while the sensor was low is a low treatment, not breakfast', () => {
+    assert.deepEqual(day2.treatments.map((x) => [x.name, x.byCgm]), [['Cocktail drink', true], ['Crackers', true], ['Mango nectar', true]]);
+    assert.equal(day2.treatments[0].startMg, 65); assert.equal(day2.treatments[0].followedByFood, false);
+    assert.equal(day2.totals.carbs, 12 + 33 + 40 + 10 + 37, 'treatment carbs are not food'); assert.equal(day2.totals.treatmentCarbs, 40);
+    assert.ok(!D.isTreatment(f2(at(20, 40), 'Recipe', 20, { recipe: true }), series2, 70), 'a recipe is never a treatment');
+    assert.ok(!D.isTreatment(f2(at(7, 50), 'Big breakfast', 60), series2, 70), 'a meal started during a low is still a meal');
+  });
+  test('dietitian sheet: the planned meal type wins over the clock; its dose goes with it, with the calculator split', () => {
+    assert.deepEqual(s2.breakfast.foods.map((f) => f.name), ['Milk', 'Egg sandwich']); assert.equal(s2.snack1.foods.length, 0);
+    assert.equal(s2.breakfast.occasions.length, 1); assert.equal(s2.breakfast.occasions[0].doses[0].calc!.carbs, 40);
+  });
+  test('dietitian sheet: eating times apart are separate occasions; a reading 2 h after says what else happened', () => {
+    assert.deepEqual(s2.lunch.occasions.map((o) => o.foods.map((f) => f.name)), [['Rice'], ['Apple']]);
+    assert.deepEqual(s2.lunch.occasions[0].affected, [{ kind: 'food', t: at(13, 30) }]);
+    assert.equal(s2.dinner.occasions[0].lowAfter!.mg, 45, 'the low after dinner is shown with dinner');
+    assert.deepEqual(s2.dinner.occasions[0].affected.map((x) => x.kind), ['treatment']);
+  });
+  test('dietitian sheet: totals with missing values are marked incomplete, never counted as zero', () => {
+    const o = s2.breakfast.occasions[0]; assert.equal(o.fat.v, 9); assert.equal(o.fat.partial, true);
+    assert.deepEqual(D.sumOf([null, null]), { v: null, partial: false });
+    assert.equal(day2.recorded, true);
+    const empty = D.buildDay(day + 86400000, D.DEFAULT_STARTS, { foods: [], doses: [], pricks: [], treatments: [], activities: [], series: { t: new Float64Array(0), v: new Float64Array(0) }, low: 70, high: 180 });
+    assert.equal(empty.recorded, false);
+  });
 }
 
 console.log('short names');
@@ -2169,6 +2213,23 @@ console.log('short names');
       ['(Kids)', '(Kids)'],
     ];
     for (const [a, b] of cases) assert.equal(shortName(a), b, a);
+  });
+}
+
+{
+  const { displayName } = await import('../shortName');
+  test('report names: pack sizes, piece counts and calories removed (the amount eaten is printed beside it)', () => {
+    const cases: [string, string][] = [
+      ['Ritz Crackers 39.6g (12 pcs)', 'Ritz Crackers'],
+      ['1.2.3 Cocktail Drink (Kids) 125ml', '1.2.3 Cocktail Drink (Kids)'],
+      ['Half Cream Milk 250ml', 'Half Cream Milk'],
+      ['Apple Juice 1 LTR (كوب 200 مل)', 'Apple Juice'],
+      ['سناك بار / بسكويت (101 سعرة)', 'سناك بار / بسكويت'],
+      ['بار (55 غ)', 'بار'],
+      ['قيمر وعسل', 'قيمر وعسل'],
+      ['7UP', '7UP'],
+    ];
+    for (const [a, b] of cases) assert.equal(displayName(a), b, a);
   });
 }
 

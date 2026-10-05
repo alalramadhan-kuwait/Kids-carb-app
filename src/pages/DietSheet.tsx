@@ -6,10 +6,13 @@ import { useData } from '../lib/data';
 import { fetchSeries } from '../engine/useSeries';
 import { dayStartOf } from '../engine/day';
 import { effectiveRange, formatGlucose, unitLabel, type GlucoseUnit } from '../lib/glucose';
-import { fmt, unitText } from '../lib/carbs';
+import { UNIT_TEXT, fmt, unitText } from '../lib/carbs';
+import { displayName } from '../lib/shortName';
+import { usePortions } from '../lib/mom';
+import { Icon } from '../components/Icon';
 import { fmtTime } from '../lib/constants';
-import { AFTER_MIN, DEFAULT_STARTS, SLOT_KEYS, buildDay, type Activity, type DaySheet, type Dose, type Food, type Prick, type SlotKey, type SlotStarts, type Treat } from '../lib/dietSheet';
-import type { EventRow, HistoryEntry } from '../lib/types';
+import { AFTER_MIN, DEFAULT_STARTS, SLOT_KEYS, buildDay, type Activity, type DaySheet, type Dose, type Flag, type Food, type Line, type Occasion, type Slot, type Sum, type Prick, type SlotKey, type SlotStarts, type Treat } from '../lib/dietSheet';
+import type { EventRow, HistoryEntry, Portion, Product, Unit } from '../lib/types';
 import { Alert, Card, Page, cx } from '../components/ui';
 import { SharePdf } from '../components/SharePdf';
 import { makePdf } from '../lib/pdfShare';
@@ -37,7 +40,8 @@ function loadStarts(): SlotStarts {
  */
 export default function DietSheetPage() {
   const nav = useNavigate();
-  const { settings } = useData();
+  const { settings, products } = useData();
+  const { portions } = usePortions();
   const today = dayStartOf(Date.now());
   const [from, setFrom] = useState(isoDay(today - 6 * DAY));
   const [to, setTo] = useState(isoDay(today));
@@ -80,21 +84,45 @@ export default function DietSheetPage() {
       ]);
       if (h.error || e.error) throw new Error((h.error ?? e.error)!.message);
       const hist = (h.data ?? []) as HistoryEntry[], ev = (e.data ?? []) as EventRow[];
+      // what the plans add: the meal type, the part eaten, and which dose was for which meal
+      const ids = hist.map((x) => x.id), recipeIds = [...new Set(hist.map((x) => x.recipe_id).filter((x): x is string => !!x))];
+      const [pl, rc, ri] = await Promise.all([
+        ids.length ? supabase.from('planned_meals').select('history_id,slot,part_eaten,carbs_planned,dose_event_id').in('history_id', ids) : Promise.resolve({ data: [], error: null }),
+        recipeIds.length ? supabase.from('recipes').select('id,carb_pending').in('id', recipeIds) : Promise.resolve({ data: [], error: null }),
+        recipeIds.length ? supabase.from('recipe_ingredients').select('recipe_id,qty_confirmed,product_id,slot_category').in('recipe_id', recipeIds) : Promise.resolve({ data: [], error: null }),
+      ]);
+      type PlanRow = { history_id: string; slot: string; part_eaten: number | null; carbs_planned: number | null; dose_event_id: string | null };
+      const planOf = new Map(((pl.data ?? []) as PlanRow[]).map((r) => [r.history_id, r]));
+      const doseFor = new Map(((pl.data ?? []) as PlanRow[]).filter((r) => r.dose_event_id).map((r) => [r.dose_event_id!, r.history_id]));
+      const unsure = new Set<string>([
+        ...((rc.data ?? []) as { id: string; carb_pending: boolean }[]).filter((r) => r.carb_pending).map((r) => r.id),
+        ...((ri.data ?? []) as { recipe_id: string; qty_confirmed: boolean | null; product_id: string | null; slot_category: string | null }[]).filter((r) => r.qty_confirmed === false || (!r.product_id && !r.slot_category)).map((r) => r.recipe_id),
+      ]);
       const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+      const slotKey = (x: string | undefined): Food['slot'] => (x === 'breakfast' || x === 'lunch' || x === 'dinner' || x === 'snack' ? x : null);
       const foods: Food[] = [], treatments: Treat[] = [];
       for (const x of hist) {
         const t0 = Date.parse(x.eaten_at), carbs = Number(x.total_carbs);
-        // a drink or snack logged from the products list while she was low is a low treatment, not a meal
-        if (x.glucose_mgdl !== null && Number(x.glucose_mgdl) < low && x.kind === 'snack' && carbs <= 30) { treatments.push({ t: t0, name: x.name, carbs }); continue; }
-        const l = x.lines?.length === 1 ? x.lines[0] : null;
-        foods.push({ t: t0, name: x.name, detail: l && l.unit !== 'serving' && l.quantity ? `${fmt(l.quantity)} ${unitText(l.unit)}` : null,
-          carbs, fat: num(x.total_fat), protein: num(x.total_protein), kcal: num(x.total_kcal), fiber: num(x.total_fiber) });
+        const plan = planOf.get(x.id);
+        const imported = x.source === 'gluroo';
+        const flags: Flag[] = [];
+        if (imported) flags.push('imported');
+        if (x.needs_review) flags.push('review');
+        if (x.recipe_id && unsure.has(x.recipe_id)) flags.push('recipe');
+        const lines: Line[] = (x.lines ?? []).map((l) => ({ name: l.name, quantity: imported && l.unit === 'serving' && l.quantity === 1 ? null : l.quantity ?? null, unit: l.unit ?? null, carbs: l.carbs ?? null, productKey: l.product ?? null }));
+        const note = x.notes && !/^gluroo\b/i.test(x.notes.trim()) ? x.notes.trim() : null;
+        foods.push({ t: t0, id: x.id, name: x.name, detail: null, carbs, fat: num(x.total_fat), protein: num(x.total_protein), kcal: num(x.total_kcal), fiber: num(x.total_fiber),
+          slot: slotKey(plan?.slot), planned: !!plan, recipe: !!x.recipe_id, lines, note, flags, partEaten: num(plan?.part_eaten), carbsPlanned: num(plan?.carbs_planned) });
       }
       const doses: Dose[] = [], pricks: Prick[] = [], acts: Activity[] = [];
       for (const x of ev) {
         const t0 = Date.parse(x.occurred_at);
-        if (x.kind === 'insulin' && x.insulin_units) doses.push({ t: t0, units: Number(x.insulin_units), type: x.insulin_type === 'long' ? 'long' : 'rapid', purpose: x.bolus_purpose });
-        else if (x.kind === 'carbs' && x.carbs_g) foods.push({ t: t0, name: x.note?.trim() || t('كارب'), detail: null, carbs: Number(x.carbs_g), fat: null, protein: null, kcal: null, fiber: null });
+        if (x.kind === 'insulin' && x.insulin_units) {
+          const c = x.dose_calc;
+          doses.push({ t: t0, id: x.id, units: Number(x.insulin_units), type: x.insulin_type === 'long' ? 'long' : 'rapid', purpose: x.bolus_purpose, forFood: doseFor.get(x.id) ?? null,
+            calc: c ? { food: Number(c.food), correction: Number(c.correction), carbs: c.carbs ?? null, suggested: c.suggested ?? null } : null });
+        }
+        else if (x.kind === 'carbs' && x.carbs_g) foods.push({ t: t0, id: x.id, name: x.note?.trim() || t('كارب'), detail: null, carbs: Number(x.carbs_g), fat: null, protein: null, kcal: null, fiber: null, flags: x.note?.trim() ? [] : ['unnamed'] });
         else if (x.kind === 'treatment' && x.carbs_g !== null) treatments.push({ t: t0, name: tMaybe(x.treatment ?? t('علاج انخفاض')), carbs: Number(x.carbs_g) });
         else if (x.kind === 'bg_check' && x.bg_mgdl) pricks.push({ t: t0, mg: Number(x.bg_mgdl) });
         else if (x.kind === 'exercise') acts.push({ t: t0, text: t('رياضة {m} د', { m: x.activity_min ?? 0 }) + (x.note ? ` · ${x.note}` : '') });
@@ -111,7 +139,8 @@ export default function DietSheetPage() {
   const span = days && to === isoDay(today) ? days : 0;   // which quick period is showing (0: custom dates)
   const quick = (n: number) => { setFrom(isoDay(today - (n - 1) * DAY)); setTo(isoDay(today)); setCustom(false); };
   const zoom = boxW ? Math.min(1, boxW / 1065) : 0.3; // the A4 page (281 mm ≈ 1062 px) fitted to the width it has
-  const pageOf = (s: DaySheet) => <SheetPage key={s.start} s={s} unit={settings.glucose_unit} low={low} high={high} starts={starts} child={settings.child_name ?? t('ليان')} rapidName={settings.rapid_insulin} basalName={settings.basal_insulin} ratios={settings.ratios} />;
+  const ctx: Ctx = { g: (mg: number) => formatGlucose(mg, settings.glucose_unit), low, high, products, portions };
+  const pageOf = (s: DaySheet) => <SheetPage key={s.start} s={s} unit={settings.glucose_unit} low={low} high={high} child={settings.child_name ?? t('ليان')} rapidName={settings.rapid_insulin} basalName={settings.basal_insulin} ratios={settings.ratios} ctx={ctx} />;
   const pages = sheets?.map(pageOf);
   const seg = (on: boolean) => cx('min-h-[40px] rounded-full px-3 text-sm font-bold', on ? 'bg-brand text-white' : 'text-slate-600');
 
@@ -158,7 +187,7 @@ export default function DietSheetPage() {
           </div>
         )}
         {view === 'cards'
-          ? <div className="space-y-3">{[...(sheets ?? [])].reverse().map((s) => <DayCard key={s.start} s={s} unit={settings.glucose_unit} low={low} high={high} starts={starts} />)}</div>
+          ? <div className="space-y-3">{[...(sheets ?? [])].reverse().map((s) => <DayCard key={s.start} s={s} unit={settings.glucose_unit} low={low} high={high} ctx={ctx} />)}</div>
           : <div className="space-y-3 overflow-hidden" style={{ zoom } as React.CSSProperties}>{pages}</div>}
       </div>
       {sheets && createPortal(<div id="print-root" dir={isEn() ? 'ltr' : 'rtl'}>{pages}</div>, document.body)}
@@ -168,21 +197,74 @@ export default function DietSheetPage() {
 
 const niceDay = (ms: number) => Number.isFinite(ms) ? new Date(ms + 3 * 3600000).toLocaleDateString(locale(), { day: 'numeric', month: 'short', timeZone: 'UTC', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions) : '—';
 
-/** The phone view of one day: what she ate at each meal, its carbs, glucose before → after and the insulin, then the day. */
-function DayCard({ s, unit, low, high, starts }: { s: DaySheet; unit: GlucoseUnit; low: number; high: number; starts: SlotStarts }) {
-  const g = (mg: number) => formatGlucose(mg, unit);
+// ── shared words for both views ──────────────────────────────────────────────────────────────────────────────
+type Ctx = { g: (mg: number) => string; low: number; high: number; products: Product[]; portions: Portion[] };
+const FLAG_TEXT: Record<Flag, string> = { estimate: 'تقديري', imported: 'مستورد', review: 'يحتاج مراجعة', recipe: 'وصفة غير مؤكدة', unnamed: 'غير مسمّى', duplicate: 'مكرر؟' }; // i18n-ok: shown through t()
+const AFF_TEXT = { food: 'أكل', treatment: 'علاج', correction: 'تصحيح' } as const; // i18n-ok: shown through t()
+const r1 = (x: number) => Math.round(x * 10) / 10;
+/** A name in the page's language when the dictionary has it, without pack sizes; † when shown as typed. */
+function nameOf(raw: string): { text: string; asTyped: boolean } {
+  const text = displayName(tMaybe(raw));
+  const ar = /[\u0600-\u06FF]/.test(text), lat = /[A-Za-z]{3}/.test(text);
+  return { text, asTyped: isEn() ? ar : lat && !ar };
+}
+const Name = ({ raw }: { raw: string }) => { const n = nameOf(raw); return <><bdi>{n.text}</bdi>{n.asTyped ? <sup>†</sup> : null}</>; };
+const roundQ = (q: number) => (q < 10 ? Math.round(q * 2) / 2 : Math.round(q));
+/** "150 ml (~½ cup)": the amount eaten, and a household measure only when one of her saved portions is within 15 %. */
+function amountOf(l: Line, ctx: Ctx): string | null {
+  if (l.quantity === null || !Number.isFinite(l.quantity)) return null;
+  const u = l.unit as Unit | null;
+  let out = `${fmt(roundQ(l.quantity))} ${u && UNIT_TEXT[u] ? unitText(u) : ''}`.trim();
+  if (u === 'g' || u === 'ml') {
+    const p = ctx.products.find((x) => [x.name, x.brand].filter(Boolean).join(' — ') === l.productKey) ?? ctx.products.find((x) => x.name === l.name);
+    const near = p && ctx.portions.find((x) => x.product_id === p.id && x.amount > 0 && Math.abs(x.amount - l.quantity!) / x.amount <= 0.15);
+    if (near) out += ` (~${tMaybe(near.label)})`;
+  }
+  return out;
+}
+const carbsText = (c: number | null) => (c === null ? '—' : t('{g} غ', { g: fmt(c < 10 ? r1(c) : Math.round(c)) }));
+const sumText = (x: Sum, u: string) => (x.v === null ? null : `${x.partial ? '≥ ' : ''}${fmt(Math.round(x.v))} ${u}`);
+function doseWords(d: Dose, o: Occasion): string[] {
+  const out: string[] = [];
+  const m = Math.round((o.t - d.t) / MIN);
+  out.push(m >= 0 ? t('قبل الأكل {m} د', { m }) : t('بعد الأكل {m} د', { m: -m }));
+  if (d.calc && d.calc.food + d.calc.correction > 0) out.push(t('وجبة {a} + تصحيح {b}', { a: fmt(r1(d.calc.food)), b: fmt(r1(d.calc.correction)) }));
+  if (d.calc?.suggested != null && d.calc.suggested !== d.units) out.push(t('المحسوب {c} · أُعطي {g}', { c: fmt(d.calc.suggested), g: fmt(d.units) }));
+  if (d.calc?.carbs != null && Math.abs(d.calc.carbs - o.carbs) > 2) out.push(t('محسوبة لـ {g} غ', { g: fmt(Math.round(d.calc.carbs)) }));
+  if (d.purpose === 'correction') out.push(t('تصحيح فقط'));
+  else if (!d.purpose && !d.calc) out.push(t('الغرض غير مسجّل'));
+  return out;
+}
+const affectedText = (o: Occasion) => (o.affected.length ? t('متأثرة: {x}', { x: o.affected.map((x) => `${t(AFF_TEXT[x.kind])} ${time(x.t)}`).join(sep()) }) : null);
+const lowAfterText = (o: Occasion, g: (mg: number) => string) => (o.lowAfter ? t('انخفاض بعد الأكل: {v} · {time} ({m} د)', { v: g(o.lowAfter.mg), time: time(o.lowAfter.t), m: Math.round((o.lowAfter.t - o.t) / MIN) }) : null);
+const occFlags = (o: Occasion) => [...new Set(o.foods.flatMap((f) => f.flags ?? []))];
+const partText = (f: Food) => (f.partEaten != null && f.partEaten > 0 && f.partEaten < 1 ? t('أكلت {p} من {g} غ', { p: f.partEaten === 0.75 ? '¾' : f.partEaten === 0.5 ? '½' : f.partEaten === 0.25 ? '¼' : `${Math.round(f.partEaten * 100)}%`, g: fmt(Math.round(f.carbsPlanned ?? 0)) }) : null);
+const treatLine = (x: Treat, g: (mg: number) => string) => [
+  x.startMg != null ? t('عند البدء {v}', { v: g(x.startMg) }) : null,
+  x.lowestMg != null ? t('أدنى {v}', { v: g(x.lowestMg) }) : null,
+  x.after15 != null ? t('بعد 15 د: {v}', { v: g(x.after15) }) : null,
+  x.followedByFood ? t('تبعها أكل') : null,
+].filter(Boolean).join(' · ');
+
+/** The phone view of one day: each time she ate (food, carbs, glucose before → 2 h after, insulin), the low treatments, the day. */
+function DayCard({ s, unit, low, high, ctx }: { s: DaySheet; unit: GlucoseUnit; low: number; high: number; ctx: Ctx }) {
+  const g = ctx.g;
   const toneCls = (mg: number) => (mg < low ? 'text-over' : mg > high ? 'text-near' : 'text-ok');
   const date = new Date(s.start + 3 * 3600000);
   const title = date.toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
-  const eaten = s.slots.filter((x) => x.foods.length);
+  if (!s.recorded) return <Card className="flex items-center justify-between"><b>{title}</b><span className="text-sm text-slate-500">{t('غير مسجّل')}</span></Card>;
+  const eaten = s.slots.filter((x) => x.occasions.length);
   const hours = (ms: number) => t('{h} س', { h: Math.round((ms / 3600000) * 2) / 2 });
   const pill = (label: string, v: string, cls = '') => <span className="rounded-full bg-slate-50 px-2.5 py-1 text-xs text-slate-600">{label} <b className={cx('num', cls)}>{v}</b></span>;
+  const chip = (text: string, cls = 'bg-slate-100 text-slate-600') => <span className={cx('rounded-full px-2 py-0.5 text-xs font-bold', cls)}>{text}</span>;
   return (
     <Card className="space-y-3">
       <div>
         <h2 className="text-lg font-bold">{title}</h2>
+        {s.cgmFrom && <p className="text-xs text-slate-500">{t('يوم ناقص: الحساس من {t}', { t: time(s.cgmFrom) })}</p>}
         <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {pill(t('الكارب'), t('{g} غ', { g: fmt(s.totals.carbs) }), 'text-kcarb')}
+          {pill(t('أكل'), t('{g} غ', { g: fmt(Math.round(s.totals.carbs)) }), 'text-kcarb')}
+          {s.totals.treatmentCarbs > 0 && pill(t('علاج'), t('{g} غ', { g: fmt(Math.round(s.totals.treatmentCarbs)) }), 'text-over')}
           {pill(t('إنسولين سريع'), t('{u} و', { u: fmt(s.totals.rapid) }), 'text-kins')}
           {s.glucose.inRange !== null && pill(t('في النطاق'), `${s.glucose.inRange}%`, 'text-ok')}
           {s.lows.length > 0 && pill(t('انخفاضات'), String(s.lows.length), 'text-over')}
@@ -191,38 +273,65 @@ function DayCard({ s, unit, low, high, starts }: { s: DaySheet; unit: GlucoseUni
       {eaten.length === 0 ? <p className="text-sm text-slate-500">{t('لا وجبات مسجّلة')}</p> : (
         <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-100">
           {eaten.map((x) => (
-            <li key={x.key} className="space-y-1.5 px-3 py-2.5">
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="text-sm font-bold text-brand">{t(SLOT_LABEL[x.key])} <span className="font-normal text-slate-400">{hm(starts[x.key])}</span></span>
-                <b className="num text-kcarb">{t('{g} غ', { g: fmt(x.carbs) })}</b>
-              </div>
-              <div className="text-sm leading-snug">{x.foods.map((f, i) => <span key={i}>{i ? sep() : ''}<bdi>{f.name}</bdi>{f.detail ? <span className="text-slate-500"> ({f.detail})</span> : null}</span>)} <span className="text-xs text-slate-400">· {time(x.foods[0].t)}</span></div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                <span className="text-slate-500">{t('السكر')}{' '}
-                  {x.before ? <b className={cx('num', toneCls(x.before.mg))}>{g(x.before.mg)}{x.before.prick ? '✱' : ''}</b> : <span>—</span>}
-                  <span className="text-slate-400"> {isEn() ? '→' : '←'} </span>
-                  {x.after ? <b className={cx('num', toneCls(x.after.mg))}>{g(x.after.mg)}</b> : <span className="text-xs">{x.start !== null && x.start + AFTER_MIN * MIN > Date.now() ? t('لم تمر ساعتان') : '—'}</span>}
-                </span>
-                <span className="text-slate-500">💉 {x.doses.length ? x.doses.map((d, i) => <b key={i} className="num text-kins">{i ? ' + ' : ''}{t('{u} و', { u: fmt(d.units) })}</b>) : <span className="text-xs">{t('لم تُسجّل جرعة')}</span>}</span>
-              </div>
-              {(x.fatty || x.bump) && <div className="flex flex-wrap gap-1.5 text-xs">
-                {x.fatty && <span className="rounded-full bg-near-soft px-2 py-0.5 font-bold text-near">🍕 {t('دسمة: دهون {f} غ', { f: fmt(x.fat ?? 0) })}</span>}
-                {x.bump && <span className="rounded-full bg-over-soft px-2 py-0.5 font-bold text-over">⤴ {t('ارتفاع متأخر +{d} بعد {h}', { d: g(x.bump.rise), h: hours(x.bump.peakAt - x.start!) })}</span>}
-              </div>}
+            <li key={x.key} className="space-y-2 px-3 py-2.5">
+              <div className="text-sm font-bold text-brand">{t(SLOT_LABEL[x.key])}</div>
+              {x.occasions.map((o) => (
+                <div key={o.t} className="space-y-1">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="min-w-0 text-sm leading-snug"><b className="num">{time(o.t)}</b> · {o.foods.map((f, i) => <span key={i}>{i ? sep() : ''}<Name raw={f.name} /></span>)}</span>
+                    <b className="num shrink-0 text-kcarb">{carbsText(o.carbs)}</b>
+                  </div>
+                  <details className="text-xs text-slate-600">
+                    <summary className="cursor-pointer text-brand">{t('المكوّنات')}</summary>
+                    <ul className="mt-1 space-y-0.5">
+                      {o.foods.flatMap((f) => (f.lines?.length ? f.lines : [{ name: f.name, quantity: null, unit: null, carbs: f.carbs, productKey: null }]).map((l, i) => (
+                        <li key={f.t + ':' + i} className="flex justify-between gap-2"><span><Name raw={l.name} />{' · '}{amountOf(l, ctx) ?? <span className="text-slate-400">{t('كمية غير مسجّلة')}</span>}</span><span className="num">{carbsText(l.carbs)}</span></li>
+                      )))}
+                      {o.foods.map((f) => partText(f)).filter(Boolean).map((p, i) => <li key={'p' + i}>{p}</li>)}
+                      {o.foods.filter((f) => f.note).map((f, i) => <li key={'n' + i}>{t('ملاحظة')}: <bdi>{f.note}</bdi></li>)}
+                    </ul>
+                  </details>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                    <span className="text-slate-500">{t('قبل')} {o.before ? <b className={cx('num', toneCls(o.before.mg))}>{g(o.before.mg)}{o.before.prick ? '*' : ''}</b> : '—'}
+                      {' · '}{t('بعد ساعتين')} {o.after ? <b className={cx('num', toneCls(o.after.mg))}>{g(o.after.mg)}</b> : <span className="text-xs">{o.t + AFTER_MIN * MIN > Date.now() ? t('لم تمر ساعتان') : '—'}</span>}</span>
+                    <span className="flex items-center gap-1 text-slate-500"><Icon name="insulin" size={14} />{o.doses.length ? o.doses.map((d, i) => <b key={i} className="num text-kins">{i ? ' + ' : ''}{t('{u} و', { u: fmt(d.units) })}</b>) : <span className="text-xs">{t('لم تُسجّل جرعة')}</span>}</span>
+                  </div>
+                  {o.doses.length > 0 && <div className="text-xs text-slate-500">{o.doses.flatMap((d) => doseWords(d, o)).join(' · ')}</div>}
+                  <div className="flex flex-wrap gap-1.5">
+                    {o.startedLow && chip(t('بدأت وهي منخفضة'), 'bg-over-soft text-over')}
+                    {lowAfterText(o, g) && chip(lowAfterText(o, g)!, 'bg-over-soft text-over')}
+                    {affectedText(o) && chip(affectedText(o)!)}
+                    {o.fatty && chip(t('دسمة: دهون {f} غ', { f: fmt(Math.round(o.fat.v ?? 0)) }), 'bg-near-soft text-near')}
+                    {o.bump && chip(t('ارتفاع متأخر +{d} بعد {h}', { d: g(o.bump.rise), h: hours(o.bump.peakAt - o.t) }), 'bg-over-soft text-over')}
+                    {occFlags(o).map((f) => <span key={f}>{chip(t(FLAG_TEXT[f]))}</span>)}
+                  </div>
+                </div>
+              ))}
             </li>
           ))}
         </ul>
+      )}
+      {s.treatments.length > 0 && (
+        <div className="rounded-2xl border border-over/30 px-3 py-2.5">
+          <div className="text-sm font-bold text-over">{t('علاج الانخفاض')} · {t('المجموع {g} غ', { g: fmt(Math.round(s.totals.treatmentCarbs)) })}</div>
+          <ul className="mt-1 space-y-1 text-sm">
+            {s.treatments.map((x, i) => (
+              <li key={i}><b className="num">{time(x.t)}</b> · <Name raw={x.name} /> <b className="num">{carbsText(x.carbs)}</b>
+                <div className="text-xs text-slate-500">{treatLine(x, g)}{x.byCgm ? ` · ${t('حسب الحساس')}` : ''}{x.duplicate ? ` · ${t('مكرر؟')}` : ''}</div></li>
+            ))}
+          </ul>
+        </div>
       )}
       <div className="flex flex-col"><DayChart s={s} low={low} high={high} unit={unit} /></div>
       <details className="text-sm">
         <summary className="min-h-[36px] cursor-pointer py-1 font-bold text-brand">{t('ملخص اليوم')}</summary>
         <div className="space-y-1 text-slate-700">
+          <div>{t('الكارب')}: <b>{t('أكل {a} غ · علاج {b} غ', { a: fmt(Math.round(s.totals.carbs)), b: fmt(Math.round(s.totals.treatmentCarbs)) })}</b>{s.totals.fat !== null ? ` · ${t('دهون')} ${s.totals.partial.fat ? '≥ ' : ''}${fmt(Math.round(s.totals.fat))} ${t('غ')}` : ''}{s.totals.kcal !== null ? ` · ${s.totals.partial.kcal ? '≥ ' : ''}${t('{n} سعرة', { n: Math.round(s.totals.kcal) })}` : ''}</div>
           {s.glucose.mean !== null && <div>{t('السكر')}: {t('المتوسط')} <b>{g(s.glucose.mean)}</b> · {t('تحت')} <b className="text-over">{s.glucose.below}%</b> · {t('فوق')} <b className="text-near">{s.glucose.above}%</b></div>}
           <div>{t('الإنسولين الطويل')}: <b>{s.basal.length ? s.basal.map((d) => `${t('{u} وحدة', { u: fmt(d.units) })} · ${time(d.t)}`).join(sep()) : t('لم يُسجّل')}</b></div>
           {s.otherDoses.length > 0 && <div>{t('منها خارج الوجبات')}: {s.otherDoses.map((d) => `${fmt(d.units)} · ${time(d.t)}`).join(sep())}</div>}
           <div>{t('الانخفاضات')}: {s.lows.length ? s.lows.map((l) => `${time(l.t)} (${g(l.nadir)})`).join(sep()) : t('لا يوجد')}</div>
-          <div>{t('علاج الانخفاض')}: {s.treatments.length ? s.treatments.map((x) => `${tMaybe(x.name)} ${t('{g} غ', { g: fmt(x.carbs) })} · ${time(x.t)}`).join(sep()) : t('لا يوجد')}</div>
-          {s.night.length > 0 && <div>{t('أكل بعد منتصف الليل')}: {s.night.map((f) => `${f.name} ${t('{g} غ', { g: fmt(f.carbs) })} · ${time(f.t)}`).join(sep())}</div>}
+          {s.night.length > 0 && <div>{t('أكل بعد منتصف الليل')}: {s.night.map((f) => `${nameOf(f.name).text} ${carbsText(f.carbs)} · ${time(f.t)}`).join(sep())}</div>}
           {s.activities.length > 0 && <div>{t('نشاط وملاحظات')}: {s.activities.map((x) => `${x.text} · ${time(x.t)}`).join(sep())}</div>}
         </div>
       </details>
@@ -235,109 +344,134 @@ const C = { ink: '#261E5C', ink2: '#625A87', ink3: '#9084A9', line: '#E4DCF9', s
   ok: '#1F7A55', high: '#8F5A00', low: '#B83A44', okDot: '#46B98A', highDot: '#F2A541', lowDot: '#E95F68', band: '#E3F5EC', ins: '#2E7CD6', carb: '#C2408F' };
 const tone = (mg: number, low: number, high: number) => (mg < low ? C.low : mg > high ? C.high : C.ok);
 
-function SheetPage({ s, unit, low, high, starts, child, rapidName, basalName, ratios }: {
-  s: DaySheet; unit: GlucoseUnit; low: number; high: number; starts: SlotStarts; child: string; rapidName: string | null; basalName: string | null; ratios: { from: string; cr: number; isf: number }[];
+function SheetPage({ s, unit, low, high, child, rapidName, basalName, ratios, ctx }: {
+  s: DaySheet; unit: GlucoseUnit; low: number; high: number; child: string; rapidName: string | null; basalName: string | null; ratios: { from: string; cr: number; isf: number }[]; ctx: Ctx;
 }) {
-  const g = (mg: number) => formatGlucose(mg, unit);
+  const g = ctx.g;
+  // a busy day: shrink step by step until the page fits (never cut treatments, lows, insulin or readings)
+  const ref = useRef<HTMLElement>(null);
+  const [dense, setDense] = useState(0);
+  useLayoutEffect(() => {
+    const el = ref.current; if (!el) return;
+    if (dense < 3 && el.scrollHeight / el.offsetWidth > 193 / 281 + 0.005) setDense(dense + 1);
+  });
   const u = tMaybe(unitLabel(unit));
   const date = new Date(s.start + 3 * 3600000);
   const dayName = date.toLocaleDateString(locale(), { weekday: 'long', timeZone: 'UTC' });
   const dateText = date.toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
   const hours = (ms: number) => { const h = ms / 3600000; return t('{h} س', { h: Math.round(h * 2) / 2 }); };
-  const cell: React.CSSProperties = { border: `1px solid ${C.line}`, padding: '1.6mm 2mm', verticalAlign: 'top' };
+  const base = dense >= 2 ? 7.4 : 8.4;
+  const cell: React.CSSProperties = { border: `1px solid ${C.line}`, padding: '1.2mm 1.6mm', verticalAlign: 'top', fontSize: `${base}pt`, lineHeight: 1.3 };
   const head: React.CSSProperties = { ...cell, background: C.soft, fontWeight: 700, color: C.brand, textAlign: 'center', fontSize: '10.5pt' };
-  const label: React.CSSProperties = { ...cell, background: C.soft, fontWeight: 700, fontSize: '9pt', width: '30mm', color: C.ink };
-  const small: React.CSSProperties = { fontSize: '7.5pt', color: C.ink2 };
+  const label: React.CSSProperties = { ...cell, background: C.soft, fontWeight: 700, fontSize: '8.5pt', width: '24mm', color: C.ink };
+  const small: React.CSSProperties = { fontSize: `${base - 1.2}pt`, color: C.ink2 };
   const empty = <span style={{ color: C.ink3 }}>—</span>;
+  const rule: React.CSSProperties = { borderTop: `1px dashed ${C.line}`, marginTop: '1mm', paddingTop: '1mm' };
+  const maxLines = dense >= 3 ? 3 : dense >= 1 ? 5 : 99;
+  const perOcc = (x: Slot, f: (o: Occasion) => React.ReactNode) => x.occasions.length ? x.occasions.map((o, i) => <div key={o.t} style={i ? rule : undefined}>{f(o)}</div>) : empty;
+  const tm = (o: Occasion) => <b style={{ color: C.ink }}>{time(o.t)} </b>;
+  const flagWords = (o: Occasion) => occFlags(o).map((f) => t(FLAG_TEXT[f]));
 
+  if (!s.recorded) return (
+    <section ref={ref} className="diet-page" style={{ width: '281mm', minHeight: '193mm', background: C.bg, color: C.ink, fontFamily: "'Rubik', system-ui, sans-serif", display: 'grid', placeItems: 'center' }}>
+      <div style={{ fontSize: '14pt', fontWeight: 700 }}>{dayName} · {dateText} — {t('غير مسجّل')}</div>
+    </section>
+  );
   return (
-    <section className="diet-page" style={{ width: '281mm', height: '193mm', background: C.bg, color: C.ink, fontFamily: "'Rubik', system-ui, sans-serif", fontSize: '9pt', boxSizing: 'border-box', padding: '0', display: 'flex', flexDirection: 'column', gap: '2.5mm', overflow: 'hidden' }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: '3mm', borderBottom: `2px solid ${C.brand}`, paddingBottom: '2mm' }}>
-        <img src={`${import.meta.env.BASE_URL}icons/layan-logo-256.webp`} alt="" style={{ width: '13mm', height: '13mm', borderRadius: '3mm' }} />
+    <section ref={ref} className="diet-page" style={{ width: '281mm', minHeight: '193mm', background: C.bg, color: C.ink, fontFamily: "'Rubik', system-ui, sans-serif", fontSize: '9pt', boxSizing: 'border-box', padding: '0', display: 'flex', flexDirection: 'column', gap: '2mm' }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: '3mm', borderBottom: `2px solid ${C.brand}`, paddingBottom: '1.5mm' }}>
+        <img src={`${import.meta.env.BASE_URL}icons/layan-logo-256.webp`} alt="" style={{ width: '12mm', height: '12mm', borderRadius: '3mm' }} />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: '14pt', fontWeight: 700, color: C.brand }}>{t('جدول التغذية اليومي')} · {child}</div>
-          <div style={{ fontSize: '10pt', fontWeight: 600 }}>{t('اليوم')}: {dayName} · {t('التاريخ')}: {dateText}</div>
+          <div style={{ fontSize: '10pt', fontWeight: 600 }}>{dayName} · {dateText}{s.cgmFrom ? ` · ${t('يوم ناقص: الحساس من {t}', { t: time(s.cgmFrom) })}` : ''}</div>
         </div>
-        <div style={{ ...small, textAlign: 'end', lineHeight: 1.5 }}>
+        <div style={{ fontSize: '7pt', color: C.ink2, textAlign: 'end', lineHeight: 1.45 }}>
           <div>{t('السكر بوحدة {u} · النطاق {a}–{b}', { u, a: g(low), b: g(high) })}</div>
-          <div>{t('«بعد الأكل» = بعد ساعتين من بداية الوجبة · ✱ وخز إصبع')}</div>
+          <div>{t('بعد ساعتين = الحساس بعد ساعتين من أول لقمة')} · {t('* وخز إصبع')}</div>
+          <div>{t('† كما كتبها الأهل')}</div>
         </div>
       </header>
 
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <thead>
-          <tr>
-            <th style={{ ...head, width: '30mm' }} />
-            {SLOT_KEYS.map((k) => <th key={k} style={head}>{t(SLOT_LABEL[k])} <span style={{ ...small, fontWeight: 400 }}>{hm(starts[k])}</span></th>)}
-          </tr>
+          <tr><th style={{ ...head, width: '24mm' }} />{SLOT_KEYS.map((k) => <th key={k} style={head}>{t(SLOT_LABEL[k])}</th>)}</tr>
         </thead>
         <tbody>
-          <tr style={{ height: '30mm' }}>
-            <td style={label}>{t('الوجبة')}</td>
-            {s.slots.map((x) => <td key={x.key} style={cell}>{x.foods.length ? x.foods.map((f, i) => (
-              <div key={i} style={{ marginBottom: '1mm', lineHeight: 1.3 }}><b style={{ fontWeight: 600 }}>{f.name}</b>{f.detail ? <span style={small}> · {f.detail}</span> : null}<span style={small}> · {time(f.t)}</span></div>
-            )) : empty}</td>)}
+          <tr>
+            <td style={label}>{t('الأكل')}</td>
+            {s.slots.map((x) => <td key={x.key} style={cell}>{perOcc(x, (o) => {
+              const lines = o.foods.flatMap((f) => (f.lines?.length ? f.lines : [{ name: f.name, quantity: null, unit: null, carbs: f.carbs, productKey: null }]));
+              const big = dense >= 1 ? lines.filter((l) => l.carbs === null || l.carbs >= 1) : lines;
+              const tiny = dense >= 1 ? lines.filter((l) => l.carbs !== null && l.carbs < 1) : [];
+              const shown = big.slice(0, maxLines);
+              return <>
+                <div>{tm(o)}<b style={{ color: C.carb, fontSize: `${base + 2}pt` }}>{carbsText(o.carbs)}</b>{o.foods.map((f) => partText(f)).filter(Boolean).map((p, i) => <span key={i} style={small}> · {p}</span>)}</div>
+                {o.foods.length > 1 || (o.foods[0].lines?.length ?? 0) > 1 ? <div style={{ fontWeight: 600 }}>{o.foods.map((f, i) => <span key={i}>{i ? sep() : ''}<Name raw={f.name} /></span>)}</div> : null}
+                {shown.map((l, i) => <div key={i}><Name raw={l.name} /><span style={small}> · {amountOf(l, ctx) ?? t('كمية غير مسجّلة')} · {carbsText(l.carbs)}</span></div>)}
+                {big.length > shown.length && <div style={small}>{t('+{n} أخرى', { n: big.length - shown.length })}</div>}
+                {tiny.length > 0 && <div style={small}>+ {tiny.map((l) => nameOf(l.name).text).join(sep())} ({t('أقل من 1 غ')})</div>}
+                {dense < 2 && <div style={small}>{[sumText(o.fat, t('غ دهون')), sumText(o.protein, t('غ بروتين')), o.fiber.v !== null ? sumText(o.fiber, t('غ ألياف')) : null, o.kcal.v !== null ? `${o.kcal.partial ? '≥ ' : ''}${t('{n} سعرة', { n: Math.round(o.kcal.v) })}` : null].filter(Boolean).join(' · ')}</div>}
+              </>;
+            })}</td>)}
           </tr>
           <tr>
-            <td style={label}>{t('كمية الكربوهيدرات')}</td>
-            {s.slots.map((x) => <td key={x.key} style={cell}>{x.foods.length ? <>
-              <div style={{ fontSize: '12pt', fontWeight: 700, color: C.carb }}>{t('{g} غ', { g: fmt(x.carbs) })}</div>
-              <div style={small}>{[x.fat !== null ? t('دهون {g} غ', { g: fmt(x.fat) }) : null, x.protein !== null ? t('بروتين {g} غ', { g: fmt(x.protein) }) : null, x.fiber ? t('ألياف {g} غ', { g: fmt(x.fiber) }) : null, x.kcal !== null ? t('{n} سعرة', { n: Math.round(x.kcal) }) : null].filter(Boolean).join(' · ')}</div>
-            </> : empty}</td>)}
+            <td style={label}>{t('قبل الأكل')}</td>
+            {s.slots.map((x) => <td key={x.key} style={cell}>{perOcc(x, (o) => o.before ? <>{tm(o)}<b style={{ fontSize: `${base + 2}pt`, color: tone(o.before.mg, low, high) }}>{g(o.before.mg)}</b>{o.before.prick ? '*' : ''}{o.startedLow && <div style={{ color: C.low, fontWeight: 600 }}>{t('بدأت وهي منخفضة')}</div>}</> : <>{tm(o)}<span style={small}>{t('لا قراءة')}</span></>)}</td>)}
           </tr>
           <tr>
-            <td style={label}>{t('قراءة السكر قبل الأكل')}</td>
-            {s.slots.map((x) => <td key={x.key} style={cell}>{x.before ? <>
-              <span style={{ fontSize: '12pt', fontWeight: 700, color: tone(x.before.mg, low, high) }}>{g(x.before.mg)}</span>{x.before.prick ? ' ✱' : ''}
-              <div style={small}>{time(x.before.t)}</div>
-            </> : x.foods.length ? <span style={small}>{t('لا قراءة')}</span> : empty}</td>)}
-          </tr>
-          <tr>
-            <td style={label}>{t('قراءة السكر بعد الأكل')}<div style={{ ...small, fontWeight: 400 }}>{t('بعد ساعتين')}</div></td>
-            {s.slots.map((x) => <td key={x.key} style={cell}>{x.after ? <>
-              <span style={{ fontSize: '12pt', fontWeight: 700, color: tone(x.after.mg, low, high) }}>{g(x.after.mg)}</span>
-              {x.before && <span style={{ ...small, fontWeight: 600 }}> ({x.after.mg >= x.before.mg ? '+' : '−'}{g(Math.abs(x.after.mg - x.before.mg))})</span>}
-              <div style={small}>{time(x.after.t)}{x.afterNextMeal ? ' · ' + t('بعد بدء الوجبة التالية') : ''}</div>
-            </> : x.foods.length ? <span style={small}>{x.start !== null && x.start + AFTER_MIN * MIN > Date.now() ? t('لم تمر ساعتان') : t('لا قراءة')}</span> : empty}</td>)}
+            <td style={label}>{t('بعد ساعتين')}</td>
+            {s.slots.map((x) => <td key={x.key} style={cell}>{perOcc(x, (o) => <>
+              {tm(o)}{o.after ? <><b style={{ fontSize: `${base + 2}pt`, color: tone(o.after.mg, low, high) }}>{g(o.after.mg)}</b>{o.before && <span style={{ ...small, fontWeight: 600 }}> ({o.after.mg >= o.before.mg ? '+' : '−'}{g(Math.abs(o.after.mg - o.before.mg))})</span>}</> : <span style={small}>{o.t + AFTER_MIN * MIN > Date.now() ? t('لم تمر ساعتان') : t('لا قراءة')}</span>}
+              {affectedText(o) && <div style={small}>{affectedText(o)}</div>}
+              {lowAfterText(o, g) && <div style={{ color: C.low, fontWeight: 700, borderInlineStart: `2px solid ${C.low}`, paddingInlineStart: '1mm' }}>{lowAfterText(o, g)}</div>}
+            </>)}</td>)}
           </tr>
           <tr>
             <td style={label}>{t('الإنسولين')}{rapidName ? <div style={{ ...small, fontWeight: 400 }}>{rapidName}</div> : null}</td>
-            {s.slots.map((x) => <td key={x.key} style={cell}>{x.doses.length ? x.doses.map((d, i) => (
-              <div key={i}><b style={{ color: C.ins, fontSize: '11pt' }}>{t('{u} وحدة', { u: fmt(d.units) })}</b> <span style={small}>{time(d.t)}{d.purpose === 'correction' ? ' · ' + t('تصحيح') : d.purpose === 'both' ? ' · ' + t('وجبة + تصحيح') : ''}</span></div>
-            )) : x.foods.length ? <span style={small}>{t('لم تُسجّل جرعة')}</span> : empty}</td>)}
+            {s.slots.map((x) => <td key={x.key} style={cell}>{perOcc(x, (o) => o.doses.length ? o.doses.map((d, i) => (
+              <div key={i}>{tm(o)}<b style={{ color: C.ins, fontSize: `${base + 1.5}pt` }}>{t('{u} وحدة', { u: fmt(d.units) })}</b><div style={small}>{doseWords(d, o).join(' · ')}</div></div>
+            )) : <>{tm(o)}<span style={small}>{t('لم تُسجّل جرعة')}</span></>)}</td>)}
           </tr>
           <tr>
             <td style={label}>{t('ملاحظات')}</td>
-            {s.slots.map((x) => <td key={x.key} style={{ ...cell, fontSize: '8pt', lineHeight: 1.35 }}>
-              {x.fatty && <div style={{ color: C.high, fontWeight: 600 }}>🍕 {t('وجبة دسمة: دهون {f} غ · بروتين {p} غ', { f: fmt(x.fat ?? 0), p: fmt(x.protein ?? 0) })}</div>}
-              {x.bump && <div style={{ color: C.low, fontWeight: 600 }}>⤴ {t('ارتفاع متأخر +{d} بعد {h} ({a} ← {b})', { d: g(x.bump.rise), h: hours(x.bump.peakAt - x.start!), a: g(x.bump.fromMg), b: g(x.bump.toMg) })}</div>}
-              {x.fatty && !x.bump && x.start !== null && x.start + 5 * 3600000 < Date.now() && <div style={small}>{t('لم يظهر ارتفاع متأخر')}</div>}
-              {x.noFatData && <div style={small}>{t('لا توجد قيم دهون مسجّلة')}</div>}
-            </td>)}
+            {s.slots.map((x) => <td key={x.key} style={cell}>{x.occasions.length ? perOcc(x, (o) => <>
+              {o.fatty && <div style={{ color: C.high, fontWeight: 600 }}>{t('دسمة: دهون {f} غ', { f: fmt(Math.round(o.fat.v ?? 0)) })}</div>}
+              {o.bump && <div style={{ color: C.low, fontWeight: 600 }}>{t('ارتفاع متأخر +{d} بعد {h}', { d: g(o.bump.rise), h: hours(o.bump.peakAt - o.t) })}</div>}
+              {o.fatty && !o.bump && o.t + 5 * 3600000 < Date.now() && <div style={small}>{t('لم يظهر ارتفاع متأخر')}</div>}
+              {o.noFatData && <div style={small}>{t('لا توجد قيم دهون مسجّلة')}</div>}
+              {flagWords(o).length > 0 && <div style={small}>[{flagWords(o).join('] [')}]</div>}
+              {o.foods.filter((f) => f.note).map((f, i) => <div key={i} style={small}>{t('ملاحظة')}: <bdi>{f.note}</bdi></div>)}
+            </>) : empty}</td>)}
+          </tr>
+          <tr>
+            <td style={{ ...label, color: C.low }}>{t('علاج الانخفاض')}</td>
+            <td colSpan={5} style={cell}>{s.treatments.length ? <>
+              {s.treatments.map((x, i) => <span key={i} style={{ marginInlineEnd: '3mm', display: 'inline-block' }}><b>{time(x.t)}</b> <Name raw={x.name} /> <b style={{ color: C.low }}>{carbsText(x.carbs)}</b> <span style={small}>({treatLine(x, g)}{x.byCgm ? ` · ${t('حسب الحساس')}` : ''}{x.duplicate ? ` · ${t('مكرر؟')}` : ''})</span></span>)}
+              <b> · {t('المجموع {g} غ', { g: fmt(Math.round(s.totals.treatmentCarbs)) })}</b>
+            </> : <span style={small}>{t('لا يوجد')}</span>}</td>
           </tr>
         </tbody>
       </table>
 
-      <div style={{ display: 'flex', gap: '3mm', flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'flex', gap: '3mm', flex: 1, minHeight: dense >= 2 ? '30mm' : '40mm' }}>
         <div style={{ flex: '1.25', border: `1px solid ${C.line}`, borderRadius: '2mm', padding: '1.5mm 2mm', display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontWeight: 700, color: C.brand, marginBottom: '1mm' }}>{t('السكر خلال اليوم')}</div>
           <DayChart s={s} low={low} high={high} unit={unit} />
-          <div style={{ ...small, display: 'flex', gap: '3mm', flexWrap: 'wrap' }}>
+          <div style={{ fontSize: '7pt', color: C.ink2, display: 'flex', gap: '3mm', flexWrap: 'wrap' }}>
             <span><b style={{ color: C.carb }}>▲</b> {t('أكل')}</span><span><b style={{ color: C.ins }}>▮</b> {t('إنسولين سريع')}</span><span><b style={{ color: C.lowDot }}>●</b> {t('علاج انخفاض')}</span><span style={{ background: C.band, padding: '0 1.5mm' }}>{t('النطاق')}</span>
           </div>
         </div>
-        <div style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: '2mm', padding: '1.5mm 2.5mm', lineHeight: 1.45, overflow: 'hidden' }}>
+        <div style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: '2mm', padding: '1.5mm 2.5mm', lineHeight: 1.4, fontSize: dense >= 2 ? '7.6pt' : '8.6pt' }}>
           <div style={{ fontWeight: 700, color: C.brand }}>{t('ملخص اليوم')}</div>
-          <div>{t('الكارب')}: <b>{t('{g} غ', { g: fmt(s.totals.carbs) })}</b>{s.totals.fat !== null ? ` · ${t('دهون {g} غ', { g: fmt(s.totals.fat) })}` : ''}{s.totals.protein !== null ? ` · ${t('بروتين {g} غ', { g: fmt(s.totals.protein) })}` : ''}{s.totals.kcal !== null ? ` · ${t('{n} سعرة', { n: Math.round(s.totals.kcal) })}` : ''}</div>
+          <div>{t('الكارب')}: <b>{t('أكل {a} غ · علاج {b} غ', { a: fmt(Math.round(s.totals.carbs)), b: fmt(Math.round(s.totals.treatmentCarbs)) })}</b>{s.totals.fat !== null ? ` · ${t('دهون')} ${s.totals.partial.fat ? '≥ ' : ''}${fmt(Math.round(s.totals.fat))} ${t('غ')}` : ''}{s.totals.protein !== null ? ` · ${t('بروتين')} ${s.totals.partial.protein ? '≥ ' : ''}${fmt(Math.round(s.totals.protein))} ${t('غ')}` : ''}{s.totals.kcal !== null ? ` · ${s.totals.partial.kcal ? '≥ ' : ''}${t('{n} سعرة', { n: Math.round(s.totals.kcal) })}` : ''}{s.totals.partial.fat || s.totals.partial.kcal ? ` (${t('ناقص')})` : ''}</div>
           <div>{t('الإنسولين السريع')}: <b>{t('{u} وحدة', { u: fmt(s.totals.rapid) })}</b>{s.otherDoses.length ? ` (${t('منها خارج الوجبات')}: ${s.otherDoses.map((d) => `${fmt(d.units)} · ${time(d.t)}`).join(sep())})` : ''}</div>
           <div>{t('الإنسولين الطويل')}{basalName ? ` (${basalName})` : ''}: <b>{s.basal.length ? s.basal.map((d) => `${t('{u} وحدة', { u: fmt(d.units) })} · ${time(d.t)}`).join(sep()) : t('لم يُسجّل')}</b></div>
           <div>{t('السكر')}: {s.glucose.mean !== null ? <>{t('المتوسط')} <b>{g(s.glucose.mean)}</b> · {t('في النطاق')} <b style={{ color: C.ok }}>{s.glucose.inRange}%</b> · {t('تحت')} <b style={{ color: C.low }}>{s.glucose.below}%</b> · {t('فوق')} <b style={{ color: C.high }}>{s.glucose.above}%</b> · {g(s.glucose.min!)}–{g(s.glucose.max!)}</> : t('لا قراءات')}</div>
           <div>{t('الانخفاضات')}: {s.lows.length ? s.lows.map((l) => `${time(l.t)} (${g(l.nadir)}${sep()}${t('{m} د', { m: l.minutes })})`).join(sep()) : t('لا يوجد')}</div>
-          <div>{t('علاج الانخفاض')}: {s.treatments.length ? s.treatments.map((x) => `${tMaybe(x.name)} ${t('{g} غ', { g: fmt(x.carbs) })} · ${time(x.t)}`).join(sep()) : t('لا يوجد')}</div>
-          {s.night.length > 0 && <div>{t('أكل بعد منتصف الليل')}: {s.night.map((f) => `${f.name} ${t('{g} غ', { g: fmt(f.carbs) })} · ${time(f.t)}`).join(sep())}</div>}
+          {s.night.length > 0 && <div>{t('أكل بعد منتصف الليل')}: {s.night.map((f) => `${nameOf(f.name).text} ${carbsText(f.carbs)} · ${time(f.t)}`).join(sep())}</div>}
           {s.activities.length > 0 && <div>{t('نشاط وملاحظات')}: {s.activities.map((x) => `${x.text} · ${time(x.t)}`).join(sep())}</div>}
-          {ratios.length > 0 && <div style={small}>{t('المسجّل في التطبيق من الفريق الطبي')}: {ratios.map((r) => `${r.from} CR 1:${fmt(r.cr)} · ISF ${g(r.isf)}`).join(' | ')}</div>}
-          <div style={{ ...small, marginTop: '1mm', borderTop: `1px dashed ${C.line}`, paddingTop: '1mm' }}>{t('ملاحظات الأهل')}: ………………………………………………………………</div>
+          {ratios.length > 0 && <div style={{ fontSize: '7pt', color: C.ink2 }}>{t('المسجّل من الفريق الطبي')}: {ratios.map((r) => `${r.from} · ${t('الوحدة لكل {n} غ كارب', { n: fmt(r.cr) })} · ${t('الوحدة تنزّل السكر ~{v}', { v: g(r.isf) })}`).join(' | ')}</div>}
+          <div style={{ fontSize: '7pt', color: C.ink2, marginTop: '1mm', borderTop: `1px dashed ${C.line}`, paddingTop: '1mm' }}>{t('ملاحظات الأهل')}: ………………………………………………………………</div>
         </div>
       </div>
     </section>

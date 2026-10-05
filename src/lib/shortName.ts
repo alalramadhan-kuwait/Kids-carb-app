@@ -24,3 +24,17 @@ export function shortName(name: string): string {
   s = (s + (serve ? ' ' + serve : '')).replace(/\s+-\s+/g, ' ').replace(/\s{2,}/g, ' ').trim();
   return s.length >= 3 ? s : name;
 }
+
+/**
+ * A food's name for reports: pack sizes, piece counts and calorie notes removed, because the amount eaten is
+ * printed next to it ("Ritz Crackers 39.6g (12 pcs)" → "Ritz Crackers"). The full name when nothing is left.
+ */
+export function displayName(name: string): string {
+  const size = String.raw`\d+(?:[.,]\d+)?\s*(?:g|gm|kg|ml|l|ltr|litre|liter|غ|غم|جم|مل|لتر|pcs|pc|pieces|حبة|حبات|سعرة|kcal)`; // i18n-ok: data
+  let s = name
+    .replace(new RegExp(String.raw`\(([^)]*?)${size}[^)]*\)`, 'gi'), ' ')   // "(12 pcs)", "(كوب 200 مل)", "(101 سعرة)"
+    .replace(new RegExp(String.raw`(^|\s)${size}(?=\s|$)`, 'gi'), ' ')       // "39.6g", "125ml", "1 LTR"
+    .replace(/\s+-\s*$/, '').replace(/\s{2,}/g, ' ').trim();
+  s = s.replace(/[\s·,،-]+$/, '').trim(); // i18n-ok: Arabic comma
+  return s.length >= 2 ? s : name;
+}
