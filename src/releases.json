@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.45.2",
+    "notes": [
+      "شاشة «الآن»: صندوق «صعود سريع» فوق الشاشة انشال، لأن بطاقة السكر تحته تقول «يصعد بسرعة» مع السهم. وتنبيه «مرتفع» يختفي بعد ما أحد يضغط «أنا عليها». تنبيهات الانخفاض باقية."
+    ],
+    "notes_en": [
+      "“Now”: the “Rising fast” box at the top is gone, since the glucose card under it already says “rising fast” with the arrow. A “High” alert folds away once someone taps “I'm on it”. Low alerts stay."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.45.1",
     "notes": [
       "بعد ما تضغطون «أكلت» في الخطة، النافذة تتسكّر، والوجبة المسجّلة تطلع «سُجّلت ✓» بدون أزرار، عشان ما تنسجل مرتين.",

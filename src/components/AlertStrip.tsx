@@ -21,6 +21,9 @@ const LOWS: AlertKind[] = ['urgent_low', 'low', 'predicted_low'];
 export function AlertStrip({ alerts, onChange, onTreat }: { alerts: AlertRow[]; onChange: () => void; onTreat?: () => void }) {
   const { settings, nameOf } = useData();
   const [busy, setBusy] = useState('');
+  // rising fast is already told by the glucose card under it ("rising fast" + arrow), so it gets no box of its own;
+  // a high someone is already on folds away. Lows stay, answered or not.
+  alerts = alerts.filter((a) => a.kind !== 'rapid_rise' && !((a.kind === 'high') && a.state === 'acknowledged'));
   if (!alerts.length) return null;
   const act = async (a: AlertRow, ack: 'on_it' | 'treated') => {
     setBusy(a.id);
