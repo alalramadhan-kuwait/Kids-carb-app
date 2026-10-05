@@ -53,9 +53,6 @@ export default function Growth() {
           <MealPatterns g={g} period={period} />
           <HowTargets g={g} />
           <ProfileSection g={g} />
-          <Link to="/diet-sheet" className="flex min-h-[52px] items-center justify-between rounded-2xl border border-slate-100 bg-white px-4 text-sm font-bold">
-            {t('جدول أخصائية التغذية (PDF)')}<span className="opacity-60">{isEn() ? '›' : '‹'}</span>
-          </Link>
         </div>
       )}
       <MeasureSheet edit={edit} list={g.measurements} onClose={() => setEdit(null)} />

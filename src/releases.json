@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.39.0",
+    "notes": [
+      "«جدول أخصائية التغذية» صار في «المزيد ← التقارير والمشاركة».",
+      "الصفحة صارت أرتب: اختاري اليوم أو 3 أو 7 أو 14 يوم، و«مشاركة PDF» للطباعة مثل قبل.",
+      "عرض جديد للجوال: بطاقة لكل يوم فيها كل وجبة، الكارب، السكر قبل ← بعد، والإنسولين. على الشاشة الكبيرة يظهر الجدول كامل، وتقدرين تبدّلين بين «بطاقات» و«جدول»."
+    ],
+    "notes_en": [
+      "“Dietitian sheet” is now in “More → Reports & sharing”.",
+      "The page is tidier: pick today, 3, 7 or 14 days; “Share PDF” prints it as before.",
+      "New phone view: a card per day with each meal, its carbs, glucose before → after and the insulin. On a big screen the full table shows; switch between “Cards” and “Table” any time."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.38.0",
     "notes": [
       "صفحة «المزيد» صارت أبسط: ليان، الأكل، التقارير والمشاركة، هذا الجوال، العائلة والحساب. كل سطر له أيقونة وحدة ما تتكرر.",

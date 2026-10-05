@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -10,7 +10,7 @@ import { fmt, unitText } from '../lib/carbs';
 import { fmtTime } from '../lib/constants';
 import { AFTER_MIN, DEFAULT_STARTS, SLOT_KEYS, buildDay, type Activity, type DaySheet, type Dose, type Food, type Prick, type SlotKey, type SlotStarts, type Treat } from '../lib/dietSheet';
 import type { EventRow, HistoryEntry } from '../lib/types';
-import { Alert, Btn, Card, Chip, Page } from '../components/ui';
+import { Alert, Card, Page, cx } from '../components/ui';
 import { SharePdf } from '../components/SharePdf';
 import { makePdf } from '../lib/pdfShare';
 import { isEn, locale, t, tMaybe } from '../i18n';
@@ -43,6 +43,18 @@ export default function DietSheetPage() {
   const [to, setTo] = useState(isoDay(today));
   const [starts, setStarts] = useState<SlotStarts>(loadStarts);
   const [showTimes, setShowTimes] = useState(false);
+  const [custom, setCustom] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const [boxW, setBoxW] = useState(0);
+  useLayoutEffect(() => {
+    const el = box.current; if (!el) return;
+    const ro = new ResizeObserver(() => setBoxW(el.clientWidth)); ro.observe(el); setBoxW(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+  // phone: cards; wide screen: the table. The choice is kept on this phone.
+  const wide = typeof window !== 'undefined' && window.innerWidth >= 900;
+  const [view, setView] = useState<'cards' | 'table'>(() => { try { const v = localStorage.getItem('diet-sheet-view'); if (v === 'cards' || v === 'table') return v; } catch { /* default */ } return wide ? 'table' : 'cards'; });
+  const pickView = (v: 'cards' | 'table') => { setView(v); try { localStorage.setItem('diet-sheet-view', v); } catch { /* not kept */ } };
   const [sheets, setSheets] = useState<DaySheet[] | null>(null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -96,26 +108,38 @@ export default function DietSheetPage() {
     return () => { live = false; };
   }, [from, to, starts, low, high]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const quick = (n: number) => { setFrom(isoDay(today - (n - 1) * DAY)); setTo(isoDay(today)); };
-  const zoom = Math.min(1, (typeof window !== 'undefined' ? window.innerWidth - 32 : 1000) / 1123);
-  const pages = sheets?.map((s) => <SheetPage key={s.start} s={s} unit={settings.glucose_unit} low={low} high={high} starts={starts} child={settings.child_name ?? t('ليان')} rapidName={settings.rapid_insulin} basalName={settings.basal_insulin} ratios={settings.ratios} />);
+  const span = days && to === isoDay(today) ? days : 0;   // which quick period is showing (0: custom dates)
+  const quick = (n: number) => { setFrom(isoDay(today - (n - 1) * DAY)); setTo(isoDay(today)); setCustom(false); };
+  const zoom = boxW ? Math.min(1, boxW / 1065) : 0.3; // the A4 page (281 mm ≈ 1062 px) fitted to the width it has
+  const pageOf = (s: DaySheet) => <SheetPage key={s.start} s={s} unit={settings.glucose_unit} low={low} high={high} starts={starts} child={settings.child_name ?? t('ليان')} rapidName={settings.rapid_insulin} basalName={settings.basal_insulin} ratios={settings.ratios} />;
+  const pages = sheets?.map(pageOf);
+  const seg = (on: boolean) => cx('min-h-[40px] rounded-full px-3 text-sm font-bold', on ? 'bg-brand text-white' : 'text-slate-600');
 
   return (
-    <Page title={t('جدول أخصائية التغذية')} back={() => nav(-1)}>
-      <div className="space-y-3">
+    <Page title={t('جدول أخصائية التغذية')} back={() => nav(-1)} wide={view === 'table'}>
+      <div ref={box} className="space-y-3">
         <Card className="space-y-3">
-          <div className="grid grid-cols-2 gap-2">
-            <label className="text-sm"><span className="mb-1 block text-slate-600">{t('من')}</span><input type="date" dir="ltr" className="min-h-[44px] w-full rounded-xl border border-slate-200 bg-white px-2" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></label>
-            <label className="text-sm"><span className="mb-1 block text-slate-600">{t('إلى')}</span><input type="date" dir="ltr" className="min-h-[44px] w-full rounded-xl border border-slate-200 bg-white px-2" value={to} min={from} max={isoDay(today)} onChange={(e) => setTo(e.target.value)} /></label>
+          {/* the period: four quick choices, or your own dates */}
+          <div className="grid grid-cols-4 gap-1 rounded-full bg-slate-50 p-1" role="radiogroup" aria-label={t('الفترة')}>
+            {[1, 3, 7, 14].map((n) => <button key={n} role="radio" aria-checked={!custom && span === n} onClick={() => quick(n)} className={seg(!custom && span === n)}>{n === 1 ? t('اليوم') : t('{n} أيام', { n })}</button>)}
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {[1, 3, 7, 14].map((n) => <Chip key={n} onClick={() => quick(n)}>{n === 1 ? t('اليوم') : t('آخر {n} أيام', { n })}</Chip>)}
-          </div>
-          <button onClick={() => setShowTimes(!showTimes)} className="flex min-h-[40px] w-full items-center justify-between text-sm font-medium text-slate-600">
-            <span>{t('أوقات الوجبات')}: {SLOT_KEYS.map((k) => `${t(SLOT_LABEL[k])} ${hm(starts[k])}`).join(' · ')}</span><span aria-hidden>{showTimes ? '▴' : '▾'}</span>
+          <button onClick={() => setCustom(!custom)} className="flex min-h-[36px] w-full items-center justify-between text-sm text-slate-600">
+            <span>{t('من {a} إلى {b}', { a: niceDay(dayFromIso(from)), b: niceDay(dayFromIso(to)) })}</span><span className="font-bold text-brand">{custom ? t('تم') : t('تواريخ أخرى')}</span>
           </button>
-          {showTimes && (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          {custom && (
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-sm"><span className="mb-1 block text-slate-600">{t('من')}</span><input type="date" dir="ltr" className="min-h-[44px] w-full rounded-xl border border-slate-200 bg-white px-2" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></label>
+              <label className="text-sm"><span className="mb-1 block text-slate-600">{t('إلى')}</span><input type="date" dir="ltr" className="min-h-[44px] w-full rounded-xl border border-slate-200 bg-white px-2" value={to} min={from} max={isoDay(today)} onChange={(e) => setTo(e.target.value)} /></label>
+            </div>
+          )}
+          {tooMany && <Alert tone="near">{t('31 يومًا كحد أقصى في المرة الواحدة.')}</Alert>}
+          {err && <Alert tone="over">{err}</Alert>}
+          <SharePdf className="w-full" disabled={!sheets?.length || busy} filename={`layan-food-sheet-${from}-${to}.pdf`} title={t('جدول التغذية اليومي')}
+            make={() => makePdf(Array.from(document.querySelectorAll<HTMLElement>('#print-root .diet-page')), { orientation: 'landscape', fit: 'page' })} />
+          <p className="text-center text-xs text-slate-500">{busy ? t('جارٍ التجهيز…') : sheets ? t('PDF للطباعة: {n} صفحة A4، صفحة لكل يوم', { n: sheets.length }) : ''}</p>
+          <details className="text-sm" open={showTimes} onToggle={(e) => setShowTimes((e.target as HTMLDetailsElement).open)}>
+            <summary className="min-h-[36px] cursor-pointer py-1 text-slate-600">{t('أوقات الوجبات')}</summary>
+            <div className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-5">
               {SLOT_KEYS.map((k) => (
                 <label key={k} className="text-xs"><span className="mb-1 block text-slate-600">{t('{slot} يبدأ', { slot: t(SLOT_LABEL[k]) })}</span>
                   <input type="time" dir="ltr" className="min-h-[40px] w-full rounded-xl border border-slate-200 bg-white px-2" value={hm(starts[k])}
@@ -123,19 +147,86 @@ export default function DietSheetPage() {
               ))}
               <button className="col-span-2 text-start text-xs font-bold text-brand sm:col-span-5" onClick={() => setStarts(DEFAULT_STARTS)}>{t('الأوقات الافتراضية')}</button>
             </div>
-          )}
-          {tooMany && <Alert tone="near">{t('31 يومًا كحد أقصى في المرة الواحدة.')}</Alert>}
-          {err && <Alert tone="over">{err}</Alert>}
-          <SharePdf className="w-full" disabled={!sheets?.length || busy} filename={`layan-food-sheet-${from}-${to}.pdf`} title={t('جدول التغذية اليومي')}
-            make={() => makePdf(Array.from(document.querySelectorAll<HTMLElement>('#print-root .diet-page')), { orientation: 'landscape', fit: 'page' })} />
-          {sheets && <p className="text-center text-xs text-slate-500">{busy ? t('جارٍ التجهيز…') : t('{n} صفحة · صفحة لكل يوم', { n: sheets.length })}</p>}
-          <p className="text-xs leading-relaxed text-slate-500">{t('ملف PDF بصفحة A4 أفقية لكل يوم. «مشاركة PDF» تفتح المشاركة: واتساب، الملفات، البريد…')}</p>
+          </details>
         </Card>
-        {/* preview, scaled to the screen */}
-        <div className="space-y-3 overflow-hidden" style={{ zoom } as React.CSSProperties}>{pages}</div>
+
+        {/* how to look at it: cards on a phone, the dietitian's table on a wide screen; either can be chosen */}
+        {sheets && sheets.length > 0 && (
+          <div className="grid grid-cols-2 gap-1 rounded-full bg-slate-100 p-1" role="radiogroup" aria-label={t('العرض')}>
+            <button role="radio" aria-checked={view === 'cards'} onClick={() => pickView('cards')} className={seg(view === 'cards')}>📱 {t('بطاقات')}</button>
+            <button role="radio" aria-checked={view === 'table'} onClick={() => pickView('table')} className={seg(view === 'table')}>🖥️ {t('جدول')}</button>
+          </div>
+        )}
+        {view === 'cards'
+          ? <div className="space-y-3">{[...(sheets ?? [])].reverse().map((s) => <DayCard key={s.start} s={s} unit={settings.glucose_unit} low={low} high={high} starts={starts} />)}</div>
+          : <div className="space-y-3 overflow-hidden" style={{ zoom } as React.CSSProperties}>{pages}</div>}
       </div>
       {sheets && createPortal(<div id="print-root" dir={isEn() ? 'ltr' : 'rtl'}>{pages}</div>, document.body)}
     </Page>
+  );
+}
+
+const niceDay = (ms: number) => Number.isFinite(ms) ? new Date(ms + 3 * 3600000).toLocaleDateString(locale(), { day: 'numeric', month: 'short', timeZone: 'UTC', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions) : '—';
+
+/** The phone view of one day: what she ate at each meal, its carbs, glucose before → after and the insulin, then the day. */
+function DayCard({ s, unit, low, high, starts }: { s: DaySheet; unit: GlucoseUnit; low: number; high: number; starts: SlotStarts }) {
+  const g = (mg: number) => formatGlucose(mg, unit);
+  const toneCls = (mg: number) => (mg < low ? 'text-over' : mg > high ? 'text-near' : 'text-ok');
+  const date = new Date(s.start + 3 * 3600000);
+  const title = date.toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
+  const eaten = s.slots.filter((x) => x.foods.length);
+  const hours = (ms: number) => t('{h} س', { h: Math.round((ms / 3600000) * 2) / 2 });
+  const pill = (label: string, v: string, cls = '') => <span className="rounded-full bg-slate-50 px-2.5 py-1 text-xs text-slate-600">{label} <b className={cx('num', cls)}>{v}</b></span>;
+  return (
+    <Card className="space-y-3">
+      <div>
+        <h2 className="text-lg font-bold">{title}</h2>
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {pill(t('الكارب'), t('{g} غ', { g: fmt(s.totals.carbs) }), 'text-kcarb')}
+          {pill(t('إنسولين سريع'), t('{u} و', { u: fmt(s.totals.rapid) }), 'text-kins')}
+          {s.glucose.inRange !== null && pill(t('في النطاق'), `${s.glucose.inRange}%`, 'text-ok')}
+          {s.lows.length > 0 && pill(t('انخفاضات'), String(s.lows.length), 'text-over')}
+        </div>
+      </div>
+      {eaten.length === 0 ? <p className="text-sm text-slate-500">{t('لا وجبات مسجّلة')}</p> : (
+        <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-100">
+          {eaten.map((x) => (
+            <li key={x.key} className="space-y-1.5 px-3 py-2.5">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-sm font-bold text-brand">{t(SLOT_LABEL[x.key])} <span className="font-normal text-slate-400">{hm(starts[x.key])}</span></span>
+                <b className="num text-kcarb">{t('{g} غ', { g: fmt(x.carbs) })}</b>
+              </div>
+              <div className="text-sm leading-snug">{x.foods.map((f, i) => <span key={i}>{i ? sep() : ''}<bdi>{f.name}</bdi>{f.detail ? <span className="text-slate-500"> ({f.detail})</span> : null}</span>)} <span className="text-xs text-slate-400">· {time(x.foods[0].t)}</span></div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                <span className="text-slate-500">{t('السكر')}{' '}
+                  {x.before ? <b className={cx('num', toneCls(x.before.mg))}>{g(x.before.mg)}{x.before.prick ? '✱' : ''}</b> : <span>—</span>}
+                  <span className="text-slate-400"> {isEn() ? '→' : '←'} </span>
+                  {x.after ? <b className={cx('num', toneCls(x.after.mg))}>{g(x.after.mg)}</b> : <span className="text-xs">{x.start !== null && x.start + AFTER_MIN * MIN > Date.now() ? t('لم تمر ساعتان') : '—'}</span>}
+                </span>
+                <span className="text-slate-500">💉 {x.doses.length ? x.doses.map((d, i) => <b key={i} className="num text-kins">{i ? ' + ' : ''}{t('{u} و', { u: fmt(d.units) })}</b>) : <span className="text-xs">{t('لم تُسجّل جرعة')}</span>}</span>
+              </div>
+              {(x.fatty || x.bump) && <div className="flex flex-wrap gap-1.5 text-xs">
+                {x.fatty && <span className="rounded-full bg-near-soft px-2 py-0.5 font-bold text-near">🍕 {t('دسمة: دهون {f} غ', { f: fmt(x.fat ?? 0) })}</span>}
+                {x.bump && <span className="rounded-full bg-over-soft px-2 py-0.5 font-bold text-over">⤴ {t('ارتفاع متأخر +{d} بعد {h}', { d: g(x.bump.rise), h: hours(x.bump.peakAt - x.start!) })}</span>}
+              </div>}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-col"><DayChart s={s} low={low} high={high} unit={unit} /></div>
+      <details className="text-sm">
+        <summary className="min-h-[36px] cursor-pointer py-1 font-bold text-brand">{t('ملخص اليوم')}</summary>
+        <div className="space-y-1 text-slate-700">
+          {s.glucose.mean !== null && <div>{t('السكر')}: {t('المتوسط')} <b>{g(s.glucose.mean)}</b> · {t('تحت')} <b className="text-over">{s.glucose.below}%</b> · {t('فوق')} <b className="text-near">{s.glucose.above}%</b></div>}
+          <div>{t('الإنسولين الطويل')}: <b>{s.basal.length ? s.basal.map((d) => `${t('{u} وحدة', { u: fmt(d.units) })} · ${time(d.t)}`).join(sep()) : t('لم يُسجّل')}</b></div>
+          {s.otherDoses.length > 0 && <div>{t('منها خارج الوجبات')}: {s.otherDoses.map((d) => `${fmt(d.units)} · ${time(d.t)}`).join(sep())}</div>}
+          <div>{t('الانخفاضات')}: {s.lows.length ? s.lows.map((l) => `${time(l.t)} (${g(l.nadir)})`).join(sep()) : t('لا يوجد')}</div>
+          <div>{t('علاج الانخفاض')}: {s.treatments.length ? s.treatments.map((x) => `${tMaybe(x.name)} ${t('{g} غ', { g: fmt(x.carbs) })} · ${time(x.t)}`).join(sep()) : t('لا يوجد')}</div>
+          {s.night.length > 0 && <div>{t('أكل بعد منتصف الليل')}: {s.night.map((f) => `${f.name} ${t('{g} غ', { g: fmt(f.carbs) })} · ${time(f.t)}`).join(sep())}</div>}
+          {s.activities.length > 0 && <div>{t('نشاط وملاحظات')}: {s.activities.map((x) => `${x.text} · ${time(x.t)}`).join(sep())}</div>}
+        </div>
+      </details>
+    </Card>
   );
 }
 
