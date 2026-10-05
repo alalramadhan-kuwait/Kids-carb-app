@@ -16,7 +16,7 @@ function Mark({ s }: { s: Swatch }) {
 }
 
 /** A small ⓘ on the graph; the explanation of every line and strip opens only when asked for. */
-export function GraphHelp({ past, tracks, className }: { past?: boolean; tracks?: boolean; className?: string }) {
+export function GraphHelp({ past, tracks, act, className }: { past?: boolean; tracks?: boolean; act?: boolean; className?: string }) {
   const [open, setOpen] = useState(false);
   const rows: [Swatch, string, string][] = [
     ['line', t('السكر'), t('القراءات من الحساس.')],
@@ -24,6 +24,7 @@ export function GraphHelp({ past, tracks, className }: { past?: boolean; tracks?
     ['dash', t('التقدير مع ما في الجسم'), t('إلى أين يتجه السكر حتى ينتهي مفعول الكارب والإنسولين المسجّلين. الرقم في آخره هو التقدير.')],
     ['dot', t('الاتجاه 30 د'), t('لو استمر السكر بنفس سرعته الآن، أين يكون بعد 30 دقيقة.')],
     ...(past ? [['past', t('توقع آخر وجبة'), t('ما توقّعه التطبيق وقت آخر وجبة. قارنوه بخط السكر لتروا دقة التوقع.')] as [Swatch, string, string]] : []),
+    ...(act ? [['ins', t('مفعول الإنسولين'), t('قوة عمل الإنسولين السريع: يصعد بعد الإبرة، أعلى شي عند «ذروة» (الساعة مكتوبة)، ثم يخف. بعد «الآن» متقطع.')] as [Swatch, string, string]] : []),
     ...(tracks ? [
       ['ins', 'IOB', t('الإنسولين السريع الذي ما زال يعمل. بعد «الآن» متقطع: ما تبقّى منه.')] as [Swatch, string, string],
       ['carb', 'COB', t('الكارب الذي ما زال يُمتص. بعد «الآن» متقطع: ما تبقّى منه.')] as [Swatch, string, string],

@@ -21,7 +21,11 @@ const pathsOf = (n: IconName) => { let p = iconPaths.get(n); if (!p) { p = (ICON
 export interface Range { low: number | null; high: number | null; reference?: boolean } // mg/dL; reference = the international range in use until the parents set hers
 /** Display-only secondary tracks (IOB in units, COB in grams), each on its own scale under the glucose plot. */
 import type { Forecast } from './forecast';
-export interface Tracks { iob?: (t: number) => number; cob?: (t: number) => number }
+export interface Tracks {
+  iob?: (t: number) => number; cob?: (t: number) => number;
+  /** insulin activity (units per hour), drawn over the bottom of the glucose plot with its peaks marked */
+  act?: { at: (t: number) => number; peaks: number[]; ref: number };
+}
 export interface Inspect { t: number; i: number | null; x: number }
 
 const LONG_PRESS = 500, TAP_SLOP = 8, DOUBLE_TAP = 300;
@@ -176,6 +180,56 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
       g.strokeStyle = css('--text-3', 0.35); g.lineWidth = 1; g.setLineDash([2, 3]);
       for (const gr of groups) { const x = Math.round(gr.x) + 0.5; g.beginPath(); g.moveTo(x, PAD_T); g.lineTo(x, PAD_T + plotH); g.stroke(); }
       g.setLineDash([]);
+    }
+
+    // insulin activity: how hard the rapid insulin is working, a soft area over the bottom third of the plot, highest
+    // at each dose's peak (a dotted line and its time); ahead of now lighter and dashed. Display only.
+    if (tracks?.act) {
+      const A = tracks.act, h = plotH * 0.26, base = PAD_T + plotH;
+      const xs: number[] = [], vs: number[] = [];
+      for (let x = 0; x <= width; x += 2) { xs.push(x); vs.push(A.at(start + (x / width) * span)); }
+      const top = Math.max(A.ref, ...vs);
+      if (Math.max(...vs) > A.ref * 0.03) {
+        const ty = (v: number) => base - (v / top) * h, nowX = X(now), tone = '--k-ins';
+        for (const future of [false, true]) {
+          g.save(); g.beginPath(); g.rect(future ? nowX : 0, PAD_T, future ? width - nowX : nowX, plotH); g.clip();
+          g.beginPath(); g.moveTo(xs[0], base); xs.forEach((x, j) => g.lineTo(x, ty(vs[j]))); g.lineTo(xs[xs.length - 1], base); g.closePath();
+          g.fillStyle = css(tone, future ? 0.09 : 0.2); g.fill();
+          g.beginPath(); xs.forEach((x, j) => (j ? g.lineTo(x, ty(vs[j])) : g.moveTo(x, ty(vs[j]))));
+          g.setLineDash(future ? [4, 3] : []); g.strokeStyle = css(tone, future ? 0.6 : 0.85); g.lineWidth = 1.5; g.stroke(); g.setLineDash([]);
+          g.restore();
+        }
+        if (nowX > 0 && nowX < width) { const v = A.at(now); if (v > 0) { g.fillStyle = css(tone); g.beginPath(); g.arc(nowX, ty(v), 3.2, 0, 7); g.fill(); } }
+        // in words, at the bottom left: rising to its peak, at its peak, or easing off
+        g.textBaseline = 'bottom'; g.direction = dir();
+        let used = 0;
+        if (now >= start && now <= end) {
+          const next = A.peaks.find((pk) => pk > now + 10 * 60000), at = A.peaks.find((pk) => Math.abs(pk - now) <= 10 * 60000);
+          const cur = A.at(now);
+          const word = cur < A.ref * 0.03 ? null : at !== undefined ? t('مفعول الإنسولين: في الذروة الآن') : next !== undefined && A.at(next) > cur ? t('مفعول الإنسولين يصعد · الذروة {c}', { c: clock(next) }) : t('مفعول الإنسولين يخف');
+          if (word) {
+            g.font = '600 10.5px Rubik, system-ui, sans-serif'; g.textAlign = 'left';
+            const w = g.measureText(word).width + 8;
+            g.fillStyle = css('--surface', 0.9); g.fillRect(2, base - 16, w, 14);
+            g.fillStyle = css(tone); g.fillText(word, 6, base - 3);
+            used = w + 6;
+          }
+        }
+        // each peak: a dotted line down from the top of the curve, and its time on a chip at the bottom
+        g.font = '700 10.5px Rubik, system-ui, sans-serif'; g.textAlign = 'center';
+        for (const pk of A.peaks) {
+          const x = X(pk); if (x < 4 || x > width - 4) continue;
+          const v = A.at(pk); if (v < top * 0.12) continue;
+          const y = ty(v);
+          g.strokeStyle = css(tone, 0.8); g.lineWidth = 1.2; g.setLineDash([2, 2]); g.beginPath(); g.moveTo(x + 0.5, y); g.lineTo(x + 0.5, base); g.stroke(); g.setLineDash([]);
+          g.fillStyle = css(tone); g.beginPath(); g.arc(x, y, 3.4, 0, 7); g.fill();
+          const label = t('ذروة {c}', { c: clock(pk) }), w = g.measureText(label).width + 8, cx0 = Math.min(width - 30 - w / 2, Math.max(w / 2 + 2, x));
+          if (cx0 - w / 2 < used) continue;
+          g.fillStyle = css(tone); g.fillRect(cx0 - w / 2, base - 16, w, 14);
+          g.fillStyle = css('--surface'); g.fillText(label, cx0, base - 3);
+        }
+        g.direction = 'ltr';
+      }
     }
 
     // the trace: one path, stroked neutral, then re-stroked in state colours clipped to each band
@@ -515,6 +569,9 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
                 <span className="whitespace-nowrap text-xs text-slate-500"><b className="num text-slate-800" dir="ltr">{rate !== null ? fmtRate(rate) : '—'}</b>{t('/د')}</span>
               </>
             ) : <span className="text-slate-500">{t('لا توجد قراءة هنا')}</span>}
+            {tracks?.act && (i !== null ? series.t[i] : inspect.t) <= now && (
+              <span className="whitespace-nowrap text-xs text-slate-500">{t('مفعول')} <b className="num text-slate-800">{t('{v} و/س', { v: tracks.act.at(i !== null ? series.t[i] : inspect.t).toFixed(1) })}</b></span>
+            )}
             {trackList.map((k) => { const at = i !== null ? series.t[i] : inspect.t; return at <= now && (
               <span key={k} className="whitespace-nowrap text-xs text-slate-500">{k === 'iob' ? 'IOB' : 'COB'} <b className="num text-slate-800">{k === 'iob' ? t('{v} و', { v: tracks![k]!(at).toFixed(1) }) : t('{v} غ', { v: Math.round(tracks![k]!(at)) })}</b></span>
             ); })}

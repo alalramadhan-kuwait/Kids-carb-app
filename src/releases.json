@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.36.0",
+    "notes": [
+      "الرسم في «الآن» صار يبيّن «مفعول الإنسولين»: منحنى أزرق خفيف تحت السكر يصعد بعد الإبرة ويخف بعدها، وعليه وقت «الذروة» (أقوى شي يشتغل فيه الإنسولين). تحت يسار الرسم مكتوب: يصعد، في الذروة الآن، أو يخف. للعرض فقط.",
+      "في «التحليل» تقدرون تشغّلون أو تطفّون «مفعول الإنسولين (الذروة)» من الطبقات."
+    ],
+    "notes_en": [
+      "The graph on “Now” shows “insulin activity”: a soft blue curve under the glucose line that rises after a shot and then eases off, with its “peak” time marked (when the insulin works hardest). Bottom left says: rising, at its peak now, or easing off. Display only.",
+      "In “Analysis” you can turn “Insulin activity (peak)” on or off from the layers."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.35.0",
     "notes": [
       "«الشاشة تبقى شغّالة»: إذا شغّلتيها، الشاشة ما تطفي والتطبيق مفتوح، عشان صوت التنبيه يقدر يشتغل بالليل. لكل تلفون، من «المزيد». خلّي التلفون على الشاحن."

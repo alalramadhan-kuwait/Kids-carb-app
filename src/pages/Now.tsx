@@ -288,8 +288,8 @@ function HomeChart({ live }: { live: Reading[] }) {
   const projected30 = useMemo(() => trendFrom(live, now)?.projected30 ?? null, [live, now]);
   // IOB and COB as two thin strips under the graph, and where glucose heads from here (display only)
   // insulin and carbs on board are told under the graph in words (OnBoardLanes), so the graph keeps only glucose
-  const { tracks, forecasts } = useGraphExtras({ series, now, iob: false, cob: false, forecast: true, projected30, start: view.end - view.span, end: view.end });
-  const height = useMemo(() => Math.round(Math.min(440, Math.max(240, window.innerHeight * 0.36)) + 48) + (tracks ? 68 : 0), [!!tracks]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { tracks, forecasts } = useGraphExtras({ series, now, iob: false, cob: false, act: true, forecast: true, projected30, start: view.end - view.span, end: view.end });
+  const height = useMemo(() => Math.round(Math.min(440, Math.max(240, window.innerHeight * 0.36)) + 48) + (tracks?.iob || tracks?.cob ? 68 : 0), [!!(tracks?.iob || tracks?.cob)]); // eslint-disable-line react-hooks/exhaustive-deps
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
   return (
     <div className="relative -mx-4">
@@ -299,7 +299,7 @@ function HomeChart({ live }: { live: Reading[] }) {
         <button onClick={() => { setFollowing(true); setView({ span: SPAN, end: limitEnd(Infinity, Date.now(), SPAN, AHEAD) }); }}
           className="absolute start-4 top-2 min-h-[40px] rounded-full bg-brand px-4 text-sm font-bold text-white shadow">{t('الآن')}</button>
       )}
-      <GraphHelp tracks={!!tracks} className="absolute right-12 top-2" />
+      <GraphHelp tracks={!!(tracks?.iob || tracks?.cob)} act={!!tracks?.act} className="absolute right-12 top-2" />
       <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
     </div>
   );

@@ -6,7 +6,7 @@ import { t } from '../i18n';
 
 const MIN = 60000;
 
-export type Layer = 'meals' | 'insulin' | 'treatment' | 'basal' | 'exercise' | 'notes' | 'sleep' | 'iob' | 'cob' | 'forecast';
+export type Layer = 'meals' | 'insulin' | 'treatment' | 'basal' | 'exercise' | 'notes' | 'sleep' | 'iob' | 'act' | 'cob' | 'forecast';
 // labels stay Arabic here and are shown with t(l.label)
 export const LAYERS: { id: Layer; label: string; on: boolean }[] = [
   { id: 'meals', label: 'الوجبات والكارب', on: true }, // i18n-ok
@@ -17,6 +17,7 @@ export const LAYERS: { id: Layer; label: string; on: boolean }[] = [
   { id: 'notes', label: 'الملاحظات', on: false }, // i18n-ok
   { id: 'sleep', label: 'النوم', on: false }, // i18n-ok
   { id: 'iob', label: 'الإنسولين النشط (IOB)', on: false }, // i18n-ok
+  { id: 'act', label: 'مفعول الإنسولين (الذروة)', on: true }, // i18n-ok
   { id: 'cob', label: 'الكارب النشط (COB)', on: false }, // i18n-ok
   { id: 'forecast', label: 'التوقعات', on: true }, // i18n-ok
 ];

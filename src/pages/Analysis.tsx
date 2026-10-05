@@ -133,9 +133,9 @@ function Live() {
   const { series, loading } = useSeries(view.end - view.span, view.end, g?.readings);
   const past = usePredictions(g?.sensor?.started_at ? Date.parse(g.sensor.started_at) : null);
   const projected30 = useMemo(() => (g?.readings ? trendFrom(g.readings, now)?.projected30 ?? null : null), [g?.readings, now]);
-  const { tracks, forecasts, ahead } = useGraphExtras({ series, now, iob: layers.has('iob'), cob: layers.has('cob'), forecast: layers.has('forecast'),
+  const { tracks, forecasts, ahead } = useGraphExtras({ series, now, iob: layers.has('iob'), cob: layers.has('cob'), act: layers.has('act'), forecast: layers.has('forecast'),
     projected30, past: view.span <= 24 * 3600000 ? past : null, start: view.end - view.span, end: view.end });
-  const model = tracks ? modelLine(tracks.iob ? iobP : null, tracks.cob ? settings.cob_absorb_min : null) : null;
+  const model = tracks ? modelLine(tracks.iob || tracks.act ? iobP : null, tracks.cob ? settings.cob_absorb_min : null) : null;
   aheadRef.current = ahead;
   const n = series.t.length;
   const lastT = n ? series.t[n - 1] : null;
@@ -188,7 +188,7 @@ function Live() {
           range={rng}
           marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={ahead} night={nightOf(settings)} />
         {loading && <div className="absolute start-3 top-3 text-xs text-slate-400">…</div>}
-        <GraphHelp past={forecasts.some((f) => f.kind === 'past')} tracks={!!tracks} className="absolute right-12 top-3" />
+        <GraphHelp past={forecasts.some((f) => f.kind === 'past')} tracks={!!(tracks?.iob || tracks?.cob)} act={!!tracks?.act} className="absolute right-12 top-3" />
       </div>
 
       <div className="flex items-center gap-2">
@@ -205,7 +205,7 @@ function Live() {
         <ul className="space-y-1">
           <li className="flex min-h-[48px] items-center justify-between text-slate-500"><span>{t('السكر')}</span><span className="text-xs">{t('دائمًا')}</span></li>
           {LAYERS.map((l) => {
-            const locked = (l.id === 'iob' && !iobOk) || (l.id === 'cob' && !cobOk);
+            const locked = ((l.id === 'iob' || l.id === 'act') && !iobOk) || (l.id === 'cob' && !cobOk);
             return (
               <li key={l.id} className="flex min-h-[48px] items-center justify-between gap-3">
                 <span>{t(l.label)}{locked && <span className="block text-xs text-slate-500">{t('يحتاج أرقام الفريق الطبي في الإعدادات')}</span>}</span>

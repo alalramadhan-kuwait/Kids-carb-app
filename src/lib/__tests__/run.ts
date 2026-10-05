@@ -16,7 +16,7 @@ import { seriesStats } from '../../engine/stats';
 import { buildCsv } from '../export';
 import { adrrBand, grid, hbgiBand, lbgiBand, riskF, variability } from '../../engine/variability';
 import { findPatterns, visible } from '../../engine/patterns';
-import { carbLane, cobAt, dosesFrom, insulinLane, iobAt, iobFraction, iobParamsOk } from '../../engine/iob';
+import { activityAt, activityFraction, activityPeaks, carbLane, cobAt, dosesFrom, insulinLane, iobAt, iobFraction, iobParamsOk } from '../../engine/iob';
 import { GRID, alignCurve, assess, buildOccurrence, coverage, medianCurve, summary, windowSeries } from '../../engine/meals';
 import { ackMessage, alertMessage, evaluate, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
@@ -837,6 +837,21 @@ test('CSV export: Kuwait time, both units, logged entries in order, commas quote
   assert.equal(lines[1], '2026-10-01 07:05,إنسولين,,,,3,سريع,"قبل الفطور, بسرعة",ماما');
   assert.equal(lines[2], '2026-10-01 07:15,قراءة,126,7.0,,,,,');
   assert.ok(lines[3].startsWith('2026-10-01 07:20,وجبة,,,42'));
+});
+
+test('insulin activity is the slope of IOB, peaks at the peak time and adds up to the dose', () => {
+  const p = { dia: 240, peak: 65 };
+  assert.equal(activityFraction(0, p), 0); assert.equal(activityFraction(240, p), 0);
+  for (const m of [20, 65, 150]) { const slope = (iobFraction(m - 0.5, p) - iobFraction(m + 0.5, p)); assert.ok(Math.abs(slope - activityFraction(m, p)) < 1e-5, `slope at ${m}`); }
+  let sum = 0, best = 0; for (let m = 0; m < 240; m += 0.25) { const a = activityFraction(m, p); sum += a * 0.25; if (a > activityFraction(best, p)) best = m; }
+  assert.ok(Math.abs(sum - 1) < 0.01, String(sum)); assert.ok(Math.abs(best - 65) <= 0.5, String(best));
+  const t0 = Date.parse('2026-10-01T10:00:00Z'), M = 60000, doses = [{ t: t0, units: 2 }];
+  assert.equal(activityAt(t0, doses, p), 0);
+  assert.ok(Math.abs(activityAt(t0 + 65 * M, doses, p) - 2 * 60 * activityFraction(65, p)) < 1e-9);
+  assert.deepEqual(activityPeaks(doses, p, t0 - 60 * M, t0 + 6 * 3600000), [t0 + 65 * M]);
+  // two doses far apart: two peaks; nothing in range: none
+  assert.equal(activityPeaks([...doses, { t: t0 + 3 * 3600000, units: 1 }], p, t0, t0 + 8 * 3600000).length, 2);
+  assert.deepEqual(activityPeaks(doses, p, t0 + 5 * 3600000, t0 + 6 * 3600000), []);
 });
 
 test('IOB follows the exponential model (1 at the dose, 0 at DIA, falling); COB is linear; long insulin is excluded', () => {

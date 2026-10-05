@@ -1,7 +1,7 @@
 // IOB / COB tracks and forecast lines for a glucose graph (Now and Analysis). Display only.
 import { useMemo } from 'react';
 import { useData } from '../lib/data';
-import { carbsFrom, cobAt, dosesFrom, iobAt, iobParamsOk } from '../engine/iob';
+import { activityAt, activityFraction, activityPeaks, carbsFrom, cobAt, dosesFrom, iobAt, iobParamsOk } from '../engine/iob';
 import { onboardForecast, pastForecasts, trendForecast, type Forecast } from '../engine/forecast';
 import { ratioAt } from '../engine/status';
 import { kuwaitClock } from '../lib/schedule';
@@ -9,8 +9,8 @@ import type { Tracks } from '../engine/Timeline';
 import type { Series } from '../engine/series';
 import type { PredictionRow } from '../lib/predictions';
 
-export function useGraphExtras({ series, now, iob, cob, forecast, projected30, past, start, end }: {
-  series: Series; now: number; iob: boolean; cob: boolean; forecast: boolean; projected30: number | null;
+export function useGraphExtras({ series, now, iob, cob, act = false, forecast, projected30, past, start, end }: {
+  series: Series; now: number; iob: boolean; cob: boolean; act?: boolean; forecast: boolean; projected30: number | null;
   past?: PredictionRow[] | null; start: number; end: number;
 }) {
   const { settings: s, history, events } = useData();
@@ -23,8 +23,10 @@ export function useGraphExtras({ series, now, iob, cob, forecast, projected30, p
     const t: Tracks = {};
     if (iob && iobOk) t.iob = (x) => iobAt(x, doses, iobP!);
     if (cob && cobOk) t.cob = (x) => cobAt(x, carbs, s.cob_absorb_min!);
-    return t.iob || t.cob ? t : undefined;
-  }, [iob, cob, iobOk, cobOk, doses, carbs, s.iob_dia_min, s.iob_peak_min, s.cob_absorb_min]); // eslint-disable-line react-hooks/exhaustive-deps
+    // activity: peaks found once per view (minute by minute); scaled so 1 unit at its peak fills the band
+    if (act && iobOk) t.act = { at: (x) => activityAt(x, doses, iobP!), peaks: activityPeaks(doses, iobP!, start - iobP!.dia * 60000, Math.max(end, now) + iobP!.dia * 60000), ref: 60 * activityFraction(iobP!.peak, iobP!) };
+    return t.iob || t.cob || t.act ? t : undefined;
+  }, [iob, cob, act, Math.floor(start / 600000), Math.floor(end / 600000), iobOk, cobOk, doses, carbs, s.iob_dia_min, s.iob_peak_min, s.cob_absorb_min]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const n = series.t.length;
   const last = n ? { t: series.t[n - 1], v: series.v[n - 1] } : null;

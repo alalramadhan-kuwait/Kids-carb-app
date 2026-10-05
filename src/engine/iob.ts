@@ -23,6 +23,18 @@ export function iobFraction(t: number, { dia, peak }: IobParams): number {
   return Math.min(1, Math.max(0, f));
 }
 
+/**
+ * Insulin activity t minutes after a dose: the share of the dose working in that minute (the same model's rate,
+ * the slope of the curve above). It starts at 0, is highest at the peak time, and adds up to the whole dose by DIA.
+ */
+export function activityFraction(t: number, { dia, peak }: IobParams): number {
+  if (t <= 0 || t >= dia) return 0;
+  const tau = (peak * (1 - peak / dia)) / (1 - (2 * peak) / dia);
+  const a = (2 * tau) / dia;
+  const S = 1 / (1 - a + (1 + a) * Math.exp(-dia / tau));
+  return Math.max(0, (S / (tau * tau)) * t * (1 - t / dia) * Math.exp(-t / tau));
+}
+
 export interface Dose { t: number; units: number }
 export interface CarbEntry { t: number; grams: number }
 
@@ -50,6 +62,28 @@ export function iobAt(t: number, doses: Dose[], p: IobParams): number {
   let sum = 0;
   for (const d of doses) if (d.t <= t && t - d.t < p.dia * MIN) sum += d.units * iobFraction((t - d.t) / MIN, p);
   return sum;
+}
+/** How hard the rapid insulin is working at t, in units per hour (all doses added up). */
+export function activityAt(t: number, doses: Dose[], p: IobParams): number {
+  let sum = 0;
+  for (const d of doses) if (d.t < t && t - d.t < p.dia * MIN) sum += d.units * activityFraction((t - d.t) / MIN, p);
+  return sum * 60;
+}
+/** When the summed activity is at its top between `from` and `to`: each peak higher than the 15 minutes either side. */
+export function activityPeaks(doses: Dose[], p: IobParams, from: number, to: number): number[] {
+  const near = doses.filter((d) => d.t < to && d.t + p.dia * MIN > from);
+  if (!near.length) return [];
+  const a = Math.max(from, Math.min(...near.map((d) => d.t))), b = Math.min(to, Math.max(...near.map((d) => d.t)) + p.dia * MIN);
+  const W = 15, v: number[] = [];
+  for (let t = a - W * MIN; t <= b + W * MIN; t += MIN) v.push(activityAt(t, near, p));
+  const out: number[] = [];
+  for (let k = W; k < v.length - W; k++) {
+    if (!(v[k] > 0)) continue;
+    let top = true;
+    for (let j = k - W; j <= k + W && top; j++) if (j !== k && (j < k ? v[j] >= v[k] : v[j] > v[k])) top = false;
+    if (top) out.push(a + (k - W) * MIN);
+  }
+  return out;
 }
 export function cobAt(t: number, carbs: CarbEntry[], absorbMin: number): number {
   let sum = 0;
