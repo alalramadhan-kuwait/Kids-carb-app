@@ -132,7 +132,7 @@ function Tile({ tone, icon, value, label, sub }: { tone: 'carb' | 'ins'; icon: '
   );
 }
 
-const Missing = () => <Link to="/settings" className="text-sm text-brand underline">{t('أضف من الإعدادات')}</Link>;
+const Missing = () => <Link to="/doctor" className="text-sm text-brand underline">{t('أضف من «أرقام الطبيب»')}</Link>;
 const Fact = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <p className="flex justify-between gap-3 text-sm"><span className="text-slate-600">{label}</span><span className="num text-end font-medium">{children}</span></p>
 );

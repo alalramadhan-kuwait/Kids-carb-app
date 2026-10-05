@@ -1,6 +1,22 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.38.0",
+    "notes": [
+      "صفحة «المزيد» صارت أبسط: ليان، الأكل، التقارير والمشاركة، هذا الجوال، العائلة والحساب. كل سطر له أيقونة وحدة ما تتكرر.",
+      "«الإعدادات» انقسمت: «أرقام الطبيب» (نسبة الكارب، التصحيح، هدف الجرعة، القلم) و«إعدادات الأكل»، والباقي تحت «متقدم».",
+      "كل ما يخص هذا الجوال في مكان واحد: الإشعارات، صوت التنبيه، الشاشة تبقى شغّالة، الويدجت، اللغة والمظهر.",
+      "«ماذا نفعل عند التنبيه» صار أول شي في صفحة التنبيهات. القائمة الأسبوعية والسناكات ومختبر التوقعات تلقونها في «الوجبات» و«التحليل»."
+    ],
+    "notes_en": [
+      "“More” is simpler: Layan, Food, Reports & sharing, This phone, Family & account. Every row has its own icon, none repeated.",
+      "“Settings” is split: “Doctor's numbers” (carb ratio, correction, dose target, pen) and “Food settings”; the rest is under “Advanced”.",
+      "Everything about this phone in one place: notifications, alarm sound, keep screen on, widget, language and appearance.",
+      "“What to do on an alert” is now first on the Alerts page. The weekly menu, snacks and the prediction lab are in “Meals” and “Analysis”."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.37.1",
     "notes": [
       "«كيف انحسبت الجرعة» صارت مخفية: اضغطي 🧮 جنب الجرعة المحسوبة عشان تشوفينها."

@@ -275,7 +275,9 @@ function Shell() {
         <Route path="/growth" element={<GrowthPage />} />
         <Route path="/report" element={<Report />} />
         <Route path="/snacks" element={<SnacksPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings" element={<SettingsPage part="food" />} />
+        <Route path="/settings/advanced" element={<SettingsPage part="advanced" />} />
+        <Route path="/doctor" element={<SettingsPage part="doctor" />} />
         <Route path="/more" element={<More />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

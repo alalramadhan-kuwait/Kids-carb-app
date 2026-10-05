@@ -61,7 +61,7 @@ export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'mea
       </label>
       {r.block ? (
         <p className={cx('text-sm font-medium', r.block === 'low' || r.block === 'falling' ? 'text-over' : 'text-slate-700')}>
-          {BLOCK[r.block]} {r.block === 'no_plan' && <Link to="/settings" className="text-brand underline">{t('الإعدادات')}</Link>}
+          {BLOCK[r.block]} {r.block === 'no_plan' && <Link to="/doctor" className="text-brand underline">{t('أرقام الطبيب')}</Link>}
         </p>
       ) : (
         <>

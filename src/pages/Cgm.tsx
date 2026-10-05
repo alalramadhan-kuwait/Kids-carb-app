@@ -35,7 +35,7 @@ export default function Cgm() {
               return <p className="text-sm text-slate-600">{min < 1 ? t('آخر تحديث من الخادم: الآن') : t('آخر تحديث من الخادم: قبل {n} د', { n: min })} {min <= 3 ? t('✓ يعمل كل دقيقة، حتى والتطبيق مغلق') : t('— متأخر، تحقق من الجوال الذي عليه Libre')}</p>;
             })()}
             {st.last_error && <Alert tone="near">{GLUCOSE_ERRORS[st.last_error] ?? st.last_error}</Alert>}
-            <p className="text-sm text-slate-600">{t('الوحدة ونطاق التلوين من')} <Link to="/settings" className="text-brand underline">{t('الإعدادات')}</Link>.</p>
+            <p className="text-sm text-slate-600">{t('الوحدة ونطاق التلوين من')} <Link to="/doctor" className="text-brand underline">{t('أرقام الطبيب')}</Link>.</p>
             <Btn kind="danger" block onClick={async () => { if (confirm(t('فصل الربط وحذف بيانات الدخول المحفوظة؟'))) { setSt(await callGlucose({ action: 'clear' })); toast(t('تم الفصل')); } }}>{t('فصل الربط')}</Btn>
           </Card>
         ) : (

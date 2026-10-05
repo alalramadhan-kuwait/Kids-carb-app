@@ -17,6 +17,7 @@ import { setFullModeNow, setSimpleMode } from '../lib/mom';
 import { setThemePref, themePref, type ThemePref } from '../lib/theme';
 import { isEn, t, tMaybe } from '../i18n';
 import { LangSwitch } from '../components/LangSwitch';
+import { PhonePush } from './Alerts';
 import { callFood, type FoodStatus } from '../lib/food';
 import { ratioOk, type Ratio } from '../engine/status';
 
@@ -47,7 +48,7 @@ function AwakeRow() {
   const on = useKeepAwakePref();
   return (
     <li className="flex min-h-[56px] items-center gap-3 px-4 py-2">
-      <span className="min-w-0 flex-1"><span className="block font-medium">☀️ {t('الشاشة تبقى شغّالة')}</span><span className="block text-sm text-slate-500">{keepAwakeSupported() ? t('والتطبيق مفتوح، عشان صوت التنبيه يشتغل · خلّ الهاتف على الشاحن') : t('هذا الهاتف لا يدعمها · حدّث النظام')}</span></span>
+      <span className="min-w-0 flex-1"><span className="block font-medium">{t('الشاشة تبقى شغّالة')}</span><span className="block text-sm text-slate-500">{keepAwakeSupported() ? t('والتطبيق مفتوح، عشان صوت التنبيه يشتغل · خلّ الهاتف على الشاحن') : t('هذا الهاتف لا يدعمها · حدّث النظام')}</span></span>
       <Toggle on={on} label={t('الشاشة تبقى شغّالة')} onChange={setKeepAwake} />
     </li>
   );
@@ -58,25 +59,18 @@ function AlarmRow() {
   const on = useAlarmSound();
   return (
     <li className="flex min-h-[56px] items-center gap-3 px-4 py-2">
-      <span className="min-w-0 flex-1"><span className="block font-medium">🔔 {t('صوت التنبيه')}</span><span className="block text-sm text-slate-500">{t('منخفض، مرتفع، أو لا قراءة 15 د — على هذا الهاتف والتطبيق مفتوح')}</span></span>
+      <span className="min-w-0 flex-1"><span className="block font-medium">{t('صوت التنبيه')}</span><span className="block text-sm text-slate-500">{t('منخفض، مرتفع، أو لا قراءة 15 د — على هذا الهاتف والتطبيق مفتوح')}</span></span>
       <button className="min-h-[40px] px-2 text-sm font-bold text-brand" onClick={() => testAlarm('low')}>{t('جرّب')}</button>
       <Toggle on={on} label={t('صوت التنبيه')} onChange={(v) => { setAlarmSound(v); if (v) testAlarm('low'); }} />
     </li>
   );
 }
 
-/** Simple (mom) mode: who opens in it, and a way in to see it from this phone. */
-function SimpleModeRows() {
-  const nav = useNavigate();
+/** Each family member, and whether the app opens in simple mode for them. */
+function MemberRows() {
   const { members, me, reload } = useData();
   return (
     <>
-      <li><button onClick={() => { setFullModeNow(false); nav('/mom'); }} className="flex min-h-[56px] w-full items-center gap-3 px-4 py-2.5 text-start active:bg-slate-50">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="home" size={20} /></span>
-        <span className="min-w-0 flex-1"><span className="block font-semibold">{t('افتح الوضع البسيط')}</span><span className="block truncate text-sm text-slate-500">{t('شاشات كبيرة وكلام قليل')}</span></span>
-      </button></li>
-      <AlarmRow />
-      <AwakeRow />
       {members.map((m) => (
         <li key={m.user_id} className="flex min-h-[56px] items-center gap-3 px-4 py-2">
           <span className="min-w-0 flex-1"><span className="block font-medium"><bdi>{m.display_name ?? '—'}</bdi>{m.user_id === me ? ` (${t('أنت')})` : ''}</span><span className="block text-sm text-slate-500">{t('يفتح على الوضع البسيط')}</span></span>
@@ -114,39 +108,44 @@ export function More() {
       <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">{children}</ul>
     </section>
   );
-  // four groups (Miller): her care, meals, the app, the account; forms open only when asked for
+  // five groups, one icon each and none repeated: her care, food, reports, this phone, family & account; rarely used last
   return (
     <Page title={t('المزيد')}>
       <div className="space-y-5">
-        {group(t('رعاية ليان'), <>
-          {link('/alerts', 'bell', t('التنبيهات'), t('المنخفض والمرتفع وانقطاع القراءة'))}
-          {link('/care-plan', 'heart', t('خطة الطبيب'), t('تظهر مع كل تنبيه'))}
-          {link('/cgm', 'sensor', t('قراءات السكر'), t('ربط LibreLinkUp لعرض السكر الحي'))}
-          {link('/analysis?mode=lab', 'lab', t('مختبر التوقعات'), t('مقارنة طرق التوقع تلقائيًا كل 12 ساعة'))}
+        {group(t('ليان'), <>
+          {link('/alerts', 'bell', t('التنبيهات وماذا نفعل'), t('الحدود، الليل والمدرسة، من يصله التنبيه، وخطوات الطبيب'))}
+          {link('/doctor', 'insulin', t('أرقام الطبيب'), t('نسبة الكارب، التصحيح، هدف الجرعة، خطوة القلم'))}
+          {link('/growth', 'heart', t('النمو والتغذية'), t('الوزن والطول، الطاقة، التوازن، وجدول أخصائية التغذية'))}
+        </>)}
+        {group(t('الأكل'), <>
+          {link('/portions', 'meals', t('كميات ليان'), t('صحن ليان الصغير والكبير… لوضع ماما'))}
+          {link('/settings', 'products', t('إعدادات الأكل'), t('أقصى كارب للوجبة، المدى المفضّل، الملعقة'))}
+        </>)}
+        {group(t('التقارير والمشاركة'), <>
           {link('/share', 'family', t('المشاركة والتقارير'), t('رابط للمدرسة أو العائلة، ملف CSV، تقرير للعيادة'))}
           {link('/plans/report', 'history', t('الوجبات المخططة لفريق الرعاية'), t('الجرعة المحسوبة والمعطاة، الأنماط، وما يستحق المراجعة'))}
-          {link('/growth', 'user', t('النمو والتغذية'), t('الوزن والطول، الطاقة، التوازن، وجدول أخصائية التغذية'))}
+          {link('/import', 'copy', t('استيراد من Gluroo'), t('قراءات وجرعات ووجبات من ملف التصدير'))}
+        </>)}
+        <div id="phone">{group(t('هذا الجوال'), <>
+          <li className="px-4 py-3"><PhonePush /></li>
+          <AlarmRow />
+          <AwakeRow />
           {link('/widget', 'glucose', t('ويدجت الآيفون'), t('السكر على الشاشة الرئيسية وشاشة القفل'))}
-        </>)}
-        {group(t('الوجبات'), <>
-          {link('/plan', 'meals', t('قائمة الأسبوع وقائمة الشراء'), t('وجبات لعدة أيام وعدد الأشخاص'))}
-          {link('/snacks', 'carbs', t('السناكات'), t('قاعدة بيانات السناكات'))}
-          {link('/portions', 'meals', t('كميات ليان'), t('صحن ليان الصغير والكبير… لوضع ماما'))}
-        </>)}
-        {group(t('الوضع البسيط'), <SimpleModeRows />)}
-        {group(t('التطبيق'), <>
-          {link('/settings', 'settings', t('الإعدادات'), t('الحد الأقصى للكارب ونطاق السكر'))}
-          {link('/import', 'history', t('استيراد من Gluroo'), t('قراءات وجرعات ووجبات من ملف التصدير'))}
+          <li><button onClick={() => { setFullModeNow(false); nav('/mom'); }} className="flex min-h-[56px] w-full items-center gap-3 px-4 py-2.5 text-start active:bg-slate-50">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="home" size={20} /></span>
+            <span className="min-w-0 flex-1"><span className="block font-semibold">{t('افتح الوضع البسيط')}</span><span className="block truncate text-sm text-slate-500">{t('شاشات كبيرة وكلام قليل')}</span></span>
+          </button></li>
           <li className="space-y-4 px-4 py-4">
             <div className="space-y-1.5"><div className="text-sm font-medium text-slate-600">{t('اللغة')}{!isEn() && <span className="text-slate-400"> · Language</span>}</div><LangSwitch /></div>
             <Appearance />
           </li>
-        </>)}
-        {group(t('الحساب'), <>
+        </>)}</div>
+        {group(t('العائلة والحساب'), <>
           <li className="flex min-h-[56px] items-center gap-3 px-4 py-2">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="family" size={22} /></span>
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="user" size={22} /></span>
             <span dir="ltr" className="min-w-0 flex-1 truncate text-start text-sm">{me || '…'}</span>
           </li>
+          <MemberRows />
           <li><details className="group px-4">
             <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between font-medium">{t('إضافة أحد الوالدين')}<span className="text-slate-300">{isEn() ? '›' : '‹'}</span></summary>
             <div className="space-y-2 pb-4">
@@ -169,8 +168,15 @@ export function More() {
           </details></li>
           <li><button className="flex min-h-[52px] w-full items-center px-4 text-start font-medium text-slate-600" onClick={async () => { await supabase.auth.signOut(); nav('/'); }}>{t('تسجيل الخروج')}</button></li>
         </>)}
+        <details className="rounded-2xl border border-slate-100 bg-white">
+          <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between px-4 font-medium text-slate-600">{t('متقدم')}<span className="text-slate-300">{isEn() ? '›' : '‹'}</span></summary>
+          <ul className="divide-y divide-slate-100 border-t border-slate-100">
+            {link('/cgm', 'sensor', t('ربط الحساس'), t('LibreLinkUp لعرض السكر الحي'))}
+            {link('/settings/advanced', 'settings', t('إعدادات متقدمة'), t('نوع الحساس، مفتاح تقدير الصور'))}
+          </ul>
+        </details>
         <footer className="space-y-1 pt-1 text-center text-xs text-slate-400">
-          <p>{t('حاسبة الجرعة تتبع خطة الطبيب المكتوبة في الإعدادات. راجعوا الرقم دائمًا قبل الإعطاء.')}</p>
+          <p>{t('حاسبة الجرعة تتبع «أرقام الطبيب». راجعوا الرقم دائمًا قبل الإعطاء.')}</p>
           <VersionTag />
         </footer>
       </div>
@@ -284,7 +290,10 @@ function AiKeyCard() {
   );
 }
 
-export function SettingsPage() {
+export type SettingsPart = 'food' | 'doctor' | 'advanced';
+const PART_TITLE: Record<SettingsPart, string> = { food: 'إعدادات الأكل', doctor: 'أرقام الطبيب', advanced: 'متقدم' }; // i18n-ok
+/** Settings in three pages (food, the doctor's numbers, advanced), one form and one save underneath. */
+export function SettingsPage({ part = 'food' }: { part?: SettingsPart }) {
   const nav = useNavigate();
   const { settings, reload } = useData();
   const [s, setS] = useState<Settings>(settings);
@@ -302,11 +311,13 @@ export function SettingsPage() {
   const targetBad = (s.target_mgdl === null) !== (s.target_high_mgdl === null) ? t('اكتبوا بداية الهدف ونهايته معًا.')
     : out(s.target_mgdl, 70, 200) || out(s.target_high_mgdl, 70, 220) ? t('الهدف بين {lo} و{hi} {unit}.', { lo: formatGlucose(70, s.glucose_unit), hi: formatGlucose(200, s.glucose_unit), unit: unitLabel(s.glucose_unit) })
     : s.target_mgdl !== null && s.target_high_mgdl! < s.target_mgdl ? t('نهاية الهدف يجب أن تكون أعلى من بدايته.') : null;
-  const bad = s.preferred_min > s.preferred_max || s.preferred_max > s.max_meal_carbs || !!iobBad || !!ratioBad || !!targetBad;
+  const foodBad = s.preferred_min > s.preferred_max || s.preferred_max > s.max_meal_carbs;
+  const bad = part === 'food' ? foodBad : part === 'doctor' ? !!iobBad || !!ratioBad || !!targetBad : false;
 
   return (
-    <Page title={t('الإعدادات')} back={() => nav(-1)}>
+    <Page title={t(PART_TITLE[part])} back={() => nav(-1)}>
       <div className="space-y-4">
+        {part === 'food' && <>
         <Card className="space-y-3">
           <h2 className="font-bold">{t('هامش الأمان')}</h2>
           <Field label={t('الحد الأقصى لكارب الوجبة (غ)')} hint={t('فوقه يظهر تحذير واضح ولا تُقترح الوصفة. لا نمنع التسجيل بالقوة.')}>
@@ -317,10 +328,11 @@ export function SettingsPage() {
             <Field label={t('إلى')}><NumInput value={s.preferred_max} onChange={(v) => setS({ ...s, preferred_max: v ?? 0 })} /></Field>
           </div>
           <p className="text-sm text-slate-600">{rich(t('≤ {a} عادي • حتى {b} قريب من الحد • أعلى من ذلك تحذير.'), { a: s.preferred_max, b: s.max_meal_carbs })}</p>
-          {bad && <Alert tone="near">{t('المدى المفضّل يجب أن يكون ضمن الحد الأقصى.')}</Alert>}
+          {foodBad && <Alert tone="near">{t('المدى المفضّل يجب أن يكون ضمن الحد الأقصى.')}</Alert>}
           <Field label={t('الملعقة الكبيرة (غ أو مل)')} hint={t('تُستخدم للكاتشب والمايونيز وغيرها.')}><NumInput value={s.tbsp_size} onChange={(v) => setS({ ...s, tbsp_size: v ?? 15 })} /></Field>
         </Card>
-
+        </>}
+        {part === 'food' && <>
         <Card className="space-y-3">
           <h2 className="font-bold">{t('أهداف اختيار المنتجات')}</h2>
           <p className="text-sm text-slate-600">{t('تنبيه فقط عند تسجيل منتج يتجاوز الهدف.')}</p>
@@ -337,35 +349,10 @@ export function SettingsPage() {
           <datalist id="tcats">{PRODUCT_CATEGORIES.map((c) => <option key={c} value={c} />)}</datalist>
           <Btn kind="ghost" block onClick={() => setS({ ...s, category_targets: [...s.category_targets, { category: '', basis: 'per100', max: 15 }] })}>{t('+ هدف')}</Btn>
         </Card>
-
+        </>}
+        {part === 'doctor' && <>
         <Card className="space-y-3">
-          <h2 className="font-bold">{t('عرض السكر')}</h2>
-          <Field label={t('الوحدة')}>
-            <select className={inputCls} value={s.glucose_unit} onChange={(e) => setS({ ...s, glucose_unit: e.target.value as Settings['glucose_unit'] })}>
-              <option value="mmol">mmol/L</option><option value="mgdl">mg/dL</option>
-            </select>
-          </Field>
-          <p className="text-sm text-slate-600">{t('نطاق تلوين الرقم ({unit}). يكتبه الوالدان من توصية الطبيب. إن تُرك فارغًا يُلوَّن بالنطاق المرجعي 70 إلى 180 ملغ/دل ويُكتب «مرجعي»، ولا تعتمد عليه التنبيهات.', { unit: unitLabel(s.glucose_unit) })}</p>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t('أقل من (أحمر)')}><NumInput value={s.glucose_low_mgdl === null ? null : Number(formatGlucose(s.glucose_low_mgdl, s.glucose_unit))} onChange={(v) => setS({ ...s, glucose_low_mgdl: v === null ? null : toMgdl(v, s.glucose_unit) })} /></Field>
-            <Field label={t('أعلى من (أصفر)')}><NumInput value={s.glucose_high_mgdl === null ? null : Number(formatGlucose(s.glucose_high_mgdl, s.glucose_unit))} onChange={(v) => setS({ ...s, glucose_high_mgdl: v === null ? null : toMgdl(v, s.glucose_unit) })} /></Field>
-          </div>
-        </Card>
-
-        <Card className="space-y-3">
-          <h2 className="font-bold">{t('الإنسولين والكارب النشط (IOB / COB)')}</h2>
-          <Alert tone="info">{t('تُستخدم للرسم وصفحة الحالة وحاسبة الجرعة. اكتبوا الأرقام كما أعطاكم إياها الفريق الطبي.')}</Alert>
-          <p className="text-sm text-slate-600">{t('مدة عمل الإنسولين السريع وذروته، ومدة امتصاص الكارب، بالدقائق. اتركوها فارغة ليبقى العرض مطفأً.')}</p>
-          <div className="grid grid-cols-3 items-end gap-3">
-            <Field label={t('مدة العمل (د)')}><NumInput value={s.iob_dia_min} onChange={(v) => setS({ ...s, iob_dia_min: v })} /></Field>
-            <Field label={t('الذروة (د)')}><NumInput value={s.iob_peak_min} onChange={(v) => setS({ ...s, iob_peak_min: v })} /></Field>
-            <Field label={t('الكارب (د)')}><NumInput value={s.cob_absorb_min} onChange={(v) => setS({ ...s, cob_absorb_min: v })} /></Field>
-          </div>
-          {iobBad && <p className="text-sm font-bold text-brand">{iobBad}</p>}
-        </Card>
-
-        <Card className="space-y-3">
-          <h2 className="font-bold">{t('خطة الجرعات من الطبيب')}</h2>
+          <h2 className="font-bold">{t('الجرعات')}</h2>
           <Alert tone="info">{t('تُستخدم لحاسبة الجرعة في «سجّل ← إنسولين» ولتقدير صفحة الحالة. اكتبوها كما في خطة الطبيب بالضبط.')}</Alert>
           {ratios.length > 0 && (
             <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.5rem] gap-2 text-xs text-slate-500">
@@ -385,7 +372,7 @@ export function SettingsPage() {
           {ratioBad && <p className="text-sm font-bold text-brand">{ratioBad}</p>}
 
           <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
-            <Field label={t('هدف التصحيح: من ({unit})', { unit: unitLabel(s.glucose_unit) })}>
+            <Field label={t('هدف الجرعة: من ({unit})', { unit: unitLabel(s.glucose_unit) })}>
               <NumInput value={s.target_mgdl === null ? null : Number(formatGlucose(s.target_mgdl, s.glucose_unit))} onChange={(v) => setS({ ...s, target_mgdl: v === null ? null : toMgdl(v, s.glucose_unit) })} />
             </Field>
             <Field label={t('إلى')}>
@@ -416,9 +403,39 @@ export function SettingsPage() {
               <datalist id="basal-ins">{['Tresiba (insulin degludec)', 'Lantus (insulin glargine)', 'Toujeo (glargine 300)', 'Levemir (insulin detemir)'].map((x) => <option key={x} value={x} />)}</datalist>
             </Field>
           </div>
-          <p className="text-xs text-slate-500">{t('للتقرير الطبي فقط؛ منحنى الإنسولين تحدده مدة العمل والذروة أعلاه.')}</p>
+          <p className="text-xs text-slate-500">{t('للتقرير الطبي فقط؛ منحنى الإنسولين تحدده مدة العمل والذروة أدناه.')}</p>
         </Card>
-
+        </>}
+        {part === 'doctor' && <>
+        <Card className="space-y-3">
+          <h2 className="font-bold">{t('الإنسولين والكارب النشط (IOB / COB)')}</h2>
+          <Alert tone="info">{t('تُستخدم للرسم وصفحة الحالة وحاسبة الجرعة. اكتبوا الأرقام كما أعطاكم إياها الفريق الطبي.')}</Alert>
+          <p className="text-sm text-slate-600">{t('مدة عمل الإنسولين السريع وذروته، ومدة امتصاص الكارب، بالدقائق. اتركوها فارغة ليبقى العرض مطفأً.')}</p>
+          <div className="grid grid-cols-3 items-end gap-3">
+            <Field label={t('مدة العمل (د)')}><NumInput value={s.iob_dia_min} onChange={(v) => setS({ ...s, iob_dia_min: v })} /></Field>
+            <Field label={t('الذروة (د)')}><NumInput value={s.iob_peak_min} onChange={(v) => setS({ ...s, iob_peak_min: v })} /></Field>
+            <Field label={t('الكارب (د)')}><NumInput value={s.cob_absorb_min} onChange={(v) => setS({ ...s, cob_absorb_min: v })} /></Field>
+          </div>
+          {iobBad && <p className="text-sm font-bold text-brand">{iobBad}</p>}
+        </Card>
+        </>}
+        {part === 'doctor' && <>
+        <Card className="space-y-3">
+          <h2 className="font-bold">{t('نطاق الألوان')}</h2>
+          <Field label={t('الوحدة')}>
+            <select className={inputCls} value={s.glucose_unit} onChange={(e) => setS({ ...s, glucose_unit: e.target.value as Settings['glucose_unit'] })}>
+              <option value="mmol">mmol/L</option><option value="mgdl">mg/dL</option>
+            </select>
+          </Field>
+          <p className="text-sm text-slate-600">{t('نطاق تلوين الرقم ({unit}). يكتبه الوالدان من توصية الطبيب. إن تُرك فارغًا يُلوَّن بالنطاق المرجعي 70 إلى 180 ملغ/دل ويُكتب «مرجعي»، ولا تعتمد عليه التنبيهات.', { unit: unitLabel(s.glucose_unit) })}</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={t('أقل من (أحمر)')}><NumInput value={s.glucose_low_mgdl === null ? null : Number(formatGlucose(s.glucose_low_mgdl, s.glucose_unit))} onChange={(v) => setS({ ...s, glucose_low_mgdl: v === null ? null : toMgdl(v, s.glucose_unit) })} /></Field>
+            <Field label={t('أعلى من (أصفر)')}><NumInput value={s.glucose_high_mgdl === null ? null : Number(formatGlucose(s.glucose_high_mgdl, s.glucose_unit))} onChange={(v) => setS({ ...s, glucose_high_mgdl: v === null ? null : toMgdl(v, s.glucose_unit) })} /></Field>
+          </div>
+          <p className="text-xs text-slate-500">{t('ثلاثة نطاقات مختلفة: هذا لتلوين الرقم فقط. «هدف الجرعة» في الأعلى للحاسبة، و«حدود التنبيه» في التنبيهات.')}</p>
+        </Card>
+        </>}
+        {part === 'advanced' && <>
         <Card className="space-y-3">
           <h2 className="font-bold">{t('الحساس')}</h2>
           <Field label={t('نوع الحساس')} hint={t('لحساب موعد انتهائه والتذكير قبله بيوم وبساعتين.')}>
@@ -427,8 +444,10 @@ export function SettingsPage() {
             </select>
           </Field>
         </Card>
-
+        </>}
+        {part === 'advanced' && <>
         <AiKeyCard />
+        </>}
 
         <Btn kind="primary" block disabled={bad} onClick={async () => {
           try { await saveSettings({ ...s, category_targets: s.category_targets.filter((ct) => ct.category.trim()) }); await reload(); toast(t('تم حفظ الإعدادات ✓')); }

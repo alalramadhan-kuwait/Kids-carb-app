@@ -24,7 +24,6 @@ export default function AlertsPage() {
   const nav = useNavigate();
   const { settings, reload, nameOf, members } = useData();
   const [ps, setPs] = useState<PushState | null>(null);
-  const [busy, setBusy] = useState(false);
   const [s, setS] = useState<Settings>(settings);
   const [subs, setSubs] = useState<Sub[]>([]);
   const [past, setPast] = useState<AlertRow[]>([]);
@@ -77,32 +76,17 @@ export default function AlertsPage() {
     if (error) return toast(error.message);
     await reload(); toast(t('تم الحفظ ✓'));
   };
-  const turnOn = async () => {
-    setBusy(true);
-    try { setPs(await enablePush()); loadLists(); } catch (e) { toast(t('تعذّر التفعيل: {msg}', { msg: (e as Error).message })); } finally { setBusy(false); }
-  };
 
   return (
     <Page title={t('التنبيهات')} back={() => nav(-1)}>
       <div className="space-y-3">
-        <Card className="space-y-3">
-          <h2 className="font-bold">{t('على هذا الجوال')}</h2>
-          {ps === 'needs_install' && <Alert tone="info">{t('في الآيفون تعمل التنبيهات من أيقونة التطبيق فقط: زر المشاركة ←')} <b>{t('إضافة إلى الشاشة الرئيسية')}</b>{t('، ثم افتحه من الأيقونة وارجع هنا.')}</Alert>}
-          {ps === 'unsupported' && <Alert tone="near">{t('هذا المتصفح لا يدعم التنبيهات.')}</Alert>}
-          {ps === 'denied' && <Alert tone="near">{t('التنبيهات مرفوضة. فعّلها من إعدادات الجوال ← الإشعارات ← ليان.')}</Alert>}
-          {ps === 'off' && <Btn kind="primary" block className="min-h-[52px]" disabled={busy} onClick={turnOn}>{t('فعّل التنبيهات')}</Btn>}
-          {ps === 'on' && (
-            <div className="grid grid-cols-2 gap-2">
-              <Btn onClick={async () => { const r = await testPush(); toast(r.ok ? t('أُرسل ✓ — انتظر الإشعار') : t('لم يصل. جرّب إيقاف وتفعيل')); loadLists(); }}>{t('أرسل تجربة')}</Btn>
-              <Btn kind="ghost" onClick={async () => { await disablePush(); setPs(await pushState()); loadLists(); }}>{t('إيقاف')}</Btn>
-            </div>
-          )}
-          <p className="text-xs text-slate-500">{t('تنبيهات مساعدة. تطبيق Libre يبقى المنبّه الأساسي، وقد لا يصل الإشعار إذا كان الجوال صامتًا أو في وضع التركيز.')}</p>
-        </Card>
+        <Link to="/care-plan"><Card className="flex items-center gap-3 !p-4"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="heart" size={22} /></span><div className="min-w-0 flex-1"><div className="font-bold">{t('ماذا نفعل عند التنبيه')}</div><div className="text-sm text-slate-500">{t('خطوات الطبيب، تظهر مع كل تنبيه')}</div></div><span className="text-slate-300">{isEn() ? '›' : '‹'}</span></Card></Link>
+        {ps !== null && ps !== 'on' && <Link to="/more" className="block"><Alert tone="near">{t('التنبيهات غير مفعّلة على هذا الجوال. فعّلها من «المزيد ← هذا الجوال».')}</Alert></Link>}
 
         <Card className="space-y-3">
-          <h2 className="font-bold">{t('الحدود')} <span className="text-sm font-normal text-slate-500">({unitLabel(unit)})</span></h2>
+          <h2 className="font-bold">{t('حدود التنبيه')} <span className="text-sm font-normal text-slate-500">({unitLabel(unit)})</span></h2>
           <p className="text-sm text-slate-600">{t('من الطبيب. اتركه فارغًا لإيقاف ذلك التنبيه.')}</p>
+          <p className="text-xs text-slate-500">{t('نطاق الألوان وهدف الجرعة في «أرقام الطبيب».')}</p>
           <div className="grid grid-cols-3 gap-2">
             <Field label={t('منخفض جدًا')}><NumInput value={g('alert_urgent_low_mgdl')} onChange={setG('alert_urgent_low_mgdl')} /></Field>
             <Field label={t('منخفض')}><NumInput value={g('alert_low_mgdl')} onChange={setG('alert_low_mgdl')} /></Field>
@@ -177,8 +161,6 @@ export default function AlertsPage() {
           <Btn kind="primary" block disabled={!!problem} onClick={save}>{t('حفظ')}</Btn>
         </Card>
 
-        <Link to="/care-plan"><Card className="flex items-center gap-3 !p-4"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="heart" size={22} /></span><div className="flex-1 font-bold">{t('خطة الطبيب')}</div><span className="text-slate-300">{isEn() ? '›' : '‹'}</span></Card></Link>
-
         <Card>
           <h2 className="mb-2 font-bold">{t('الأجهزة')}</h2>
           {subs.length === 0 ? <p className="text-sm text-slate-500">{t('لا يوجد جهاز مفعّل بعد.')}</p> : (
@@ -210,5 +192,33 @@ export default function AlertsPage() {
         )}
       </div>
     </Page>
+  );
+}
+
+/** Notifications on this phone: turn on, send a test, turn off. Lives in More → This phone. */
+export function PhonePush() {
+  const [ps, setPs] = useState<PushState | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { pushState().then(setPs); }, []);
+  const turnOn = async () => {
+    setBusy(true);
+    try { setPs(await enablePush()); } catch (e) { toast(t('تعذّر التفعيل: {msg}', { msg: (e as Error).message })); } finally { setBusy(false); }
+  };
+  const loadLists = () => undefined;
+  return (
+    <div className="space-y-2">
+      <div className="font-medium">{t('الإشعارات')}</div>
+      {ps === 'needs_install' && <Alert tone="info">{t('في الآيفون تعمل التنبيهات من أيقونة التطبيق فقط: زر المشاركة ←')} <b>{t('إضافة إلى الشاشة الرئيسية')}</b>{t('، ثم افتحه من الأيقونة وارجع هنا.')}</Alert>}
+      {ps === 'unsupported' && <Alert tone="near">{t('هذا المتصفح لا يدعم التنبيهات.')}</Alert>}
+      {ps === 'denied' && <Alert tone="near">{t('التنبيهات مرفوضة. فعّلها من إعدادات الجوال ← الإشعارات ← ليان.')}</Alert>}
+      {ps === 'off' && <Btn kind="primary" block className="min-h-[52px]" disabled={busy} onClick={turnOn}>{t('فعّل التنبيهات')}</Btn>}
+      {ps === 'on' && (
+        <div className="grid grid-cols-2 gap-2">
+          <Btn onClick={async () => { const r = await testPush(); toast(r.ok ? t('أُرسل ✓ — انتظر الإشعار') : t('لم يصل. جرّب إيقاف وتفعيل')); loadLists(); }}>{t('أرسل تجربة')}</Btn>
+          <Btn kind="ghost" onClick={async () => { await disablePush(); setPs(await pushState()); loadLists(); }}>{t('إيقاف')}</Btn>
+        </div>
+      )}
+      <p className="text-xs text-slate-500">{t('تنبيهات مساعدة. تطبيق Libre يبقى المنبّه الأساسي، وقد لا يصل الإشعار إذا كان الجوال صامتًا أو في وضع التركيز.')}</p>
+    </div>
   );
 }
