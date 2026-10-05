@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.44.0",
+    "notes": [
+      "بعد ما تعطون الجرعة من الخطة، تقدرون تغيّرون وقت الجرعة (إذا انعطت قبل أو بعد الضغطة)، ووقت الأكل يتحرك معها.",
+      "وبعد الجرعة بعد تقدرون «تعديل الوجبة»: تضيفون أو تشيلون أو تغيّرون الكميات قبل ما تسجّلون «أكلت»."
+    ],
+    "notes_en": [
+      "After giving the dose from a plan you can change the dose time (if it was given before or after the tap), and the eating time follows.",
+      "After the dose you can still “Edit meal”: add, remove or change amounts before tapping what she ate."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.43.2",
     "notes": [
       "جدول أخصائية التغذية: رسم السكر صار أكبر، وكل علاج انخفاض يطلع على المنحنى بنقطة حمراء وعليها كمية الكارب (مثلاً 15 غ)، مع خطوط النطاق."

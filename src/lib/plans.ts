@@ -56,11 +56,21 @@ async function patch(id: string, p: Partial<PlannedMeal>) {
   reloadAll();
 }
 
-export async function savePlan(p: Omit<PlannedMeal, 'id' | 'status' | 'dose_event_id' | 'treatment_event_id' | 'history_id' | 'recheck_at' | 'dosed_at' | 'eaten_at' | 'created_by'> & { id?: string }) {
-  const row = { for_date: p.for_date, slot: p.slot, name: p.name, recipe_id: p.recipe_id, items: p.items, dose_at: p.dose_at, eat_after_min: p.eat_after_min, remind_min: p.remind_min, note: p.note, notified: {} };
+export async function savePlan(p: Omit<PlannedMeal, 'id' | 'status' | 'dose_event_id' | 'treatment_event_id' | 'history_id' | 'recheck_at' | 'dosed_at' | 'eaten_at' | 'created_by'> & { id?: string; dosed?: boolean }) {
+  // a meal edited after its dose keeps its reminders as they were (no second "time to eat")
+  const row = { for_date: p.for_date, slot: p.slot, name: p.name, recipe_id: p.recipe_id, items: p.items, dose_at: p.dose_at, eat_after_min: p.eat_after_min, remind_min: p.remind_min, note: p.note, ...(p.dosed ? {} : { notified: {} }) };
   const { error } = p.id ? await supabase.from('planned_meals').update({ ...row, updated_at: new Date().toISOString() }).eq('id', p.id) : await supabase.from('planned_meals').insert(row);
   if (error) throw new Error(error.message);
   await load();
+}
+/** The dose was given at another time than logged: the dose entry and the plan move together (the meal follows). */
+export async function setDoseTime(p: PlannedMeal, at: number, me: string | null) {
+  const iso = new Date(at).toISOString();
+  if (p.dose_event_id) {
+    const { error } = await supabase.from('events').update({ occurred_at: iso, edited_by: me, edited_at: new Date().toISOString() }).eq('id', p.dose_event_id);
+    if (error) throw new Error(error.message);
+  }
+  await patch(p.id, { dosed_at: iso, dose_at: iso });
 }
 export async function deletePlan(id: string) {
   const { error } = await supabase.from('planned_meals').delete().eq('id', id);

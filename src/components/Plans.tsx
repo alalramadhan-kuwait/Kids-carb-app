@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
-import { approveDose, ate, deletePlan, planMeal, savePlan, skipPlan, treatFromPlan, usePlanHistory, usePlans } from '../lib/plans';
+import { approveDose, ate, deletePlan, planMeal, savePlan, setDoseTime, skipPlan, treatFromPlan, usePlanHistory, usePlans } from '../lib/plans';
 import { useLiveDose } from '../lib/useLiveDose';
 import { eatAt, expectedDose, isFastDrink, phase, planAlerts, remindAt, upcoming, type PlanAlert, type Phase, type Slot } from '../engine/mealPlan';
 import { fmt } from '../lib/carbs';
@@ -122,7 +122,7 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
     if (doseAt < now - 5 * MIN && !plan) return toast(t('وقت الجرعة مضى'));
     setBusy(true);
     try {
-      await savePlan({ id: plan?.id, for_date: day, slot, name: name.trim() || SLOT[slot], recipe_id: recipeId, items, dose_at: new Date(doseAt).toISOString(), eat_after_min: eatAfter, remind_min: 10, note: null });
+      await savePlan({ id: plan?.id, dosed: plan?.status === 'dosed', for_date: day, slot, name: name.trim() || SLOT[slot], recipe_id: recipeId, items, dose_at: new Date(doseAt).toISOString(), eat_after_min: eatAfter, remind_min: 10, note: null });
       toast(t('حُفظت الخطة ✓ (معلّقة حتى التأكيد)')); onClose();
     } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
   };
@@ -321,6 +321,9 @@ function CheckBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =
         </div>
       )}
 
+      {/* after the dose: when it was really given can still be set (the eating time follows) */}
+      {dosed && plan.dosed_at && <DoseTimeRow plan={plan} />}
+
       {/* she ate: logged now, scaled to what she ate */}
       {(dosed || (!treatFirst && r.block !== null) || (!r.block && (units ?? r.dose) === 0)) && (
         <div className="space-y-1.5">
@@ -336,9 +339,33 @@ function CheckBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =
       )}
 
       <div className="flex justify-between gap-2 pt-1 text-sm">
-        {!dosed && <button className="min-h-[44px] font-bold text-brand" onClick={() => { onClose(); onEdit(plan); }}>{t('تعديل الخطة')}</button>}
+        <button className="min-h-[44px] font-bold text-brand" onClick={() => { onClose(); onEdit(plan); }}>{dosed ? t('تعديل الوجبة') : t('تعديل الخطة')}</button>
         <button className="min-h-[44px] text-slate-500" disabled={busy} onClick={() => run(() => skipPlan(plan.id), t('أُلغيت الخطة'))}>{t('لم تُؤكل · إلغاء')}</button>
       </div>
+    </div>
+  );
+}
+
+/** The dose given: its units and time, the time changeable (a dose logged late, or given earlier than the button). */
+function DoseTimeRow({ plan }: { plan: PlannedMeal }) {
+  const { me, reload } = useData();
+  const given = Date.parse(plan.dosed_at!);
+  const [hm, setHm] = useState(hmOf(given));
+  const [busy, setBusy] = useState(false);
+  const next = at(dayOf(given), hm);
+  const changed = hm !== hmOf(given) && Number.isFinite(next);
+  const save = async () => {
+    if (next > Date.now() + MIN) return toast(t('وقت الجرعة لا يكون في المستقبل'));
+    setBusy(true);
+    try { await setDoseTime(plan, next, me); await reload(); toast(t('تغيّر وقت الجرعة ✓')); } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="space-y-1.5 rounded-2xl bg-slate-50 p-3">
+      <label className="flex items-center justify-between gap-2 text-sm">
+        <span className="text-slate-600">{t('الجرعة {u} و · الساعة', { u: fmt(plan.given_units ?? 0) })}</span>
+        <input type="time" dir="ltr" className={cx(inputCls, '!min-h-[40px] !w-36')} value={hm} onChange={(e) => setHm(e.target.value || hmOf(given))} aria-label={t('وقت الجرعة')} />
+      </label>
+      {changed && <Btn block disabled={busy} onClick={save}>{t('احفظ وقت الجرعة {time}', { time: clock(next) })}</Btn>}
     </div>
   );
 }
