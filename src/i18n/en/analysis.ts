@@ -438,7 +438,7 @@ export const analysis: Record<string, string> = {
   "للعرض فقط، ليس للجرعة": "Display only, not for dosing",
   "IOB الآن {v} وحدة": "IOB now {v} u",
   "مفعول الإنسولين": "Insulin activity",
-  "قوة عمل الإنسولين السريع: يصعد بعد الإبرة، أعلى شي عند «ذروة» (الساعة مكتوبة)، ثم يخف. بعد «الآن» متقطع.": "How hard the rapid insulin is working: it rises after the shot, is strongest at «peak» (the time is shown), then eases off. Dashed after «now».",
+  "قوة عمل الإنسولين السريع: يبدأ بعد الإبرة بـ 10 دقائق، يصعد، أعلى شي عند «ذروة» (الساعة مكتوبة)، ثم يخف. بعد «الآن» متقطع.": "How hard the rapid insulin is working: it starts 10 minutes after the shot, rises, is strongest at «peak» (the time is shown), then eases off. Dashed after «now».",
   "ذروة {c}": "peak {c}",
   "مفعول الإنسولين: في الذروة الآن": "Insulin activity: at its peak now",
   "مفعول الإنسولين يصعد · الذروة {c}": "Insulin activity rising · peak {c}",

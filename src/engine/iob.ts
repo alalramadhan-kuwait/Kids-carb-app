@@ -63,19 +63,26 @@ export function iobAt(t: number, doses: Dose[], p: IobParams): number {
   for (const d of doses) if (d.t <= t && t - d.t < p.dia * MIN) sum += d.units * iobFraction((t - d.t) / MIN, p);
   return sum;
 }
-/** How hard the rapid insulin is working at t, in units per hour (all doses added up). */
-export function activityAt(t: number, doses: Dose[], p: IobParams): number {
+/**
+ * The activity line starts this many minutes after the shot (Loop's "effect delay"): rapid insulin needs time under
+ * the skin before it does anything, so the line, its peak and its end move later by this much. Display only: IOB
+ * and the dose screens keep the care team's curve unchanged.
+ */
+export const ACT_DELAY_MIN = 10;
+/** How hard the rapid insulin is working at t, in units per hour (all doses added up), `delay` minutes late. */
+export function activityAt(t: number, doses: Dose[], p: IobParams, delay = 0): number {
   let sum = 0;
-  for (const d of doses) if (d.t < t && t - d.t < p.dia * MIN) sum += d.units * activityFraction((t - d.t) / MIN, p);
+  for (const d of doses) { const m = (t - d.t) / MIN - delay; if (m > 0 && m < p.dia) sum += d.units * activityFraction(m, p); }
   return sum * 60;
 }
 /** When the summed activity is at its top between `from` and `to`: each peak higher than the 15 minutes either side. */
-export function activityPeaks(doses: Dose[], p: IobParams, from: number, to: number): number[] {
-  const near = doses.filter((d) => d.t < to && d.t + p.dia * MIN > from);
+export function activityPeaks(doses: Dose[], p: IobParams, from: number, to: number, delay = 0): number[] {
+  const span = (p.dia + delay) * MIN;
+  const near = doses.filter((d) => d.t < to && d.t + span > from);
   if (!near.length) return [];
-  const a = Math.max(from, Math.min(...near.map((d) => d.t))), b = Math.min(to, Math.max(...near.map((d) => d.t)) + p.dia * MIN);
+  const a = Math.max(from, Math.min(...near.map((d) => d.t))), b = Math.min(to, Math.max(...near.map((d) => d.t)) + span);
   const W = 15, v: number[] = [];
-  for (let t = a - W * MIN; t <= b + W * MIN; t += MIN) v.push(activityAt(t, near, p));
+  for (let t = a - W * MIN; t <= b + W * MIN; t += MIN) v.push(activityAt(t, near, p, delay));
   const out: number[] = [];
   for (let k = W; k < v.length - W; k++) {
     if (!(v[k] > 0)) continue;

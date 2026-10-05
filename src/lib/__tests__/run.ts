@@ -16,7 +16,7 @@ import { seriesStats } from '../../engine/stats';
 import { buildCsv } from '../export';
 import { adrrBand, grid, hbgiBand, lbgiBand, riskF, variability } from '../../engine/variability';
 import { findPatterns, visible } from '../../engine/patterns';
-import { activityAt, activityFraction, activityPeaks, carbLane, cobAt, dosesFrom, insulinLane, iobAt, iobFraction, iobParamsOk } from '../../engine/iob';
+import { ACT_DELAY_MIN, activityAt, activityFraction, activityPeaks, carbLane, cobAt, dosesFrom, insulinLane, iobAt, iobFraction, iobParamsOk } from '../../engine/iob';
 import { GRID, alignCurve, assess, buildOccurrence, coverage, medianCurve, summary, windowSeries } from '../../engine/meals';
 import { ackMessage, alertMessage, evaluate, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
@@ -852,6 +852,11 @@ test('insulin activity is the slope of IOB, peaks at the peak time and adds up t
   // two doses far apart: two peaks; nothing in range: none
   assert.equal(activityPeaks([...doses, { t: t0 + 3 * 3600000, units: 1 }], p, t0, t0 + 8 * 3600000).length, 2);
   assert.deepEqual(activityPeaks(doses, p, t0 + 5 * 3600000, t0 + 6 * 3600000), []);
+  // with the delay: nothing for the first 10 minutes, the same curve 10 minutes later, the peak at 75
+  assert.equal(ACT_DELAY_MIN, 10);
+  assert.equal(activityAt(t0 + 10 * M, doses, p, 10), 0);
+  assert.ok(Math.abs(activityAt(t0 + 75 * M, doses, p, 10) - activityAt(t0 + 65 * M, doses, p)) < 1e-9);
+  assert.deepEqual(activityPeaks(doses, p, t0 - 60 * M, t0 + 6 * 3600000, 10), [t0 + 75 * M]);
 });
 
 test('IOB follows the exponential model (1 at the dose, 0 at DIA, falling); COB is linear; long insulin is excluded', () => {

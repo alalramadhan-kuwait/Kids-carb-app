@@ -1,7 +1,7 @@
 // IOB / COB tracks and forecast lines for a glucose graph (Now and Analysis). Display only.
 import { useMemo } from 'react';
 import { useData } from '../lib/data';
-import { activityAt, activityFraction, activityPeaks, carbsFrom, cobAt, dosesFrom, iobAt, iobParamsOk } from '../engine/iob';
+import { ACT_DELAY_MIN, activityAt, activityFraction, activityPeaks, carbsFrom, cobAt, dosesFrom, iobAt, iobParamsOk } from '../engine/iob';
 import { onboardForecast, pastForecasts, trendForecast, type Forecast } from '../engine/forecast';
 import { ratioAt } from '../engine/status';
 import { kuwaitClock } from '../lib/schedule';
@@ -23,8 +23,8 @@ export function useGraphExtras({ series, now, iob, cob, act = false, forecast, p
     const t: Tracks = {};
     if (iob && iobOk) t.iob = (x) => iobAt(x, doses, iobP!);
     if (cob && cobOk) t.cob = (x) => cobAt(x, carbs, s.cob_absorb_min!);
-    // activity: peaks found once per view (minute by minute); scaled so 1 unit at its peak fills the band
-    if (act && iobOk) t.act = { at: (x) => activityAt(x, doses, iobP!), peaks: activityPeaks(doses, iobP!, start - iobP!.dia * 60000, Math.max(end, now) + iobP!.dia * 60000), ref: 60 * activityFraction(iobP!.peak, iobP!) };
+    // activity: starts ACT_DELAY_MIN after each shot; peaks found once per view (minute by minute); scaled so 1 unit at its peak fills the band
+    if (act && iobOk) t.act = { at: (x) => activityAt(x, doses, iobP!, ACT_DELAY_MIN), peaks: activityPeaks(doses, iobP!, start - (iobP!.dia + ACT_DELAY_MIN) * 60000, Math.max(end, now) + iobP!.dia * 60000, ACT_DELAY_MIN), ref: 60 * activityFraction(iobP!.peak, iobP!) };
     return t.iob || t.cob || t.act ? t : undefined;
   }, [iob, cob, act, Math.floor(start / 600000), Math.floor(end / 600000), iobOk, cobOk, doses, carbs, s.iob_dia_min, s.iob_peak_min, s.cob_absorb_min]); // eslint-disable-line react-hooks/exhaustive-deps
 
