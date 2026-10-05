@@ -66,7 +66,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       q('recipe_ingredients').order('sort'), q('snacks').order('created_at'),
       q('meal_history').order('eaten_at', { ascending: false }).limit(1000), q('meal_plan').order('plan_date'),
       supabase.from('events').select('*').is('deleted_at', null).gte('occurred_at', since).order('occurred_at', { ascending: false }).limit(1000),
-      supabase.from('members').select('user_id,display_name,alert_role,simple_mode'),
+      supabase.from('members').select('user_id,display_name,alert_role,simple_mode,activity_push'),
       supabase.auth.getUser(),
     ]);
     const err = [s, p, r, i, sn, h, pl, ev, mem].find((x) => x.error)?.error;

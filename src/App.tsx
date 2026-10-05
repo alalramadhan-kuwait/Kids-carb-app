@@ -48,7 +48,7 @@ import { MomEntry } from './pages/mom/MomEntry';
 import { Alarm } from './components/Alarm';
 import { useKeepAwake } from './lib/keepAwake';
 import { MomLog } from './pages/mom/MomLog';
-import { MomMore, MomPlanView, MomPlans, MomSensor, MomWhen } from './pages/mom/MomPlan';
+import { MomActivity, MomMore, MomPlanView, MomPlans, MomSensor, MomWhen } from './pages/mom/MomPlan';
 import { MomTabs } from './pages/mom/MomUI';
 import { PortionEdit, PortionList } from './pages/Portions';
 import { fullModeNow } from './lib/mom';
@@ -225,7 +225,7 @@ function Shell() {
       {/* desktop: the tabs become a side menu, so every page shifts over by its width */}
       <div className={!mom && !momTabs ? 'lg:ps-60' : undefined}>
       <Routes>
-        <Route path="/" element={simple ? <Navigate to={new URLSearchParams(search).get('plan') ? `/mom/plan/${new URLSearchParams(search).get('plan')}` : '/mom'} replace /> : <Now />} />
+        <Route path="/" element={simple ? <Navigate to={new URLSearchParams(search).get('plan') ? `/mom/plan/${new URLSearchParams(search).get('plan')}` : new URLSearchParams(search).get('at') ? `/mom?at=${new URLSearchParams(search).get('at')}` : '/mom'} replace /> : <Now />} />
         <Route path="/mom" element={<MomHome />} />
         <Route path="/mom/meal" element={<MomMeal />} />
         <Route path="/mom/add" element={<MomAdd />} />
@@ -250,6 +250,7 @@ function Shell() {
         <Route path="/mom/food/:kind/:id" element={<MomFoodItem />} />
         <Route path="/mom/compare" element={<MomCompare />} />
         <Route path="/mom/sensor" element={<MomSensor />} />
+        <Route path="/mom/activity" element={<MomActivity />} />
         <Route path="/mom/when" element={<MomWhen />} />
         <Route path="/mom/plans" element={<MomPlans />} />
         <Route path="/mom/plan/:id" element={<MomPlanView />} />

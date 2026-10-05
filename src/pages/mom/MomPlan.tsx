@@ -18,6 +18,7 @@ import { setAlarmSound, testAlarm, useAlarmSound } from '../../components/Alarm'
 import { setKeepAwake, useKeepAwakePref } from '../../lib/keepAwake';
 import type { InjectionSite } from '../../lib/types';
 import { useCatalog } from './MomMeal';
+import { ACTIVITY_KINDS, activityOn, setActivityPush, type ActivityKind } from '../../lib/activityPush';
 
 type Slot = PlannedMeal['slot'];
 const SLOTS: Slot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -163,7 +164,26 @@ export function MomMore() {
         sub={sensor ? `${sensor.site ? t(SITE_NAME[sensor.site]) : t('وين؟')} · ${t('ينتهي بعد {x}', { x: sensorLeft(sensor.life.left) })}` : t('ما في حساس')} />
       <Choice icon="📅" label={t('مخططة')} sub={n ? t('{n} معلّقة', { n }) : undefined} onClick={() => nav('/mom/plans')} />
       <Choice icon="💉" label={t('أماكن الإبر')} onClick={() => nav('/mom/sites')} />
+      <Choice icon="📣" label={t('أخبرني لما يسجّل غيري')} onClick={() => nav('/mom/activity')} />
       <Choice icon="🔓" label={t('الوضع الكامل')} onClick={() => { if (window.confirm(t('تفتحين الوضع الكامل؟'))) { setFullModeNow(true); nav('/'); } }} />
+    </MomPage>
+  );
+}
+
+/** Which of the other parent's entries she is told about; each one taps on or off. */
+export function MomActivity() {
+  const { members, me, reload } = useData();
+  const m = members.find((x) => x.user_id === me);
+  const [busy, setBusy] = useState(false);
+  const flip = async (k: ActivityKind) => {
+    setBusy(true);
+    try { await setActivityPush(m, k, !activityOn(m, k)); await reload(); } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
+  };
+  return (
+    <MomPage title={t('أخبرني لما يسجّل غيري')} back="/mom/more">
+      {ACTIVITY_KINDS.map((a) => (
+        <Choice key={a.k} icon={a.icon} label={t(a.label)} on={activityOn(m, a.k)} sub={activityOn(m, a.k) ? t('شغّال') : t('طافي')} onClick={() => { if (!busy) void flip(a.k); }} />
+      ))}
     </MomPage>
   );
 }

@@ -1,7 +1,7 @@
 // Mom mode home: how Layan is now (big coloured box like LibreLinkUp), a large simple 12-hour graph, the last
 // injections in pen colours with the doctor's 2-hour countdown, the meal in progress, and three big buttons.
 import { useEffect, useMemo, useRef, useState, type PointerEvent as PE } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { useGlucose } from '../../hooks/useGlucose';
 import { fetchSeries } from '../../engine/useSeries';
@@ -28,6 +28,7 @@ const MOOD: Record<Mood, { bg: string; word: string; todo: string }> = {
 
 export function MomHome() {
   const nav = useNavigate();
+  const focusAt = Number(useSearchParams()[0].get('at')) || null; // a tapped "Rawan added …" push
   // the graph fills its box: its drawing height follows the box's shape (no empty bands on tall phones)
   const box = useRef<HTMLDivElement>(null);
   const [aspect, setAspect] = useState(0.8);
@@ -95,7 +96,7 @@ export function MomHome() {
 
       <div className="flex min-h-[120px] flex-1 flex-col rounded-3xl border border-slate-100 bg-white px-1 pt-1">
         <div ref={box} className="min-h-0 flex-1">
-          {merged && <BigGraph aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} alarmHigh={s.alert_high_mgdl ?? 240}
+          {merged && <BigGraph key={focusAt ?? 0} at={focusAt} aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} alarmHigh={s.alert_high_mgdl ?? 240}
             shots={shots.map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
             meals={history.filter((h) => h.total_carbs >= 5).map((h) => Date.parse(h.eaten_at))} />}
         </div>
@@ -164,8 +165,8 @@ function smoothPath(p: { x: number; y: number; t: number }[], gap: number): stri
   return d;
 }
 
-function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, meals }: { aspect: number; s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: number[] }) {
-  const W = 340, PL = 6, PR = 30, PT = 8, HH = Math.max(160, Math.round(W * aspect)), PH = HH - PT - 44;
+function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, meals, at }: { at?: number | null; aspect: number; s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: number[] }) {
+  const W = 340, PL = 6, PR = 30, PT = 30, HH = Math.max(160, Math.round(W * aspect)), PH = HH - PT - 44;
   const t0 = now - 12 * H;
   const top = unit === 'mmol' ? 21 * 18.016 : 350, bottom = unit === 'mmol' ? 3 * 18.016 : 50;
   const ticks = unit === 'mmol' ? [3, 6, 9, 12, 15, 18, 21].map((v) => v * 18.016) : [50, 100, 150, 200, 250, 300, 350];
@@ -189,19 +190,26 @@ function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, mea
   const dot = lastV === null ? '#64748b' : lastV < low ? '#c62f3a' : lastV > high ? '#c27a00' : '#2f8f55'; // the newest reading drawn, same as the box
   const first = Math.ceil(t0 / (3 * H)) * 3 * H; const hours = [0, 1, 2, 3].map((k) => first + k * 3 * H).filter((h) => h <= now);
   // touch the graph to read it, like Libre: a thin line at that time, a dot on the curve, the value above and the time below
-  const [pick, setPick] = useState<{ t: number; v: number } | null>(null);
+  const nearest = (tt: number) => {
+    if (!pts.length) return null;
+    let best = pts[0]; for (const p of pts) if (Math.abs(p.t - tt) < Math.abs(best.t - tt)) best = p;
+    return Math.abs(best.t - tt) <= 30 * 60000 ? best : null;
+  };
+  // opened from a "Rawan added …" push: start on the time of that entry
+  const [pick, setPick] = useState<{ t: number; v: number } | null>(() => (at && at >= t0 ? nearest(at) : null));
   const svgRef = useRef<SVGSVGElement>(null);
   const point = (e: PE) => {
     const r = svgRef.current?.getBoundingClientRect(); if (!r || !pts.length) return;
-    const k = r.width / W; // the svg keeps its aspect, centred in its box
-    const vx = (e.clientX - r.left - (r.width - W * Math.min(k, r.height / HH)) / 2) / Math.min(k, r.height / HH);
-    const tt = t0 + ((vx - PL) / (W - PL - PR)) * 12 * H;
-    let best = pts[0]; for (const p of pts) if (Math.abs(p.t - tt) < Math.abs(best.t - tt)) best = p;
-    setPick(Math.abs(best.t - tt) <= 30 * 60000 ? best : null);
+    const k = Math.min(r.width / W, r.height / HH); // the svg keeps its aspect, centred in its box
+    const vx = (e.clientX - r.left - (r.width - W * k) / 2) / k;
+    setPick(nearest(t0 + ((vx - PL) / (W - PL - PR)) * 12 * H));
   };
   const end = () => setPick(null);
   const px = pick ? x(pick.t) : 0;
-  const lx = Math.min(Math.max(px, PL + 34), W - PR - 34);
+  // the value sits above the plot, follows the line, and never runs off either edge
+  const val = pick ? glucoseText(pick.v, unit) : '', uLabel = unit === 'mmol' ? 'mmol/L' : 'mg/dL';
+  const lw = val.length * 12 + 4 + uLabel.length * 6.5;
+  const lx = Math.min(Math.max(px, PL + lw / 2), W - 6 - lw / 2);
   return (
     <svg ref={svgRef} viewBox={`0 0 ${W} ${HH}`} className="h-full w-full" direction="ltr" role="img" aria-label={t('السكر آخر 12 ساعة')} style={{ touchAction: 'none' }}
       onPointerDown={(e) => { (e.currentTarget as Element).setPointerCapture?.(e.pointerId); point(e); }} onPointerMove={point} onPointerUp={end} onPointerCancel={end} onPointerLeave={end}>
@@ -216,9 +224,8 @@ function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, mea
       {hours.map((h) => <text key={h} x={x(h)} y={HH - 2} fontSize="11" fill="#8a84a0" textAnchor="middle" opacity={pick ? 0.25 : 1}>{clock(h)}</text>)}
       {pick && <g pointerEvents="none">
         <line x1={px} x2={px} y1={PT} y2={PT + PH} stroke="rgb(var(--text))" strokeWidth="1.5" />
-        <circle cx={px} cy={y(pick.v)} r="7" fill="#fff" stroke="rgb(var(--text))" strokeWidth="3" />
-        <rect x={lx - 34} y={PT} width="68" height="26" rx="13" fill="rgb(var(--text))" />
-        <text x={lx} y={PT + 18} fontSize="16" fontWeight="800" fill="rgb(var(--bg))" textAnchor="middle">{glucoseText(pick.v, unit)}</text>
+        <circle cx={px} cy={y(pick.v)} r="5" fill="none" stroke="rgb(var(--text))" strokeWidth="2" />
+        <text x={lx} y={PT - 8} textAnchor="middle" fill="rgb(var(--text))"><tspan fontSize="21" fontWeight="800">{val}</tspan><tspan fontSize="11" fill="#8a84a0" dx="4">{uLabel}</tspan></text>
         <text x={Math.min(Math.max(px, PL + 24), W - PR - 10)} y={HH - 2} fontSize="12" fontWeight="700" fill="rgb(var(--text))" textAnchor="middle">{clock(pick.t)}</text>
       </g>}
     </svg>

@@ -2521,6 +2521,32 @@ test('Topi cheese is found by «توبي» and «جبن»', async () => {
 }
 
 {
+  const { activityMessage, activityRecipients } = await import('../../../supabase/functions/carb-activity/activity');
+  const strip = (x: string) => x.replace(/[\u2066\u2069]/g, '');
+  const at = new Date(Date.UTC(2026, 9, 5, 17, 5)).toISOString(); // 8:05 PM in Kuwait
+  const row = (kind: any, o: Record<string, unknown> = {}) => ({ kind, by_user: 'mom', occurred_at: at, carbs: null, units: null, mgdl: null, name: null, ...o }) as any;
+  test('shared activity: the other parent is told, never the one who logged it, and only the kinds they keep on', () => {
+    const members = [{ user_id: 'mom', display_name: 'Rawan' }, { user_id: 'dad', display_name: 'Dad', activity_push: { meal: false } }];
+    assert.deepEqual(activityRecipients(members, 'mom', 'rapid'), ['dad']);
+    assert.deepEqual(activityRecipients(members, 'mom', 'meal'), [], 'dad switched meals off');
+    assert.deepEqual(activityRecipients(members, 'dad', 'meal'), ['mom'], 'no setting yet means on');
+  });
+  test('shared activity messages say who, what and when', () => {
+    const rapid = activityMessage(row('rapid', { units: 4 }), 'Rawan', 'en');
+    assert.equal(strip(rapid.title), '💉 Rawan added NovoRapid 4 U');
+    assert.equal(strip(rapid.body), 'At 8:05 PM');
+    assert.equal(strip(activityMessage(row('long', { units: 10 }), null, 'en').title), '💉 Tresiba 10 U added');
+    const meal = activityMessage(row('meal', { carbs: 42, name: 'Toast' }), 'Rawan', 'en');
+    assert.equal(strip(meal.title), '🍽️ Rawan added a meal · 42 g carbs');
+    assert.equal(strip(meal.body), 'Toast\nAt 8:05 PM');
+    assert.equal(strip(activityMessage(row('treatment', { carbs: 10 }), null, 'en').title), '🧃 Low treatment added · 10 g carbs');
+    assert.equal(strip(activityMessage(row('finger', { mgdl: 101 }), 'Rawan', 'en', 'mmol').title), '🩸 Rawan added a finger-prick 5.6 mmol/L');
+    assert.equal(strip(activityMessage(row('rapid', { units: 4 }), 'Rawan', 'ar').title), '💉 نوفورابيد 4 وحدة · من Rawan');
+    assert.equal(strip(activityMessage(row('rapid', { units: 4 }), 'Rawan', 'ar').body), 'الساعة 8:05 م');
+  });
+}
+
+{
   const M = await import('../../engine/mom');
   const prod = (id: string, o: Record<string, unknown> = {}) => ({ id, name: id, brand: null, category: 'نشويات', kind: 'commercial', image_path: null, pack_size: null, unit: 'g', carbs_per_100: 87, fat_per_100: 0.6, fiber_per_100: 2, protein_per_100: 4.5, kcal_per_100: 375, serving_size: null, carbs_per_serving: null, label_basis: 'as_sold', cooked_yield: null, available: true, approved: true, ...o }) as any;
   const cat = {

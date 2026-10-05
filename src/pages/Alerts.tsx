@@ -11,6 +11,7 @@ import { Icon } from '../components/Icon';
 import { Alert, Btn, Card, Chip, Field, NumInput, Page, Toggle, cx, inputCls, toast } from '../components/ui';
 import { hhmm } from '../lib/schedule';
 import { isEn, t } from '../i18n';
+import { ACTIVITY_KINDS, activityOn, setActivityPush } from '../lib/activityPush';
 
 type Sub = { id: string; user_id: string; device_label: string | null; last_ok_at: string | null; last_error: string | null; endpoint: string };
 const KEYS = ['alert_urgent_low_mgdl', 'alert_low_mgdl', 'alert_high_mgdl', 'alert_low_delay_min', 'alert_high_delay_min', 'alert_nodata_min', 'alert_renotify_min',
@@ -218,7 +219,26 @@ export function PhonePush() {
           <Btn kind="ghost" onClick={async () => { await disablePush(); setPs(await pushState()); loadLists(); }}>{t('إيقاف')}</Btn>
         </div>
       )}
+      {ps === 'on' && <ActivityPush />}
       <p className="text-xs text-slate-500">{t('تنبيهات مساعدة. تطبيق Libre يبقى المنبّه الأساسي، وقد لا يصل الإشعار إذا كان الجوال صامتًا أو في وضع التركيز.')}</p>
+    </div>
+  );
+}
+
+/** Which of the other parent's entries this person is told about (per person, every phone of theirs). */
+function ActivityPush() {
+  const { members, me, reload } = useData();
+  const m = members.find((x) => x.user_id === me);
+  if (members.length < 2) return null;
+  return (
+    <div className="space-y-1.5 pt-1">
+      <div className="text-sm font-medium text-slate-600">{t('أخبرني لما يسجّل غيري')}</div>
+      {ACTIVITY_KINDS.map((a) => (
+        <div key={a.k} className="flex items-center justify-between gap-3">
+          <span>{a.icon} {t(a.label)}</span>
+          <Toggle on={activityOn(m, a.k)} label={t(a.label)} onChange={async (v) => { try { await setActivityPush(m, a.k, v); await reload(); } catch (e) { toast((e as Error).message); } }} />
+        </div>
+      ))}
     </div>
   );
 }

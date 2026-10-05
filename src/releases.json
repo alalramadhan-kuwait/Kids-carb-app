@@ -1,6 +1,22 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.45.5",
+    "notes": [
+      "لما أحد الوالدين يسجّل إبرة نوفورابيد أو تريسيبا أو وجبة أو علاج انخفاض أو قياس وخز، يوصل إشعار للثاني: مثلاً «نوفورابيد 4 وحدة · من رَوان». اللي سجّل ما يوصله إشعار.",
+      "الضغط على الإشعار يفتح رسم السكر عند وقت التسجيل.",
+      "تقدر توقف كل نوع لحاله: في الوضع البسيط من المزيد ← أخبرني لما يسجّل غيري، وفي الوضع الكامل تحت الإشعارات.",
+      "الوضع البسيط: مؤشر الرسم أخف: القراءة فوق الرسم بخط واضح ودائرة صغيرة مفرغة على الخط."
+    ],
+    "notes_en": [
+      "When one parent logs NovoRapid, Tresiba, a meal, a low treatment or a finger-prick, the other parent gets a notification, e.g. “Rawan added NovoRapid 4 U”. The person who logged it isn't notified.",
+      "Tapping the notification opens the glucose graph at the time of the entry.",
+      "Each kind can be switched off: in simple mode under More → Tell me when someone else logs, in full mode under Notifications.",
+      "Simple mode: a lighter graph pointer: the reading in clear text above the graph and a small hollow circle on the line."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.45.4",
     "notes": [
       "الوضع البسيط: المسي الرسم بإصبعك لتشوفي القراءة والوقت في أي لحظة، مثل تطبيق Libre."
