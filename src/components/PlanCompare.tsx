@@ -117,7 +117,7 @@ const Stat = ({ label, v, sub }: { label: string; v: string; sub?: string }) => 
 export const SETTING: Record<SettingKey, string> = {
   icr: 'نسبة الكارب (ICR)', isf: 'معامل الحساسية (ISF)', target: 'الهدف', dia: 'مدة عمل الإنسولين', timing: 'توقيت الجرعة قبل الأكل', // i18n-ok
 };
-const FINDING: Record<string, string> = {
+export const FINDING: Record<string, string> = {
   high_after_calc: 'ارتفع بعد إعطاء الجرعة المحسوبة في {n} من {of} وجبات', // i18n-ok
   low_after_calc: 'انخفض بعد إعطاء الجرعة المحسوبة في {n} من {of} وجبات', // i18n-ok
   high_after_correction: 'مع جرعة تصحيح: لم ينزل أو ارتفع في {n} من {of} وجبات', // i18n-ok

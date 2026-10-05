@@ -10,7 +10,7 @@ import { nightOf } from '../lib/schedule';
 import { fmt } from '../lib/carbs';
 import { fmtTime, relDay } from '../lib/constants';
 import { dur } from '../pages/PlanReview';
-import { Card } from './ui';
+import { Card, cx } from './ui';
 import { isEn, t } from '../i18n';
 
 const H = 3600000;
@@ -45,43 +45,41 @@ export function OvernightBasal({ from, pattern }: { from: number; pattern: numbe
   const ended = (x: Stretch) => x.endedBy === 'treatment' ? t('انتهت بعلاج انخفاض') : x.endedBy === 'food' ? t('انتهت بأكل') : x.endedBy === 'rapid' ? t('انتهت بجرعة سريعة') : '';
   const perH = (r: number) => { const v = g(Math.abs(r)); return /^0(\.0)?$/.test(v) ? v : `${r > 0 ? '+' : '−'}${v}`; };
 
+  // one line and the chart; the night-by-night list, the rule behind it and the sensor caveat open on request
+  const fell = sum ? sum.rate !== null && sum.rate < 0 : false;
   return (
     <Card className="space-y-2">
-      <div>
-        <h2 className="font-bold">{t('الليل: {name} فقط', { name })}</h2>
-        <p className="text-xs text-slate-500">{t('أوقات الليل ({a}–{b}) بلا إنسولين سريع لـ {h} ساعات وبلا أكل لـ {f} ساعات. ما يفعله السكر فيها يعود إلى الإنسولين الطويل وحده.', { a: night.start, b: night.end, h: rules.rapid_gap_min / 60, f: rules.food_gap_min / 60 })}</p>
-      </div>
+      <h2 className="font-bold">🌙 {t('الليل ({name} وحده)', { name })}</h2>
       {!list ? <p className="text-sm text-slate-500">…</p> : list.length === 0 ? <p className="text-sm text-slate-500">{t('لا توجد فترات كهذه في هذه المدة.')}</p> : (
         <>
-          {flag && (
-            <div className="rounded-xl border border-near/30 bg-near-soft/40 p-3">
-              <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-near-soft px-2 py-0.5 text-xs font-bold text-near">{t('مراجعة مع فريق الرعاية')}</span><b className="text-sm"><bdi>{name}</bdi></b></div>
-              <p className="mt-1 text-sm">{t('نزل {r} أو أكثر في الساعة في {n} من {of} فترات ليلية بالإنسولين الطويل وحده؛ {k} منها وصلت تحت النطاق.', { r: g(rules.fall_mgdl_h), n: sum!.falling, of: sum!.n, k: sum!.low })}</p>
-            </div>
-          )}
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <S v={String(sum!.n)} l={t('فترات · {n} ليالٍ', { n: sum!.nights })} />
-            <S v={sum!.rate === null ? '—' : perH(sum!.rate)} l={t('التغير في الساعة (الوسيط)')} />
-            <S v={`${sum!.low}`} l={t('وصلت تحت النطاق')} />
-          </div>
+          <p className={cx('rounded-xl px-3 py-2 text-[15px] font-medium', flag ? 'bg-near-soft/60' : 'bg-slate-50')}>
+            {sum!.rate === null ? t('{n} ليالٍ', { n: sum!.nights }) : fell
+              ? t('نزل السكر حوالي {r} كل ساعة', { r: g(Math.abs(sum!.rate)) })
+              : t('تغيّر السكر حوالي {r} كل ساعة', { r: perH(sum!.rate) })}
+            {' · '}{t('وصل تحت النطاق في {k} من {n} ليالٍ', { k: sum!.low, n: sum!.n })}
+            {flag && <span className="mt-1 block text-xs font-bold text-near">{t('للمراجعة مع فريق الرعاية')}</span>}
+          </p>
           <NightChart list={list} series={series!} unit={unit} range={{ low, high: range.high ?? 180 }} />
-          <ul className="divide-y divide-slate-100 text-sm">
-            {list.map((x) => (
-              <li key={x.from} className="space-y-0.5 py-2">
-                <div className="flex items-baseline justify-between gap-2"><span className="font-medium">{relDay(new Date(x.from))} · <bdi className="num">{fmtTime(new Date(x.from))}</bdi> – <bdi className="num">{fmtTime(new Date(x.to))}</bdi></span><b className="whitespace-nowrap"><bdi dir="ltr" className="num">{perH(x.rate)}</bdi> {t('في الساعة')}</b></div>
-                <div className="text-xs text-slate-600"><span className="num">{g(x.start)} {isEn() ? '→' : '←'} {g(x.end)}</span> · {t('أدنى {g}', { g: g(x.min) })}{x.low && <b className="text-over"> · {t('تحت النطاق')}</b>}{ended(x) && <> · {ended(x)}</>}</div>
-                <div className="text-[11px] text-slate-500">{x.long ? t('آخر جرعة طويلة: {u} و الساعة {time}', { u: x.long.units === null ? '—' : fmt(x.long.units), time: fmtTime(new Date(x.long.t)) }) : ''}{x.sinceRapidMin !== null && <> · {t('آخر جرعة سريعة قبلها بـ {d}', { d: dur(x.sinceRapidMin) })}</>}</div>
-              </li>
-            ))}
-          </ul>
-          <p className="text-[11px] text-slate-500">{t('القراءات المنخفضة أثناء النوم قد تأتي من الضغط على الحسّاس؛ فحص الإصبع يؤكدها.')}</p>
+          <details className="text-sm">
+            <summary className="min-h-[40px] cursor-pointer py-2 font-bold text-brand">{t('تفاصيل كل ليلة ({n})', { n: list.length })}</summary>
+            <p className="text-xs text-slate-500">{t('أوقات الليل ({a}–{b}) بلا إنسولين سريع لـ {h} ساعات وبلا أكل لـ {f} ساعات. ما يفعله السكر فيها يعود إلى الإنسولين الطويل وحده.', { a: night.start, b: night.end, h: rules.rapid_gap_min / 60, f: rules.food_gap_min / 60 })}</p>
+            <ul className="divide-y divide-slate-100">
+              {list.map((x) => (
+                <li key={x.from} className="space-y-0.5 py-2">
+                  <div className="flex items-baseline justify-between gap-2"><span className="font-medium">{relDay(new Date(x.from))} · <bdi className="num">{fmtTime(new Date(x.from))}</bdi> – <bdi className="num">{fmtTime(new Date(x.to))}</bdi></span><b className="whitespace-nowrap"><bdi dir="ltr" className="num">{perH(x.rate)}</bdi> {t('في الساعة')}</b></div>
+                  <div className="text-xs text-slate-600"><span className="num">{g(x.start)} {isEn() ? '→' : '←'} {g(x.end)}</span> · {t('أدنى {g}', { g: g(x.min) })}{x.low && <b className="text-over"> · {t('تحت النطاق')}</b>}{ended(x) && <> · {ended(x)}</>}</div>
+                  <div className="text-[11px] text-slate-500">{x.long ? t('آخر جرعة طويلة: {u} و الساعة {time}', { u: x.long.units === null ? '—' : fmt(x.long.units), time: fmtTime(new Date(x.long.t)) }) : ''}{x.sinceRapidMin !== null && <> · {t('آخر جرعة سريعة قبلها بـ {d}', { d: dur(x.sinceRapidMin) })}</>}</div>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[11px] text-slate-500">{t('القراءات المنخفضة أثناء النوم قد تأتي من الضغط على الحسّاس؛ فحص الإصبع يؤكدها.')}</p>
+          </details>
         </>
       )}
     </Card>
   );
 }
 
-const S = ({ v, l }: { v: string; l: string }) => <div><div className="num font-bold text-brand-num" dir="ltr">{v}</div><div className="text-[11px] text-slate-500">{l}</div></div>;
 
 /** Each stretch on one clock axis (18:00 → 10:00), so nights can be compared. */
 function NightChart({ list, series, unit, range }: { list: Stretch[]; series: Series; unit: 'mmol' | 'mgdl'; range: { low: number; high: number } }) {

@@ -1,14 +1,14 @@
 // More → Reports → Meal plans for the care team: every finished plan in the period (calculated vs given dose, the
 // ratios used, start, interval, outcome), the comparable patterns, repeated differences and the evidence worth a
 // look together. It reports; it never proposes a dose or a setting.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { usePlanFacts } from '../lib/planFacts';
 import { evidenceOf, groupsOf, patternOf, type PlanFacts } from '../engine/planCompare';
 import { rulesOf } from '../engine/planReview';
-import { EvidenceList, OutcomePill, PatternCard, gOf, whyText } from '../components/PlanCompare';
-import { dur } from './PlanReview';
+import { EvidenceList, FINDING, OutcomePill, PatternCard, gOf, whyText } from '../components/PlanCompare';
+import { OUTCOME, dur } from './PlanReview';
 import { OvernightBasal } from '../components/Overnight';
 import { fmt } from '../lib/carbs';
 import { fmtTime, relDay } from '../lib/constants';
@@ -38,6 +38,8 @@ export function PlanReport() {
   const withDose = list.filter((p) => p.calc !== null && p.given !== null);
   const reasons = differ.map((p) => p.reason).filter((x): x is string => !!x);
   const corrections = list.filter((p) => p.endedBy === 'correction').length;
+  // printed or saved as PDF: everything open, the care team sees it all
+  useEffect(() => { const f = () => document.querySelectorAll('details').forEach((d) => { d.open = true; }); window.addEventListener('beforeprint', f); return () => window.removeEventListener('beforeprint', f); }, []);
 
   return (
     <main className="mx-auto max-w-2xl space-y-3 px-4 pb-28 pt-3">
@@ -49,35 +51,40 @@ export function PlanReport() {
       <div className="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 text-sm print:hidden">
         {[14, 30, 90].map((d) => <button key={d} onClick={() => setDays(d)} className={cx('min-h-[40px] rounded-full', days === d ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{t('{n} يومًا', { n: d })}</button>)}
       </div>
-      <p className="text-xs text-slate-500">
-        {t('من {a} إلى {b}', { a: dateOf(from), b: dateOf(Date.now()) })} · {unitLabel(settings.glucose_unit)} · {t('الإعدادات الحالية: مدة عمل الإنسولين {d} · الجرعة قبل الأكل بـ {m} د', { d: dur(settings.iob_dia_min ?? 360), m: settings.dose_to_meal_min ?? 0 })}
-      </p>
       <OvernightBasal from={from} pattern={rules.pattern_min} />
       {!loaded ? <p className="text-slate-500">…</p> : list.length === 0 ? <Card><p className="text-sm text-slate-500">{t('لا توجد وجبات مخططة بمراجعة نهائية في هذه الفترة.')}</p></Card> : (
-        <>
-          <Card className="space-y-2">
-            <h2 className="font-bold">{t('للمراجعة مع فريق الرعاية')}</h2>
-            <EvidenceList list={evidence} facts={list} />
-            <p className="text-[11px] text-slate-500">{t('من {n} وجبات قابلة للمقارنة، وتحتاج {k} على الأقل. أدلة للنقاش، وليست تغييرًا في الإعدادات.', { n: comparable.length, k: rules.pattern_min })}</p>
-          </Card>
+        <Card className="space-y-3">
+          <h2 className="font-bold">🍽️ {t('الوجبات المخططة ({n})', { n: list.length })}</h2>
+          <div className="flex flex-wrap gap-1.5">
+            {(['in_target', 'high', 'low', 'unclear'] as const).map((k) => [k, list.filter((p) => p.outcome === k).length] as const).filter(([, n]) => n > 0)
+              .map(([k, n]) => <span key={k} className={cx('rounded-full px-2.5 py-1 text-sm font-bold', OUTCOME[k].tone)}>{OUTCOME[k].icon} {k === 'unclear' ? t('غير واضح') : OUTCOME[k].label()} · <span className="num">{n}</span></span>)}
+          </div>
+          {evidence.length > 0 && (
+            <div className="rounded-xl bg-near-soft/60 px-3 py-2">
+              <div className="text-xs font-bold text-near">{t('للمراجعة مع فريق الرعاية')}</div>
+              <ul className="mt-1 list-disc space-y-0.5 ps-5 text-[15px]">{evidence.map((e, k) => <li key={k}>{t(FINDING[e.finding], { n: e.n, of: e.of })}</li>)}</ul>
+            </div>
+          )}
+          {withDose.length > 0 && <p className="text-sm">💉 {differ.length === 0 ? t('أُعطيت الجرعة المحسوبة في كل الوجبات') : t('أُعطيت جرعة غير المحسوبة في {n} من {of} وجبات', { n: differ.length, of: withDose.length })}{corrections > 0 && <> · {t('تصحيح بعد الأكل: {n}', { n: corrections })}</>}</p>}
 
-          <Card className="space-y-1.5 text-sm">
-            <h2 className="font-bold">{t('الجرعة المحسوبة والمعطاة')}</h2>
-            <p>{t('اختلفت الجرعة المعطاة عن المحسوبة في {n} من {of} وجبات.', { n: differ.length, of: withDose.length })}
-              {differ.length > 0 && <> {t('أقل: {a} · أكثر: {b}', { a: differ.filter((p) => p.given! < p.calc!).length, b: differ.filter((p) => p.given! > p.calc!).length })}</>}</p>
-            {reasons.length > 0 && <p className="text-xs text-slate-600">{t('الأسباب المكتوبة:')} {reasons.map((r, k) => <bdi key={k}>{k ? ' · ' : ''}{r}</bdi>)}</p>}
-            <p>{t('جرعات تصحيح بعد الأكل: {n}', { n: corrections })}</p>
-          </Card>
-
-          <h2 className="px-1 pt-1 font-bold">{t('أنماط الوجبات القابلة للمقارنة')}</h2>
-          {groups.map((gr) => <PatternCard key={gr.key} group={gr} pattern={patternOf(gr.comparable, rules)} need={rules.pattern_min} g={g} />)}
-
-          <h2 className="px-1 pt-1 font-bold">{t('كل الوجبات ({n})', { n: list.length })}</h2>
-          <Card className="!p-0 overflow-hidden">
-            <ul className="divide-y divide-slate-100">{list.map((p) => <MealRow key={p.id} p={p} g={g} />)}</ul>
-          </Card>
-        </>
+          <details className="text-sm">
+            <summary className="min-h-[40px] cursor-pointer py-2 font-bold text-brand">{t('التفاصيل: الأدلة والأنماط وكل الوجبات')}</summary>
+            <div className="space-y-3">
+              <EvidenceList list={evidence} facts={list} />
+              <p className="text-[11px] text-slate-500">{t('من {n} وجبات قابلة للمقارنة، وتحتاج {k} على الأقل. أدلة للنقاش، وليست تغييرًا في الإعدادات.', { n: comparable.length, k: rules.pattern_min })}</p>
+              {differ.length > 0 && <p className="text-xs">{t('أقل: {a} · أكثر: {b}', { a: differ.filter((p) => p.given! < p.calc!).length, b: differ.filter((p) => p.given! > p.calc!).length })}</p>}
+              {reasons.length > 0 && <p className="text-xs text-slate-600">{t('الأسباب المكتوبة:')} {reasons.map((r, k) => <bdi key={k}>{k ? ' · ' : ''}{r}</bdi>)}</p>}
+              <h3 className="pt-1 font-bold">{t('أنماط الوجبات القابلة للمقارنة')}</h3>
+              {groups.map((gr) => <PatternCard key={gr.key} group={gr} pattern={patternOf(gr.comparable, rules)} need={rules.pattern_min} g={g} />)}
+              <h3 className="pt-1 font-bold">{t('كل الوجبات ({n})', { n: list.length })}</h3>
+              <ul className="divide-y divide-slate-100 rounded-2xl border border-slate-100">{list.map((p) => <MealRow key={p.id} p={p} g={g} />)}</ul>
+            </div>
+          </details>
+        </Card>
       )}
+      <p className="text-[11px] text-slate-500">
+        {t('من {a} إلى {b}', { a: dateOf(from), b: dateOf(Date.now()) })} · {unitLabel(settings.glucose_unit)} · {t('الإعدادات الحالية: مدة عمل الإنسولين {d} · الجرعة قبل الأكل بـ {m} د', { d: dur(settings.iob_dia_min ?? 360), m: settings.dose_to_meal_min ?? 0 })}
+      </p>
       <Btn block kind="ghost" className="print:hidden" onClick={() => window.print()}>{t('طباعة أو حفظ PDF')}</Btn>
       <p className="text-center text-[11px] text-slate-400">{t('ملاحظات من بياناتها، وليست توصية بجرعة.')}</p>
     </main>

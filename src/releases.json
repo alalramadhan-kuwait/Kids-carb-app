@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.36.2",
+    "notes": [
+      "صفحة «الوجبات المخططة لفريق الرعاية» صارت أبسط: الليل بسطر واحد ورسم، والوجبات بعددها (ضمن النطاق / ارتفع / انخفض) وما يحتاج مراجعة. التفاصيل كلها تحت «التفاصيل» وتنطبع كاملة."
+    ],
+    "notes_en": [
+      "“Meal plans for the care team” is simpler: nights in one line and a chart, meals as counts (in range / high / low) and what needs review. All the detail sits under “Details” and still prints in full."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.36.1",
     "notes": [
       "«مفعول الإنسولين» في الرسم صار يبدأ بعد الإبرة بـ 10 دقائق، فالذروة صارت أبعد بـ 10 دقائق. الحساب والجرعات ما تغيّرت."
