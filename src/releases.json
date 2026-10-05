@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-10-05",
+    "version": "2.35.0",
+    "notes": [
+      "«الشاشة تبقى شغّالة»: إذا شغّلتيها، الشاشة ما تطفي والتطبيق مفتوح، عشان صوت التنبيه يقدر يشتغل بالليل. لكل تلفون، من «المزيد». خلّي التلفون على الشاحن."
+    ],
+    "notes_en": [
+      "“Keep the screen on”: when on, the screen does not turn off while the app is open, so the alarm sound can play at night. Per phone, in “More”. Keep the phone on its charger."
+    ]
+  },
+  {
     "date": "2026-10-04",
     "version": "2.34.1",
     "notes": [

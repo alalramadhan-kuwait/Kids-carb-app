@@ -46,6 +46,7 @@ import { MomAte, MomDose, MomGiven } from './pages/mom/MomDose';
 import { MomJuice, MomShot, MomSite, MomSites, MomTresiba } from './pages/mom/MomShots';
 import { MomEntry } from './pages/mom/MomEntry';
 import { Alarm } from './components/Alarm';
+import { useKeepAwake } from './lib/keepAwake';
 import { MomLog } from './pages/mom/MomLog';
 import { MomMore, MomPlanView, MomPlans, MomSensor, MomWhen } from './pages/mom/MomPlan';
 import { MomTabs } from './pages/mom/MomUI';
@@ -199,6 +200,8 @@ function Shell() {
   // mom mode: this person's phone opens in the simple screens (one tap «الوضع الكامل» for this visit)
   const simple = !!members.find((m) => m.user_id === me)?.simple_mode && !fullModeNow();
   const mom = pathname === '/mom' || pathname.startsWith('/mom/');
+  // the screen stays on while the app is open, if this phone chose so (so the alarm can sound)
+  useKeepAwake();
   // mom mode's pages are one fixed screen each: the document is locked so it cannot slide under the clock
   useEffect(() => { document.documentElement.classList.toggle('mom-lock', mom); if (mom) window.scrollTo(0, 0); }, [mom]);
   // mom mode's own tabs (home, log, nutrition) on its three main pages

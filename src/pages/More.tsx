@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { setAlarmSound, testAlarm, useAlarmSound } from '../components/Alarm';
+import { keepAwakeSupported, setKeepAwake, useKeepAwakePref } from '../lib/keepAwake';
 import { supabase, uploadPhoto } from '../lib/supabase';
 import { useData } from '../lib/data';
 import { computeSnack, fmt, problemText } from '../lib/carbs';
@@ -41,6 +42,17 @@ function Appearance() {
   );
 }
 
+/** Keep the screen on while the app is open, on this phone (for the night: plug the phone in). */
+function AwakeRow() {
+  const on = useKeepAwakePref();
+  return (
+    <li className="flex min-h-[56px] items-center gap-3 px-4 py-2">
+      <span className="min-w-0 flex-1"><span className="block font-medium">☀️ {t('الشاشة تبقى شغّالة')}</span><span className="block text-sm text-slate-500">{keepAwakeSupported() ? t('والتطبيق مفتوح، عشان صوت التنبيه يشتغل · خلّ الهاتف على الشاحن') : t('هذا الهاتف لا يدعمها · حدّث النظام')}</span></span>
+      <Toggle on={on} label={t('الشاشة تبقى شغّالة')} onChange={setKeepAwake} />
+    </li>
+  );
+}
+
 /** The alarm sound on this phone (both modes): on by default; turning it on plays it once. */
 function AlarmRow() {
   const on = useAlarmSound();
@@ -64,6 +76,7 @@ function SimpleModeRows() {
         <span className="min-w-0 flex-1"><span className="block font-semibold">{t('افتح الوضع البسيط')}</span><span className="block truncate text-sm text-slate-500">{t('شاشات كبيرة وكلام قليل')}</span></span>
       </button></li>
       <AlarmRow />
+      <AwakeRow />
       {members.map((m) => (
         <li key={m.user_id} className="flex min-h-[56px] items-center gap-3 px-4 py-2">
           <span className="min-w-0 flex-1"><span className="block font-medium"><bdi>{m.display_name ?? '—'}</bdi>{m.user_id === me ? ` (${t('أنت')})` : ''}</span><span className="block text-sm text-slate-500">{t('يفتح على الوضع البسيط')}</span></span>

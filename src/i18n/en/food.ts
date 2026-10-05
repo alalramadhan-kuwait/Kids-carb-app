@@ -830,6 +830,11 @@ export const food: Record<string, string> = {
   "أعطيت رقمًا آخر: ضع الرقم لأعدّله": "Gave a different amount: put the number in to edit it",
   "اختاروا الكمية": "choose the amount",
   // mom mode
+  "الشاشة تبقى شغّالة": "Keep the screen on",
+  "والتطبيق مفتوح، عشان صوت التنبيه يشتغل · خلّ الهاتف على الشاحن": "while the app is open, so the alarm sound can play · keep the phone on its charger",
+  "هذا الهاتف لا يدعمها · حدّث النظام": "not supported on this phone · update its system",
+  "شغّال · خلّي التلفون على الشاحن": "On · keep the phone on its charger",
+  "طافي · اضغطي للتشغيل": "Off · tap to turn on",
   "فرايز ونشويات ثانية": "Fries and other starches",
   "بطاط وذرة وبازلاء": "Potato, corn and peas",
   "سلطة وخضار نيئة": "Salad and raw vegetables",
