@@ -1,6 +1,6 @@
 // Mom mode home: how Layan is now (big coloured box like LibreLinkUp), a large simple 12-hour graph, the last
 // injections in pen colours with the doctor's 2-hour countdown, the meal in progress, and three big buttons.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as PE } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { useGlucose } from '../../hooks/useGlucose';
@@ -188,8 +188,23 @@ function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, mea
   const d = smoothPath(pts.map((p) => ({ x: x(p.t), y: y(p.v), t: p.t })), 20 * 60000);
   const dot = lastV === null ? '#64748b' : lastV < low ? '#c62f3a' : lastV > high ? '#c27a00' : '#2f8f55'; // the newest reading drawn, same as the box
   const first = Math.ceil(t0 / (3 * H)) * 3 * H; const hours = [0, 1, 2, 3].map((k) => first + k * 3 * H).filter((h) => h <= now);
+  // touch the graph to read it, like Libre: a thin line at that time, a dot on the curve, the value above and the time below
+  const [pick, setPick] = useState<{ t: number; v: number } | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const point = (e: PE) => {
+    const r = svgRef.current?.getBoundingClientRect(); if (!r || !pts.length) return;
+    const k = r.width / W; // the svg keeps its aspect, centred in its box
+    const vx = (e.clientX - r.left - (r.width - W * Math.min(k, r.height / HH)) / 2) / Math.min(k, r.height / HH);
+    const tt = t0 + ((vx - PL) / (W - PL - PR)) * 12 * H;
+    let best = pts[0]; for (const p of pts) if (Math.abs(p.t - tt) < Math.abs(best.t - tt)) best = p;
+    setPick(Math.abs(best.t - tt) <= 30 * 60000 ? best : null);
+  };
+  const end = () => setPick(null);
+  const px = pick ? x(pick.t) : 0;
+  const lx = Math.min(Math.max(px, PL + 34), W - PR - 34);
   return (
-    <svg viewBox={`0 0 ${W} ${HH}`} className="h-full w-full" direction="ltr" role="img" aria-label={t('السكر آخر 12 ساعة')}>
+    <svg ref={svgRef} viewBox={`0 0 ${W} ${HH}`} className="h-full w-full" direction="ltr" role="img" aria-label={t('السكر آخر 12 ساعة')} style={{ touchAction: 'none' }}
+      onPointerDown={(e) => { (e.currentTarget as Element).setPointerCapture?.(e.pointerId); point(e); }} onPointerMove={point} onPointerUp={end} onPointerCancel={end} onPointerLeave={end}>
       <rect x={PL} y={y(band[1])} width={W - PL - PR} height={y(band[0]) - y(band[1])} fill="#2f8f55" opacity="0.14" />
       {ticks.map((v) => <g key={v}><line x1={PL} x2={W - PR} y1={y(v)} y2={y(v)} stroke="rgb(var(--text-3))" strokeOpacity="0.25" /><text x={W - PR + 4} y={y(v) + 4} fontSize="14" fill="#8a84a0">{glucoseText(v, unit).replace(/\.0$/, '')}</text></g>)}
       <line x1={PL} x2={W - PR} y1={y(alarmHigh)} y2={y(alarmHigh)} stroke="#f0a020" strokeWidth="2" strokeDasharray="6 5" />
@@ -198,7 +213,14 @@ function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, mea
       {lastV !== null && <circle cx={x(lastT)} cy={y(lastV)} r="8" fill={dot} stroke="#fff" strokeWidth="3" />}
       {meals.filter((m) => m >= t0 && m <= now).map((m) => <text key={m} x={x(m)} y={PT + PH + 12} fontSize="13" textAnchor="middle">🍽️</text>)}
       {shots.filter((e) => e.t >= t0 && e.t <= now).map((e) => <g key={e.t}><circle cx={x(e.t)} cy={PT + PH + 26} r="9" fill={PEN[e.type]} /><text x={x(e.t)} y={PT + PH + 30} fontSize="10" fontWeight="700" fill="#fff" textAnchor="middle">{e.u}</text></g>)}
-      {hours.map((h) => <text key={h} x={x(h)} y={HH - 2} fontSize="11" fill="#8a84a0" textAnchor="middle">{clock(h)}</text>)}
+      {hours.map((h) => <text key={h} x={x(h)} y={HH - 2} fontSize="11" fill="#8a84a0" textAnchor="middle" opacity={pick ? 0.25 : 1}>{clock(h)}</text>)}
+      {pick && <g pointerEvents="none">
+        <line x1={px} x2={px} y1={PT} y2={PT + PH} stroke="rgb(var(--text))" strokeWidth="1.5" />
+        <circle cx={px} cy={y(pick.v)} r="7" fill="#fff" stroke="rgb(var(--text))" strokeWidth="3" />
+        <rect x={lx - 34} y={PT} width="68" height="26" rx="13" fill="rgb(var(--text))" />
+        <text x={lx} y={PT + 18} fontSize="16" fontWeight="800" fill="rgb(var(--bg))" textAnchor="middle">{glucoseText(pick.v, unit)}</text>
+        <text x={Math.min(Math.max(px, PL + 24), W - PR - 10)} y={HH - 2} fontSize="12" fontWeight="700" fill="rgb(var(--text))" textAnchor="middle">{clock(pick.t)}</text>
+      </g>}
     </svg>
   );
 }
