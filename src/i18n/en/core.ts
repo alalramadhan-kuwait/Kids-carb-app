@@ -281,4 +281,9 @@ export const core: Record<string, string> = {
   "آخر جرعة:": "Last dose:",
   "فاصل الجرعات حسب الخطة: باقي {time}": "Care-plan dose gap: {time} left",
   "ما زال يعمل": "Still working",
+  "هذا حساب تطبيق المناوبات. ادخل ببريدك الخاص بتطبيق ليان.": "This is the shift app account. Sign in with your Layan app email.",
+  "هذا الحساب غير مضاف لتطبيق ليان:": "This account is not added to the Layan app:",
+  "الدخول بحساب آخر": "Sign in with another account",
+  "إذا كان بريدك جديد: اطلب من الأم أو الأب إضافته من المزيد ← إضافة أحد الوالدين.": "If your email is new: ask Mum or Dad to add it in More → Add a parent.",
+  "أول تفعيل للتطبيق (رمز التفعيل)": "First-time setup (activation code)",
 };

@@ -66,7 +66,11 @@ function Login() {
   const [sent, setSent] = useState(false);
   const go = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setErr('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const id = email.trim();
+    // the shift app (Timekeeper) shares the sign-in system and the web address, so the phone may fill in its
+    // username: that account is not Layan's family, say so instead of opening the setup screen
+    if (!id.includes('@') || /\.local$/i.test(id)) { setErr(t('هذا حساب تطبيق المناوبات. ادخل ببريدك الخاص بتطبيق ليان.')); setBusy(false); return; }
+    const { error } = await supabase.auth.signInWithPassword({ email: id, password });
     if (error) setErr(t('البريد أو كلمة المرور غير صحيحة')); setBusy(false);
   };
   const reset = async (e: React.FormEvent) => {
@@ -141,6 +145,8 @@ export function SetPassword({ onDone }: { onDone: () => void }) {
 function Claim({ onDone }: { onDone: () => void }) {
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
+  const [who, setWho] = useState('');
+  useEffect(() => { void supabase.auth.getUser().then(({ data }) => setWho(data.user?.email ?? '')); }, []);
   const [err, setErr] = useState('');
   const go = async (e: React.FormEvent) => {
     e.preventDefault(); setErr('');
@@ -151,16 +157,19 @@ function Claim({ onDone }: { onDone: () => void }) {
     <Centered>
       <img src={`${import.meta.env.BASE_URL}icons/layan-logo-256.webp`} alt="" width={96} height={96} className="mx-auto h-24 w-24" />
       <h1 className="text-center text-2xl font-bold">{t('تفعيل التطبيق')}</h1>
-      <Card>
-        <form onSubmit={go} className="space-y-3">
-          <Alert tone="info">{t('هذا الحساب غير مضاف إلى التطبيق بعد. إن كان التطبيق مفعّلًا، اطلب من الأم أو الأب إضافة بريدك من المزيد ← إضافة أحد الوالدين، ثم ادخل من جديد.')}</Alert>
-          <p className="text-sm text-slate-600">{t('رمز التفعيل لأول مرة فقط، عند تفعيل التطبيق لأول مستخدم.')}</p>
-          <Field label={t('اسمك')}><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
-          <Field label={t('رمز التفعيل')}><input className={inputCls} dir="ltr" value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
-          {err && <Alert tone="over">{err}</Alert>}
-          <Btn kind="primary" block>{t('تفعيل')}</Btn>
-          <Btn kind="ghost" block type="button" onClick={() => supabase.auth.signOut()}>{t('خروج')}</Btn>
-        </form>
+      <Card className="space-y-3">
+        <Alert tone="info">{t('هذا الحساب غير مضاف لتطبيق ليان:')} <b dir="ltr" className="break-all">{who || '…'}</b></Alert>
+        <Btn kind="primary" block type="button" onClick={() => supabase.auth.signOut()}>{t('الدخول بحساب آخر')}</Btn>
+        <p className="text-xs text-slate-500">{t('إذا كان بريدك جديد: اطلب من الأم أو الأب إضافته من المزيد ← إضافة أحد الوالدين.')}</p>
+        <details>
+          <summary className="min-h-[40px] cursor-pointer py-2 text-sm text-slate-600">{t('أول تفعيل للتطبيق (رمز التفعيل)')}</summary>
+          <form onSubmit={go} className="space-y-3">
+            <Field label={t('اسمك')}><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+            <Field label={t('رمز التفعيل')}><input className={inputCls} dir="ltr" value={code} onChange={(e) => setCode(e.target.value)} required /></Field>
+            {err && <Alert tone="over">{err}</Alert>}
+            <Btn block>{t('تفعيل')}</Btn>
+          </form>
+        </details>
       </Card>
     </Centered>
   );

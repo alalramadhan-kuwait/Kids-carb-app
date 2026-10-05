@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.42.2",
+    "notes": [
+      "إذا الجوال عبّى حساب تطبيق المناوبات بالغلط، التطبيق يقول هذا بوضوح بدل شاشة التفعيل.",
+      "شاشة «حساب غير مضاف» تبيّن البريد اللي دخلتوا فيه، وأول زر «الدخول بحساب آخر». رمز التفعيل صار مخفي (للمرة الأولى بس)."
+    ],
+    "notes_en": [
+      "If the phone fills in the shift app account by mistake, the app now says so clearly instead of showing the setup screen.",
+      "The “account not added” screen shows which email is signed in, with “Sign in with another account” first. The activation code is folded away (first time only)."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.42.1",
     "notes": [
       "جدول أخصائية التغذية: إذا ما تسجّل فطور، أول وجبة حقيقية في الصبح (20 غ أو فيها إنسولين) تنحط في «الفطور» مو «سناك 1».",
