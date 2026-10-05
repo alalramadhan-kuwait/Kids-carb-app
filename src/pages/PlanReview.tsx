@@ -179,8 +179,9 @@ function PlanBody({ plan, back }: { plan: PlannedMeal; back: () => void }) {
         <Section title={t('ماذا حدث')}>
           <Row k={t('السكر عند الجرعة')} v={`${g(snap?.glucose ?? review?.atDose)}${snap?.level != null ? ` ${['↓', '↘', '→', '↗', '↑'][snap.level + 2]}` : ''}`} />
           <Row k={t('الإنسولين النشط عند الجرعة')} v={snap ? t('{u} و', { u: fmt(snap.iob) }) : '—'} />
-          <Row k={t('الجرعة المحسوبة (إعدادات الطبيب)')} v={plan.calc_units != null ? t('{u} و', { u: fmt(plan.calc_units) }) : '—'} sub={snap ? t('نسبة الكارب {cr} · الحساسية {isf} · الهدف {a}–{b}', { cr: fmt(snap.cr), isf: g(snap.isf).replace(/\.0$/, ''), a: g(snap.target[0]), b: g(snap.target[1]) }) : undefined} />
-          {snap && <DoseWorking snap={snap} g={g} />}
+          <CalcDose snap={snap ?? null} g={g}>
+            <Row k={t('الجرعة المحسوبة (إعدادات الطبيب)')} v={plan.calc_units != null ? t('{u} و', { u: fmt(plan.calc_units) }) : '—'} sub={snap ? t('نسبة الكارب {cr} · الحساسية {isf} · الهدف {a}–{b}', { cr: fmt(snap.cr), isf: g(snap.isf).replace(/\.0$/, ''), a: g(snap.target[0]), b: g(snap.target[1]) }) : undefined} />
+          </CalcDose>
           <Row k={t('الجرعة المعطاة')} v={plan.given_units != null ? t('{u} و', { u: fmt(plan.given_units) }) : '—'} sub={plan.dose_reason ? t('السبب: {x}', { x: plan.dose_reason }) : undefined} strong={plan.given_units != null && plan.calc_units != null && plan.given_units !== plan.calc_units} />
           <Row k={t('وقت الجرعة')} v={plan.dosed_at ? clock(Date.parse(plan.dosed_at)) : '—'} />
           <Row k={t('بدء الأكل')} v={eating !== null ? clock(eating) : '—'} />
@@ -231,6 +232,22 @@ function PlanBody({ plan, back }: { plan: PlannedMeal; back: () => void }) {
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return <Card className="space-y-2"><div><h2 className="font-bold">{title}</h2>{hint && <p className="text-xs text-slate-500">{hint}</p>}</div>{children}</Card>;
 }
+/** The calculated dose row with a 🧮 button: the working stays hidden until tapped. */
+function CalcDose({ snap, g, children }: { snap: DoseSnapshot | null; g: (mg: number | null | undefined) => string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  if (!snap) return <>{children}</>;
+  return (
+    <>
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">{children}</div>
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={t('كيف انحسبت الجرعة')} title={t('كيف انحسبت الجرعة')}
+          className={cx('mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full text-lg', open ? 'bg-brand text-white' : 'bg-brand-soft')}>🧮</button>
+      </div>
+      {open && <DoseWorking snap={snap} g={g} />}
+    </>
+  );
+}
+
 /** How the calculated dose was worked out, from the numbers saved with it: food, correction, insulin still working, rounding. */
 function DoseWorking({ snap, g }: { snap: DoseSnapshot; g: (mg: number | null | undefined) => string }) {
   const d = doseSteps(snap);
