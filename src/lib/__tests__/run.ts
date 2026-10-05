@@ -2226,6 +2226,18 @@ console.log('dietitian sheet');
     assert.deepEqual(d5.treatments.map((x) => x.name), ['Mango nectar']);
     assert.deepEqual(d5.slots.find((x) => x.key === 'dinner')!.foods.map((f) => f.name), ['Apple']);
   });
+  test('dietitian sheet: crackers eaten a minute after the juice, during the same low, are part of the treatment, not breakfast', () => {
+    // the 3 Oct 7:56 shape: low at 7:40 (65), juice 7:56 when the sensor reads 72, Ritz 26 s later; the real breakfast at 10:58 with a dose
+    const pts: [number, number][] = [];
+    for (let k = 0; k < 288; k++) { const h = k / 12; pts.push([day + k * 5 * M, h >= 7.6 && h < 7.9 ? 65 : h >= 7.9 && h < 8.2 ? 72 : 110]); }
+    const series = { t: Float64Array.from(pts.map((p) => p[0])), v: Float64Array.from(pts.map((p) => p[1])) };
+    const d6 = D.buildDay(day, D.DEFAULT_STARTS, {
+      foods: [f2(at(7, 56), 'Cocktail drink', 15), f2(at(7, 56) + 26000, 'Ritz', 6), f2(at(10, 58), 'Egg sandwich', 30)],
+      doses: [{ t: at(10, 51), units: 2, type: 'rapid', purpose: 'meal' }], pricks: [], treatments: [], activities: [], series, low: 70, high: 180,
+    });
+    assert.deepEqual(d6.treatments.map((x) => x.name), ['Cocktail drink', 'Ritz']);
+    assert.deepEqual(d6.slots.find((x) => x.key === 'breakfast')!.foods.map((f) => f.name), ['Egg sandwich']);
+  });
   test('dietitian sheet: totals with missing values are marked incomplete, never counted as zero', () => {
     const o = s2.breakfast.occasions[0]; assert.equal(o.fat.v, 9); assert.equal(o.fat.partial, true);
     assert.deepEqual(D.sumOf([null, null]), { v: null, partial: false });

@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.46.1",
+    "notes": [
+      "ورقة خبيرة التغذية: شي صغير ينأكل مع عصير علاج الانخفاض (مثل كراكرز بعده بدقيقة) صار جزء من العلاج، مو فطور."
+    ],
+    "notes_en": [
+      "Dietitian sheet: something small eaten with the low-treatment juice (like crackers a minute later) now counts as part of the treatment, not breakfast."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.46.0",
     "notes": [
       "نفس الوجبة: لما تاكل ليان وجبة أكلتها قبل، يطلع تحت الرسم «🔁 نفس وجبة الجمعة … قارن». تفتح رسم السكر لهالمرة فوق المرات اللي قبل، كلها من أول لقمة، مع الكارب والجرعة ووقتها والأعلى وبعد ساعتين.",

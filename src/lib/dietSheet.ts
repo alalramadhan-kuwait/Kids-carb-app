@@ -121,6 +121,7 @@ export function slotOf(minuteOfDay: number, starts: SlotStarts): SlotKey | null 
 
 export const TREAT_MAX_G = 25;          // a low treatment is small: a meal started during a low is still a meal
 export const OCCASION_GAP_MIN = 30;     // items closer than this are one time she ate
+export const TREAT_WORKS_MIN = 10;      // a treatment counts as done (she is back in range because of it) after this long
 
 /** The sensor was below the low limit in the 30 minutes up to t (a low after she started eating does not count). */
 export function lowAround(s: Series, t: number, low: number): boolean {
@@ -151,7 +152,9 @@ export function buildDay(start: number, starts: SlotStarts, d: { foods: Food[]; 
       const now = readingAt(d.series, f.t, 10);
       let firstLow: number | null = null;
       for (let i = lowerBound(d.series.t, f.t - 30 * MIN); i < d.series.t.length && d.series.t[i] <= f.t; i++) if (d.series.v[i] < d.low) { firstLow = d.series.t[i]; break; }
-      if (now && now.mg >= d.low && firstLow !== null && treatAll.some((x) => x.t >= firstLow! - 10 * MIN && x.t < f.t)) treat = false;
+      // the earlier treatment must have had time to work: something eaten with it (the juice, then crackers a minute
+      // later) is part of the same treatment
+      if (now && now.mg >= d.low && firstLow !== null && treatAll.some((x) => x.t >= firstLow! - 10 * MIN && x.t <= f.t - TREAT_WORKS_MIN * MIN)) treat = false;
     }
     if (treat) treatAll.push({ t: f.t, name: f.name, named: f.named, carbs: f.carbs, byCgm: true }); else foodsAll.push(f);
   }
