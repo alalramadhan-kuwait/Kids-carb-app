@@ -144,6 +144,9 @@ export function classify(rows: Record<string, string>[], readings: Reading[], ex
     if (corrected) return void Object.assign(it, { status: 'replaced', reason: 'later_estimate', related_key: corrected.key });
     const again = later.find((j) => j.food_key === it.food_key && j.sender === it.sender && j.t - it.t <= 30 * MIN);
     if (again) return void Object.assign(it, { status: 'uncertain', reason: 'same_food_again', related_key: again.key });
+    // both parents sending the same juice within 10 minutes is one juice
+    const twin = TREAT_KEYS.has(it.food_key!) ? later.find((j) => j.food_key === it.food_key && j.sender !== it.sender && j.carbs === it.carbs && j.t - it.t <= 10 * MIN) : undefined;
+    if (twin) return void Object.assign(it, { status: 'probable_duplicate', reason: 'other_parent_same_food', related_key: twin.key });
     const other = later.filter((j) => j.food_key === it.food_key && j.sender !== it.sender && j.t - it.t <= 60 * MIN).pop();
     if (other) return void Object.assign(it, { status: 'uncertain', reason: 'other_parent_same_food', related_key: other.key });
     if (already('carbs', it.carbs!, it.t) || already('treatment', it.carbs!, it.t)) return void Object.assign(it, { status: 'probable_duplicate', reason: 'already_in_app' });

@@ -1351,6 +1351,14 @@ console.log('gluroo import');
     const d2 = G.derive(decided, readings);
     assert.equal(d2.meals[0].carbs, 86, 'a parent said it was separate food: added'); assert.equal(d2.meals[0].uncertain, false);
   });
+  test('Gluroo import: both parents sending the same juice within 10 minutes is one juice', () => {
+    const csv2 = [H, ...Array.from({ length: 30 }, (_, k) => cgm(k * 3 - 30, 65)),
+      msg(0, '422389', 'ANNOUNCE_MEAL', { text: 'Made from juice concentrate. With added sugar', g: 15 }),
+      msg(4, '422380', 'ANNOUNCE_MEAL', { text: 'Made from juice concentrate. With added sugar', g: 15 })].join('\n');
+    const r2 = G.parseCsv(csv2), e2 = G.classify(r2, G.readingsFrom(r2), []);
+    assert.deepEqual(e2.filter((e) => e.food_key === 'juice_box').map((e) => e.status), ['probable_duplicate', 'low_treatment']);
+    assert.equal(G.derive(e2, G.readingsFrom(r2)).events.filter((e) => e.kind === 'treatment').length, 1);
+  });
   test('Gluroo import: juice while low, a second basal left undecided, already-logged entries marked, finger-prick kept', () => {
     assert.deepEqual(st((e) => e.food_key === 'juice_box'), ['low_treatment', 'probable_duplicate']);
     assert.deepEqual(st((e) => e.type === 'DOSE_BASAL_INSULIN'), ['accepted', 'uncertain']);

@@ -132,7 +132,10 @@ export default function DietSheetPage() {
             calc: c ? { food: Number(c.food), correction: Number(c.correction), carbs: c.carbs ?? null, suggested: c.suggested ?? null } : null });
         }
         else if (x.kind === 'carbs' && x.carbs_g) foods.push({ t: t0, id: x.id, name: x.note?.trim() || t('كارب'), detail: null, carbs: Number(x.carbs_g), fat: null, protein: null, kcal: null, fiber: null, flags: x.note?.trim() ? [] : ['unnamed'] });
-        else if (x.kind === 'treatment' && x.carbs_g !== null) treatments.push({ t: t0, name: tMaybe(x.treatment ?? t('علاج انخفاض')), carbs: Number(x.carbs_g) });
+        else if (x.kind === 'treatment' && x.carbs_g !== null) {
+          const tp = x.treatment ? productFor(null, x.treatment) : null;   // logged from the products list as a low treatment
+          treatments.push({ t: t0, name: tp ? foodName(tp) : tMaybe(x.treatment ?? t('علاج انخفاض')), named: !!tp && !untranslated(tp), carbs: Number(x.carbs_g) });
+        }
         else if (x.kind === 'bg_check' && x.bg_mgdl) pricks.push({ t: t0, mg: Number(x.bg_mgdl) });
         else if (x.kind === 'exercise') acts.push({ t: t0, text: t('رياضة {m} د', { m: x.activity_min ?? 0 }) + (x.note ? ` · ${x.note}` : '') });
         else if (x.kind === 'sleep' && x.ends_at) acts.push({ t: t0, text: t('نوم {a} – {b}', { a: time(t0), b: time(Date.parse(x.ends_at)) }) });

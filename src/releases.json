@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.42.0",
+    "notes": [
+      "عند تسجيل منتج صار فيه زر «لعلاج انخفاض». إذا كان السكر منخفض آخر 30 دقيقة ينختار بروحه للأشياء الصغيرة (25 غ كارب أو أقل)، وينحفظ كعلاج انخفاض مو أكل.",
+      "السكر اللي ينحفظ مع الأكل صار قراءة وقت الأكل نفسه، حتى لو سجّلتوه متأخر أو غيّرتوا الوقت.",
+      "إذا أرسل الأب والأم نفس العصير من Gluroo خلال 10 دقائق، ينحسب مرة وحدة."
+    ],
+    "notes_en": [
+      "Logging a product now has a “For a low” button. If glucose was low in the last 30 minutes it is picked by itself for small items (25 g carbs or less), and it is saved as a low treatment, not food.",
+      "The glucose saved with food is now the reading from when she ate, even when logged late or moved to another time.",
+      "When both parents send the same juice from Gluroo within 10 minutes, it counts once."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.41.0",
     "notes": [
       "جدول أخصائية التغذية صار كله بلغة وحدة (لغة التطبيق): كل المنتجات والوصفات صار لها اسم عربي واسم إنجليزي، بدون أحجام العلب.",

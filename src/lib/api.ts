@@ -1,3 +1,4 @@
+import { glucoseAt, glucoseCols } from './productLog';
 import { supabase } from './supabase';
 import type { EventRow, HistoryLine, Ingredient, Product, Recipe, Settings, Snack } from './types';
 import type { MealResult } from './carbs';
@@ -73,11 +74,10 @@ export async function logMeal(input: {
     carbs: l.carbs === null ? null : Math.round(l.carbs * 10) / 10,
   }));
   const r = (n: number) => Math.round(n * 10) / 10;
-  // the glucose reading at the time, but only if it is recent: an old number next to a meal is misleading
-  const { data: g } = await supabase.from('glucose_readings').select('taken_at,mg_dl,trend').order('taken_at', { ascending: false }).limit(1).maybeSingle();
-  const fresh = g && Date.now() - new Date(g.taken_at).getTime() <= 15 * 60000;
+  // the glucose reading when she started eating (within 10 minutes), not when it was saved
+  const g = await glucoseAt(input.eatenAt ? Date.parse(input.eatenAt) : Date.now());
   return ok(await supabase.from('meal_history').insert({
-    glucose_mgdl: fresh ? g.mg_dl : null, glucose_trend: fresh ? g.trend : null, glucose_at: fresh ? g.taken_at : null,
+    ...glucoseCols(g),
     kind: input.kind, recipe_id: input.recipe_id, name: input.name, category: input.category,
     total_carbs: r(meal.total.carbs),
     // each one on its own: a missing calorie figure must not hide the fat (the fatty-meal notes read it)

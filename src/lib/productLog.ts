@@ -5,12 +5,19 @@ import { portion } from './portion';
 import { MICRO_FIELD, type Micro } from './carbs';
 export { amountChoices, portion } from './portion';
 
+/** The glucose reading nearest to `at`, within 10 minutes (the time she ate, not the time it was saved). */
+export async function glucoseAt(at: number): Promise<{ taken_at: string; mg_dl: number; trend: number | null } | null> {
+  const { data: near } = await supabase.from('glucose_readings').select('taken_at,mg_dl,trend')
+    .gte('taken_at', new Date(at - 10 * 60000).toISOString()).lte('taken_at', new Date(at + 10 * 60000).toISOString());
+  return ((near ?? []) as { taken_at: string; mg_dl: number; trend: number | null }[]).sort((a, b) => Math.abs(Date.parse(a.taken_at) - at) - Math.abs(Date.parse(b.taken_at) - at))[0] ?? null;
+}
+/** The three glucose columns of a meal entry for a time. */
+export const glucoseCols = (g: Awaited<ReturnType<typeof glucoseAt>>) => ({ glucose_mgdl: g?.mg_dl ?? null, glucose_trend: g?.trend ?? null, glucose_at: g?.taken_at ?? null });
+
 /** Saves the portion as a snack (or meal) at `at`, with the glucose reading within 10 minutes of then. Returns the id. */
 export async function logProduct(p: Product, amount: number, at: number, kind: 'meal' | 'snack'): Promise<string> {
   const x = portion(p, amount);
-  const { data: near } = await supabase.from('glucose_readings').select('taken_at,mg_dl,trend')
-    .gte('taken_at', new Date(at - 10 * 60000).toISOString()).lte('taken_at', new Date(at + 10 * 60000).toISOString());
-  const g = (near ?? []).sort((a: { taken_at: string }, b: { taken_at: string }) => Math.abs(Date.parse(a.taken_at) - at) - Math.abs(Date.parse(b.taken_at) - at))[0] as { taken_at: string; mg_dl: number; trend: number | null } | undefined;
+  const g = await glucoseAt(at);
   const line: HistoryLine = { name: p.name, product: [p.name, p.brand].filter(Boolean).join(' — '), quantity: amount, unit: p.unit, state: 'as_is', role: 'main', carbs: x.carbs };
   // the other label nutrients for this amount (null when the label does not give them)
   const micro = Object.fromEntries((Object.keys(MICRO_FIELD) as Micro[]).map((m) => {

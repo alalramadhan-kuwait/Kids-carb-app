@@ -1,4 +1,5 @@
 // Saving quick actions on a logged entry. Each returns what is needed to undo it.
+import { glucoseAt, glucoseCols } from './productLog';
 import { supabase } from './supabase';
 import type { EventRow, HistoryEntry } from './types';
 
@@ -29,7 +30,8 @@ export async function eventAgain(e: EventRow): Promise<string> {
 /** Moves an entry to another time (recorded as an edit). */
 export async function setEntryTime(it: { e?: EventRow; h?: HistoryEntry }, at: number, me: string | null) {
   const iso = new Date(at).toISOString(), stamp = { edited_by: me, edited_at: new Date().toISOString() };
-  const r = it.h ? await supabase.from('meal_history').update({ eaten_at: iso, ...stamp }).eq('id', it.h.id)
+  // a moved meal takes the glucose reading of its new time
+  const r = it.h ? await supabase.from('meal_history').update({ eaten_at: iso, ...stamp, ...glucoseCols(await glucoseAt(at)) }).eq('id', it.h.id)
     : await supabase.from('events').update({ occurred_at: iso, ...stamp, ...(it.e!.ends_at ? { ends_at: new Date(Date.parse(it.e!.ends_at) + at - Date.parse(it.e!.occurred_at)).toISOString() } : {}) }).eq('id', it.e!.id);
   if (r.error) throw new Error(r.error.message);
 }
