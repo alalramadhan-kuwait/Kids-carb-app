@@ -88,13 +88,20 @@ export default function DietSheetPage() {
       // what the plans add: the meal type, the part eaten, and which dose was for which meal
       const ids = hist.map((x) => x.id), recipeIds = [...new Set(hist.map((x) => x.recipe_id).filter((x): x is string => !!x))];
       const [pl, rc, ri] = await Promise.all([
-        ids.length ? supabase.from('planned_meals').select('history_id,slot,part_eaten,carbs_planned,dose_event_id').in('history_id', ids) : Promise.resolve({ data: [], error: null }),
+        ids.length ? supabase.from('planned_meals').select('history_id,slot,part_eaten,carbs_planned,dose_event_id,eating_at').or(`history_id.in.(${ids.join(',')}),and(history_id.is.null,status.eq.eaten,eating_at.gte.${new Date(start).toISOString()},eating_at.lt.${new Date(after).toISOString()})`) : Promise.resolve({ data: [], error: null }),
         recipeIds.length ? supabase.from('recipes').select('id,carb_pending').in('id', recipeIds) : Promise.resolve({ data: [], error: null }),
         recipeIds.length ? supabase.from('recipe_ingredients').select('recipe_id,qty_confirmed,product_id,slot_category').in('recipe_id', recipeIds) : Promise.resolve({ data: [], error: null }),
       ]);
-      type PlanRow = { history_id: string; slot: string; part_eaten: number | null; carbs_planned: number | null; dose_event_id: string | null };
-      const planOf = new Map(((pl.data ?? []) as PlanRow[]).map((r) => [r.history_id, r]));
-      const doseFor = new Map(((pl.data ?? []) as PlanRow[]).filter((r) => r.dose_event_id).map((r) => [r.dose_event_id!, r.history_id]));
+      type PlanRow = { history_id: string | null; slot: string; part_eaten: number | null; carbs_planned: number | null; dose_event_id: string | null; eating_at: string | null };
+      const plans = (pl.data ?? []) as PlanRow[];
+      // a plan whose entry was deleted and logged again has no link: it is the entry eaten within 10 minutes of its time
+      for (const r of plans) if (!r.history_id && r.eating_at) {
+        const at = Date.parse(r.eating_at);
+        const m = hist.filter((x) => !plans.some((q) => q.history_id === x.id) && Math.abs(Date.parse(x.eaten_at) - at) <= 10 * 60000).sort((a, b) => Math.abs(Date.parse(a.eaten_at) - at) - Math.abs(Date.parse(b.eaten_at) - at))[0];
+        if (m) r.history_id = m.id;
+      }
+      const planOf = new Map(plans.filter((r) => r.history_id).map((r) => [r.history_id!, r]));
+      const doseFor = new Map(plans.filter((r) => r.dose_event_id && r.history_id).map((r) => [r.dose_event_id!, r.history_id!]));
       const unsure = new Set<string>([
         ...((rc.data ?? []) as { id: string; carb_pending: boolean }[]).filter((r) => r.carb_pending).map((r) => r.id),
         ...((ri.data ?? []) as { recipe_id: string; qty_confirmed: boolean | null; product_id: string | null; slot_category: string | null }[]).filter((r) => r.qty_confirmed === false || (!r.product_id && !r.slot_category)).map((r) => r.recipe_id),
