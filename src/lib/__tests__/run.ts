@@ -2195,6 +2195,29 @@ console.log('dietitian sheet');
     assert.equal(s2.dinner.occasions[0].lowAfter!.mg, 45, 'the low after dinner is shown with dinner');
     assert.deepEqual(s2.dinner.occasions[0].affected.map((x) => x.kind), ['treatment']);
   });
+  test('dietitian sheet: no breakfast logged as such → the morning\'s first real meal is breakfast; a low after eating does not make it a treatment', () => {
+    // the 3 Oct shape: insulin at 10:51, chocolate milk 10:58 (15 g) + sandwich 10:59 (30 g), a low only after eating (11:00)
+    const pts3: [number, number][] = [];
+    for (let k = 0; k < 288; k++) { const h = k / 12; pts3.push([day + k * 5 * M, h >= 11 && h < 11.5 ? 64 : 110]); }
+    const series3 = { t: Float64Array.from(pts3.map((p) => p[0])), v: Float64Array.from(pts3.map((p) => p[1])) };
+    const d3 = D.buildDay(day, D.DEFAULT_STARTS, {
+      foods: [f2(at(10, 58), 'Chocolate milk', 15), f2(at(10, 59), 'Egg sandwich', 30), f2(at(13, 30), 'Apple', 10)],
+      doses: [{ t: at(10, 51), units: 2, type: 'rapid', purpose: 'meal' }], pricks: [], treatments: [], activities: [], series: series3, low: 70, high: 180,
+    });
+    const s3 = Object.fromEntries(d3.slots.map((x) => [x.key, x]));
+    assert.deepEqual(s3.breakfast.foods.map((f) => f.name), ['Chocolate milk', 'Egg sandwich']);
+    assert.equal(s3.snack1.foods.length, 0); assert.equal(d3.treatments.length, 0, 'a low after she started eating is not why she ate');
+    assert.deepEqual(s3.breakfast.occasions[0].doses.map((x) => x.units), [2]);
+    // a small late-morning snack with no insulin stays a snack
+    const d4 = D.buildDay(day, D.DEFAULT_STARTS, { foods: [f2(at(10, 30), 'Biscuit', 8)], doses: [], pricks: [], treatments: [], activities: [], series: series2, low: 70, high: 180 });
+    assert.equal(d4.slots.find((x) => x.key === 'snack1')!.foods.length, 1);
+  });
+  test('dietitian sheet: a snack after a low that was already treated, once she is back in range, is food', () => {
+    // series2: low 20:30–21:00 (45); mango nectar at 20:38 treats it; an apple at 21:05 when she reads 110
+    const d5 = D.buildDay(day, D.DEFAULT_STARTS, { foods: [f2(at(20, 38), 'Mango nectar', 19), f2(at(21, 5), 'Apple', 4)], doses: [], pricks: [], treatments: [], activities: [], series: series2, low: 70, high: 180 });
+    assert.deepEqual(d5.treatments.map((x) => x.name), ['Mango nectar']);
+    assert.deepEqual(d5.slots.find((x) => x.key === 'dinner')!.foods.map((f) => f.name), ['Apple']);
+  });
   test('dietitian sheet: totals with missing values are marked incomplete, never counted as zero', () => {
     const o = s2.breakfast.occasions[0]; assert.equal(o.fat.v, 9); assert.equal(o.fat.partial, true);
     assert.deepEqual(D.sumOf([null, null]), { v: null, partial: false });

@@ -122,13 +122,15 @@ export function slotOf(minuteOfDay: number, starts: SlotStarts): SlotKey | null 
 export const TREAT_MAX_G = 25;          // a low treatment is small: a meal started during a low is still a meal
 export const OCCASION_GAP_MIN = 30;     // items closer than this are one time she ate
 
-/** The sensor was below the low limit from 30 minutes before to 5 minutes after t. */
+/** The sensor was below the low limit in the 30 minutes up to t (a low after she started eating does not count). */
 export function lowAround(s: Series, t: number, low: number): boolean {
-  for (let i = lowerBound(s.t, t - 30 * MIN); i < s.t.length && s.t[i] <= t + 5 * MIN; i++) if (s.v[i] < low) return true;
+  for (let i = lowerBound(s.t, t - 30 * MIN); i < s.t.length && s.t[i] <= t; i++) if (s.v[i] < low) return true;
   return false;
 }
-/** A small snack logged while she was low, that is not a recipe or a planned meal, was a low treatment. */
-export const isTreatment = (f: Food, s: Series, low: number) => !f.recipe && !f.planned && f.carbs > 0 && f.carbs <= TREAT_MAX_G && lowAround(s, f.t, low);
+/** A small item eaten while she was low (not a recipe or a planned meal) was a low treatment, even next to a meal. */
+export const isTreatment = (f: Food, s: Series, low: number) =>
+  !f.recipe && !f.planned && f.carbs > 0 && f.carbs <= TREAT_MAX_G && lowAround(s, f.t, low);
+export const BREAKFAST_MIN_G = 20;      // the morning's first real meal: at least this much, or insulin given for it
 
 function minIn(s: Series, from: number, to: number): { mg: number; t: number } | null {
   let best: { mg: number; t: number } | null = null;
@@ -140,9 +142,19 @@ export function buildDay(start: number, starts: SlotStarts, d: { foods: Food[]; 
   const end = start + DAY;
   const inDay = (t: number) => t >= start && t < end;
   // 1. low treatments: logged as such, or a small snack eaten while the sensor read low
+  //    …unless that low was already treated and she is back in range when she eats (then it is just food)
   const treatAll: Treat[] = [...d.treatments];
   const foodsAll: Food[] = [];
-  for (const f of d.foods) (isTreatment(f, d.series, d.low) ? treatAll.push({ t: f.t, name: f.name, named: f.named, carbs: f.carbs, byCgm: true }) : foodsAll.push(f));
+  for (const f of [...d.foods].sort((a, b) => a.t - b.t)) {
+    let treat = isTreatment(f, d.series, d.low);
+    if (treat) {
+      const now = readingAt(d.series, f.t, 10);
+      let firstLow: number | null = null;
+      for (let i = lowerBound(d.series.t, f.t - 30 * MIN); i < d.series.t.length && d.series.t[i] <= f.t; i++) if (d.series.v[i] < d.low) { firstLow = d.series.t[i]; break; }
+      if (now && now.mg >= d.low && firstLow !== null && treatAll.some((x) => x.t >= firstLow! - 10 * MIN && x.t < f.t)) treat = false;
+    }
+    if (treat) treatAll.push({ t: f.t, name: f.name, named: f.named, carbs: f.carbs, byCgm: true }); else foodsAll.push(f);
+  }
   const foods = foodsAll.filter((f) => inDay(f.t)).sort((a, b) => a.t - b.t);
   // 2. columns: the meal it was planned as, else the clock
   const night: Food[] = [];
@@ -151,6 +163,15 @@ export function buildDay(start: number, starts: SlotStarts, d: { foods: Food[]; 
     const minute = Math.floor((f.t - start) / MIN);
     const k = f.slot === 'snack' ? (minute < starts.lunch ? 'snack1' : 'snack2') : f.slot ?? slotOf(minute, starts);
     if (k) by.get(k)!.push(f); else night.push(f);
+  }
+  // no breakfast logged as such: the morning's first real meal (in Snack 1, not placed by a plan) is her breakfast
+  const s1 = by.get('snack1')!;
+  if (!by.get('breakfast')!.length && s1.length && !s1[0].slot) {
+    const first: Food[] = [s1[0]];
+    for (const f of s1.slice(1)) if (!f.slot && f.t - first[first.length - 1].t <= OCCASION_GAP_MIN * MIN) first.push(f); else break;
+    const t0 = first[0].t, tLast = first[first.length - 1].t;
+    const dosed = d.doses.some((x) => x.type === 'rapid' && x.t >= t0 - 45 * MIN && x.t <= tLast + 30 * MIN);
+    if (dosed || first.reduce((a, f) => a + f.carbs, 0) >= BREAKFAST_MIN_G) { by.set('breakfast', first); by.set('snack1', s1.slice(first.length)); }
   }
   const otherFoodAt = foodsAll.map((f) => f.t);
   const treatAt = treatAll.map((x) => x.t);

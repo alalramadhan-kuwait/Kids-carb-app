@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.42.1",
+    "notes": [
+      "جدول أخصائية التغذية: إذا ما تسجّل فطور، أول وجبة حقيقية في الصبح (20 غ أو فيها إنسولين) تنحط في «الفطور» مو «سناك 1».",
+      "الأكل ما ينحسب علاج انخفاض إلا إذا كان السكر منخفض قبل الأكل، مو بعده. وإذا الانخفاض انعالج ورجع السكر طبيعي، الأكل بعده ينحسب أكل."
+    ],
+    "notes_en": [
+      "Dietitian sheet: if no breakfast was logged as such, the morning's first real meal (20 g or with insulin) goes in “Breakfast”, not “Snack 1”.",
+      "Food counts as a low treatment only when glucose was low before eating, not after. Once a low was treated and glucose is back in range, food after it counts as food."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.42.0",
     "notes": [
       "عند تسجيل منتج صار فيه زر «لعلاج انخفاض». إذا كان السكر منخفض آخر 30 دقيقة ينختار بروحه للأشياء الصغيرة (25 غ كارب أو أقل)، وينحفظ كعلاج انخفاض مو أكل.",
