@@ -226,6 +226,24 @@ export function PlanCheck({ plan, onClose, onEdit }: { plan: PlannedMeal | null;
   return <Sheet open={!!plan} onClose={onClose} title={plan ? `${SLOT[plan.slot]} · ${plan.name}` : ''}>{plan && <CheckBody plan={plan} onClose={onClose} onEdit={onEdit} />}</Sheet>;
 }
 function CheckBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () => void; onEdit: (p: PlannedMeal) => void }) {
+  if (plan.status === 'eaten' || plan.status === 'skipped') return <DoneBody plan={plan} onClose={onClose} />;
+  return <OpenBody plan={plan} onClose={onClose} onEdit={onEdit} />;
+}
+/** A finished plan: what was logged, and the way to its review; nothing can be logged again from here. */
+function DoneBody({ plan, onClose }: { plan: PlannedMeal; onClose: () => void }) {
+  const nav = useNavigate();
+  const eaten = plan.status === 'eaten';
+  return (
+    <div className="space-y-3">
+      <p className={cx('rounded-xl px-3 py-2 text-sm font-bold', eaten ? 'bg-ok-soft text-ok' : 'bg-slate-100 text-slate-600')}>
+        {eaten ? t('سُجّلت الوجبة ✓ {time}', { time: plan.eating_at ? clock(Date.parse(plan.eating_at)) : '' }) : t('أُلغيت الخطة')}
+        {eaten && plan.carbs_eaten != null ? ` · ${t('{g} غ', { g: fmt(plan.carbs_eaten) })}` : ''}
+      </p>
+      {eaten && <Btn block onClick={() => { onClose(); nav(`/plans/${plan.id}`); }}>{t('افتح المراجعة')}</Btn>}
+    </div>
+  );
+}
+function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () => void; onEdit: (p: PlannedMeal) => void }) {
   const { products, settings, events, reload } = useData();
   const meal = useMemo(() => planMeal(plan.items, products, settings), [plan.items, products, settings]);
   const live = useLiveDose(meal.total.carbs);
@@ -247,7 +265,12 @@ function CheckBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =
   const lastLow = events.filter((e) => e.kind === 'treatment').map((e) => Date.parse(e.occurred_at)).sort((a, b) => b - a)[0] ?? null;
   const drinks = meal.lines.map((l, i) => ({ i, l })).filter(({ l }) => isFastDrink(l.ing, l.product?.category, l.carbs));
   const alerts = planAlerts({ block: r.block, until: r.until, carbs: meal.total.carbs, fat: meal.missing.fat ? null : meal.total.fat, protein: meal.missing.protein ? null : meal.total.protein, maxCarbs: settings.max_meal_carbs, fastDrinkCarbs: drinks.reduce((s, d) => s + (d.l.carbs ?? 0), 0), lastLowAt: lastLow, now });
-  const run = async (f: () => Promise<void>, msg: string) => { setBusy(true); try { await f(); await reload(); toast(msg); } catch (e) { toast((e as Error).message === 'incomplete' ? t('لا يمكن التسجيل: الكارب غير مكتمل') : (e as Error).message); } finally { setBusy(false); } };
+  const run = async (f: () => Promise<void>, msg: string, close = false) => {
+    setBusy(true);
+    try { await f(); await reload(); toast(msg); if (close) onClose(); }
+    catch (e) { const m = (e as Error).message; toast(m === 'incomplete' ? t('لا يمكن التسجيل: الكارب غير مكتمل') : m === 'already_eaten' ? t('هذه الوجبة مسجّلة من قبل') : m); if (m === 'already_eaten') onClose(); }
+    finally { setBusy(false); }
+  };
   const dosed = plan.status === 'dosed', eatTime = eatAt(plan);
   const treatFirst = r.block === 'low' || r.block === 'falling';
 
@@ -337,14 +360,14 @@ function CheckBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =
           </label>
           <div className="text-sm font-medium text-slate-600">{dosed ? t('أكلت:') : t('تسجيل الأكل بدون جرعة:')}</div>
           <div className="grid grid-cols-4 gap-1.5">
-            {PARTS.map(([f, l]) => <Btn key={f} kind={f === 1 ? 'primary' : 'soft'} disabled={busy} onClick={() => run(() => ate(plan, f, Math.min(eatingAt, Date.now()), products, settings), t('سُجّلت الوجبة ✓'))}>{l || t('كلها')}</Btn>)}
+            {PARTS.map(([f, l]) => <Btn key={f} kind={f === 1 ? 'primary' : 'soft'} disabled={busy} onClick={() => run(() => ate(plan, f, Math.min(eatingAt, Date.now()), products, settings), t('سُجّلت الوجبة ✓'), true)}>{l || t('كلها')}</Btn>)}
           </div>
         </div>
       )}
 
       <div className="flex justify-between gap-2 pt-1 text-sm">
         <button className="min-h-[44px] font-bold text-brand" onClick={() => { onClose(); onEdit(plan); }}>{dosed ? t('تعديل الوجبة') : t('تعديل الخطة')}</button>
-        <button className="min-h-[44px] text-slate-500" disabled={busy} onClick={() => run(() => skipPlan(plan.id), t('أُلغيت الخطة'))}>{t('لم تُؤكل · إلغاء')}</button>
+        <button className="min-h-[44px] text-slate-500" disabled={busy} onClick={() => run(() => skipPlan(plan.id), t('أُلغيت الخطة'), true)}>{t('لم تُؤكل · إلغاء')}</button>
       </div>
     </div>
   );

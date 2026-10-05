@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.45.1",
+    "notes": [
+      "بعد ما تضغطون «أكلت» في الخطة، النافذة تتسكّر، والوجبة المسجّلة تطلع «سُجّلت ✓» بدون أزرار، عشان ما تنسجل مرتين.",
+      "حتى لو انضغط الزر مرتين أو من جوالين، الوجبة نفسها ما تنسجل مرة ثانية."
+    ],
+    "notes_en": [
+      "After tapping what she ate in a plan, the window closes, and a logged meal opens as “Logged ✓” with no buttons, so it can't be logged twice.",
+      "Even with a double tap or from two phones, the same meal is not logged again."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.45.0",
     "notes": [
       "إذا عدّلتوا الوجبة بعد الجرعة، الجرعة تنحسب من جديد بنفس نسبة الكارب: إذا زاد الأكل يطلع «أعطِ X وحدة إضافية» وتنسجل مع الوجبة؛ وإذا قلّ يطلع تنبيه إن الجرعة أكثر من الأكل وراقبوا السكر."

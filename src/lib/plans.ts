@@ -117,6 +117,9 @@ export async function treatFromPlan(p: PlannedMeal, t: { grams: number; name: st
 /** She ate (all or a part): the meal is logged at the time she started eating, from the plan's items scaled to what
  *  she ate; the plan keeps the part, the carbs planned and eaten, and the start of eating for its review. */
 export async function ate(p: PlannedMeal, part: number, eatingAt: number, products: Product[], settings: Settings) {
+  // a second tap, or the other phone, must not log the same meal twice
+  const { data: now } = await supabase.from('planned_meals').select('status').eq('id', p.id).maybeSingle();
+  if ((now as { status?: string } | null)?.status === 'eaten') throw new Error('already_eaten');
   const items = p.items.map((i, k) => ({ ...i, id: String(k), qty_confirmed: true, note: null, sort: k, quantity: i.quantity * part }));
   const meal = computeMeal(items, products, settings);
   if (!meal.complete) throw new Error('incomplete');
