@@ -473,11 +473,11 @@ function SheetPage({ s, unit, low, high, child, rapidName, basalName, ratios, ct
       </table>
 
       <div style={{ display: 'flex', gap: '3mm', flex: 1, minHeight: dense >= 2 ? '30mm' : '40mm' }}>
-        <div style={{ flex: '1.25', border: `1px solid ${C.line}`, borderRadius: '2mm', padding: '1.5mm 2mm', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: '1.9', border: `1px solid ${C.line}`, borderRadius: '2mm', padding: '1.5mm 2mm', display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontWeight: 700, color: C.brand, marginBottom: '1mm' }}>{t('السكر خلال اليوم')}</div>
           <DayChart s={s} low={low} high={high} unit={unit} />
           <div style={{ fontSize: '7pt', color: C.ink2, display: 'flex', gap: '3mm', flexWrap: 'wrap' }}>
-            <span><b style={{ color: C.carb }}>▲</b> {t('أكل')}</span><span><b style={{ color: C.ins }}>▮</b> {t('إنسولين سريع')}</span><span><b style={{ color: C.lowDot }}>●</b> {t('علاج انخفاض')}</span><span style={{ background: C.band, padding: '0 1.5mm' }}>{t('النطاق')}</span>
+            <span><b style={{ color: C.carb }}>▲</b> {t('أكل')}</span><span><b style={{ color: C.ins }}>▮</b> {t('إنسولين سريع')}</span><span><b style={{ color: C.low }}>●</b> {t('علاج انخفاض (غ كارب)')}</span><span style={{ background: C.band, padding: '0 1.5mm' }}>{t('النطاق')}</span>
           </div>
         </div>
         <div style={{ flex: 1, border: `1px solid ${C.line}`, borderRadius: '2mm', padding: '1.5mm 2.5mm', lineHeight: 1.4, fontSize: dense >= 2 ? '7.6pt' : '8.6pt' }}>
@@ -497,26 +497,50 @@ function SheetPage({ s, unit, low, high, child, rapidName, basalName, ratios, ct
   );
 }
 
-/** The day's readings (0–24 h) with her range, food, rapid insulin and low treatments. */
+/** The day's readings (0–24 h) with her range, food, rapid insulin, and each low treatment on the curve where it was given. */
 function DayChart({ s, low, high, unit }: { s: DaySheet; low: number; high: number; unit: GlucoseUnit }) {
-  const W = 600, H = 150, x0 = 18, x1 = W - 4, y0 = 6, y1 = H - 16;
+  const W = 900, H = 250, x0 = 34, x1 = W - 8, y0 = 26, y1 = H - 24;
   const lo = 40, hi = Math.max(300, ...s.points.map((p) => p[1]));
   const x = (t: number) => x0 + ((t - s.start) / DAY) * (x1 - x0);
   const y = (mg: number) => y1 - ((Math.min(hi, Math.max(lo, mg)) - lo) / (hi - lo)) * (y1 - y0);
   const foods = s.slots.flatMap((sl) => sl.foods).concat(s.night);
   const doses = s.slots.flatMap((sl) => sl.doses).concat(s.otherDoses);
+  // the glucose at a time: the nearest reading within 15 minutes
+  const at = (t: number) => { let best: [number, number] | null = null; for (const p of s.points) if (Math.abs(p[0] - t) <= 15 * MIN && (!best || Math.abs(p[0] - t) < Math.abs(best[0] - t))) best = p; return best?.[1] ?? null; };
+  // treatment labels: raised a step when they would overlap the one before
+  let lastX = -1e9, lift = 0;
+  const treats = s.treatments.map((tr) => {
+    const cx = x(tr.t), v = at(tr.t), cy = v === null ? y(low) : y(v);
+    lift = cx - lastX < 70 ? lift + 1 : 0; lastX = cx;
+    return { tr, cx, cy, ly: Math.max(14, cy - 16 - lift * 18) };
+  });
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', flex: 1, minHeight: 0 }}>
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', flex: 1, minHeight: 0 }}>
       <rect x={x0} y={y(high)} width={x1 - x0} height={y(low) - y(high)} fill={C.band} />
+      <rect x={x0} y={y(low)} width={x1 - x0} height={y1 - y(low)} fill={C.lowDot} opacity={0.06} />
       {[0, 3, 6, 9, 12, 15, 18, 21, 24].map((h) => (
-        <g key={h}><line x1={x(s.start + h * 3600000)} x2={x(s.start + h * 3600000)} y1={y0} y2={y1} stroke={C.line} strokeWidth={0.6} />
-          <text x={x(s.start + h * 3600000)} y={H - 4} fontSize={9} fill={C.ink3} textAnchor="middle">{String(h).padStart(2, '0')}</text></g>
+        <g key={h}><line x1={x(s.start + h * 3600000)} x2={x(s.start + h * 3600000)} y1={y0} y2={y1} stroke={C.line} strokeWidth={0.8} />
+          <text x={x(s.start + h * 3600000)} y={H - 6} fontSize={12} fill={C.ink3} textAnchor="middle">{String(h).padStart(2, '0')}</text></g>
       ))}
-      {[low, high].map((v) => <text key={v} x={x0 - 2} y={y(v) + 3} fontSize={8} fill={C.ink3} textAnchor="end">{formatGlucose(v, unit)}</text>)}
-      {s.points.map(([t0, v], i) => <circle key={i} cx={x(t0)} cy={y(v)} r={1.4} fill={v < low ? C.lowDot : v > high ? C.highDot : C.okDot} />)}
-      {foods.map((f, i) => <path key={'f' + i} d={`M${x(f.t)} ${y1 - 7} l-3.5 6 h7 z`} fill={C.carb} />)}
-      {doses.map((d, i) => <rect key={'d' + i} x={x(d.t) - 1} y={y1 - 16} width={2.2} height={8} fill={C.ins} />)}
-      {s.treatments.map((x2, i) => <circle key={'t' + i} cx={x(x2.t)} cy={y1 - 3} r={3} fill={C.lowDot} />)}
+      <line x1={x0} x2={x1} y1={y(low)} y2={y(low)} stroke={C.lowDot} strokeWidth={1} strokeDasharray="5 4" />
+      <line x1={x0} x2={x1} y1={y(high)} y2={y(high)} stroke={C.highDot} strokeWidth={1} strokeDasharray="5 4" />
+      {[low, high].map((v) => <text key={v} x={x0 - 4} y={y(v) + 4} fontSize={11} fill={C.ink3} textAnchor="end">{formatGlucose(v, unit)}</text>)}
+      {s.points.map(([t0, v], i) => <circle key={i} cx={x(t0)} cy={y(v)} r={2} fill={v < low ? C.lowDot : v > high ? C.highDot : C.okDot} />)}
+      {foods.map((f, i) => <path key={'f' + i} d={`M${x(f.t)} ${y1 - 9} l-5 8 h10 z`} fill={C.carb} />)}
+      {doses.map((d, i) => <rect key={'d' + i} x={x(d.t) - 1.5} y={y1 - 22} width={3} height={11} rx={1} fill={C.ins} />)}
+      {treats.map(({ tr, cx, cy, ly }, i) => {
+        const label = t('{g} غ', { g: fmt(Math.round(tr.carbs)) });
+        const w = 14 + label.length * 7;
+        return (
+          <g key={'t' + i}>
+            <line x1={cx} x2={cx} y1={cy} y2={y1} stroke={C.lowDot} strokeWidth={1.2} strokeDasharray="3 3" />
+            <line x1={cx} x2={cx} y1={ly + 4} y2={cy - 6} stroke={C.lowDot} strokeWidth={1} />
+            <circle cx={cx} cy={cy} r={6} fill={C.lowDot} stroke="#fff" strokeWidth={2} />
+            <rect x={cx - w / 2} y={ly - 12} width={w} height={16} rx={8} fill={C.low} />
+            <text x={cx} y={ly} fontSize={11} fontWeight={700} fill="#fff" textAnchor="middle">{label}</text>
+          </g>
+        );
+      })}
     </svg>
   );
 }

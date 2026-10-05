@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.43.2",
+    "notes": [
+      "جدول أخصائية التغذية: رسم السكر صار أكبر، وكل علاج انخفاض يطلع على المنحنى بنقطة حمراء وعليها كمية الكارب (مثلاً 15 غ)، مع خطوط النطاق."
+    ],
+    "notes_en": [
+      "Dietitian sheet: the glucose graph is bigger, and every low treatment shows on the curve as a red point with its carbs (e.g. 15 g), with the range lines."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.43.1",
     "notes": [
       "جدول أخصائية التغذية: إذا انمسحت وجبة مخططة وانسجلت من جديد، تبقى في عمودها الصحيح (مثلاً عشا 4 أكتوبر: الكورن فليكس صار في «العشاء»)."
