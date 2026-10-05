@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-05",
+    "version": "2.43.0",
+    "notes": [
+      "عرض للكمبيوتر والآيباد: القائمة صارت على الجنب بدل الأسفل، والصفحات تستخدم الشاشة كاملة.",
+      "«الآن» على الشاشة الكبيرة: السكر والرسم الكبير على جهة، وتفاصيل اليوم على الجهة الثانية. «الوجبات» و«المزيد» بعمودين، و«التحليل» بعرض الشاشة.",
+      "النوافذ (مثل التسجيل) تطلع في وسط الشاشة على الكمبيوتر. الجوال ما تغيّر."
+    ],
+    "notes_en": [
+      "Desktop and iPad view: the menu moves to the side instead of the bottom, and pages use the whole screen.",
+      "“Now” on a big screen: glucose and a big graph on one side, the day's details on the other. “Meals” and “More” in two columns, “Analysis” full width.",
+      "Windows (like logging) open in the middle of the screen on a computer. The phone is unchanged."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "version": "2.42.2",
     "notes": [
       "إذا الجوال عبّى حساب تطبيق المناوبات بالغلط، التطبيق يقول هذا بوضوح بدل شاشة التفعيل.",

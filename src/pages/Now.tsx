@@ -91,12 +91,15 @@ export default function Now() {
   const left = setup.filter((s) => !s.done);
 
   return (
-    <main className="mx-auto max-w-2xl px-4 pb-28 pt-[max(8px,env(safe-area-inset-top))]">
+    <main className="mx-auto max-w-2xl px-4 pb-28 pt-[max(8px,env(safe-area-inset-top))] lg:max-w-none lg:px-8 lg:pb-12">
       <h1 className="sr-only">{t('الآن')}</h1>
       <LayanHeader alertCount={alerts.open.length} night={isNight(settings)} />
-      <div className="space-y-4 pb-24">
+      <div className="space-y-4 pb-24 lg:pb-0">
         {/* the only things allowed above her glucose: alerts that need someone now */}
         <AlertStrip alerts={alerts.open} onChange={alerts.reload} onTreat={() => { setLogKind('treatment'); setLogOpen(true); }} />
+        {/* desktop: glucose and the graph on the wide side, the day beside it */}
+        <div className="space-y-4 lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:items-start lg:gap-8 lg:space-y-0">
+        <div className="space-y-4">
 
         {/* 1 · Primary: the current glucose, its direction and a short status — or the one action that gets it */}
         {notConnected ? (
@@ -139,6 +142,8 @@ export default function Now() {
         {/* insulin and carbs still working, as two thin timelines: how much is left, from what, for how long */}
         {!notConnected && <OnBoardLanes statusLink={!(sensor && sensor.state !== 'ok')} />}
 
+        </div>
+        <div className="space-y-4">
         {/* 2 · Supporting: today in one line (details in Analysis), then what was last logged */}
         <section aria-label={t('اليوم')} className="space-y-1">
           {today && today.n > 0 && (
@@ -178,6 +183,8 @@ export default function Now() {
           </Link>
         )}
 
+        </div>
+        </div>
         <footer className="space-y-1 px-1 text-center text-[11px] leading-relaxed text-slate-400">
           <p>{t('القراءات قد تتأخر عن الجهاز. راجعوا كل جرعة قبل إعطائها.')}</p>
           <VersionTag />
@@ -185,8 +192,8 @@ export default function Now() {
       </div>
 
       {/* the one primary action in the thumb zone above the tab bar: a round + that covers as little of the graph as it can */}
-      <div className={cx('pointer-events-none fixed inset-x-0 bottom-[calc(74px+env(safe-area-inset-bottom))] z-30 px-4', logOpen && 'hidden')}>
-        <div className="mx-auto flex max-w-2xl justify-start">
+      <div className={cx('pointer-events-none fixed inset-x-0 bottom-[calc(74px+env(safe-area-inset-bottom))] z-30 px-4 lg:bottom-8 lg:ps-[17rem] lg:pe-8', logOpen && 'hidden')}>
+        <div className="mx-auto flex max-w-2xl justify-start lg:max-w-none lg:justify-end">
           <button onClick={() => setLogOpen(true)} aria-label={t('سجّل')} className="pointer-events-auto grid h-14 w-14 place-items-center rounded-full bg-brand text-white shadow-[0_8px_24px_rgba(91,72,214,0.30)] active:scale-[0.96]">
             <Icon name="plus" size={28} />
           </button>
@@ -289,10 +296,10 @@ function HomeChart({ live }: { live: Reading[] }) {
   // IOB and COB as two thin strips under the graph, and where glucose heads from here (display only)
   // insulin and carbs on board are told under the graph in words (OnBoardLanes), so the graph keeps only glucose
   const { tracks, forecasts } = useGraphExtras({ series, now, iob: false, cob: false, act: true, forecast: true, projected30, start: view.end - view.span, end: view.end });
-  const height = useMemo(() => Math.round(Math.min(440, Math.max(240, window.innerHeight * 0.36)) + 48) + (tracks?.iob || tracks?.cob ? 68 : 0), [!!(tracks?.iob || tracks?.cob)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const height = useMemo(() => Math.round(window.innerWidth >= 1024 ? Math.min(620, Math.max(380, window.innerHeight * 0.55)) + 48 : Math.min(440, Math.max(240, window.innerHeight * 0.36)) + 48) + (tracks?.iob || tracks?.cob ? 68 : 0), [!!(tracks?.iob || tracks?.cob)]); // eslint-disable-line react-hooks/exhaustive-deps
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
   return (
-    <div className="relative -mx-4">
+    <div className="relative -mx-4 lg:mx-0">
       <Timeline series={series} view={view} now={now} onView={onView} unit={settings.glucose_unit} height={height}
         range={rng} marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={AHEAD} night={nightOf(settings)} />
       {!following && (

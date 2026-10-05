@@ -51,7 +51,7 @@ export default function Analysis() {
   const [params, setParams] = useSearchParams();
   const mode = (['day', 'patterns', 'meals', 'compare', 'stats', 'lab'] as const).find((m) => m === params.get('mode')) ?? 'live';
   return (
-    <Page title={t('التحليل')} action={
+    <Page title={t('التحليل')} wide action={
       <button onClick={() => setParams(mode === 'lab' ? {} : { mode: 'lab' }, { replace: true })} aria-label={t('مختبر التوقعات')} aria-pressed={mode === 'lab'}
         className={cx('grid h-11 w-11 place-items-center rounded-full', mode === 'lab' ? 'bg-brand text-white' : 'bg-white text-slate-500 shadow-sm')}>
         <Icon name="lab" size={22} />

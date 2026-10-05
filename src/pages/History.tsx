@@ -128,8 +128,8 @@ export default function History() {
       </Sheet>
 
       {/* the same primary action as Now, in the thumb zone above the tab bar */}
-      <div className={cx('pointer-events-none fixed inset-x-0 bottom-[calc(66px+env(safe-area-inset-bottom))] z-30 px-4', (logOpen || !!open) && 'hidden')}>
-        <div className="mx-auto flex max-w-2xl justify-start">
+      <div className={cx('pointer-events-none fixed inset-x-0 bottom-[calc(66px+env(safe-area-inset-bottom))] z-30 px-4 lg:bottom-8 lg:ps-[17rem] lg:pe-8', (logOpen || !!open) && 'hidden')}>
+        <div className="mx-auto flex max-w-2xl justify-start lg:max-w-none lg:justify-end">
           <button onClick={() => setLogOpen(true)} className="pointer-events-auto flex min-h-[50px] items-center gap-2 rounded-full bg-brand pe-5 ps-4 text-base font-bold text-white shadow-[0_8px_24px_rgba(91,72,214,0.30)] active:scale-[0.98]">
             <Icon name="plus" size={24} /> {t('سجّل')}
           </button>

@@ -111,7 +111,7 @@ export function More() {
   // five groups, one icon each and none repeated: her care, food, reports, this phone, family & account; rarely used last
   return (
     <Page title={t('المزيد')}>
-      <div className="space-y-5">
+      <div className="space-y-5 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-8 lg:gap-y-6 lg:space-y-0">
         {group(t('ليان'), <>
           {link('/alerts', 'bell', t('التنبيهات وماذا نفعل'), t('الحدود، الليل والمدرسة، من يصله التنبيه، وخطوات الطبيب'))}
           {link('/doctor', 'insulin', t('أرقام الطبيب'), t('نسبة الكارب، التصحيح، هدف الجرعة، خطوة القلم'))}
@@ -169,14 +169,14 @@ export function More() {
           </details></li>
           <li><button className="flex min-h-[52px] w-full items-center px-4 text-start font-medium text-slate-600" onClick={async () => { await supabase.auth.signOut(); nav('/'); }}>{t('تسجيل الخروج')}</button></li>
         </>)}
-        <details className="rounded-2xl border border-slate-100 bg-white">
+        <details className="rounded-2xl border border-slate-100 bg-white lg:col-span-2">
           <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between px-4 font-medium text-slate-600">{t('متقدم')}<span className="text-slate-300">{isEn() ? '›' : '‹'}</span></summary>
           <ul className="divide-y divide-slate-100 border-t border-slate-100">
             {link('/cgm', 'sensor', t('ربط الحساس'), t('LibreLinkUp لعرض السكر الحي'))}
             {link('/settings/advanced', 'settings', t('إعدادات متقدمة'), t('نوع الحساس، مفتاح تقدير الصور'))}
           </ul>
         </details>
-        <footer className="space-y-1 pt-1 text-center text-xs text-slate-400">
+        <footer className="space-y-1 pt-1 text-center text-xs text-slate-400 lg:col-span-2">
           <p>{t('حاسبة الجرعة تتبع «أرقام الطبيب». راجعوا الرقم دائمًا قبل الإعطاء.')}</p>
           <VersionTag />
         </footer>

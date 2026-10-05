@@ -222,6 +222,8 @@ function Shell() {
   return (
     <>
       <NightTheme />
+      {/* desktop: the tabs become a side menu, so every page shifts over by its width */}
+      <div className={!mom && !momTabs ? 'lg:ps-60' : undefined}>
       <Routes>
         <Route path="/" element={simple ? <Navigate to={new URLSearchParams(search).get('plan') ? `/mom/plan/${new URLSearchParams(search).get('plan')}` : '/mom'} replace /> : <Now />} />
         <Route path="/mom" element={<MomHome />} />
@@ -290,16 +292,21 @@ function Shell() {
         <Route path="/more" element={<More />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </div>
       {momTabs && <MomTabs pathname={pathname} />}
       <Alarm />
-      {!mom && !momTabs && <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-        <ul className="mx-auto grid max-w-2xl grid-cols-5">
+      {!mom && !momTabs && <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:inset-x-auto lg:inset-y-0 lg:start-0 lg:w-60 lg:border-e lg:border-t-0 lg:pb-0">
+        <div className="hidden items-center gap-3 px-5 pb-4 pt-6 lg:flex">
+          <img src={`${import.meta.env.BASE_URL}icons/layan-logo-256.webp`} alt="" className="h-11 w-11 rounded-xl" />
+          <div><div className="text-lg font-bold">{t('ليان')}</div><VersionTag /></div>
+        </div>
+        <ul className="mx-auto grid max-w-2xl grid-cols-5 lg:mx-0 lg:flex lg:max-w-none lg:flex-col lg:gap-1 lg:px-3">
           {TABS.map((tab) => {
             const on = tab.to === '/' ? pathname === '/' : tab.match.some((m) => pathname === m || pathname.startsWith(m + '/'));
             return (
               <li key={tab.to}>
-                <NavLink to={tab.to} aria-current={on ? 'page' : undefined} className="flex min-h-[56px] items-center justify-center py-1">
-                  <span className={cx('flex min-w-[60px] flex-col items-center gap-0.5 rounded-2xl px-2.5 py-1.5 text-xs transition-colors', on ? 'bg-brand-soft font-semibold text-brand' : 'text-slate-500')}><Icon name={tab.icon} active={on} />{t(tab.label)}</span>
+                <NavLink to={tab.to} aria-current={on ? 'page' : undefined} className="flex min-h-[56px] items-center justify-center py-1 lg:min-h-[48px] lg:justify-start lg:py-0">
+                  <span className={cx('flex min-w-[60px] flex-col items-center gap-0.5 rounded-2xl px-2.5 py-1.5 text-xs transition-colors lg:w-full lg:flex-row lg:gap-3 lg:px-4 lg:py-3 lg:text-[15px]', on ? 'bg-brand-soft font-semibold text-brand' : 'text-slate-500 lg:hover:bg-slate-50')}><Icon name={tab.icon} active={on} />{t(tab.label)}</span>
                 </NavLink>
               </li>
             );

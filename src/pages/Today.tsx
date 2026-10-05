@@ -66,7 +66,8 @@ export default function Today() {
       <PlannedSection />
       <input type="search" enterKeyHint="search" dir="auto" className={cx(inputCls, 'mb-4')} value={q} onChange={(e) => setQ(e.target.value)}
         placeholder={t('ابحث: وصفة، سناك، منتج، أكل متكرر')} aria-label={t('بحث')} />
-      {q.trim() ? <SearchResults q={q} /> : <>
+      {q.trim() ? <SearchResults q={q} /> : <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-8">
+      <div>
       <h2 className="mb-2 text-lg font-bold">{t('اقتراحات اليوم')}</h2>
       <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
         {picks.map((c) => <MealCard key={c.recipe.id} recipe={c.recipe} meal={c.meal} chosenToday={chosenToday.has(c.recipe.id)} />)}
@@ -94,7 +95,9 @@ export default function Today() {
         </details>
       )}
 
-      <h2 className="mb-2 mt-6 text-lg font-bold">{t('السناكات')}</h2>
+      </div>
+      <div>
+      <h2 className="mb-2 mt-6 text-lg font-bold lg:mt-0">{t('السناكات')}</h2>
       <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
         {snacks.map((s) => {
           const meal = computeSnack(s, products, settings);
@@ -115,7 +118,8 @@ export default function Today() {
       </ul>
       <QuickItemsSection />
       {recipes.length === 0 && <div className="mt-4"><Alert tone="info">{t('لا توجد وصفات بعد.')}</Alert></div>}
-      </>}
+      </div>
+      </div>}
     </Page>
   );
 }
