@@ -1,5 +1,17 @@
 [
   {
+    "date": "2026-10-06",
+    "version": "2.46.2",
+    "notes": [
+      "الإشعارات صارت توصل: لما أحد يسجّل إبرة أو وجبة أو علاج انخفاض، وتذكيرات الوجبات المخططة، و«أعيدوا قياس السكر» بعد علاج الانخفاض. كانت متوقفة بسبب خطأ في الخادم.",
+      "الوضع البسيط: «الإشعارات على هالتلفون» في المزيد، ضغطة وحدة تشغّلها."
+    ],
+    "notes_en": [
+      "Notifications now arrive: when someone logs a dose, a meal or a low treatment, the planned-meal reminders, and “check her glucose again” after a low treatment. A server fault had stopped them.",
+      "Simple mode: “Notifications on this phone” in More turns them on with one tap."
+    ]
+  },
+  {
     "date": "2026-10-05",
     "version": "2.46.1",
     "notes": [

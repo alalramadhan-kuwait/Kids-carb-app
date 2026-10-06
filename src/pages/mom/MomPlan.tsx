@@ -1,7 +1,7 @@
 // Mom mode, a meal planned for later — the same planned meals as the full app (on hold until its time; reminders go to
 // both parents): «متى؟» (which meal, today or tomorrow, the injection time), the planned list, one plan (injection
 // now, change the time, cancel), and the «المزيد» tab.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { draftOps, setFullModeNow, setSensorSite, useDraft, useSensor } from '../../lib/mom';
@@ -18,6 +18,7 @@ import { setAlarmSound, testAlarm, useAlarmSound } from '../../components/Alarm'
 import { setKeepAwake, useKeepAwakePref } from '../../lib/keepAwake';
 import type { InjectionSite } from '../../lib/types';
 import { useCatalog } from './MomMeal';
+import { enablePush, pushState, type PushState } from '../../lib/push';
 import { ACTIVITY_KINDS, activityOn, setActivityPush, type ActivityKind } from '../../lib/activityPush';
 
 type Slot = PlannedMeal['slot'];
@@ -164,6 +165,7 @@ export function MomMore() {
         sub={sensor ? `${sensor.site ? t(SITE_NAME[sensor.site]) : t('وين؟')} · ${t('ينتهي بعد {x}', { x: sensorLeft(sensor.life.left) })}` : t('ما في حساس')} />
       <Choice icon="📅" label={t('مخططة')} sub={n ? t('{n} معلّقة', { n }) : undefined} onClick={() => nav('/mom/plans')} />
       <Choice icon="💉" label={t('أماكن الإبر')} onClick={() => nav('/mom/sites')} />
+      <PhonePushChoice />
       <Choice icon="📣" label={t('أخبرني لما يسجّل غيري')} onClick={() => nav('/mom/activity')} />
       <Choice icon="🔓" label={t('الوضع الكامل')} onClick={() => { if (window.confirm(t('تفتحين الوضع الكامل؟'))) { setFullModeNow(true); nav('/'); } }} />
     </MomPage>
@@ -171,6 +173,21 @@ export function MomMore() {
 }
 
 /** Which of the other parent's entries she is told about; each one taps on or off. */
+/** This phone's notifications in simple mode: off → one tap turns them on (the phone asks for permission). */
+function PhonePushChoice() {
+  const [ps, setPs] = useState<PushState | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { void pushState().then(setPs); }, []);
+  if (!ps || ps === 'on') return ps === 'on' ? <Choice icon="🔔" label={t('الإشعارات على هالتلفون')} sub={t('شغّال')} on onClick={() => undefined} /> : null;
+  const sub = ps === 'needs_install' ? t('افتحي التطبيق من أيقونته على الشاشة الرئيسية أول') : ps === 'denied' ? t('مرفوضة: فعّليها من إعدادات التلفون ← الإشعارات ← ليان') : ps === 'unsupported' ? t('هالمتصفح ما يدعم الإشعارات') : t('طافي · اضغطي للتشغيل');
+  const on = async () => {
+    if (ps !== 'off' || busy) return;
+    setBusy(true);
+    try { setPs(await enablePush()); } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
+  };
+  return <Choice icon="🔕" label={t('الإشعارات على هالتلفون')} sub={sub} onClick={() => void on()} color="#d6303c" />;
+}
+
 export function MomActivity() {
   const { members, me, reload } = useData();
   const m = members.find((x) => x.user_id === me);
@@ -181,6 +198,7 @@ export function MomActivity() {
   };
   return (
     <MomPage title={t('أخبرني لما يسجّل غيري')} back="/mom/more">
+      <PhonePushChoice />
       {ACTIVITY_KINDS.map((a) => (
         <Choice key={a.k} icon={a.icon} label={t(a.label)} on={activityOn(m, a.k)} sub={activityOn(m, a.k) ? t('شغّال') : t('طافي')} onClick={() => { if (!busy) void flip(a.k); }} />
       ))}

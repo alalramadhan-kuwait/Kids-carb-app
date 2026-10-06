@@ -32,7 +32,9 @@ async function send(db: Db, v: Vapid, a: Row, users: string[], payload: (lang: L
 }
 
 async function run(db: Db, now: number) {
-  const { data } = await db.from('activity_feed').select('*').is('sent_at', null).order('created_at').limit(20);
+  // a failed read is an error, never "nothing to send" (a missing grant once hid every push that way)
+  const { data, error } = await db.from('activity_feed').select('*').is('sent_at', null).order('created_at').limit(20);
+  if (error) throw new Error(`activity_feed: ${error.message}`);
   if (!data?.length) return 0;
   const [{ data: mem }, { data: set }, v] = await Promise.all([
     db.from('members').select('user_id,display_name,activity_push,lang'),
@@ -44,7 +46,8 @@ async function run(db: Db, now: number) {
   const unit = (set as any)?.glucose_unit === 'mmol' ? 'mmol' as const : 'mgdl' as const;
   let sent = 0;
   for (const a of data as Row[]) {
-    const { data: claimed } = await db.from('activity_feed').update({ sent_at: new Date(now).toISOString() }).eq('id', a.id).is('sent_at', null).select('id');
+    const { data: claimed, error: claimErr } = await db.from('activity_feed').update({ sent_at: new Date(now).toISOString() }).eq('id', a.id).is('sent_at', null).select('id');
+    if (claimErr) throw new Error(`claim: ${claimErr.message}`);
     if (!claimed?.length) continue; // another call sent it
     if (!v || now - Date.parse(a.created_at) > 15 * 60000) continue; // no push key yet, or queued too long ago to be news
     const ref = a.ref_table === 'events'
@@ -65,5 +68,5 @@ Deno.serve(async (req) => {
   const { data: ok } = await db.rpc('cron_secret_matches', { p: req.headers.get('x-cron-secret') ?? '' });
   if (!ok) return json({ error: 'not_allowed' }, 403);
   try { return json({ ok: true, sent: await run(db, Date.now()) }); }
-  catch (e) { console.error('carb-activity', e instanceof Error ? e.message : e); return json({ error: 'server' }, 500); }
+  catch (e) { const m = e instanceof Error ? e.message : String(e); console.error('carb-activity', m); return json({ error: 'server', detail: m }, 500); }
 });
