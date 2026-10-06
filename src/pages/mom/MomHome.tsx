@@ -184,12 +184,13 @@ function lane<T extends { t: number }>(items: T[], x: (t: number) => number, rig
   return out;
 }
 
-function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, meals, treats, pricks, at }: { at?: number | null; treats: number[]; pricks: number[]; aspect: number; s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: number[] }) {
+/** The 12-hour graph: simple-mode home and the share link. */
+export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, meals, treats, pricks, at, span = 12 }: { span?: number; at?: number | null; treats: number[]; pricks: number[]; aspect: number; s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: number[] }) {
   const W = 340, PL = 6, PR = 30, PT = 30, HH = Math.max(180, Math.round(W * aspect)), PH = HH - PT - 64;
-  const t0 = now - 12 * H;
+  const t0 = now - span * H; // hours shown (12 at home)
   const top = unit === 'mmol' ? 21 * 18.016 : 350, bottom = unit === 'mmol' ? 3 * 18.016 : 50;
   const ticks = unit === 'mmol' ? [3, 6, 9, 12, 15, 18, 21].map((v) => v * 18.016) : [50, 100, 150, 200, 250, 300, 350];
-  const x = (t: number) => PL + ((t - t0) / (12 * H)) * (W - PL - PR);
+  const x = (t: number) => PL + ((t - t0) / (span * H)) * (W - PL - PR);
   const y = (v: number) => PT + PH - ((Math.min(Math.max(v, bottom), top) - bottom) / (top - bottom)) * PH;
   // like Libre's graph: one point per 15 minutes (their average) and the newest reading, joined by a smooth curve
   // that never overshoots the real values; a gap of more than 20 minutes stays a gap
@@ -207,7 +208,7 @@ function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, mea
   if (lastV !== null && pts.length) pts[pts.length - 1] = { t: lastT, v: lastV };
   const d = smoothPath(pts.map((p) => ({ x: x(p.t), y: y(p.v), t: p.t })), 20 * 60000);
   const dot = lastV === null ? '#64748b' : lastV < low ? '#c62f3a' : lastV > high ? '#c27a00' : '#2f8f55'; // the newest reading drawn, same as the box
-  const first = Math.ceil(t0 / (3 * H)) * 3 * H; const hours = [0, 1, 2, 3].map((k) => first + k * 3 * H).filter((h) => h <= now);
+  const step = span <= 4 ? 1 : 3; const first = Math.ceil(t0 / (step * H)) * step * H; const hours = [0, 1, 2, 3, 4].map((k) => first + k * step * H).filter((h) => h <= now);
   // touch the graph to read it, like Libre: a thin line at that time, a dot on the curve, the value above and the time below
   const nearest = (tt: number) => {
     if (!pts.length) return null;
@@ -221,7 +222,7 @@ function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, mea
     const r = svgRef.current?.getBoundingClientRect(); if (!r || !pts.length) return;
     const k = Math.min(r.width / W, r.height / HH); // the svg keeps its aspect, centred in its box
     const vx = (e.clientX - r.left - (r.width - W * k) / 2) / k;
-    setPick(nearest(t0 + ((vx - PL) / (W - PL - PR)) * 12 * H));
+    setPick(nearest(t0 + ((vx - PL) / (W - PL - PR)) * span * H));
   };
   const end = () => setPick(null);
   const px = pick ? x(pick.t) : 0;

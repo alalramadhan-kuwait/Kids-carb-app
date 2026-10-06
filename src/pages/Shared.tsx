@@ -6,10 +6,11 @@ import { Icon, TREND_ICON, TREND_WORDS } from '../components/Icon';
 import { Card, cx } from '../components/ui';
 import { locale, t, tMaybe } from '../i18n';
 import { LangSwitch } from '../components/LangSwitch';
+import { BigGraph } from './mom/MomHome';
 
 interface View {
   error?: string; scope: 'school' | 'viewer'; label: string; expires_at: string; child: string; unit: GlucoseUnit;
-  low: number; high: number; reference: boolean; readings: { t: string; v: number; trend: number | null }[];
+  low: number; high: number; alarm_high?: number | null; reference: boolean; readings: { t: string; v: number; trend: number | null }[];
   care_plan: { hypo: string | null; hyper: string | null; contacts: string | null } | null;
 }
 
@@ -37,6 +38,15 @@ export default function Shared({ token }: { token: string }) {
         <p className="mt-2 text-slate-500">{unitLabel(v.unit)}{last ? ` · ${sinceText(last.t)}` : ''}</p>
         {status && status !== 'in_range' && <p className={cx('mt-1 font-bold', tone)}>{status === 'low' || status === 'urgent_low' ? t('منخفض') : t('مرتفع')}</p>}
       </Card>
+      {/* the last 12 hours, like her home screen; touch to read a point */}
+      {v.readings.length > 1 && (
+        <Card className="!px-1 !py-2">
+          <BigGraph aspect={0.8} s={{ t: Float64Array.from(v.readings.map((r) => Date.parse(r.t))), v: Float64Array.from(v.readings.map((r) => r.v)) }}
+            now={Date.now()} unit={v.unit} low={v.low} high={v.high} band={[v.low, v.high]} alarmHigh={v.alarm_high ?? 240}
+            shots={[]} meals={[]} treats={[]} pricks={[]}
+            span={Math.min(12, Math.max(3, Math.ceil((Date.now() - Date.parse(v.readings[0].t)) / 3600000)))} />
+        </Card>
+      )}
       {v.care_plan && (
         <>
           {v.care_plan.hypo && <Card><h2 className="mb-1 font-bold">{t('عند الانخفاض')}</h2><p className="whitespace-pre-wrap leading-relaxed">{v.care_plan.hypo}</p></Card>}

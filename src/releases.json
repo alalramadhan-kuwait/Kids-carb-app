@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-06",
+    "version": "2.47.1",
+    "notes": [
+      "رابط المشاركة صار يعرض رسم السكر تحت القراءة، ويقدر اللي عنده الرابط يلمس الرسم ليشوف أي قراءة ووقتها."
+    ],
+    "notes_en": [
+      "Share links now show the glucose graph under the reading; whoever has the link can touch the graph to see any reading and its time."
+    ]
+  },
+  {
+    "date": "2026-10-06",
     "version": "2.47.0",
     "notes": [
       "تبويب «مطاعم» في التغذية وفي «شنو بتاكل؟»: كل مطعم بشعاره، والمنيو مقسّم: برغر، دجاج وناجت، بطاط، صوص، مشروبات، حلى. تبويب «أكل» صار لأكل البيت بس، والبحث يلقى الكل."
