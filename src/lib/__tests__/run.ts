@@ -2683,6 +2683,20 @@ test('Topi cheese is found by «توبي» and «جبن»', async () => {
     assert.equal(M.readyForMom('product', 'new', cat), false, 'not approved');
     assert.equal(M.readyForMom('product', 'milk', cat), true, 'approved: shown even before Dad sets a portion');
   });
+  test('mom meal: a weighed home dish — the pot\'s ingredients scaled to the grams; what is served on the side is left out', () => {
+    // the pasta recipe as Dad wrote it: 120 g pasta, 80 g meat, 80 g sauce in the pot; 100 g yogurt on the side
+    const ing = (id: string, q: number, o: Record<string, unknown> = {}) => ({ id, role: 'main', product_id: null, slot_category: null, label: id, quantity: q, unit: 'g', state: 'cooked', qty_confirmed: true, note: null, sort: 0, ...o });
+    const pasta = { ...cat, recipes: [...cat.recipes, { ...cat.recipes[0], id: 'r2' }],
+      ingsByRecipe: new Map([['r2', [ing('pasta', 120), ing('meat', 80), ing('sauce', 80), ing('yogurt', 100, { on_side: true })]]]) as any };
+    assert.equal(M.recipeMixGrams(pasta.ingsByRecipe.get('r2'), []), 280, 'the yogurt is not in the pot');
+    const w = M.planItemsOf({ kind: 'recipe', id: 'r2', portion_id: null, amount: 243, unit: 'g' }, pasta)!;
+    assert.deepEqual(w.map((i) => i.label), ['pasta', 'meat', 'sauce']);
+    assert.equal(Math.round(w[0].quantity), Math.round(120 * 243 / 280), 'pasta in a 243 g plate');
+    assert.equal(Math.round(w.reduce((n, i) => n + i.quantity, 0)), 243);
+    assert.equal(M.planItemsOf({ kind: 'recipe', id: 'r2', portion_id: null, amount: 1, unit: 'plate' }, pasta)!.length, 4, 'a plate still has the yogurt');
+    const noSize = { ...pasta, ingsByRecipe: new Map([['r2', [ing('bread', 2, { unit: 'serving', product_id: 'frost' })]]]) as any };
+    assert.equal(M.planItemsOf({ kind: 'recipe', id: 'r2', portion_id: null, amount: 200, unit: 'g' }, noSize), null, 'a serving with no known size: no weight, never a guess');
+  });
   test('mom meal: an amount chosen on the spot — grams, label servings, recipe plates; nothing without a known size', () => {
     const c2 = { ...cat, products: [...cat.products, prod('toast', { serving_size: 28 })] };
     assert.deepEqual(M.planItemsOf({ kind: 'product', id: 'frost', portion_id: null, amount: 45, unit: 'g' }, c2)!.map((i) => [i.quantity, i.unit]), [[45, 'g']]);

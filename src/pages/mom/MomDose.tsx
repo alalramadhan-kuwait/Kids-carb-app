@@ -27,6 +27,12 @@ const REASONS = {
   more: ['أكلت أكثر', 'كان مرتفع', 'شي ثاني'], // i18n-ok
 };
 
+
+/** A home dish she weighed is an estimate: the note says so, for Dad and the dietitian. */
+const weighedNote = (items: { kind: string; unit?: string; amount?: number }[]) => {
+  const g = items.filter((x) => x.kind === 'recipe' && x.unit === 'g').map((x) => fmt(x.amount ?? 0));
+  return g.length ? `⚖️ ${t('صحن موزون (تقدير): {g} غ', { g: g.join(' + ') })}` : null;
+};
 export function MomDose() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
@@ -83,7 +89,8 @@ export function MomDose() {
         return;
       }
       const items = planItems(d.items, c)!;
-      const plan2 = await planNow({ name: d.name ?? SLOT[slotNow()], slot: slotNow(), items, eat_after_min: s.dose_to_meal_min ?? 10, note: d.left.length ? `${d.left.join(' · ')} ${t('ما ينحسب بالإبرة · كلّمي بابا')}` : null });
+      const note = [d.left.length ? `${d.left.join(' · ')} ${t('ما ينحسب بالإبرة · كلّمي بابا')}` : null, weighedNote(d.items)].filter(Boolean).join(' · ') || null;
+      const plan2 = await planNow({ name: d.name ?? SLOT[slotNow()], slot: slotNow(), items, eat_after_min: s.dose_to_meal_min ?? 10, note });
       await approveDose(plan2, { given, calc: r.dose, reason: given !== r.dose ? reason : null, purpose: live.purpose, snapshot: snapshot(), carbs: carbs! });
       const fresh = await fetchPlan(plan2.id);
       if (fresh?.dose_event_id && site) await setInjectionSite(fresh.dose_event_id, site);
@@ -99,7 +106,7 @@ export function MomDose() {
       if (plan) { await ate(plan, 1, Date.now(), products, s); await reload(); toast(t('تم: الأكل بدون إبرة ✓')); nav('/mom', { replace: true }); return; }
       const items = planItems(d.items, c)!;
       const meal = planMeal(items, products, s);
-      await logMeal({ kind: 'meal', recipe_id: null, name: d.name ?? SLOT[slotNow()], category: null, meal, modified: true });
+      await logMeal({ kind: 'meal', recipe_id: null, name: d.name ?? SLOT[slotNow()], category: null, meal, modified: true, notes: weighedNote(d.items) ?? undefined });
       draftOps.clear(); await reload(); toast(t('تم: الأكل بدون إبرة ✓')); nav('/mom', { replace: true });
     } catch (e) { toast((e as Error).message); setBusy(false); }
   };

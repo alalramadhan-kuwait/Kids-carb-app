@@ -56,6 +56,8 @@ export interface Ingredient {
   qty_confirmed: boolean;
   note: string | null;
   sort: number;
+  /** served next to the dish, not in the pot: left out when a weighed plate is turned into carbs */
+  on_side?: boolean;
 }
 
 export interface Recipe {

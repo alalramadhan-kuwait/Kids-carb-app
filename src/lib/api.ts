@@ -36,7 +36,7 @@ export async function saveRecipe(recipe: Partial<Recipe> & { name: string }, ing
     : [];
   const rows = ings.map((i, n) => ({
     recipe_id: saved.id, role: i.role, product_id: i.product_id, slot_category: i.slot_category, label: i.label,
-    quantity: i.quantity, unit: i.unit, state: i.state, qty_confirmed: i.qty_confirmed, note: i.note, sort: n,
+    quantity: i.quantity, unit: i.unit, state: i.state, qty_confirmed: i.qty_confirmed, note: i.note, sort: n, on_side: !!i.on_side,
   }));
   if (rows.length) ok(await supabase.from('recipe_ingredients').insert(rows));
   if (oldIds.length) ok(await supabase.from('recipe_ingredients').delete().in('id', oldIds));

@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-06",
+    "version": "2.51.0",
+    "notes": [
+      "الأكل البيتي صار ينوزن: اختاري الطبخة ⚖️ «وزنتها بالميزان» واكتبي الرقم اللي طلع، والكارب ينحسب.",
+      "تذكير تحت الخانة: حطي الصحن فاضي واضغطي ON لين يصير 0 قبل الأكل.",
+      "اللي ينقدّم على الجنب (مثل الروب) ما ينحسب مع الوزن، وينضاف بروحه إذا أكلته."
+    ],
+    "notes_en": [
+      "Home dishes can be weighed: pick the dish, ⚖️ “I weighed it”, type the number on the scale, and the carbs are worked out.",
+      "A reminder under the box: put the empty plate on, press ON until it shows 0, then add the food.",
+      "What is served on the side (like yogurt) is not counted in the weight; add it separately if she ate it."
+    ]
+  },
+  {
+    "date": "2026-10-06",
     "version": "2.50.1",
     "notes": [
       "كل الأوقات في التطبيق صارت بنظام 12 ساعة (ص / م)، حتى في الرسوم والتنبيهات وخانات اختيار الوقت."

@@ -124,7 +124,7 @@ export async function ate(p: PlannedMeal, part: number, eatingAt: number, produc
   const meal = computeMeal(items, products, settings);
   if (!meal.complete) throw new Error('incomplete');
   const full = planMeal(p.items, products, settings).total.carbs;
-  const r = await logMeal({ kind: p.slot === 'snack' ? 'snack' : 'meal', recipe_id: p.recipe_id, name: p.name, category: null, meal, modified: part !== 1 || !p.recipe_id, eatenAt: new Date(eatingAt).toISOString() });
+  const r = await logMeal({ kind: p.slot === 'snack' ? 'snack' : 'meal', recipe_id: p.recipe_id, name: p.name, category: null, meal, modified: part !== 1 || !p.recipe_id, eatenAt: new Date(eatingAt).toISOString(), notes: p.note ?? undefined });  // the plan's note (a weighed plate, an item left out) stays with the meal
   await patch(p.id, { status: 'eaten', history_id: r.id, eaten_at: new Date().toISOString(), eating_at: new Date(eatingAt).toISOString(), part_eaten: part,
     carbs_planned: p.carbs_planned ?? Math.round(full * 10) / 10, carbs_eaten: Math.round(meal.total.carbs * 10) / 10 });
 }

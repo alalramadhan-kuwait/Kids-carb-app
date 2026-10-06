@@ -347,6 +347,10 @@ export function MomPortion() {
   };
   const carbsText = (v: number | null) => (v === null ? '' : v < 1 ? t('بدون كارب') : `${fmt(v)} ${t('غرام كارب')}`);
   const step = sel === 'g' ? (ss && ss < 40 ? 5 : 10) : 0.5;
+  // a home dish can be weighed: carbs for 100 g of what is in the pot; what is served on the side is added apart
+  const plate = !prod ? itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'plate' }) : null;
+  const per100 = !prod ? itemCarbs({ kind, id, portion_id: null, amount: 100, unit: 'g' }) : null;
+  const sides = !prod ? (c.ingsByRecipe.get(id) ?? []).filter((i) => i.on_side).map((i) => tMaybe(i.label ?? c.products.find((p) => p.id === i.product_id)?.name ?? '')).filter(Boolean) : [];
   return (
     <MomPage title={nameOf({ kind, id })} foot={<>
       {item && g !== null && <div className="text-center text-[18px] font-bold text-brand">{carbsText(g)}</div>}
@@ -360,13 +364,17 @@ export function MomPortion() {
             {ss && !each && <div className="text-slate-600">{t('الحصة {s} {u} = {g}', { s: fmt(ss), u: gUnit, g: carbsText(itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'serving' })) })}</div>}
             {prod.brand && <div className="text-sm text-slate-500"><bdi>{prod.brand}</bdi></div>}
           </div>
-        ) : <div className="text-[16px]">{t('الصحن الواحد = {g}', { g: carbsText(itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'plate' })) })}</div>}
+        ) : <div className="space-y-0.5 text-[16px]">
+          {per100 !== null && <div>{t('كل 100 غرام = {g}', { g: carbsText(per100) })}</div>}
+          {plate !== null && <div className={per100 !== null ? 'text-slate-600' : ''}>{t('الصحن الواحد = {g}', { g: carbsText(plate) })}</div>}
+        </div>}
       </div>
       <h2 className="text-[18px] font-bold">{t('كم؟')}</h2>
       {mine.map((p) => <Choice key={p.id} icon={p.photo_path ? <Photo path={p.photo_path} className="h-11 w-11" /> : '⭐'} label={tMaybe(p.label)} sub={carbsText(itemCarbs({ kind, id, portion_id: p.id }))} on={sel === p.id} onClick={() => pick(p.id, null)} />)}
       {prod && ss && <Choice icon={each ? '🔢' : '🥄'} label={each ? t('بالعدد') : t('بالحصة')} sub={each ? undefined : t('حصة = {s} {u}', { s: fmt(ss), u: gUnit })} on={sel === 'serving'} onClick={() => pick('serving', sel === 'serving' ? amt : 1)} />}
       {prod && pack && !each && <Choice icon="📦" label={t('العلبة كاملة')} sub={`${fmt(pack)} ${gUnit} · ${carbsText(itemCarbs({ kind, id, portion_id: null, amount: pack, unit: 'g' }))}`} on={sel === 'g' && amt === pack} onClick={() => pick('g', pack)} />}
       {prod && !each && <Choice icon="⚖️" label={prod.unit === 'ml' ? t('بالمل') : t('بالغرام')} on={sel === 'g' && amt !== pack} onClick={() => pick('g', sel === 'g' && amt !== pack ? amt : ss ?? null)} />}
+      {!prod && per100 !== null && <Choice icon="⚖️" label={t('وزنتها بالميزان')} sub={t('اكتبي الرقم اللي طلع')} on={sel === 'g'} onClick={() => pick('g', sel === 'g' ? amt : null)} />}
       {!prod && <Choice icon="🍽️" label={t('بالصحون')} on={sel === 'plate'} onClick={() => pick('plate', sel === 'plate' ? amt : 1)} />}
       {showAmt && (
         <div className="flex items-center justify-center gap-4">
@@ -378,6 +386,8 @@ export function MomPortion() {
           <span className="text-[18px] text-slate-500">{sel === 'g' ? gUnit : sel === 'serving' ? (each ? t('حبة') : t('حصة')) : t('صحن')}</span>
         </div>
       )}
+      {sel === 'g' && <p className="rounded-2xl bg-brand-soft px-4 py-3 text-[16px] leading-relaxed text-brand">⚖️ {t('حطي الصحن فاضي على الميزان واضغطي ON لين يصير 0، بعدين حطي الأكل.')}</p>}
+      {sel === 'g' && sides.length > 0 && <p className="text-center text-[15px] text-slate-600">{t('{x} على الجنب: إذا أكلته أضيفيه بروحه', { x: sides.join(' · ') })}</p>}
       {k !== null && <button className="min-h-[44px] font-bold text-over" onClick={() => { draftOps.remove(Number(k)); nav('/mom/meal', { replace: true }); }}>{t('شيليه من الصحن')}</button>}
     </MomPage>
   );

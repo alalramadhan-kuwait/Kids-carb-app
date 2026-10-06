@@ -7,6 +7,21 @@ import type { Ingredient, InjectionSite, PlanItem, Portion, Product, Recipe } fr
  *  (label servings, grams/ml, or plates of a recipe). */
 export interface MomItem { kind: 'product' | 'recipe'; id: string; portion_id: string | null; amount?: number; unit?: 'serving' | 'g' | 'plate' }
 
+const TBSP_G = 15;
+/** What one plate of a recipe weighs in the pot (the ingredients that go in it, cooked as written), so a plate she
+ *  weighed can be turned into carbs. Null when an ingredient's weight is not known (a serving with no size). */
+export function recipeMixGrams(ings: Ingredient[], products: Product[]): number | null {
+  let g = 0;
+  for (const i of ings) {
+    if (i.role === 'snack' || i.on_side) continue;
+    const q = Number(i.quantity);
+    if (i.unit === 'g' || i.unit === 'ml') g += q;
+    else if (i.unit === 'tbsp') g += q * TBSP_G;
+    else { const p = i.product_id ? products.find((x) => x.id === i.product_id) : null; if (!p?.serving_size) return null; g += q * Number(p.serving_size); }
+  }
+  return g > 0 ? g : null;
+}
+
 export interface Catalog {
   products: Product[];
   recipes: Recipe[];
@@ -29,9 +44,17 @@ export function planItemsOf(it: MomItem, c: Catalog): PlanItem[] | null {
     return [{ product_id: pr.id, slot_category: null, label: null, quantity: amount, unit: pr.unit, state: 'as_is', role }];
   }
   const r = c.recipes.find((x) => x.id === it.id);
-  if (!r || (p && p.recipe_id !== r.id) || (!p && it.unit !== 'plate')) return null;
-  const ings = (c.ingsByRecipe.get(r.id) ?? []).filter((i) => i.role !== 'snack');
-  if (!ings.length) return null;
+  if (!r || (p && p.recipe_id !== r.id) || (!p && it.unit !== 'plate' && it.unit !== 'g')) return null;
+  const all = (c.ingsByRecipe.get(r.id) ?? []).filter((i) => i.role !== 'snack');
+  if (!all.length) return null;
+  if (!p && it.unit === 'g') {
+    // a weighed plate: the pot's ingredients scaled to the grams on the scale (what is served on the side is added apart)
+    const mix = recipeMixGrams(all, c.products);
+    if (!mix) return null;
+    const k = amount / mix;
+    return all.filter((i) => !i.on_side).map((i) => ({ product_id: i.product_id, slot_category: i.slot_category, label: i.label, quantity: Number(i.quantity) * k, unit: i.unit, state: i.state, role: i.role }));
+  }
+  const ings = all;
   return ings.map((i) => ({ product_id: i.product_id, slot_category: i.slot_category, label: i.label, quantity: Number(i.quantity) * amount, unit: i.unit, state: i.state, role: i.role }));
 }
 

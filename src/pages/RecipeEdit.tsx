@@ -10,7 +10,7 @@ import { isEn, t, tMaybe } from '../i18n';
 import { Alert, Btn, CarbBadge, Card, Chip, Field, NumInput, Page, Photo, Sheet, cx, inputCls, recipeArt, toast } from '../components/ui';
 import { ProductPicker } from '../components/ProductPicker';
 
-interface Row { key: string; role: Role; pick: string; label: string; quantity: number | null; unit: Unit; state: State; qty_confirmed: boolean; note: string }
+interface Row { key: string; role: Role; pick: string; label: string; quantity: number | null; unit: Unit; state: State; qty_confirmed: boolean; note: string; on_side: boolean }
 let k = 0;
 const UNIT_WORD: Record<Unit, () => string> = { g: () => t('غ'), ml: () => t('مل'), serving: () => t('حبة/حصة'), tbsp: () => t('ملعقة كبيرة') };
 // foods counted in pieces (a slice, a croissant, a nugget): a new line starts at 1 piece. Everything else (spreads,
@@ -23,7 +23,7 @@ const Mini = ({ on, click, children }: { on: boolean; click: () => void; childre
     className={cx('min-h-[32px] rounded-full px-3 text-sm font-medium', on ? 'bg-brand text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200')}>{children}</button>
 );
 const ROLE_WORD: Record<Role, () => string> = { main: () => t('الوجبة'), drink: () => t('مشروب'), snack: () => t('سناك') };
-const blank = (): Row => ({ key: `n${++k}`, role: 'main', pick: '', label: '', quantity: null, unit: 'g', state: 'as_is', qty_confirmed: true, note: '' });
+const blank = (): Row => ({ key: `n${++k}`, role: 'main', pick: '', label: '', quantity: null, unit: 'g', state: 'as_is', qty_confirmed: true, note: '', on_side: false });
 
 export default function RecipeEdit() {
   const { id } = useParams();
@@ -43,7 +43,7 @@ export default function RecipeEdit() {
     existing
       ? (ingsByRecipe.get(existing.id) ?? []).map((i) => ({
           key: i.id, role: i.role, pick: i.product_id ? `prod:${i.product_id}` : `slot:${i.slot_category}`,
-          label: i.label ?? '', quantity: i.quantity, unit: i.unit, state: i.state, qty_confirmed: i.qty_confirmed, note: i.note ?? '',
+          label: i.label ?? '', quantity: i.quantity, unit: i.unit, state: i.state, qty_confirmed: i.qty_confirmed, note: i.note ?? '', on_side: !!i.on_side,
         }))
       : [],
   );
@@ -56,7 +56,7 @@ export default function RecipeEdit() {
   const toIng = (r: Row): Ingredient => ({
     id: r.key, role: r.role, product_id: r.pick.startsWith('prod:') ? r.pick.slice(5) : null,
     slot_category: r.pick.startsWith('slot:') ? r.pick.slice(5) : null,
-    label: r.label || null, quantity: r.quantity ?? 0, unit: r.unit, state: r.state, qty_confirmed: r.qty_confirmed, note: r.note || null, sort: 0,
+    label: r.label || null, quantity: r.quantity ?? 0, unit: r.unit, state: r.state, qty_confirmed: r.qty_confirmed, note: r.note || null, sort: 0, on_side: r.on_side,
   });
   const valid = rows.filter((r) => r.pick && r.quantity);
   const meal = useMemo(() => computeMeal(valid.map(toIng), products, settings), [rows, products, settings]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -166,6 +166,9 @@ export default function RecipeEdit() {
                     <Mini on={r.state !== 'cooked'} click={() => set(r.key, { state: 'as_is' })}>{t('قبل الطبخ')}</Mini>
                     <Mini on={r.state === 'cooked'} click={() => set(r.key, { state: 'cooked' })}>{t('بعد الطبخ')}</Mini>
                   </>}
+                  {/* served next to the dish (yogurt, salad): not in the pot, so not in a weighed plate */}
+                  <span className="mx-0.5 h-5 w-px bg-slate-200" />
+                  <Mini on={r.on_side} click={() => set(r.key, { on_side: !r.on_side })}>{t('على الجنب')}</Mini>
                   {!r.note && noteOpen !== r.key && <button className="ms-auto min-h-[32px] px-1 text-xs text-slate-500 underline" onClick={() => setNoteOpen(r.key)}>{t('+ ملاحظة')}</button>}
                 </div>
                 {(r.note || noteOpen === r.key) && <input className={inputCls} autoFocus={noteOpen === r.key} placeholder={t('ملاحظة (اختياري)')} value={r.note} onChange={(e) => set(r.key, { note: e.target.value })} />}
