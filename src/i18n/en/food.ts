@@ -767,6 +767,8 @@ export const food: Record<string, string> = {
   "النمط يحتاج {n} وجبات قابلة للمقارنة (الآن {k}).": "A pattern needs {n} comparable meals (now {k}).",
   "الوجبات المخططة": "Planned meals",
   "الوجبات المخططة لفريق الرعاية": "Meal plans for the care team",
+  "المعتاد · {n} مرات": "Usual · {n} times",
+  "كل مرة قبل": "Each time before",
   "الإشعارات على هالتلفون": "Notifications on this phone",
   "افتحي التطبيق من أيقونته على الشاشة الرئيسية أول": "Open the app from its home-screen icon first",
   "مرفوضة: فعّليها من إعدادات التلفون ← الإشعارات ← ليان": "Blocked: turn them on in phone Settings → Notifications → Layan",

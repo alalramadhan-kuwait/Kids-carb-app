@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-06",
+    "version": "2.46.5",
+    "notes": [
+      "«نفس الوجبة» يعرض كل المرات (لين 20 مرة في آخر 3 شهور) بخطوط رمادية خفيفة، وخط برتقالي «المعتاد» يمثّل وسطها، وتحتها كل مرة بسطر واحد."
+    ],
+    "notes_en": [
+      "“Same meal” shows every time (up to 20 in the last 3 months) as light grey lines, an orange “usual” line for the middle of them, and each time below in one line."
+    ]
+  },
+  {
+    "date": "2026-10-06",
     "version": "2.46.4",
     "notes": [
       "الوضع البسيط: الرسم ما ياخذ أكثر من نص الشاشة.",
