@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { TimeField } from '../components/TimeField';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useData } from '../lib/data';
@@ -51,7 +52,7 @@ export default function AlertsPage() {
   const setRise = (v: number | null) => setS({ ...s, alert_rise_rate: stored(v), alert_fall_rate: s.alert_fall_rate ?? s.alert_rapid_rate, alert_rapid_rate: null });
   const rateOk = (r: number | null) => r === null || (r >= 1 && r <= 6);
   const time = (k: 'night_start' | 'night_end' | 'school_start' | 'school_end') => (
-    <input type="time" dir="ltr" className={inputCls} value={hhmm(s[k])} onChange={(e) => setS({ ...s, [k]: e.target.value || null })} />
+    <TimeField dir="ltr" className={inputCls} value={hhmm(s[k])} onChange={(e) => setS({ ...s, [k]: e.target.value || null })} />
   );
   const setRole = async (user: string, role: string) => {
     const { error } = await supabase.rpc('set_alert_role', { p_user: user, p_role: role });

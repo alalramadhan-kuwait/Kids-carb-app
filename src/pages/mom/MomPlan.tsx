@@ -1,6 +1,7 @@
 // Mom mode, a meal planned for later — the same planned meals as the full app (on hold until its time; reminders go to
 // both parents): «متى؟» (which meal, today or tomorrow, the injection time), the planned list, one plan (injection
 // now, change the time, cancel), and the «المزيد» tab.
+import { TimeField } from '../../components/TimeField';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
@@ -83,7 +84,7 @@ export function MomWhen() {
         {[today, tomorrow].map((x, k) => <button key={x} onClick={() => setDay(x)} className={cx('min-h-[56px] rounded-2xl border-2 text-[18px] font-bold', day === x ? 'border-brand bg-brand-soft text-brand' : 'border-slate-200 bg-white')}>{k ? t('بكرة') : t('اليوم')}</button>)}
       </div>
       <label className="block space-y-1"><span className="text-[17px] font-bold">💉 {t('وقت الإبرة')}</span>
-        <input type="time" dir="ltr" className={cx(inputCls, '!min-h-[60px] !text-center !text-[26px] font-bold')} value={time} onChange={(e) => e.target.value && setTime(e.target.value)} /></label>
+        <TimeField dir="ltr" className={cx(inputCls, '!min-h-[60px] !text-center !text-[26px] font-bold')} value={time} onChange={(e) => e.target.value && setTime(e.target.value)} /></label>
       <p className="text-center text-[15px] text-slate-500">{t('الأكل بعد الإبرة بـ {m} د · يوصلكم تذكير', { m: eatAfter })}</p>
     </MomPage>
   );

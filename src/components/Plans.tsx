@@ -1,6 +1,7 @@
 // Planned meals on screen: the plan sheet (make it the evening before), the line on Now, the "Planned" list on Meals,
 // and the check that turns a plan into what really happened: dose (approved by a parent) → eat time → she ate. A plan
 // is on hold until then; a low first is treated first (with the plan's juice, if it has one).
+import { TimeField } from './TimeField';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
@@ -156,7 +157,7 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
             <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 text-sm">
               {[dayOf(now), dayOf(now + 86400000)].map((d, k) => <button key={d} onClick={() => setDay(d)} className={cx('min-h-[36px] rounded-lg', day === d ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{k ? t('غدًا') : t('اليوم')}</button>)}
             </div>
-            <label className="flex items-center gap-2 text-sm"><span className="shrink-0 text-slate-600">{t('الجرعة')}</span><input type="time" dir="ltr" className={cx(inputCls, '!min-h-[40px]')} value={time} onChange={(e) => setTime(e.target.value)} /></label>
+            <label className="flex items-center gap-2 text-sm"><span className="shrink-0 text-slate-600">{t('الجرعة')}</span><TimeField dir="ltr" className={cx(inputCls, '!min-h-[40px]')} value={time} onChange={(e) => setTime(e.target.value)} /></label>
           </div>
           <p className="rounded-xl bg-brand-soft px-3 py-2 text-sm text-brand">
             {t('الجرعة {d} · الأكل {e}', { d: clock(doseAt), e: clock(doseAt + eatAfter * MIN) })}
@@ -356,7 +357,7 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
         <div className="space-y-1.5">
           <label className="flex items-center justify-between gap-2 text-sm">
             <span className="text-slate-600">{t('بدأت الأكل')}</span>
-            <input type="time" dir="ltr" className={cx(inputCls, '!min-h-[40px] !w-36')} value={eatHm ?? hmOf(eatDefault)} onChange={(e) => setEatHm(e.target.value || null)} aria-label={t('بدأت الأكل')} />
+            <TimeField dir="ltr" className={cx(inputCls, '!min-h-[40px] !w-36')} value={eatHm ?? hmOf(eatDefault)} onChange={(e) => setEatHm(e.target.value || null)} aria-label={t('بدأت الأكل')} />
           </label>
           <div className="text-sm font-medium text-slate-600">{dosed ? t('أكلت:') : t('تسجيل الأكل بدون جرعة:')}</div>
           <div className="grid grid-cols-4 gap-1.5">
@@ -416,7 +417,7 @@ function DoseTimeRow({ plan }: { plan: PlannedMeal }) {
     <div className="space-y-1.5 rounded-2xl bg-slate-50 p-3">
       <label className="flex items-center justify-between gap-2 text-sm">
         <span className="text-slate-600">{t('الجرعة {u} و · الساعة', { u: fmt(plan.given_units ?? 0) })}</span>
-        <input type="time" dir="ltr" className={cx(inputCls, '!min-h-[40px] !w-36')} value={hm} onChange={(e) => setHm(e.target.value || hmOf(given))} aria-label={t('وقت الجرعة')} />
+        <TimeField dir="ltr" className={cx(inputCls, '!min-h-[40px] !w-36')} value={hm} onChange={(e) => setHm(e.target.value || hmOf(given))} aria-label={t('وقت الجرعة')} />
       </label>
       {changed && <Btn block disabled={busy} onClick={save}>{t('احفظ وقت الجرعة {time}', { time: clock(next) })}</Btn>}
     </div>

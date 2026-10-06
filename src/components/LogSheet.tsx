@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { TimeField } from './TimeField';
 import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { deleteEvent, restoreEvent, saveEvent, type NewEvent } from '../lib/api';
@@ -259,8 +260,8 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
           {kind === 'exercise' && <Seg on={KIND_STYLE[kind!].solid} value={level} onChange={(v) => setLevel(v as typeof level)} options={(['light', 'moderate', 'hard'] as const).map((l) => [l, LEVEL_TEXT[l]])} />}
           {kind === 'sleep' && (
             <div className="grid grid-cols-2 gap-3">
-              <Field label={t('نامت')}><input type="time" dir="ltr" className={inputCls} value={sleepFrom} onChange={(e) => setSleepFrom(e.target.value)} /></Field>
-              <Field label={t('صحت')}><input type="time" dir="ltr" className={inputCls} value={sleepTo} onChange={(e) => setSleepTo(e.target.value)} /></Field>
+              <Field label={t('نامت')}><TimeField dir="ltr" className={inputCls} value={sleepFrom} onChange={(e) => setSleepFrom(e.target.value)} /></Field>
+              <Field label={t('صحت')}><TimeField dir="ltr" className={inputCls} value={sleepTo} onChange={(e) => setSleepTo(e.target.value)} /></Field>
             </div>
           )}
           {kind === 'sleep' && draft && (valid

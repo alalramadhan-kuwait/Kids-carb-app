@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { TimeField } from '../components/TimeField';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -11,7 +12,7 @@ import { displayName } from '../lib/shortName';
 import { foodName, untranslated } from '../lib/foodName';
 import { usePortions } from '../lib/mom';
 import { Icon } from '../components/Icon';
-import { fmtTime } from '../lib/constants';
+import { fmtTime, hourTick } from '../lib/constants';
 import { AFTER_MIN, DEFAULT_STARTS, SLOT_KEYS, buildDay, type Activity, type DaySheet, type Dose, type Flag, type Food, type Line, type Occasion, type Slot, type Sum, type Prick, type SlotKey, type SlotStarts, type Treat } from '../lib/dietSheet';
 import type { EventRow, HistoryEntry, Portion, Product, Unit } from '../lib/types';
 import { Alert, Card, Page, cx } from '../components/ui';
@@ -196,7 +197,7 @@ export default function DietSheetPage() {
             <div className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-5">
               {SLOT_KEYS.map((k) => (
                 <label key={k} className="text-xs"><span className="mb-1 block text-slate-600">{t('{slot} يبدأ', { slot: t(SLOT_LABEL[k]) })}</span>
-                  <input type="time" dir="ltr" className="min-h-[40px] w-full rounded-xl border border-slate-200 bg-white px-2" value={hm(starts[k])}
+                  <TimeField dir="ltr" className="min-h-[40px] w-full rounded-xl border border-slate-200 bg-white px-2" value={hm(starts[k])}
                     onChange={(e) => { const v = toMin(e.target.value); if (Number.isFinite(v)) setStarts({ ...starts, [k]: v }); }} /></label>
               ))}
               <button className="col-span-2 text-start text-xs font-bold text-brand sm:col-span-5" onClick={() => setStarts(DEFAULT_STARTS)}>{t('الأوقات الافتراضية')}</button>
@@ -526,7 +527,7 @@ function DayChart({ s, low, high, unit }: { s: DaySheet; low: number; high: numb
       <rect x={x0} y={y(low)} width={x1 - x0} height={y1 - y(low)} fill={C.lowDot} opacity={0.06} />
       {[0, 3, 6, 9, 12, 15, 18, 21, 24].map((h) => (
         <g key={h}><line x1={x(s.start + h * 3600000)} x2={x(s.start + h * 3600000)} y1={y0} y2={y1} stroke={C.line} strokeWidth={0.8} />
-          <text x={x(s.start + h * 3600000)} y={H - 6} fontSize={12} fill={C.ink3} textAnchor="middle">{String(h).padStart(2, '0')}</text></g>
+          <text x={x(s.start + h * 3600000)} y={H - 6} fontSize={12} fill={C.ink3} textAnchor="middle">{hourTick(h)}</text></g>
       ))}
       <line x1={x0} x2={x1} y1={y(low)} y2={y(low)} stroke={C.lowDot} strokeWidth={1} strokeDasharray="5 4" />
       <line x1={x0} x2={x1} y1={y(high)} y2={y(high)} stroke={C.highDot} strokeWidth={1} strokeDasharray="5 4" />
@@ -588,7 +589,7 @@ function EventsChart({ s, evs, low, high, unit, W = 1100 }: { s: DaySheet; evs: 
       <rect x={x0} y={y(low)} width={x1 - x0} height={y1 - y(low)} fill={C.lowDot} opacity={0.06} />
       {[0, 3, 6, 9, 12, 15, 18, 21, 24].map((h) => (
         <g key={h}><line x1={x(s.start + h * 3600000)} x2={x(s.start + h * 3600000)} y1={y0} y2={MED + 2 * STEP} stroke={C.line} strokeWidth={0.8} />
-          <text x={x(s.start + h * 3600000)} y={y1 + 15} fontSize={12} fill={C.ink3} textAnchor="middle">{String(h).padStart(2, '0')}</text></g>
+          <text x={x(s.start + h * 3600000)} y={y1 + 15} fontSize={12} fill={C.ink3} textAnchor="middle">{hourTick(h)}</text></g>
       ))}
       <line x1={x0} x2={x1} y1={y(low)} y2={y(low)} stroke={C.lowDot} strokeWidth={1} strokeDasharray="5 4" />
       <line x1={x0} x2={x1} y1={y(high)} y2={y(high)} stroke={C.highDot} strokeWidth={1} strokeDasharray="5 4" />

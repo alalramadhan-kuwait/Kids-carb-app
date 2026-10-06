@@ -1,3 +1,4 @@
+import { hourTick } from '../lib/constants';
 // CGM Timeline Engine — data layer (GLUCOSE_PLAN 11.4, 11.13). Pure: no DOM, no React, tested in Node.
 // Readings live in typed arrays; everything here works on index ranges so a frame never allocates per reading.
 
@@ -164,8 +165,9 @@ export function timeTicks(start: number, end: number, width: number, minPx = 64)
 
 export function tickLabel(t: number, step: number) {
   const d = new Date(t + KW);
-  const hh = String(d.getUTCHours()).padStart(2, '0'), mm = String(d.getUTCMinutes()).padStart(2, '0');
-  if (step < 1440 * MIN) return hh === '00' && mm === '00' ? `${d.getUTCDate()}/${d.getUTCMonth() + 1}` : `${hh}:${mm}`;
+  const h = d.getUTCHours(), mm = String(d.getUTCMinutes()).padStart(2, '0');
+  // 12-hour: "3p" on the hour, "3:30" between (the hour ticks around it say which half of the day)
+  if (step < 1440 * MIN) return h === 0 && mm === '00' ? `${d.getUTCDate()}/${d.getUTCMonth() + 1}` : mm === '00' ? hourTick(h) : `${h % 12 || 12}:${mm}`;
   return `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
 }
 

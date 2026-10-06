@@ -12,7 +12,7 @@ import type { InjectionSite } from '../../lib/types';
 export const PEN = { rapid: '#F28C28', long: '#8DC63F' } as const;
 export const PEN_NAME = { rapid: 'نوفورابيد', long: 'تريسيبا' } as const; // i18n-ok: translated where shown
 
-export const clock = (ms: number) => new Date(ms).toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
+export const clock = (ms: number) => new Date(ms).toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit', hour12: true, numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
 export const ago = (ms: number, now = Date.now()) => {
   const m = Math.max(0, Math.round((now - ms) / 60000));
   if (m >= 12 * 60) return `${relDay(new Date(ms))} ${clock(ms)}`;

@@ -13,7 +13,7 @@ const STYLE: Record<AlertKind, string> = {
   urgent_low: 'bg-over text-white', low: 'bg-over-soft text-over', predicted_low: 'bg-over-soft text-over', high: 'bg-near-soft text-near', no_data: 'bg-slate-100 text-slate-700',
   rapid_fall: 'bg-over-soft text-over', rapid_rise: 'bg-near-soft text-near',
 };
-const clock = (iso: string) => new Date(iso).toLocaleTimeString(locale() + '-u-nu-latn', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kuwait' });
+const clock = (iso: string) => new Date(iso).toLocaleTimeString(locale() + '-u-nu-latn', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kuwait' });
 
 /** Active alerts above the graph: what, since when, who is on it. Compact, never a full-screen banner. */
 const LOWS: AlertKind[] = ['urgent_low', 'low', 'predicted_low'];

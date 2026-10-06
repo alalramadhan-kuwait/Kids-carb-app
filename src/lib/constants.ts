@@ -22,6 +22,15 @@ export const DAY_NAMES = ['الأحد', 'الاثنين', 'الثلاثاء', '�
 export const DAY_NAMES_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 export const dayName = (d: Date) => (isEn() ? DAY_NAMES_EN : DAY_NAMES)[d.getDay()];
 export const fmtDate = (d: Date) => `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+/** The family's clock, 12-hour, in Kuwait time whatever the phone's zone: "8:05 م" / "8:05 PM". */
+export const kwClock = (ms: number) => new Date(ms).toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kuwait', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
+const AM_PM = () => (isEn() ? ['AM', 'PM'] : ['\u0635', '\u0645']);   // ص / م
+/** An hour of the day as words, 12-hour: "2 AM" / «2 ص» (0 and 24 are midnight, 12 is noon). */
+export const hourWord = (h: number) => { const x = ((h % 24) + 24) % 24; return `${x % 12 || 12} ${AM_PM()[x < 12 ? 0 : 1]}`; };
+/** An hour on a graph's axis, short: "2a" / «2ص». */
+export const hourTick = (h: number) => { const x = ((h % 24) + 24) % 24; return `${x % 12 || 12}${isEn() ? (x < 12 ? 'a' : 'p') : AM_PM()[x < 12 ? 0 : 1]}`; };
+/** "HH:mm" (what a time field holds) shown 12-hour: "19:30" → "7:30 PM". */
+export const hmWord = (hm: string | null | undefined) => { const m = /^(\d{1,2}):(\d{2})/.exec(hm ?? ''); if (!m) return '—'; const h = Number(m[1]); return `${h % 12 || 12}:${m[2]} ${AM_PM()[h < 12 ? 0 : 1]}`; };
 export const fmtTime = (d: Date) => d.toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit', hour12: true, numberingSystem: 'latn' } as any);
 export const isoDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 export const sameDay = (a: Date, b: Date) => isoDate(a) === isoDate(b);

@@ -1,4 +1,5 @@
 import { useData } from '../lib/data';
+import { kwClock } from '../lib/constants';
 import { formatGlucose, unitLabel, type GlucoseUnit } from '../lib/glucose';
 import { describeEvent, unitsWord } from '../lib/events';
 import { mealResponse, OFFSETS, type Group, type Mark } from '../engine/events';
@@ -7,7 +8,7 @@ import { Sheet } from './ui';
 import { dir, t, tr } from '../i18n';
 
 const KW = 3 * 3600000;
-const clock = (t: number) => { const d = new Date(t + KW); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
+const clock = kwClock;
 const TITLE: Record<Mark['kind'], string> = tr({ meal: 'وجبة', carbs: 'كارب', insulin: 'إنسولين سريع', basal: 'إنسولين طويل', treatment: 'علاج انخفاض', exercise: 'رياضة', note: 'ملاحظة', sleep: 'نوم' }); // i18n-ok
 
 /** What was logged at this point of the graph, and — for a meal — what glucose did afterwards. Facts only. */

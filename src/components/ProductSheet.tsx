@@ -1,3 +1,4 @@
+import { fmtTime } from '../lib/constants';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../lib/data';
@@ -113,7 +114,7 @@ function Body({ p, onClose, start }: { p: Product; onClose: () => void; start: '
             </div>
             <button onClick={() => setKind('low')} aria-pressed={kind === 'low'}
               className={cx('min-h-[44px] w-full rounded-xl border-2 text-sm font-bold', kind === 'low' ? 'border-over bg-over text-white' : 'border-over/40 text-over')}>{t('لعلاج انخفاض')}</button>
-            {wasLow && <p className="text-xs text-slate-500">{t('السكر كان {v} الساعة {t}', { v: formatGlucose(wasLow.mg, settings.glucose_unit), t: new Date(wasLow.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) })}</p>}
+            {wasLow && <p className="text-xs text-slate-500">{t('السكر كان {v} الساعة {t}', { v: formatGlucose(wasLow.mg, settings.glucose_unit), t: fmtTime(new Date(wasLow.at)) })}</p>}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <Btn kind="ghost" onClick={() => setMode('choose')}>{t('رجوع')}</Btn>

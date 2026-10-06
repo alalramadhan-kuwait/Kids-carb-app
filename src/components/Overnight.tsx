@@ -8,7 +8,7 @@ import type { Series } from '../engine/series';
 import { effectiveRange, formatGlucose } from '../lib/glucose';
 import { nightOf } from '../lib/schedule';
 import { fmt } from '../lib/carbs';
-import { fmtTime, relDay } from '../lib/constants';
+import { fmtTime, hourWord, relDay } from '../lib/constants';
 import { dur } from '../pages/PlanReview';
 import { Card, cx } from './ui';
 import { isEn, t } from '../i18n';
@@ -109,7 +109,7 @@ function NightChart({ list, series, unit, range }: { list: Stretch[]; series: Se
       <rect x={PL} y={PT} width={W - PL - PR} height={PH} rx="8" fill="rgb(var(--surface-2))" />
       <rect x={PL} y={y(range.high)} width={W - PL - PR} height={y(range.low) - y(range.high)} fill="rgb(var(--st-in))" opacity="0.13" />
       {ticks.map((v) => <text key={v} x={W - 2} y={y(v) + 4} textAnchor="end" fontSize="10" fill="rgb(var(--text-3))" fontFamily="Rubik, system-ui">{formatGlucose(v, unit).replace(/\.0$/, '')}</text>)}
-      {[18, 22, 2, 6, 10].map((h, k) => <text key={h} x={PL + (k / 4) * (W - PL - PR)} y={HH - 4} textAnchor={k === 0 ? 'start' : k === 4 ? 'end' : 'middle'} fontSize="10" fill="rgb(var(--text-3))" fontFamily="Rubik, system-ui">{`${String(h).padStart(2, '0')}:00`}</text>)}
+      {[18, 22, 2, 6, 10].map((h, k) => <text key={h} x={PL + (k / 4) * (W - PL - PR)} y={HH - 4} textAnchor={k === 0 ? 'start' : k === 4 ? 'end' : 'middle'} fontSize="10" fill="rgb(var(--text-3))" fontFamily="Rubik, system-ui">{hourWord(h)}</text>)}
       {paths.map((p) => <path key={p.k} d={p.d} fill="none" stroke={p.low ? 'rgb(var(--st-low))' : 'rgb(var(--primary-strong))'} strokeWidth="1.8" strokeOpacity="0.8" strokeLinejoin="round" />)}
     </svg>
   );

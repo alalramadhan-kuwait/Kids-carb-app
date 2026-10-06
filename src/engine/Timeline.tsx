@@ -1,6 +1,7 @@
 // CGM Timeline Engine — renderer and gestures (GLUCOSE_PLAN 11.4–11.7, 11.13). Canvas 2D, redrawn only when
 // something changes. Time runs left → right whatever the page direction; gaps are breaks with a label.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { kwClock } from '../lib/constants';
 import { formatGlucose, unitLabel, type GlucoseUnit } from '../lib/glucose';
 import {
   PERIODS, delta15, freshness, gapsIn, limitEnd, nearest, rateAt, runsFor, tickLabel, timeTicks, yDomain, yGrid, zoomAt,
@@ -46,7 +47,7 @@ const css = (name: string, a = 1) => {
   return out;
 };
 const KW = 3 * 3600000;
-const clock = (t: number) => { const d = new Date(t + KW); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
+const clock = kwClock;
 
 export function Timeline({ series, view, now, onView, range, unit, height: total, marks = [], layers, onSelect, dayParts, highlight, tracks, forecasts, ahead = 0.04, night }: {
   series: Series; view: View; now: number; onView: (v: View, opts?: { animate?: boolean }) => void;

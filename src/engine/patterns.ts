@@ -1,5 +1,6 @@
 // Pattern cards (GLUCOSE_PLAN 10.10, 11.10, stage 11). Pure, tested in Node. Each card states the rule that
 // produced it and the days behind it, so the parents can check it; none says what to do about it.
+import { hourWord } from '../lib/constants';
 import type { HistoryEntry } from '../lib/types';
 import { dayStartOf, lowEpisodes } from './day';
 import { nearest, type Series } from './series';
@@ -26,7 +27,7 @@ export interface PatternInput {
 
 const median = (a: number[]) => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
 const at = (s: Series, t: number, tol = 15 * MIN) => { const i = nearest(s, t, tol); return i === null ? null : s.v[i]; };
-const hh = (h: number) => `${String(h % 24).padStart(2, '0')}:00`;
+const hh = hourWord;
 
 /** Fixed thresholds, stated on every card (GLUCOSE_PLAN 5.7). */
 export const DRIFT_MG = 30, RISE_MG = 60;

@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { TimeField } from '../components/TimeField';
 import { Link, useNavigate } from 'react-router-dom';
 import { setAlarmSound, testAlarm, useAlarmSound } from '../components/Alarm';
 import { keepAwakeSupported, setKeepAwake, useKeepAwakePref } from '../lib/keepAwake';
@@ -362,7 +363,7 @@ export function SettingsPage({ part = 'food' }: { part?: SettingsPart }) {
           )}
           {ratios.map((r, i) => (
             <div key={i} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.5rem] items-end gap-2">
-              <input type="time" aria-label={t('من الساعة')} className={inputCls} value={r.from} onChange={(e) => setR(i, { from: e.target.value })} />
+              <TimeField aria-label={t('من الساعة')} className={inputCls} value={r.from} onChange={(e) => setR(i, { from: e.target.value })} />
               <NumInput aria-label={t('غ لكل وحدة')} value={r.cr} onChange={(v) => setR(i, { cr: v ?? 0 })} />
               <NumInput aria-label={t('معامل التصحيح')} value={Number(formatGlucose(r.isf, s.glucose_unit))} onChange={(v) => setR(i, { isf: v === null ? 0 : toMgdl(v, s.glucose_unit) })} />
               <button aria-label={t('حذف')} className="h-11 rounded-xl bg-slate-100 text-slate-500" onClick={() => setS({ ...s, ratios: ratios.filter((_, n) => n !== i) })}>✕</button>

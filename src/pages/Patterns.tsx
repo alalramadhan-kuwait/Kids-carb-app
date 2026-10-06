@@ -1,3 +1,4 @@
+import { hourTick } from '../lib/constants';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useData } from '../lib/data';
@@ -171,7 +172,7 @@ export function ProfileChart({ bins, unit, range }: { bins: Bin[]; unit: 'mmol' 
         <text key={v} x={W - 2} y={y(v) + 4} textAnchor="end" fontSize="10" fill="rgb(var(--text-3))" fontFamily="Rubik, system-ui">{formatGlucose(v, unit).replace(/\.0$/, '')}</text>
       ))}
       {[0, 3, 6, 9, 12, 15, 18, 21, 24].map((h) => (
-        <text key={h} x={PL + (h / 24) * (W - PL - PR)} y={H - 6} textAnchor={h === 0 ? 'start' : h === 24 ? 'end' : 'middle'} fontSize="10" fill="rgb(var(--text-3))" fontFamily="Rubik, system-ui">{String(h).padStart(2, '0')}</text>
+        <text key={h} x={PL + (h / 24) * (W - PL - PR)} y={H - 6} textAnchor={h === 0 ? 'start' : h === 24 ? 'end' : 'middle'} fontSize="10" fill="rgb(var(--text-3))" fontFamily="Rubik, system-ui">{hourTick(h)}</text>
       ))}
       {runs.map((r, i) => <path key={'o' + i} d={area(r, 'p10', 'p90')} fill="rgb(var(--primary))" opacity="0.15" />)}
       {runs.map((r, i) => <path key={'i' + i} d={area(r, 'p25', 'p75')} fill="rgb(var(--primary))" opacity="0.32" />)}

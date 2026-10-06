@@ -302,11 +302,16 @@ export function recipients(members: { user_id: string; alert_role: string }[], n
   return (primary.length ? primary : on).map((m) => m.user_id);
 }
 
+/** Kuwait time, 12-hour like the app: "7:30 م" / "7:30 PM". */
+const kwClock = (ms: number, en = false) => {
+  const k = new Date(ms + 3 * 3600000), h = k.getUTCHours();
+  return `${LRI}${h % 12 || 12}:${String(k.getUTCMinutes()).padStart(2, '0')} ${h < 12 ? (en ? 'AM' : 'ص') : (en ? 'PM' : 'م')}${PDI}`;
+};
+
 /** Sensor expiry reminder: when it ends, in Kuwait time, so a change can be planned outside school or sleep. */
 export function sensorMessage(due: '24' | '2', endsAt: number, lang: Lang = 'ar') {
   const en = lang === 'en';
-  const k = new Date(endsAt + 3 * 3600000);
-  const at = `${LRI}${String(k.getUTCHours()).padStart(2, '0')}:${String(k.getUTCMinutes()).padStart(2, '0')}${PDI}`;
+  const at = kwClock(endsAt, en);
   const title = `${MARK.info} ${en ? `Sensor ends ${due === '2' ? 'in 2 hours' : 'within a day'}` : `الحساس ينتهي ${due === '2' ? 'خلال ساعتين' : 'خلال يوم'}`}`;
   return { title, body: en ? `At ${at} · have a new sensor ready` : `الساعة ${at} · جهّزوا حساسًا جديدًا` };
 }
@@ -336,7 +341,6 @@ export function planPushDue(p: PlanRow, now: number, review: { earlyMin: number;
 
 const SLOT_AR: Record<string, string> = { breakfast: 'الفطور', lunch: 'الغداء', dinner: 'العشاء', snack: 'السناك' };
 const SLOT_EN: Record<string, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack' };
-const kwClock = (ms: number) => { const k = new Date(ms + 3 * 3600000); return `${LRI}${String(k.getUTCHours()).padStart(2, '0')}:${String(k.getUTCMinutes()).padStart(2, '0')}${PDI}`; };
 
 /** Plan reminders; `g` is her glucose now, when there is a recent reading. */
 export function planMessage(kind: PlanPush, p: PlanRow, lang: Lang = 'ar', g?: { mg: number; trend: number | null; unit: 'mgdl' | 'mmol' } | null) {
@@ -344,7 +348,7 @@ export function planMessage(kind: PlanPush, p: PlanRow, lang: Lang = 'ar', g?: {
   const now = g ? nowLine(g.mg, g.trend, g.unit, lang) : null;
   const dose = Date.parse(p.dose_at);
   if (kind === 'check') return {
-    title: `${MARK.info} ${en ? `${meal} plan · dose at ${kwClock(dose)}` : `خطة ${meal} · الجرعة ${kwClock(dose)}`}`,
+    title: `${MARK.info} ${en ? `${meal} plan · dose at ${kwClock(dose, true)}` : `خطة ${meal} · الجرعة ${kwClock(dose)}`}`,
     body: join(now, en ? 'Check her glucose and confirm the dose' : 'افحصوا السكر وأكّدوا الجرعة'),
   };
   if (kind === 'eat') return {

@@ -659,7 +659,8 @@ test('zoom keeps the time under the fingers fixed; ticks follow Kuwait time', ()
   assert.equal(at(z, 0.25), at(v, 0.25)); assert.equal(z.span, 3 * 3600000);
   assert.equal(zoomAt(v, 1e-6, 0.5).span, 30 * M); // never closer than 30 minutes
   const { step, ticks } = timeTicks(END - 6 * 3600000, END, 390);
-  assert.equal(step, 3600000); assert.equal(tickLabel(ticks[0], step).length, 5);
+  assert.equal(step, 3600000); assert.match(tickLabel(ticks[0], step), /^(1[0-2]|[1-9])(a|p|\u0635|\u0645)$/, 'hour ticks are 12-hour: 3p / 3\u0645');
+  assert.equal(tickLabel(Date.parse('2026-10-01T12:30:00Z'), 1800000), '3:30', 'half-hours without am/pm (the hour ticks beside it say it)');
   assert.equal(tickLabel(Date.parse('2026-10-01T21:00:00Z'), 3600000), '2/10'); // midnight in Kuwait shows the date
 });
 
@@ -980,7 +981,7 @@ test('pattern cards follow plan 5.7: recurring lows, overnight drift, rise after
   const history = meals.map((m, k) => ({ id: 'b' + k, kind: 'meal', recipe_id: 'r9', name: 'مكرونة', eaten_at: new Date(m).toISOString() })) as unknown as HistoryEntry[];
   const cards = findPatterns({ series, history, now, low: 70, high: 180, reference: true });
   const by = (k: string) => cards.find((c) => c.kind === k);
-  assert.equal(by('recurring_lows')?.n, 3); assert.ok(by('recurring_lows')!.title.includes('22:00'));
+  assert.equal(by('recurring_lows')?.n, 3); assert.ok(by('recurring_lows')!.title.includes('10 \u0645'));
   assert.ok(by('recurring_lows')!.facts.text.includes('مرجعي'));
   assert.equal(by('overnight_drift')?.id, 'overnight_drift:down'); assert.equal(by('overnight_drift')!.days.length, 5); assert.equal(by('overnight_drift')!.facts.mg![1], 80);
   assert.equal(by('recipe_rise')?.title, 'ارتفاع بعد مكرونة'); assert.equal(by('recipe_rise')!.n, 4); assert.equal(by('recipe_rise')!.facts.mg![0], 80);
@@ -1117,7 +1118,7 @@ console.log('status page');
     assert.equal(planMessage('final', p, 'en').title, '🔵 Breakfast review ready');
   });
   test('plan reminder text, in both languages', () => {
-    assert.equal(planMessage('check', p, 'en').title, '🔵 Breakfast plan · dose at \u206607:00\u2069');
+    assert.equal(planMessage('check', p, 'en').title, '🔵 Breakfast plan · dose at \u20667:00 AM\u2069');
     assert.equal(planMessage('check', p, 'ar', { mg: 94, trend: 3, unit: 'mmol' }).body, 'الآن \u20665.2 →\u2069 ملمول/ل\nافحصوا السكر وأكّدوا الجرعة');
     assert.ok(planMessage('eat', p, 'en').body.startsWith('10 min since the dose'));
     assert.equal(planMessage('eat', p, 'ar').title, '🔵 وقت أكل الفطور');

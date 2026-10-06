@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { kwClock } from '../lib/constants';
 import { useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { useGlucose } from '../hooks/useGlucose';
@@ -20,7 +21,7 @@ import { isEn, t } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
 
 const H = 3600000, DAY = 24 * H, KW = 3 * H;
-const clock = (t: number) => { const d = new Date(t + KW); return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`; };
+const clock = kwClock;
 const ICON: Record<MarkKind, IconName> = { meal: 'meals', carbs: 'carbs', insulin: 'insulin', basal: 'insulin', treatment: 'treatment', exercise: 'activity', note: 'note', sleep: 'moon' };
 type Row = { t: number; key: string; mark?: Mark; low?: Episode };
 
@@ -155,7 +156,7 @@ export function DayView() {
             {rows.map((r) => (
               <li key={r.key}>
                 <button onClick={() => goTo(r.t)} className={cx('flex min-h-[52px] w-full items-center gap-3 px-4 py-2 text-start active:bg-slate-50', focus === r.t && 'bg-brand-soft/60')}>
-                  <span className="num w-12 shrink-0 text-sm text-slate-500">{clock(r.t)}</span>
+                  <span className="num w-16 shrink-0 text-sm text-slate-500">{clock(r.t)}</span>
                   {r.low ? (
                     <>
                       <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-over-soft text-over"><Icon name="glucose" size={17} /></span>
