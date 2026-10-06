@@ -48,8 +48,8 @@ export const CUP_SIZES: CupSize[] = [
 ];
 const SIZED = /^(.+?)\s*\((Mini cup|Small cup|Medium cup|Large cup|Regular parfait|Large parfait)\)$/;
 
-/** Items named "<flavour> (<size>)" gathered by size (only when two or more flavours share the sizes); the
- *  weighed flavours of the same section (sold by grams, no sizes) are offered with every size; the rest stay tiles. */
+/** Items named "<flavour> (<size>)" gathered by size (only when two or more flavours share the sizes); `weighed`
+ *  (sold by grams, no sizes) is no longer shown with the sizes: the family buys by size; the rest stay tiles. */
 export function cupsOf<T extends { name: string; per_item?: boolean }>(items: T[]) {
   const sized = items.map((i) => ({ i, m: SIZED.exec(i.name) })).filter((x) => x.m);
   const flavours = new Set(sized.map((x) => x.m![1]));

@@ -219,7 +219,7 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   const [sp, setSp] = useSearchParams();
   const [q, setQ] = useState('');
   const r = restaurantByKey(key);
-  const { products, tile, pick, tileCarbs } = useFoods(browse);
+  const { products, tile, pick } = useFoods(browse);
   const items = products.filter((p) => restaurantOf(p.brand)?.key === key);
   const bar = useCompareBar(browse), menuBack = useBack(`${browse ? '/mom/food' : '/mom/add'}?tab=restaurants`);
   // frozen yogurt (and any food sold in sizes): size first, then the flavour
@@ -238,7 +238,6 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
         })}
         {size && <h2 className="text-[18px] font-bold">{t('أي نكهة؟')}</h2>}
         {size && size.items.map(({ item }) => <Choice key={item.id} icon="🍦" label={flavour(item)} sub={t('{g} غ كارب', { g: fmt(Number(item.carbs_per_100)) })} onClick={() => pick('product', item.id)} />)}
-        {size && sized.cups.weighed.map((p) => <Choice key={p.id} icon="⚖️" label={foodName(p)} sub={`${t('بالوزن')} · ${tileCarbs('product', p.id) ?? ''}`} onClick={() => pick('product', p.id)} />)}
       </MomPage>
     );
   }
@@ -247,7 +246,7 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   const open = sections.find((x) => x.section.key === sec) ?? (sections.length === 1 ? sections[0] : null);
   const found = q.trim() ? items.filter((p) => matches([p.name, p.name_ar ?? '', p.category], q)) : [];
   const cupRow = (cups: (typeof sections)[number]['cups']) => cups.sizes.length > 0 && (
-    <Choice icon="🍦" label={t('كوب: اختاري الحجم ثم النكهة')} sub={t('{n} نكهات', { n: new Set([...cups.sizes.flatMap((z) => z.items.map((x) => x.flavour)), ...cups.weighed.map((w) => w.name)]).size })} onClick={() => setSp({ cup: 'choose' })} />
+    <Choice icon="🍦" label={t('كوب: اختاري الحجم ثم النكهة')} sub={t('{n} نكهات', { n: new Set(cups.sizes.flatMap((z) => z.items.map((x) => x.flavour))).size })} onClick={() => setSp({ cup: 'choose' })} />
   );
   const here = `${browse ? '/mom/food' : '/mom/add'}/r/${key}`;
   return (
