@@ -203,7 +203,7 @@ export function MomAdd({ browse = false }: { browse?: boolean }) {
 export function RestaurantLogo({ r, size = 56 }: { r: Restaurant; size?: number }) {
   return (
     <span aria-hidden className="grid shrink-0 place-items-center overflow-hidden rounded-2xl font-black leading-none shadow-sm" dir="ltr"
-      style={{ width: size, height: size, background: r.bg, color: r.fg, fontSize: size * (r.mark.length > 2 ? 0.34 : r.mark.length > 1 ? 0.42 : 0.7), letterSpacing: r.mark.length > 1 ? '-0.02em' : undefined,
+      style={{ width: size, height: size, background: r.bg, color: r.fg, fontSize: size * (r.mark.length > 3 ? 0.27 : r.mark.length > 2 ? 0.34 : r.mark.length > 1 ? 0.42 : 0.7), letterSpacing: r.mark.length > 1 ? '-0.02em' : undefined,
         ...(r.key === 'bk' ? { borderRadius: '50%', boxShadow: `inset 0 0 0 ${size * 0.06}px #F89D1C` } : {}) }}>
       {r.mark}
     </span>

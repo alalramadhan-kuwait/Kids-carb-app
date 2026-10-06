@@ -8,6 +8,7 @@ export const RESTAURANTS: Restaurant[] = [
   { key: 'mcd', brand: "McDonald's", label: 'ماكدونالدز', bg: '#DA291C', fg: '#FFC72C', mark: 'M' }, // i18n-ok: stored labels, shown via tMaybe
   { key: 'bk', brand: 'Burger King', label: 'برغر كنغ', bg: '#F5EBDC', fg: '#D62300', mark: 'BK' }, // i18n-ok
   { key: 'kfc', brand: 'KFC', label: 'كنتاكي', bg: '#E4002B', fg: '#FFFFFF', mark: 'KFC' }, // i18n-ok
+  { key: 'pick', brand: 'PICK', label: 'بيك', bg: '#0BA182', fg: '#FFFFFF', mark: 'PICK' }, // i18n-ok: frozen yogurt
 ];
 
 export const restaurantOf = (brand: string | null | undefined): Restaurant | null =>

@@ -1,0 +1,1651 @@
+{
+ "brand": "PICK",
+ "brand_ar": "بيك",
+ "source": "orderpick.com — PICK Kuwait official ordering site, store Al-Rai (102); structured \"nutritional\" fields per item (per 1 item as sold; no weights published)",
+ "retrieved": "2026-10-06",
+ "basis": "per item (one serving as sold)",
+ "not_published": "Frozen yogurt cups (Mini/Small/Medium/Large), flavours (Original Yo, Original Pro, Ult Vanilla Mi, Purple Mi), all toppings/sauces/crusts and the named YO/Mi cups: nutritional fields empty on the official site.",
+ "caution": "Item descriptions sometimes carry placeholder text \"Kcal: 0 … 0g Carbs\" (e.g. Cantaloupe Cup) while the structured field says 14 g: only the structured fields were used; all-zero items dropped.",
+ "items": [
+  {
+   "name": "15",
+   "description": "Original pro, pro pistachio sauce, crunchy kataifi base.",
+   "carbs_per_item": 33.0,
+   "kcal": 379.0,
+   "protein": 21.0,
+   "fat": 18.0,
+   "allergy": "Dairy, Tree Nuts, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-130460"
+  },
+  {
+   "name": "5Berries CK Pro Shake",
+   "description": "5berries compote, cheesecake sauce, protein mix",
+   "carbs_per_item": 38.0,
+   "kcal": 338.0,
+   "protein": 28.0,
+   "fat": 8.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-80107"
+  },
+  {
+   "name": "Acai Classic Bowl",
+   "description": "Acai, banana, raspberries, honey granola, blueberry, chia seeds \\u0026 fresh mint.",
+   "carbs_per_item": 58.0,
+   "kcal": 274.0,
+   "protein": 3.0,
+   "fat": 5.0,
+   "allergy": "Tree Nuts",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-556"
+  },
+  {
+   "name": "Acai Para Bowl",
+   "description": "Acai, banana, granola, banana, strawberry, peanut butter.",
+   "carbs_per_item": 40.0,
+   "kcal": 400.0,
+   "protein": 11.0,
+   "fat": 23.0,
+   "allergy": "Dairy, Peanuts, Tree Nuts",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-94290"
+  },
+  {
+   "name": "Acai Passion Fruit Bowl",
+   "description": "Acai, passion fruit, strawberry, honey granola, blueberry, banana, pistachio sticks, chia seeds.",
+   "carbs_per_item": 69.0,
+   "kcal": 350.0,
+   "protein": 5.0,
+   "fat": 8.0,
+   "allergy": "Tree Nuts",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-557"
+  },
+  {
+   "name": "Acai Peanut Bowl",
+   "description": "Acai, banana, strawberry, honey granola, peanut sauce, chia seeds, shaved coconut.",
+   "carbs_per_item": 68.0,
+   "kcal": 398.0,
+   "protein": 5.0,
+   "fat": 13.0,
+   "allergy": "Peanuts, Tree Nuts",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-558"
+  },
+  {
+   "name": "Apple & Peanut Dip",
+   "description": "Green apples, peaunut sauce.",
+   "carbs_per_item": 14.0,
+   "kcal": 211.0,
+   "protein": 7.0,
+   "fat": 16.0,
+   "allergy": "Dairy, Peanuts",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-672"
+  },
+  {
+   "name": "Artichoke Salad Pot",
+   "description": "Artichoke, rocca, olives, lemon dressing.",
+   "carbs_per_item": 15.0,
+   "kcal": 156.0,
+   "protein": 3.0,
+   "fat": 9.0,
+   "allergy": "Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-90773"
+  },
+  {
+   "name": "Baked Chicken Katsu",
+   "description": "White rice, baked chicken breast, katsu curry, japanese salad.",
+   "carbs_per_item": 50.0,
+   "kcal": 475.0,
+   "protein": 41.0,
+   "fat": 13.0,
+   "allergy": "Sesame, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-30462"
+  },
+  {
+   "name": "Baked Chicken Sliders",
+   "description": "Baked breaded chicken breast, lettuce, cheddar cheese, sircha mayo sauce, pickles, mustard, slider bun.",
+   "carbs_per_item": 25.0,
+   "kcal": 344.0,
+   "protein": 34.0,
+   "fat": 11.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-6"
+  },
+  {
+   "name": "Banana Blueberry Frappick",
+   "description": "Banana, blueberry, milk, frappick powder.",
+   "carbs_per_item": 47.0,
+   "kcal": 226.0,
+   "protein": 4.0,
+   "fat": 2.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-90787"
+  },
+  {
+   "name": "Banana Matcha Frappick",
+   "description": "Banana, matcha, milk, frappick powder.",
+   "carbs_per_item": 45.0,
+   "kcal": 232.0,
+   "protein": 4.0,
+   "fat": 3.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-90788"
+  },
+  {
+   "name": "Banana Split",
+   "description": "Chocolate crust layered with fresh banana slices, covered with PICK’s famous toffee caramel, finished with Vanilla Mi and dark chocolate dust. Kcal 385, 21g Fat, 8g Protein, 52g Carb. Allergens: Dairy",
+   "carbs_per_item": 52.0,
+   "kcal": 385.0,
+   "protein": 8.0,
+   "fat": 21.0,
+   "allergy": null,
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-121646"
+  },
+  {
+   "name": "Beef Pastrami Ciabatta",
+   "description": "Beef Pastrami, cheddar cheese, Pickles, Carmelized onion, Light dijon mayo spread in ciabatta bread.",
+   "carbs_per_item": 29.0,
+   "kcal": 291.0,
+   "protein": 17.0,
+   "fat": 12.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-122127"
+  },
+  {
+   "name": "Beef Protein Pack",
+   "description": "Beef Protein Pack\\\\t: Tenderloin steak, semi glace mushroom sauce, mashed potatos, carrots, brocoli.",
+   "carbs_per_item": 34.0,
+   "kcal": 440.0,
+   "protein": 37.0,
+   "fat": 17.0,
+   "allergy": "Soy, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-575"
+  },
+  {
+   "name": "Beef Shawarma Wrap",
+   "description": "Roasted beef shawarma, grilled tomatoes, grilled onions, tahini sauce and freash parsley.",
+   "carbs_per_item": 37.0,
+   "kcal": 384.0,
+   "protein": 28.0,
+   "fat": 14.0,
+   "allergy": "Sesame, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-15"
+  },
+  {
+   "name": "Beefaroni",
+   "description": "Macaroni, cheddar cheese, beef.",
+   "carbs_per_item": 30.0,
+   "kcal": 371.0,
+   "protein": 22.0,
+   "fat": 9.0,
+   "allergy": "Dairy, Soy, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-89141"
+  },
+  {
+   "name": "Beet Shot",
+   "description": "Pomegranate, beetroot, and apple.",
+   "carbs_per_item": 19.0,
+   "kcal": 77.0,
+   "protein": null,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-651"
+  },
+  {
+   "name": "Beetroot Salad Pot",
+   "description": "Beetroot, rocca, pasta, olives, feta cheese، lemon dressing,wallnuts.",
+   "carbs_per_item": 14.0,
+   "kcal": 162.0,
+   "protein": 5.0,
+   "fat": 11.0,
+   "allergy": "Dairy, Tree Nuts, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-89719"
+  },
+  {
+   "name": "Berries Nata",
+   "description": "Traditional portuguese nata with silky custard filling.",
+   "carbs_per_item": 24.0,
+   "kcal": 236.0,
+   "protein": 5.0,
+   "fat": 13.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-45742"
+  },
+  {
+   "name": "Berries Oatmeal Pot",
+   "description": "Oats mixed with greek yogurt and mixed berries compote.",
+   "carbs_per_item": 38.0,
+   "kcal": 213.0,
+   "protein": 13.0,
+   "fat": 3.0,
+   "allergy": "Dairy, Tree Nuts",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-667"
+  },
+  {
+   "name": "Berry Shot",
+   "description": "Blackberry, blueberry, raspberry, strawberry, and pomegranate.",
+   "carbs_per_item": 19.0,
+   "kcal": 78.0,
+   "protein": 12.0,
+   "fat": 3.0,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-650"
+  },
+  {
+   "name": "Birthday Cake",
+   "description": "Vanilla sponge topped with fresh cream and Vanilla Mi, finished with rainbow sprinkles all over the cup. Kcal 254, 11g Fat, 6g Protein, 31g Carb. Allergens: Dairy, Eggs",
+   "carbs_per_item": 31.0,
+   "kcal": 254.0,
+   "protein": 6.0,
+   "fat": 11.0,
+   "allergy": null,
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-121642"
+  },
+  {
+   "name": "Blossom Lemonade",
+   "description": "Lemon, water, blossom water, sugar.",
+   "carbs_per_item": 10.0,
+   "kcal": 36.0,
+   "protein": null,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-640"
+  },
+  {
+   "name": "Burrata Stracciatella Schiaccatta",
+   "description": "",
+   "carbs_per_item": 37.0,
+   "kcal": 360.0,
+   "protein": 12.0,
+   "fat": 18.0,
+   "allergy": "Dairy, Tree Nuts, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-75401"
+  },
+  {
+   "name": "Butter Chicken Protein Pack",
+   "description": "Grilled tandoori chicken, biryani rice, light butter and greek yogurt sauce..",
+   "carbs_per_item": 38.0,
+   "kcal": 584.0,
+   "protein": 41.0,
+   "fat": 29.0,
+   "allergy": "Dairy, Soy, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-582"
+  },
+  {
+   "name": "Cafe Latte",
+   "description": "Coffee, milk.",
+   "carbs_per_item": 14.0,
+   "kcal": 99.0,
+   "protein": 10.0,
+   "fat": 1.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-36783"
+  },
+  {
+   "name": "Cantaloupe Cup",
+   "description": "Cantaloupe fruit .",
+   "carbs_per_item": 14.0,
+   "kcal": 62.0,
+   "protein": 1.0,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-88498"
+  },
+  {
+   "name": "Cappucino",
+   "description": "Coffee, milk, cocoa powder.",
+   "carbs_per_item": 14.0,
+   "kcal": 100.0,
+   "protein": 10.0,
+   "fat": 1.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-36786"
+  },
+  {
+   "name": "Caramel Frappick",
+   "description": "Espresso shot, milk, frappick powder, caramel sauce, whipped cream.",
+   "carbs_per_item": 70.0,
+   "kcal": 234.0,
+   "protein": 34.0,
+   "fat": 32.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-91151"
+  },
+  {
+   "name": "Cheese Croissant",
+   "description": "Croissant filled with emmental, cheddar, and mozzarella cheese..",
+   "carbs_per_item": 22.0,
+   "kcal": 353.0,
+   "protein": 11.0,
+   "fat": 24.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-45739"
+  },
+  {
+   "name": "Chicken Burrito Bowl",
+   "description": "Grilled chicken, wild rice, black beans, cilantro, pico de gallo, mixed bell peppers, corn, cheese, smoked chipotle sauce, sour cream.",
+   "carbs_per_item": 45.0,
+   "kcal": 530.0,
+   "protein": 41.0,
+   "fat": 21.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-106199"
+  },
+  {
+   "name": "Chicken Caesar Wrap",
+   "description": "Chicken, caesar sauce, parmesan cheese, lettuce, tortilla bread.",
+   "carbs_per_item": 39.0,
+   "kcal": 549.0,
+   "protein": 47.0,
+   "fat": 21.0,
+   "allergy": "Dairy, Eggs, Soy, Gluten (Wheat), Fish",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-94763"
+  },
+  {
+   "name": "Chicken Caprese Sourdough",
+   "description": "Grilled Chicken breast, Coriander Sauce, Sundried Chili Tomato Sauce, Mozzarella Cheese, Sourdough Bread.",
+   "carbs_per_item": 45.0,
+   "kcal": 490.0,
+   "protein": 47.0,
+   "fat": 13.0,
+   "allergy": "Dairy, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-116812"
+  },
+  {
+   "name": "Chicken Fajita Wrap",
+   "description": "Chicken prepared in mexican sauce, cheddar cheese, sweet peppers, onions, and sour cream.",
+   "carbs_per_item": 29.0,
+   "kcal": 269.0,
+   "protein": 23.0,
+   "fat": 8.0,
+   "allergy": "Dairy, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-20"
+  },
+  {
+   "name": "Chicken Green Curry",
+   "description": "Tender chicken breast, green curry pate, jasmine rice, mushrooms, sugar snap peas.",
+   "carbs_per_item": 56.0,
+   "kcal": 590.0,
+   "protein": 34.0,
+   "fat": 27.0,
+   "allergy": "Dairy, Soy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-88156"
+  },
+  {
+   "name": "Chicken Mushroom Pasta",
+   "description": "Farfalle pasta, chopped chicken, mushroom creme sauce, and ricotta cheese.",
+   "carbs_per_item": 52.0,
+   "kcal": 497.0,
+   "protein": 26.0,
+   "fat": 22.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-584"
+  },
+  {
+   "name": "Chicken Pasta Salad",
+   "description": "Roasted chicken, farfaile pasta, mixed vegetables, olives, feta cheese, coriander dressing.",
+   "carbs_per_item": 44.0,
+   "kcal": 376.0,
+   "protein": 22.0,
+   "fat": 14.0,
+   "allergy": "Dairy, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-655"
+  },
+  {
+   "name": "Chicken Pesto Sandwich",
+   "description": "Chicken breast, parmesan pesto, bechamel sauce and sundried tomatoes, ciabatta bread.",
+   "carbs_per_item": 35.0,
+   "kcal": 392.0,
+   "protein": 27.0,
+   "fat": 16.0,
+   "allergy": "Dairy, Eggs, Tree Nuts, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-13"
+  },
+  {
+   "name": "Chicken Shawarma Wrap",
+   "description": "Chicken shawarma with lemon tahini sauce.",
+   "carbs_per_item": 26.0,
+   "kcal": 291.0,
+   "protein": 22.0,
+   "fat": 12.0,
+   "allergy": "Sesame, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-18"
+  },
+  {
+   "name": "Chocolate Babka",
+   "description": "Brioche Loaf, Belgian dark chocolate.",
+   "carbs_per_item": 55.0,
+   "kcal": 430.0,
+   "protein": 11.0,
+   "fat": 18.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-104661"
+  },
+  {
+   "name": "Chocolate Chip",
+   "description": "Sugar-free choco hazelnut topped with a Vanilla Mi swirl, finished with double chocolate drizzle and fine roasted hazelnut chips. Kcal 380, 25g Fat, 10g Protein, 40g Carb. Allergens: Dairy, Nuts",
+   "carbs_per_item": 40.0,
+   "kcal": 380.0,
+   "protein": 10.0,
+   "fat": 25.0,
+   "allergy": null,
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-121647"
+  },
+  {
+   "name": "Chocolate Cookie",
+   "description": "Salty soft cookie dough with belgian couverture milk chocolate.",
+   "carbs_per_item": 64.0,
+   "kcal": 392.0,
+   "protein": 7.0,
+   "fat": 12.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-45744"
+  },
+  {
+   "name": "Club PRO Sandwich",
+   "description": "Omelette, mature cheddar, beef pastrami, spicy herbed mayo sauce, multi cereal toast.",
+   "carbs_per_item": 24.0,
+   "kcal": 339.0,
+   "protein": 20.0,
+   "fat": 18.0,
+   "allergy": "Dairy, Eggs, Tree Nuts, Sesame, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-64604"
+  },
+  {
+   "name": "Corsican Egg Half Panini",
+   "description": "Whole wheat ciabatta panini, cream cheese, feta cheese, mint omelette, green onion.",
+   "carbs_per_item": 22.0,
+   "kcal": 270.0,
+   "protein": 15.0,
+   "fat": 13.0,
+   "allergy": "Dairy, Eggs, Soy, Sesame, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-130238"
+  },
+  {
+   "name": "Cottage Cheese Sourdough",
+   "description": "Sundried Tomato Chili Sauce, Cottage Cheese, Sourdough Bread, Pesto Sauce.",
+   "carbs_per_item": 50.0,
+   "kcal": 360.0,
+   "protein": 16.0,
+   "fat": 10.0,
+   "allergy": "Dairy, Tree Nuts, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-116811"
+  },
+  {
+   "name": "Crisp Caesar Salad",
+   "description": "Shreaded kale, shredded lettuce, lemon and herb grilled chicken breast, garlic chips \\u0026 crispy onion with caesar dressing .",
+   "carbs_per_item": 15.0,
+   "kcal": 396.0,
+   "protein": 40.0,
+   "fat": 18.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-55964"
+  },
+  {
+   "name": "Cuban Stew",
+   "description": "Rice, red kidney beans, carrots, potatos, vegetable stew.",
+   "carbs_per_item": 107.0,
+   "kcal": 609.0,
+   "protein": 26.0,
+   "fat": 9.0,
+   "allergy": "Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-88436"
+  },
+  {
+   "name": "Date Almond Pro Shake",
+   "description": "Date almond pro shake, pick protein blend.",
+   "carbs_per_item": 43.0,
+   "kcal": 371.0,
+   "protein": 30.0,
+   "fat": 11.0,
+   "allergy": "Dairy, Tree Nuts",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-80108"
+  },
+  {
+   "name": "Edamame Dip",
+   "description": "Edamame, light spicy mayo dip.",
+   "carbs_per_item": 9.0,
+   "kcal": 118.0,
+   "protein": 9.0,
+   "fat": 6.0,
+   "allergy": "Eggs, Soy, Sesame",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-675"
+  },
+  {
+   "name": "Egg Bun",
+   "description": "Scrambled egg, cheddar cheese, wild rocca.",
+   "carbs_per_item": 24.0,
+   "kcal": 340.0,
+   "protein": 19.0,
+   "fat": 18.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-8"
+  },
+  {
+   "name": "Egg PRO Toast",
+   "description": "High protein toast, two egg whites, one whole egg, chives, light cream cheese.",
+   "carbs_per_item": 21.0,
+   "kcal": 252.0,
+   "protein": 14.0,
+   "fat": 12.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-58243"
+  },
+  {
+   "name": "Egg Zaatar Half Panini",
+   "description": "Ciabatta panini, fresh zaatar leaves, omelette, herbed cream cheese.",
+   "carbs_per_item": 26.0,
+   "kcal": 285.0,
+   "protein": 15.0,
+   "fat": 14.0,
+   "allergy": "Dairy, Eggs, Soy, Sesame, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-130236"
+  },
+  {
+   "name": "Emerald",
+   "description": "Kiwi, kale, apple, lime, ginger.",
+   "carbs_per_item": 40.0,
+   "kcal": 136.0,
+   "protein": 1.0,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-645"
+  },
+  {
+   "name": "Espresso Frappick",
+   "description": "Espresso shot, milk, frappick powder, whipped cream.",
+   "carbs_per_item": 40.0,
+   "kcal": 204.0,
+   "protein": 4.0,
+   "fat": 2.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-91149"
+  },
+  {
+   "name": "Espresso Pro Shake",
+   "description": "Espresso, pick protein blend.",
+   "carbs_per_item": 22.0,
+   "kcal": 206.0,
+   "protein": 26.0,
+   "fat": 2.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-80109"
+  },
+  {
+   "name": "Feta Focaccia",
+   "description": "Fresh baked feta cheese focaccia with italian herbs and parmesan, cherry tomato, olive and fresh thyme.",
+   "carbs_per_item": 38.0,
+   "kcal": 292.0,
+   "protein": 10.0,
+   "fat": 11.0,
+   "allergy": "Dairy, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-42892"
+  },
+  {
+   "name": "Flat White",
+   "description": "Coffee, milk.",
+   "carbs_per_item": 12.0,
+   "kcal": 80.0,
+   "protein": 6.0,
+   "fat": null,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-36785"
+  },
+  {
+   "name": "Forest",
+   "description": "Apple juice, pear, avocado, cucumber, spinach.",
+   "carbs_per_item": 32.0,
+   "kcal": 173.0,
+   "protein": 2.0,
+   "fat": 6.0,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-646"
+  },
+  {
+   "name": "French Matcha Cloud",
+   "description": "Koicha signature matcha, salted vanilla syrup, vanilla cold foam, milk.",
+   "carbs_per_item": 25.0,
+   "kcal": 231.0,
+   "protein": 5.0,
+   "fat": 10.0,
+   "allergy": "Dairy.",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-118535"
+  },
+  {
+   "name": "Fresh Laban",
+   "description": "Laban.",
+   "carbs_per_item": 4.0,
+   "kcal": 64.0,
+   "protein": 12.0,
+   "fat": null,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-647"
+  },
+  {
+   "name": "Fresh Veggies Dip",
+   "description": "Carrots and cucumber sticks, non fat ranch dip.",
+   "carbs_per_item": 19.0,
+   "kcal": 83.0,
+   "protein": 1.0,
+   "fat": 1.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-11738"
+  },
+  {
+   "name": "Ginger Shot",
+   "description": "Apple, kiwi, and ginger.",
+   "carbs_per_item": 15.0,
+   "kcal": 64.0,
+   "protein": null,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-652"
+  },
+  {
+   "name": "Greek Quinoa Salad",
+   "description": "Lettuce, rocca, multicolor quinoa, feta cheese, carrots, capricum, olives, greek dressing.",
+   "carbs_per_item": 23.0,
+   "kcal": 233.0,
+   "protein": 8.0,
+   "fat": 12.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-89293"
+  },
+  {
+   "name": "Greek Quinoa Salad Pot",
+   "description": "Boiled quinoa, bell pepper, cucumber, cherry tomatoes, feta cheese, black olives, greek dressing.",
+   "carbs_per_item": 15.0,
+   "kcal": 192.0,
+   "protein": 4.0,
+   "fat": 13.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-658"
+  },
+  {
+   "name": "Green Shot",
+   "description": "Kale, celery, spinach, cucumber, apple kiwi.",
+   "carbs_per_item": 13.0,
+   "kcal": 58.0,
+   "protein": null,
+   "fat": 3.0,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-649"
+  },
+  {
+   "name": "Halloumi Cheese Sandwich",
+   "description": "Halloumi cheese, olive cibatta bread, tomatoes, olive pesto.",
+   "carbs_per_item": 48.0,
+   "kcal": 460.0,
+   "protein": 17.0,
+   "fat": 23.0,
+   "allergy": "Dairy, Eggs, Sesame, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-88745"
+  },
+  {
+   "name": "Halloumi Pesto Schiaccata",
+   "description": "Grilled halloumi, basil pesto, tomato, rucola, freshly baked schiacciatta .",
+   "carbs_per_item": 38.0,
+   "kcal": 493.0,
+   "protein": 24.0,
+   "fat": 27.0,
+   "allergy": "Dairy, Tree Nuts, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-100374"
+  },
+  {
+   "name": "Halloumi Romesco Schiaccata",
+   "description": "Grilled halloumi, romesco paste, tomato, rucola, schiacciatta.",
+   "carbs_per_item": 39.0,
+   "kcal": 476.0,
+   "protein": 25.0,
+   "fat": 25.0,
+   "allergy": "Dairy, Tree Nuts, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-100373"
+  },
+  {
+   "name": "Honey Toast",
+   "description": "Milk brioche glazed with honey and caramelized butter.",
+   "carbs_per_item": 43.0,
+   "kcal": 304.0,
+   "protein": 5.0,
+   "fat": 13.0,
+   "allergy": "Dairy, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-82793"
+  },
+  {
+   "name": "Honey Yuzu Iced Tea",
+   "description": "Japanese Yuzu Lemon, Green Tea, Acacia Honey.",
+   "carbs_per_item": 1.0,
+   "kcal": 6.0,
+   "protein": null,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-28456"
+  },
+  {
+   "name": "Hot Chocolate",
+   "description": "Belgian chocolate, milk.",
+   "carbs_per_item": 26.0,
+   "kcal": 208.0,
+   "protein": 9.0,
+   "fat": 12.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-36798"
+  },
+  {
+   "name": "Hot Dutch Latte",
+   "description": "Blond cacao, cereal mixture, espresso, milk.",
+   "carbs_per_item": 24.0,
+   "kcal": 156.0,
+   "protein": 7.0,
+   "fat": null,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-36789"
+  },
+  {
+   "name": "Hot Matcha Americano",
+   "description": "Matcha over water, slightly sweetened.",
+   "carbs_per_item": 10.0,
+   "kcal": 49.0,
+   "protein": null,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-104519"
+  },
+  {
+   "name": "Hot Matcha Flat White",
+   "description": "Matcha, milk, sugar cane syrup.",
+   "carbs_per_item": 18.0,
+   "kcal": 78.0,
+   "protein": null,
+   "fat": 1.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-102538"
+  },
+  {
+   "name": "Hot Matcha Latte",
+   "description": "Ceremonial grade A matchaa tea with vanilla milk.",
+   "carbs_per_item": 16.0,
+   "kcal": 128.0,
+   "protein": 8.0,
+   "fat": 2.0,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-36794"
+  },
+  {
+   "name": "Hot PICK Latte",
+   "description": "Espresso, vanilla infused milk, milk solids.",
+   "carbs_per_item": 24.0,
+   "kcal": 139.0,
+   "protein": 7.0,
+   "fat": null,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-36780"
+  },
+  {
+   "name": "Hot Spanish Latte",
+   "description": "Milk, condensed milk, coffee.",
+   "carbs_per_item": 37.0,
+   "kcal": 252.0,
+   "protein": 10.0,
+   "fat": 7.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-81143"
+  },
+  {
+   "name": "Hot White Mocha",
+   "description": "Double shot with our signature white mi sauce.",
+   "carbs_per_item": 45.0,
+   "kcal": 230.0,
+   "protein": 7.0,
+   "fat": 2.0,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-67477"
+  },
+  {
+   "name": "Ice Crushed Red",
+   "description": "Red grape juice, crushed ice.",
+   "carbs_per_item": 19.0,
+   "kcal": 76.0,
+   "protein": null,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-1470"
+  },
+  {
+   "name": "Iced Babyccino",
+   "description": "French Vanilla Milk, Fresh Cream, Rainbow Sprinkles. 287 Kcal, 18g Fat, 10g Protein, 21g Carb. Allergen: Dairy",
+   "carbs_per_item": 21.0,
+   "kcal": 287.0,
+   "protein": 10.0,
+   "fat": 18.0,
+   "allergy": null,
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-123197"
+  },
+  {
+   "name": "Iced Crushed Matcha",
+   "description": "Crushed Ice with 4g of Koicha Signature Matcha and your choice of sweetness",
+   "carbs_per_item": 7.0,
+   "kcal": 47.0,
+   "protein": 1.0,
+   "fat": 1.0,
+   "allergy": null,
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-101663"
+  },
+  {
+   "name": "Iced Maple Matcha",
+   "description": "Oatly milk, organic maple syrup, 4g dose of koicha signature matcha.",
+   "carbs_per_item": 18.0,
+   "kcal": 78.0,
+   "protein": null,
+   "fat": 1.0,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-101661"
+  },
+  {
+   "name": "Iced Maple Oatly",
+   "description": "Ristretto shot, maple syrup, oat milk.",
+   "carbs_per_item": 23.0,
+   "kcal": 134.0,
+   "protein": 1.0,
+   "fat": 4.0,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-101273"
+  },
+  {
+   "name": "Iced Matcha Americano",
+   "description": "Matcha over iced water, slightly sweetened.",
+   "carbs_per_item": 10.0,
+   "kcal": 40.0,
+   "protein": null,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-101666"
+  },
+  {
+   "name": "Iced Okinawa latta 🇯🇵",
+   "description": "Okinawa black sugar, oat baed milk, espresso shot.",
+   "carbs_per_item": 35.0,
+   "kcal": 199.0,
+   "protein": 15.0,
+   "fat": 8.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-58504"
+  },
+  {
+   "name": "Iced PICK Latte",
+   "description": "Espresso, vanilla infused milk, milk solids.",
+   "carbs_per_item": 23.0,
+   "kcal": 237.0,
+   "protein": 8.0,
+   "fat": 13.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-36773"
+  },
+  {
+   "name": "Iced Pick Matcha Latte",
+   "description": "Iced Pick Matcha Latte.",
+   "carbs_per_item": 23.0,
+   "kcal": 109.0,
+   "protein": 2.0,
+   "fat": 1.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-102537"
+  },
+  {
+   "name": "Iced Spanish Latte",
+   "description": "Milk, condensed milk, coffee.",
+   "carbs_per_item": 37.0,
+   "kcal": 252.0,
+   "protein": 10.0,
+   "fat": 7.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-81142"
+  },
+  {
+   "name": "Iced Togo Latte",
+   "description": "Togolese cacao, espresso, vanilla milk, vanilla creme.",
+   "carbs_per_item": 31.0,
+   "kcal": 328.0,
+   "protein": 11.0,
+   "fat": 18.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-36777"
+  },
+  {
+   "name": "Iced Wake Up",
+   "description": "Three shots of coffee, sweet milk.",
+   "carbs_per_item": 30.0,
+   "kcal": 161.0,
+   "protein": 7.0,
+   "fat": 1.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-36776"
+  },
+  {
+   "name": "Iced White Mocha",
+   "description": "Two pumps of white mi sauce, single shot espresso, milk.",
+   "carbs_per_item": 32.0,
+   "kcal": 256.0,
+   "protein": 15.0,
+   "fat": 8.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-62007"
+  },
+  {
+   "name": "Iced White Mocha Matcha",
+   "description": "White mi sauce, your choice of milk with 60g of koicha signature matcha.",
+   "carbs_per_item": 22.0,
+   "kcal": 129.0,
+   "protein": 3.0,
+   "fat": 3.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-101662"
+  },
+  {
+   "name": "Kale Harvest Salad",
+   "description": "Kale, lettuce, sweet potato, carrots, red onion, feta cheese, pumpkin seeds, avocado, maple vinegrette.",
+   "carbs_per_item": 49.0,
+   "kcal": 476.0,
+   "protein": 14.0,
+   "fat": 28.0,
+   "allergy": "Dairy, Soy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-89176"
+  },
+  {
+   "name": "Korean Salad",
+   "description": "Cabbage, lettuce, carrots, cucumber, spring onion, noodles, mandarin, peanuts and almonds, yuzu tahini.",
+   "carbs_per_item": 30.0,
+   "kcal": 335.0,
+   "protein": 8.0,
+   "fat": 21.0,
+   "allergy": "Eggs, Peanuts, Tree Nuts, Soy, Sesame, Fish",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-89202"
+  },
+  {
+   "name": "Labneh Sandwich",
+   "description": "Turkish labneh, olive pesto, balsamic, mint leaves \\u0026 thyme, whole grain bread.",
+   "carbs_per_item": 51.0,
+   "kcal": 317.0,
+   "protein": 15.0,
+   "fat": 6.0,
+   "allergy": "Dairy, Tree Nuts, Sesame, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-2"
+  },
+  {
+   "name": "Lupin & Almond Pot",
+   "description": "Lupin \\u0026 almond.",
+   "carbs_per_item": 14.0,
+   "kcal": 226.0,
+   "protein": 22.0,
+   "fat": 11.0,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-670"
+  },
+  {
+   "name": "Mango Frappick",
+   "description": "Mango juice, frappick powder, milk.",
+   "carbs_per_item": 31.0,
+   "kcal": 129.0,
+   "protein": null,
+   "fat": null,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-90789"
+  },
+  {
+   "name": "Mango Passion Iced Tea",
+   "description": "Passion fruit, fresh mango, green tea brew.",
+   "carbs_per_item": 9.0,
+   "kcal": 34.0,
+   "protein": null,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-28455"
+  },
+  {
+   "name": "Mango Samadi",
+   "description": "Vanilla cake soaked with fresh mango purée, topped with Vanilla Mi, extra fresh mango slices, and more mango purée. Kcal 199, 3g Fat, 6g Protein, 37g Carb. Allergens: Dairy, Egg",
+   "carbs_per_item": 37.0,
+   "kcal": 199.0,
+   "protein": 6.0,
+   "fat": 3.0,
+   "allergy": null,
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-121644"
+  },
+  {
+   "name": "Mango Strawberry Frappick",
+   "description": "Mango juice, strawberry juice, milk, frappick powder.",
+   "carbs_per_item": 41.0,
+   "kcal": 171.0,
+   "protein": null,
+   "fat": null,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-90792"
+  },
+  {
+   "name": "Mango Vanilla Frappick",
+   "description": "Mango juice, vanilla, milk, frappick.",
+   "carbs_per_item": 39.0,
+   "kcal": 209.0,
+   "protein": 2.0,
+   "fat": 5.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-90790"
+  },
+  {
+   "name": "Matcha Cookie",
+   "description": "Ceremonial grade matcha tea, white couverture chocolate, eggs, flour.",
+   "carbs_per_item": 64.0,
+   "kcal": 393.0,
+   "protein": 6.0,
+   "fat": 13.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-45745"
+  },
+  {
+   "name": "Matcha Frappick",
+   "description": "Matcha, milk, frappick powder, whipped cream.",
+   "carbs_per_item": 42.0,
+   "kcal": 219.0,
+   "protein": 5.0,
+   "fat": 2.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-91150"
+  },
+  {
+   "name": "Medi Grill Half Panini",
+   "description": "Whole wheat ciabatta panini, feta cheese, mozzarella cheese, sun-dried tomato, olives.",
+   "carbs_per_item": 30.0,
+   "kcal": 280.0,
+   "protein": 14.0,
+   "fat": 12.0,
+   "allergy": "Dairy, Eggs, Soy, Sesame, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-130237"
+  },
+  {
+   "name": "Mozzarella Panini",
+   "description": "Mozarella cheese, sundried tomato, basil pesto, panini bread.",
+   "carbs_per_item": 30.0,
+   "kcal": 364.0,
+   "protein": 34.0,
+   "fat": 11.0,
+   "allergy": "Dairy, Eggs, Tree Nuts, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-12"
+  },
+  {
+   "name": "Mumawash Protein Pack",
+   "description": "Rice, mash, cashews \\u0026 almonds, beef.",
+   "carbs_per_item": 40.0,
+   "kcal": 477.0,
+   "protein": 35.0,
+   "fat": 20.0,
+   "allergy": "Tree Nuts, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-573"
+  },
+  {
+   "name": "Murabyan Protein Pack",
+   "description": "Shrimp, dill, coriander, lentil rice, saute onion, daqoos, green achar, spices.",
+   "carbs_per_item": 40.0,
+   "kcal": 445.0,
+   "protein": 33.0,
+   "fat": 17.0,
+   "allergy": "Dairy, Gluten (Wheat), Shellfish",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-41979"
+  },
+  {
+   "name": "Mushroom Soup",
+   "description": "",
+   "carbs_per_item": 6.0,
+   "kcal": 69.0,
+   "protein": 3.0,
+   "fat": 3.0,
+   "allergy": null,
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-587"
+  },
+  {
+   "name": "Nostalgic Frappick",
+   "description": "Mango juice, strawberry juice, banana, vanilla, milk, frappick powder.",
+   "carbs_per_item": 56.0,
+   "kcal": 261.0,
+   "protein": 4.0,
+   "fat": 2.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-90791"
+  },
+  {
+   "name": "Nutty Chicken Sandwich",
+   "description": "Thin-cut Chicken Breast, Peanut Pesto, Basil Pesto, Arugula, Olive Tapenade, Mozzarella Cheese, Whole Wheat Ciabatta.",
+   "carbs_per_item": 48.0,
+   "kcal": 586.0,
+   "protein": 51.0,
+   "fat": 20.0,
+   "allergy": null,
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-123511"
+  },
+  {
+   "name": "Open-Face Croissant",
+   "description": "Tomato and mozzarella croissant.",
+   "carbs_per_item": 19.0,
+   "kcal": 270.0,
+   "protein": 10.0,
+   "fat": 17.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-45740"
+  },
+  {
+   "name": "OrMI",
+   "description": "Oreo crust topped with a Vanilla Mi swirl, finished with Oreo crumbs all over. Kcal 226, 9g Fat, 6g Protein, 30g Carb. Allergens: Dairy",
+   "carbs_per_item": 30.0,
+   "kcal": 226.0,
+   "protein": 6.0,
+   "fat": 9.0,
+   "allergy": null,
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-121648"
+  },
+  {
+   "name": "Orange / Carrot Juice",
+   "description": "Orange, carrot.",
+   "carbs_per_item": 22.0,
+   "kcal": 94.0,
+   "protein": 2.0,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-642"
+  },
+  {
+   "name": "Orange Juice",
+   "description": "Orange.",
+   "carbs_per_item": 37.0,
+   "kcal": 151.0,
+   "protein": 1.0,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-641"
+  },
+  {
+   "name": "Original Nata",
+   "description": "Traditional portuguese nata with silky custard filling.",
+   "carbs_per_item": 23.0,
+   "kcal": 231.0,
+   "protein": 5.0,
+   "fat": 13.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-45741"
+  },
+  {
+   "name": "PICK Brownie",
+   "description": "Flour, cocoa powder, eggs, chocolate.",
+   "carbs_per_item": 41.0,
+   "kcal": 333.0,
+   "protein": 4.0,
+   "fat": 17.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-45746"
+  },
+  {
+   "name": "Pain Au Chocolat",
+   "description": "Traditionally rolled croissant dough with belgian dark chocolate sticks.",
+   "carbs_per_item": 43.0,
+   "kcal": 402.0,
+   "protein": 5.0,
+   "fat": 23.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-82716"
+  },
+  {
+   "name": "Pasta Rosa",
+   "description": "Penne pasta cooked with peeled tomato, mozzarella and creme, flavoured with italian herbs and parmesan cheese.",
+   "carbs_per_item": 43.0,
+   "kcal": 544.0,
+   "protein": 14.0,
+   "fat": 35.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-57271"
+  },
+  {
+   "name": "Peanut Banomi Pro Shake",
+   "description": "Ultimate peanut sauce, banana, togo cacao, pick protein blend.",
+   "carbs_per_item": 41.0,
+   "kcal": 414.0,
+   "protein": 32.0,
+   "fat": 15.0,
+   "allergy": "Dairy, Peanuts",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-80110"
+  },
+  {
+   "name": "Peanut Pro Shake",
+   "description": "Salted peanut sauce, pick protein powder.",
+   "carbs_per_item": 34.0,
+   "kcal": 456.0,
+   "protein": 33.0,
+   "fat": 21.0,
+   "allergy": "Dairy, Peanuts",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-80111"
+  },
+  {
+   "name": "Pecan Babka",
+   "description": "Brioche Loaf, Belgian dark chocolate, Pecan Nuts.",
+   "carbs_per_item": 55.0,
+   "kcal": 440.0,
+   "protein": 11.0,
+   "fat": 19.0,
+   "allergy": "Dairy, Eggs, Tree Nuts, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-104662"
+  },
+  {
+   "name": "Pecan Top",
+   "description": "Chocolate crust topped with pecan sauce and a Vanilla Mi swirl, finished with dark chocolate powder. 370 Kcal, 21g Fat, 8g Protein, 43g Carb. Allergens: Dairy, Nuts",
+   "carbs_per_item": 43.0,
+   "kcal": 370.0,
+   "protein": 8.0,
+   "fat": 21.0,
+   "allergy": null,
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-121645"
+  },
+  {
+   "name": "Pepperoni Pizza Wrap",
+   "description": "Pepperoni, mozzarella cheese, emmental cheese, oven-roasted tomatoes and tomato sauce.",
+   "carbs_per_item": 29.0,
+   "kcal": 361.0,
+   "protein": 22.0,
+   "fat": 17.0,
+   "allergy": "Dairy, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-19"
+  },
+  {
+   "name": "Pink Limonata",
+   "description": "Raspberry Fruit, Limonata Mix .",
+   "carbs_per_item": 1.0,
+   "kcal": 3.0,
+   "protein": null,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-44155"
+  },
+  {
+   "name": "Plain Croissant",
+   "description": "Made with an authentic french butter .",
+   "carbs_per_item": 21.0,
+   "kcal": 274.0,
+   "protein": 4.0,
+   "fat": 19.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-45738"
+  },
+  {
+   "name": "Pomegranate Juice",
+   "description": "Pomegranet .",
+   "carbs_per_item": 33.0,
+   "kcal": 134.0,
+   "protein": null,
+   "fat": 1.0,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-643"
+  },
+  {
+   "name": "Pomegranate Pot",
+   "description": "Pomegranate fruit.",
+   "carbs_per_item": 23.0,
+   "kcal": 124.0,
+   "protein": 2.0,
+   "fat": 1.0,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-668"
+  },
+  {
+   "name": "Portuguese Chicken Protein Pack",
+   "description": "Chicken breast, vegetable stew, rice.",
+   "carbs_per_item": 43.0,
+   "kcal": 437.0,
+   "protein": 40.0,
+   "fat": 10.0,
+   "allergy": "Dairy, Soy, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-89050"
+  },
+  {
+   "name": "Potato Salad Pot",
+   "description": "Potatos, sundried tomatoes, cilantro, capers, lemon dressing.",
+   "carbs_per_item": 22.0,
+   "kcal": 139.0,
+   "protein": 3.0,
+   "fat": 5.0,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-89720"
+  },
+  {
+   "name": "Praline & Cream",
+   "description": "Caramelized almond praline with salted caramel sauce, layered over whipped cream and finished with a Vanilla Mi swirl. Kcal 367, 16g Fat, 9g Protein, 47g Carb. Allergens: Dairy, Nuts",
+   "carbs_per_item": 47.0,
+   "kcal": 367.0,
+   "protein": 9.0,
+   "fat": 16.0,
+   "allergy": null,
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-121649"
+  },
+  {
+   "name": "Purple Limonata",
+   "description": "5 berries compote, limonata mix.",
+   "carbs_per_item": 5.0,
+   "kcal": 20.0,
+   "protein": null,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-44156"
+  },
+  {
+   "name": "Raspberry Lemon Iced Tea",
+   "description": "Fresh raspberry, lemon squeeze, green tea brew.",
+   "carbs_per_item": 1.0,
+   "kcal": 4.0,
+   "protein": null,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-28457"
+  },
+  {
+   "name": "Red Green Salad",
+   "description": "Goat cheese, roasted pecan, orange wedges, beetroot, seeds and nuts.",
+   "carbs_per_item": 16.0,
+   "kcal": 188.0,
+   "protein": 7.0,
+   "fat": 11.0,
+   "allergy": "Dairy, Peanuts, Tree Nuts, Sesame",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-654"
+  },
+  {
+   "name": "Ruby",
+   "description": "Beetroot, apple juice, carrot, ginger.",
+   "carbs_per_item": 37.0,
+   "kcal": 152.0,
+   "protein": 1.0,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-644"
+  },
+  {
+   "name": "Salmon Protein Pack",
+   "description": "Salmon, wild rice, lemon wedge, lemon butter sauce.",
+   "carbs_per_item": 30.0,
+   "kcal": 485.0,
+   "protein": 40.0,
+   "fat": 23.0,
+   "allergy": "Dairy, Tree Nuts, Soy, Gluten (Wheat), Fish",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-579"
+  },
+  {
+   "name": "Seasonal Mango Pot",
+   "description": "Mango.",
+   "carbs_per_item": 22.0,
+   "kcal": 87.0,
+   "protein": 1.0,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-671"
+  },
+  {
+   "name": "Short Ribs Machboos Protein Pack",
+   "description": "Slow roasted short ribs, machboos rice, achar and daqqus.",
+   "carbs_per_item": 59.0,
+   "kcal": 530.0,
+   "protein": 34.0,
+   "fat": 17.0,
+   "allergy": "Dairy, Soy, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-44628"
+  },
+  {
+   "name": "Shrimp Red Curry",
+   "description": "Jasmine rice, coconut red curry, shrimps, snap beans, baby corn, lime.",
+   "carbs_per_item": 53.0,
+   "kcal": 557.0,
+   "protein": 39.0,
+   "fat": 21.0,
+   "allergy": "Dairy, Soy, Shellfish",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-88157"
+  },
+  {
+   "name": "Simple Green Salad Pot",
+   "description": "Rocca, lettuce, cucumber, cherry tomatoes, carrots, simple green dressing.",
+   "carbs_per_item": 3.0,
+   "kcal": 72.0,
+   "protein": 1.0,
+   "fat": 7.0,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-659"
+  },
+  {
+   "name": "Skinny Cloud Matcha",
+   "description": "Koicha signature matcha, skinny maple cloud, skimmed milk",
+   "carbs_per_item": 21.0,
+   "kcal": 89.0,
+   "protein": 1.0,
+   "fat": 1.0,
+   "allergy": "Dairy.",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-101660"
+  },
+  {
+   "name": "Speculoos Matcha Cloud",
+   "description": "Koicha signature matcha, sugar cane syrup, speculoos crumbs, speculoos spread, speculoos cold foam, milk.",
+   "carbs_per_item": 41.0,
+   "kcal": 369.0,
+   "protein": 6.0,
+   "fat": 20.0,
+   "allergy": "Dairy, Soy, Gluten.",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-118777"
+  },
+  {
+   "name": "Spice Shot",
+   "description": "Apple, orange, cayenne pepper, tumeric, and ginger.",
+   "carbs_per_item": 15.0,
+   "kcal": 68.0,
+   "protein": null,
+   "fat": null,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-648"
+  },
+  {
+   "name": "Spicy Chicken Shawarma Wrap",
+   "description": "Chicken, spicy tahini sauce, tortilla bread.",
+   "carbs_per_item": 29.0,
+   "kcal": 301.0,
+   "protein": 22.0,
+   "fat": 12.0,
+   "allergy": "Dairy, Eggs, Sesame, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-94764"
+  },
+  {
+   "name": "Steak Sliders - 2 Pieces",
+   "description": "Steak tenderloin, cramelized onion, cheddar cheese, barbeque ranch sauce.",
+   "carbs_per_item": 35.0,
+   "kcal": 342.0,
+   "protein": 24.0,
+   "fat": 12.0,
+   "allergy": "Dairy, Eggs, Soy, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-14"
+  },
+  {
+   "name": "Strawberry Frappick",
+   "description": "Strawberry juice, milk, frappick powder.",
+   "carbs_per_item": 42.0,
+   "kcal": 205.0,
+   "protein": 4.0,
+   "fat": 2.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-90785"
+  },
+  {
+   "name": "Strawberry Matcha Frappick",
+   "description": "Strawberry juice, matcha, milk, frappick powder.",
+   "carbs_per_item": 42.0,
+   "kcal": 205.0,
+   "protein": 4.0,
+   "fat": 2.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-90786"
+  },
+  {
+   "name": "Strawberry PRO Cheesecake",
+   "description": "Strawberry Compote, Mix Cheeses, Digestive Biscuit, Condensed Milk, Whipping Cream, Greek Yogurt.",
+   "carbs_per_item": 33.0,
+   "kcal": 283.0,
+   "protein": 10.0,
+   "fat": 12.0,
+   "allergy": "Dairy, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-683"
+  },
+  {
+   "name": "THAT 70'S CHEESEBURGER",
+   "description": "Beef patty, potato bun, cheddar cheese, onions, pickles, ketchup, and mustard.",
+   "carbs_per_item": 22.0,
+   "kcal": 390.0,
+   "protein": 21.0,
+   "fat": 24.0,
+   "allergy": "Dairy, Eggs, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-127327"
+  },
+  {
+   "name": "Tea Latte",
+   "description": "Milk \\u0026 tea.",
+   "carbs_per_item": 12.0,
+   "kcal": 80.0,
+   "protein": 6.0,
+   "fat": null,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-36796"
+  },
+  {
+   "name": "Thai Chicken Salad Pot",
+   "description": "Lemon chicken, red cabbage, green cabbage, shredded carrots, roated almonds, noodles, parsley, thai dressing.",
+   "carbs_per_item": 15.0,
+   "kcal": 200.0,
+   "protein": 9.0,
+   "fat": 12.0,
+   "allergy": "Peanuts, Tree Nuts, Sesame, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-661"
+  },
+  {
+   "name": "Togo Latte",
+   "description": "Togolese cacao, espresso, vanilla milk.",
+   "carbs_per_item": 20.0,
+   "kcal": 173.0,
+   "protein": 8.0,
+   "fat": 10.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-36787"
+  },
+  {
+   "name": "TogoNut Pro Shake",
+   "description": "Togo cacao, ultimate chocolate hazelnut, pick protein blend.",
+   "carbs_per_item": 38.0,
+   "kcal": 381.0,
+   "protein": 29.0,
+   "fat": 15.0,
+   "allergy": "Dairy, Tree Nuts",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-80112"
+  },
+  {
+   "name": "Tropical Fruit pot",
+   "description": "Mango, strawberry, pineapple.",
+   "carbs_per_item": 24.0,
+   "kcal": 95.0,
+   "protein": 1.0,
+   "fat": 1.0,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-664"
+  },
+  {
+   "name": "Turkey Cheese Half Panini",
+   "description": "Ciabatta panini, smoked turkey, white cheddar cheese, light mayo.",
+   "carbs_per_item": 25.0,
+   "kcal": 271.0,
+   "protein": 15.0,
+   "fat": 12.0,
+   "allergy": "Dairy, Eggs, Soy, Sesame, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-130235"
+  },
+  {
+   "name": "Turkey Cheese Toastie (1/2)",
+   "description": "Turkey breast, mature cheddar, light mayo, multi cereal toast.",
+   "carbs_per_item": 17.0,
+   "kcal": 259.0,
+   "protein": 16.0,
+   "fat": 13.0,
+   "allergy": "Dairy, Eggs, Tree Nuts, Sesame, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-67586"
+  },
+  {
+   "name": "Turkey Polony Schiaccatta",
+   "description": "Turkey mortadella, stracciatella cheese, pistachio, basil pesto, arugula.",
+   "carbs_per_item": 38.0,
+   "kcal": 393.0,
+   "protein": 17.0,
+   "fat": 19.0,
+   "allergy": "Dairy, Tree Nuts, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-75400"
+  },
+  {
+   "name": "Turkey Rocca Sandwich",
+   "description": "Smoked turkey, rocca, parmesan cheese, basil pesto with leon, whole grain bread.",
+   "carbs_per_item": 43.0,
+   "kcal": 364.0,
+   "protein": 20.0,
+   "fat": 12.0,
+   "allergy": "Dairy, Eggs, Tree Nuts, Sesame, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-11"
+  },
+  {
+   "name": "Turkey Veggies Sandwich",
+   "description": "Smoked turkey, lettuce, tomatoes, reduced fat cheddar cheese, and dijon mustard sauce.",
+   "carbs_per_item": 34.0,
+   "kcal": 338.0,
+   "protein": 23.0,
+   "fat": 13.0,
+   "allergy": "Dairy, Tree Nuts, Sesame, Gluten (Wheat)",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-42055"
+  },
+  {
+   "name": "Vanilla Frappick",
+   "description": "Vanilla, milk, frappick podwer.",
+   "carbs_per_item": 35.0,
+   "kcal": 216.0,
+   "protein": 4.0,
+   "fat": 6.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-90783"
+  },
+  {
+   "name": "Victoria Cake",
+   "description": "Sponge cake soaked with fresh strawberry compote, topped with fresh cream and Vanilla Mi, finished with organic strawberry powder. 246 kcal, 9g fat, 6g protein, 35g carbs. Allergens: Dairy, Egg",
+   "carbs_per_item": 35.0,
+   "kcal": 246.0,
+   "protein": 6.0,
+   "fat": 9.0,
+   "allergy": null,
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-121643"
+  },
+  {
+   "name": "Vitamin C Fruit Pot",
+   "description": "Orange, kiwi, pomegranate, blueberry.",
+   "carbs_per_item": 19.0,
+   "kcal": 80.0,
+   "protein": 2.0,
+   "fat": 1.0,
+   "allergy": "None",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-674"
+  },
+  {
+   "name": "Watermelon Cup",
+   "description": "",
+   "carbs_per_item": 14.0,
+   "kcal": 54.0,
+   "protein": 1.0,
+   "fat": null,
+   "allergy": null,
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-56532"
+  },
+  {
+   "name": "🇹🇬 Togo Shot",
+   "description": "High dosage of togolese cocoa beans frothed with vanilla infused milk.",
+   "carbs_per_item": 16.0,
+   "kcal": 150.0,
+   "protein": 4.0,
+   "fat": 10.0,
+   "allergy": "Dairy",
+   "source_url": "https://orderpick.com/en/pick-alrai-102/-36797"
+  }
+ ]
+}
