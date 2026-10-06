@@ -33,6 +33,9 @@ const loadLayers = (): Set<Layer> => {
       const set = new Set(JSON.parse(v) as Layer[]);
       // forecasts arrived after the choice was saved: on once, then the parents' choice stands
       if (!localStorage.getItem('layers_forecast')) { set.add('forecast'); localStorage.setItem('layers_forecast', '1'); localStorage.setItem('layers', JSON.stringify([...set])); }
+      // the family reads insulin as its activity (rising to a peak, then easing off), as on Now: once, the activity
+      // replaces the amount left (IOB); either can be switched back in Layers
+      if (!localStorage.getItem('layers_act')) { set.add('act'); set.delete('iob'); localStorage.setItem('layers_act', '1'); localStorage.setItem('layers', JSON.stringify([...set])); }
       return set;
     }
   } catch { /* private mode */ }

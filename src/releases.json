@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-06",
+    "version": "2.51.2",
+    "notes": [
+      "رسم التحليل يعرض مفعول الإنسولين (يصعد للذروة ثم يخف) مثل شاشة الآن، بدل الإنسولين المتبقي. تقدر ترجعه من «الطبقات»."
+    ],
+    "notes_en": [
+      "The Analysis graph shows insulin activity (rising to its peak, then easing off) like Now, instead of insulin left. You can switch back in Layers."
+    ]
+  },
+  {
+    "date": "2026-10-06",
     "version": "2.51.1",
     "notes": [
       "«نزول سريع» ما يطلع مربع فوق شاشة الآن (السهم والرقم في بطاقة السكر يكفون). الإشعار على الجوال باقي."
