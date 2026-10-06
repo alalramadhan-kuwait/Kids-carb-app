@@ -100,7 +100,9 @@ export function MomHome() {
         <div ref={box} className="min-h-0 flex-1">
           {merged && <BigGraph key={focusAt ?? 0} at={focusAt} aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} alarmHigh={s.alert_high_mgdl ?? 240}
             shots={shots.map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
-            meals={history.filter((h) => h.total_carbs >= 5).map((h) => Date.parse(h.eaten_at))} />}
+            meals={history.filter((h) => h.total_carbs >= 5).map((h) => Date.parse(h.eaten_at))}
+            treats={events.filter((e) => e.kind === 'treatment' && !e.deleted_at).map((e) => Date.parse(e.occurred_at))}
+            pricks={events.filter((e) => e.kind === 'bg_check' && !e.deleted_at).map((e) => Date.parse(e.occurred_at))} />}
         </div>
       </div>
 
@@ -111,7 +113,7 @@ export function MomHome() {
         {nextAt && !lowNow && <div className="mb-1 rounded-xl bg-near-soft px-3 py-1.5 text-[16px] font-bold text-near">{t('لا نوفورابيد قبل الساعة {c}', { c: clock(nextAt) })}</div>}
       </div>
 
-      {same && <SameMealLink to={`/mom/same/${same.target.id}`} target={same.target} matches={same.matches}
+      {same && <SameMealLink short to={`/mom/same/${same.target.id}`} target={same.target} matches={same.matches}
         className="flex min-h-[48px] shrink-0 items-center gap-2 rounded-3xl bg-brand-soft px-4 py-2 text-[17px] font-bold text-brand" />}
 
       {sensor && (sensorSoon || !sensor.site) && (
@@ -170,8 +172,20 @@ function smoothPath(p: { x: number; y: number; t: number }[], gap: number): stri
   return d;
 }
 
-function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, meals, at }: { at?: number | null; aspect: number; s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: number[] }) {
-  const W = 340, PL = 6, PR = 30, PT = 30, HH = Math.max(160, Math.round(W * aspect)), PH = HH - PT - 44;
+/** One row of markers under the graph: each at its time, moved just enough sideways never to sit on the previous one. */
+function lane<T extends { t: number }>(items: T[], x: (t: number) => number, right: number, gap = 19): (T & { x: number; k: string })[] {
+  const out: (T & { x: number; k: string })[] = [];
+  for (const it of [...items].sort((a, b) => a.t - b.t)) {
+    const prev = out[out.length - 1];
+    out.push({ ...it, x: Math.min(right - 4, prev ? Math.max(x(it.t), prev.x + gap) : x(it.t)), k: `${it.t}-${out.length}` });
+  }
+  // pushed past the right edge: pull back from the end so the newest stays in view
+  for (let i = out.length - 2; i >= 0; i--) if (out[i + 1].x - out[i].x < gap) out[i].x = out[i + 1].x - gap;
+  return out;
+}
+
+function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, meals, treats, pricks, at }: { at?: number | null; treats: number[]; pricks: number[]; aspect: number; s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: number[] }) {
+  const W = 340, PL = 6, PR = 30, PT = 30, HH = Math.max(180, Math.round(W * aspect)), PH = HH - PT - 64;
   const t0 = now - 12 * H;
   const top = unit === 'mmol' ? 21 * 18.016 : 350, bottom = unit === 'mmol' ? 3 * 18.016 : 50;
   const ticks = unit === 'mmol' ? [3, 6, 9, 12, 15, 18, 21].map((v) => v * 18.016) : [50, 100, 150, 200, 250, 300, 350];
@@ -211,6 +225,10 @@ function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, mea
   };
   const end = () => setPick(null);
   const px = pick ? x(pick.t) : 0;
+  const rowFood = PT + PH + 13, rowCare = PT + PH + 34;
+  const inView = (t: number) => t >= t0 && t <= now;
+  const food = lane([...meals.filter(inView).map((t) => ({ t, treat: false })), ...treats.filter(inView).map((t) => ({ t, treat: true }))], x, W - PR);
+  const care = lane([...shots.filter((e) => inView(e.t)), ...pricks.filter(inView).map((t) => ({ t, u: null, type: null }))] as { t: number; u: number | null; type: 'rapid' | 'long' | null }[], x, W - PR);
   // the value sits above the plot, follows the line, and never runs off either edge
   const val = pick ? glucoseText(pick.v, unit) : '', uLabel = unit === 'mmol' ? 'mmol/L' : 'mg/dL';
   const lw = val.length * 12 + 4 + uLabel.length * 6.5;
@@ -224,9 +242,12 @@ function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, mea
       <line x1={PL} x2={W - PR} y1={y(low)} y2={y(low)} stroke="#d6303c" strokeWidth="2" strokeDasharray="6 5" />
       <path d={d} fill="none" stroke="rgb(var(--text))" strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" />
       {lastV !== null && <circle cx={x(lastT)} cy={y(lastV)} r="8" fill={dot} stroke="#fff" strokeWidth="3" />}
-      {meals.filter((m) => m >= t0 && m <= now).map((m) => <text key={m} x={x(m)} y={PT + PH + 12} fontSize="13" textAnchor="middle">🍽️</text>)}
-      {shots.filter((e) => e.t >= t0 && e.t <= now).map((e) => <g key={e.t}><circle cx={x(e.t)} cy={PT + PH + 26} r="9" fill={PEN[e.type]} /><text x={x(e.t)} y={PT + PH + 30} fontSize="10" fontWeight="700" fill="#fff" textAnchor="middle">{e.u}</text></g>)}
-      {hours.map((h) => <text key={h} x={x(h)} y={HH - 2} fontSize="11" fill="#8a84a0" textAnchor="middle" opacity={pick ? 0.25 : 1}>{clock(h)}</text>)}
+      {/* under the plot, two rows that never overlap: what she ate (meals, low treatments), then insulin and finger-pricks */}
+      {food.map((m) => <text key={m.k} x={m.x} y={rowFood + 5} fontSize="14" textAnchor="middle">{m.treat ? '🧃' : '🍽️'}</text>)}
+      {care.map((e) => e.u == null
+        ? <text key={e.k} x={e.x} y={rowCare + 5} fontSize="14" textAnchor="middle">🩸</text>
+        : <g key={e.k}><circle cx={e.x} cy={rowCare} r="9" fill={PEN[e.type!]} /><text x={e.x} y={rowCare + 3.5} fontSize="10" fontWeight="700" fill="#fff" textAnchor="middle">{e.u}</text></g>)}
+      {hours.map((h) => <text key={h} x={x(h)} y={HH - 3} fontSize="11" fill="#8a84a0" textAnchor="middle" opacity={pick ? 0.25 : 1}>{clock(h)}</text>)}
       {pick && <g pointerEvents="none">
         <line x1={px} x2={px} y1={PT} y2={PT + PH} stroke="rgb(var(--text))" strokeWidth="1.5" />
         <circle cx={px} cy={y(pick.v)} r="5" fill="none" stroke="rgb(var(--text))" strokeWidth="2" />

@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-06",
+    "version": "2.46.3",
+    "notes": [
+      "الوضع البسيط: تحت الرسم صفين ما يتداخلون: الأكل وعصير الانخفاض، ثم الإبر وقياس الوخز. الرسم أصغر شوي، والأوقات ما يغطيها شي."
+    ],
+    "notes_en": [
+      "Simple mode: two rows under the graph that never overlap: food and low-treatment juice, then injections and finger-pricks. The graph is a little smaller and nothing covers the times."
+    ]
+  },
+  {
+    "date": "2026-10-06",
     "version": "2.46.2",
     "notes": [
       "الإشعارات صارت توصل: لما أحد يسجّل إبرة أو وجبة أو علاج انخفاض، وتذكيرات الوجبات المخططة، و«أعيدوا قياس السكر» بعد علاج الانخفاض. كانت متوقفة بسبب خطأ في الخادم.",
