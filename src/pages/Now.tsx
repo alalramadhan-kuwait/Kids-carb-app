@@ -4,7 +4,8 @@ import { useSeries } from '../engine/useSeries';
 import { limitEnd, type View } from '../engine/series';
 import { buildMarks, defaultLayers, type Group } from '../engine/events';
 import { EventSheet } from '../components/EventSheet';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { setFullModeNow } from '../lib/mom';
 import { useData } from '../lib/data';
 import { useGlucose } from '../hooks/useGlucose';
 import { glucoseStats, type GlucoseStats } from '../lib/api';
@@ -229,6 +230,7 @@ function SetupRing({ done, total }: { done: number; total: number }) {
  * the glucose stays high on the screen. Only the bell (alerts) is always here; the night screen appears at night.
  */
 function LayanHeader({ alertCount, night }: { alertCount: number; night: boolean }) {
+  const nav = useNavigate();
   const heart = 'M12 20.5s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.9c0 5.4-7.5 10-7.5 10z';
   const W = 100, H = 78; // artwork box
   const hearts: [number, number, number, number][] = [[-78, 24, 12, -12], [64, 10, 12, 14], [74, 46, 14, -8]]; // dx from centre, y, size, rotation
@@ -252,11 +254,17 @@ function LayanHeader({ alertCount, night }: { alertCount: number; night: boolean
           <img src={layanPng} alt="" className="absolute left-0 w-full select-none" style={{ bottom: `calc(-0.0454 * ${W}px * 388 / 480)` }} draggable={false} />
         </picture>
       </div>
-      {evening ? (
-        <Link to="/night" aria-label={t('شاشة الليل')} className="grid h-11 w-11 place-items-center rounded-full text-slate-500">
-          <Icon name="moon" size={24} />
-        </Link>
-      ) : <span className="h-11 w-11" />}
+      <div className="flex items-center gap-1">
+        {evening && (
+          <Link to="/night" aria-label={t('شاشة الليل')} className="grid h-11 w-11 place-items-center rounded-full text-slate-500">
+            <Icon name="moon" size={24} />
+          </Link>
+        )}
+        {/* one tap to the simple screens (the same as More → «افتح الوضع البسيط») */}
+        <button onClick={() => { setFullModeNow(false); nav('/mom'); }} className="mt-1.5 min-h-[36px] rounded-full bg-brand-soft px-3 text-sm font-bold text-brand active:opacity-80">
+          {t('البسيط')}
+        </button>
+      </div>
     </header>
   );
 }

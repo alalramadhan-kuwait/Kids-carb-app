@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-06",
+    "version": "2.48.1",
+    "notes": [
+      "زر «البسيط» فوق في الشاشة الرئيسية: ضغطة وحدة وتنتقل للوضع البسيط."
+    ],
+    "notes_en": [
+      "A “Simple” button at the top of the Now screen: one tap switches to simple mode."
+    ]
+  },
+  {
+    "date": "2026-10-06",
     "version": "2.48.0",
     "notes": [
       "بيك في «مطاعم»: الفروزن يوغرت (Original Yo وVanilla Mi وPeach Yo وSicilian Lemon Ve) بكل الأحجام من قائمة بيك الرسمية، وأكواب الفواكه والأساي والمشروبات والسندويشات والحلى (187 صنف).",
