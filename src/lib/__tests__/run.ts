@@ -2549,6 +2549,18 @@ test('Topi cheese is found by «توبي» and «جبن»', async () => {
 }
 
 {
+  const R = await import('../restaurants');
+  test('frozen yogurt cups: gathered by size, each size listing its flavours; the weighed flavour comes with every size', () => {
+    const it = (name: string, per_item = true) => ({ name, per_item });
+    const c = R.cupsOf([it('Original Yo (Small cup)'), it('Vanilla Mi (Small cup)'), it('Original Yo (Large cup)'), it('Purple Mi', false), it('Watermelon Cup')]);
+    assert.deepEqual(c.sizes.map((z) => [z.size.key, z.items.map((x) => x.flavour)]), [['Small cup', ['Original Yo', 'Vanilla Mi']], ['Large cup', ['Original Yo']]]);
+    assert.deepEqual(c.weighed.map((x) => x.name), ['Purple Mi']);
+    assert.deepEqual(c.rest.map((x) => x.name), ['Watermelon Cup'], 'a fruit cup is not a frozen yogurt size');
+    assert.deepEqual(R.cupsOf([it('Original Yo (Small cup)'), it('Big Mac')]).sizes, [], 'one flavour only: stays as tiles');
+  });
+}
+
+{
   const S = await import('../../engine/sameMeal');
   const h = (id: string, at: string, carbs: number, lines: [string, number][], name = id) => ({ id, kind: 'meal', recipe_id: null, name, category: null, eaten_at: at, total_carbs: carbs,
     lines: lines.map(([n, c]) => ({ name: n.split(' — ')[0], product: n, quantity: 1, unit: 'serving', state: 'as_is', role: 'main', carbs: c })) }) as any;

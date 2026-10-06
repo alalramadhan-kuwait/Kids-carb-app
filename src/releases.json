@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-06",
+    "version": "2.48.2",
+    "notes": [
+      "فروزن يوغرت بيك: تختارين الحجم أول (ميني، صغير، وسط، كبير، بارفيه)، بعدين النكهة مع كاربها لهذا الحجم. «بيربل مي» موجودة بالوزن."
+    ],
+    "notes_en": [
+      "PICK frozen yogurt: choose the size first (Mini, Small, Medium, Large, parfait), then the flavour with its carbs for that size. Purple Mi is there by weight."
+    ]
+  },
+  {
+    "date": "2026-10-06",
     "version": "2.48.1",
     "notes": [
       "زر «البسيط» فوق في الشاشة الرئيسية: ضغطة وحدة وتنتقل للوضع البسيط."

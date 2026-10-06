@@ -35,3 +35,27 @@ export function menuOf<T extends { category: string | null }>(items: T[], lead?:
   const at = (c: string | null) => MENU_SECTIONS.find((s) => !!c && s.cats.includes(c)) ?? OTHER_SECTION;
   return all.map((section) => ({ section, items: items.filter((i) => at(i.category).key === section.key) })).filter((x) => x.items.length);
 }
+
+// ── cups by size: frozen yogurt is chosen size first, then flavour ─────────────────────────────────
+export interface CupSize { key: string; label: string; emoji: string }
+export const CUP_SIZES: CupSize[] = [
+  { key: 'Mini cup', label: 'ميني', emoji: '🥄' }, // i18n-ok: stored labels, shown via tMaybe
+  { key: 'Small cup', label: 'صغير', emoji: '🍦' }, // i18n-ok
+  { key: 'Medium cup', label: 'وسط', emoji: '🍨' }, // i18n-ok
+  { key: 'Large cup', label: 'كبير', emoji: '🍧' }, // i18n-ok
+  { key: 'Regular parfait', label: 'بارفيه عادي', emoji: '🥛' }, // i18n-ok
+  { key: 'Large parfait', label: 'بارفيه كبير', emoji: '🥛' }, // i18n-ok
+];
+const SIZED = /^(.+?)\s*\((Mini cup|Small cup|Medium cup|Large cup|Regular parfait|Large parfait)\)$/;
+
+/** Items named "<flavour> (<size>)" gathered by size (only when two or more flavours share the sizes); the
+ *  weighed flavours of the same section (sold by grams, no sizes) are offered with every size; the rest stay tiles. */
+export function cupsOf<T extends { name: string; per_item?: boolean }>(items: T[]) {
+  const sized = items.map((i) => ({ i, m: SIZED.exec(i.name) })).filter((x) => x.m);
+  const flavours = new Set(sized.map((x) => x.m![1]));
+  if (flavours.size < 2) return { sizes: [], weighed: [], rest: items };
+  const sizes = CUP_SIZES.map((size) => ({ size, items: sized.filter((x) => x.m![2] === size.key).map((x) => ({ flavour: x.m![1], item: x.i })) })).filter((s) => s.items.length);
+  const weighed = items.filter((i) => !SIZED.test(i.name) && !i.per_item);
+  const rest = items.filter((i) => !SIZED.test(i.name) && i.per_item);
+  return { sizes, weighed, rest };
+}

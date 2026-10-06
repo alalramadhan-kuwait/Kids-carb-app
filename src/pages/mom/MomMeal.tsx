@@ -12,7 +12,8 @@ import { fmt } from '../../lib/carbs';
 import { supabase, uploadPhoto } from '../../lib/supabase';
 import { Photo, cx, inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
-import { RESTAURANTS, menuOf, restaurantByKey, restaurantOf, type Restaurant } from '../../lib/restaurants';
+import { RESTAURANTS, cupsOf, menuOf, restaurantByKey, restaurantOf, type Restaurant } from '../../lib/restaurants';
+import { foodName } from '../../lib/foodName';
 import { Big, Choice, MomPage } from './MomUI';
 import type { PlanItem, Product, Recipe } from '../../lib/types';
 
@@ -127,7 +128,7 @@ function useFoods(browse: boolean) {
   const pick = (kind: 'product' | 'recipe', id: string) => nav(browse ? `/mom/food/${kind}/${id}` : `/mom/item/${kind}/${id}`);
   const homeFirst = (l: Product[]) => [...l].sort((a, b) => Number(b.available !== false) - Number(a.available !== false));
   const tile = (kind: 'product' | 'recipe', x: Product | Recipe) => <FoodTile key={kind + x.id} x={x} carbs={cat.tileCarbs(kind, x.id)} onClick={() => pick(kind, x.id)} />;
-  return { ...cat, products, recipes, homeFirst, tile };
+  return { ...cat, products, recipes, homeFirst, tile, pick };
 }
 
 /** «⚖️ قارني (2)»: the way to the compare page, at the bottom of the food pages while the compare list has foods. */
@@ -214,17 +215,39 @@ export function RestaurantLogo({ r, size = 56 }: { r: Restaurant; size?: number 
 /** One restaurant: its menu in sections (burgers, chicken, fries, sauces, drinks, desserts). */
 export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   const { key } = useParams() as { key: string };
+  const [sp, setSp] = useSearchParams();
   const r = restaurantByKey(key);
-  const { products, tile } = useFoods(browse);
+  const { products, tile, pick, tileCarbs } = useFoods(browse);
   const items = products.filter((p) => restaurantOf(p.brand)?.key === key);
-  const bar = useCompareBar(browse), back = useBack(`${browse ? '/mom/food' : '/mom/add'}?tab=restaurants`);
+  const bar = useCompareBar(browse), menuBack = useBack(`${browse ? '/mom/food' : '/mom/add'}?tab=restaurants`);
+  // frozen yogurt (and any food sold in sizes): size first, then the flavour
+  const cup = sp.get('cup');
+  const sections = menuOf(items, r?.lead).map((x) => ({ ...x, cups: cupsOf(x.items) }));
+  const sized = sections.find((x) => x.cups.sizes.length);
+  const flavour = (p: Product) => foodName(p).replace(/\s*\([^)]*\)\s*$/, '');
+  if (sized && cup) {
+    const size = sized.cups.sizes.find((x) => x.size.key === cup);
+    const here = `${browse ? '/mom/food' : '/mom/add'}/r/${key}`, back = size ? `${here}?cup=choose` : here;
+    return (
+      <MomPage title={size ? `${size.size.emoji} ${tMaybe(size.size.label)}` : t('أي حجم؟')} back={back} foot={bar}>
+        {!size && sized.cups.sizes.map(({ size: z, items: xs }) => {
+          const cs = xs.map((x) => Number(x.item.carbs_per_100));
+          return <Choice key={z.key} icon={z.emoji} label={tMaybe(z.label)} sub={t('{a}–{b} غ كارب', { a: `\u2066${fmt(Math.min(...cs))}`, b: `${fmt(Math.max(...cs))}\u2069` })} onClick={() => setSp({ cup: z.key }, { replace: true })} />;
+        })}
+        {size && <h2 className="text-[18px] font-bold">{t('أي نكهة؟')}</h2>}
+        {size && size.items.map(({ item }) => <Choice key={item.id} icon="🍦" label={flavour(item)} sub={t('{g} غ كارب', { g: fmt(Number(item.carbs_per_100)) })} onClick={() => pick('product', item.id)} />)}
+        {size && sized.cups.weighed.map((p) => <Choice key={p.id} icon="⚖️" label={foodName(p)} sub={`${t('بالوزن')} · ${tileCarbs('product', p.id) ?? ''}`} onClick={() => pick('product', p.id)} />)}
+      </MomPage>
+    );
+  }
   return (
-    <MomPage title={r ? tMaybe(r.label) : t('مطاعم')} back={back} foot={bar}>
+    <MomPage title={r ? tMaybe(r.label) : t('مطاعم')} back={menuBack} foot={bar}>
       {r && <div className="flex justify-center"><RestaurantLogo r={r} size={64} /></div>}
-      {menuOf(items, r?.lead).map(({ section, items: xs }) => (
+      {sections.map(({ section, items: xs, cups }) => (
         <section key={section.key} className="space-y-2">
           <h2 className="text-[17px] font-bold">{section.emoji} {tMaybe(section.label)}</h2>
-          <div className="grid grid-cols-2 gap-2">{xs.map((p) => tile('product', p))}</div>
+          {cups.sizes.length > 0 && <Choice icon="🍦" label={t('كوب: اختاري الحجم ثم النكهة')} sub={t('{n} نكهات', { n: new Set(cups.sizes.flatMap((z) => z.items.map((x) => x.flavour))).size + cups.weighed.length })} onClick={() => setSp({ cup: 'choose' })} />}
+          <div className="grid grid-cols-2 gap-2">{(cups.sizes.length ? cups.rest : xs).map((p) => tile('product', p))}</div>
         </section>
       ))}
       {!items.length && <p className="text-center text-slate-500">{t('ما في شي هني بعد')}</p>}
