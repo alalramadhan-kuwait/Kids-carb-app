@@ -96,7 +96,7 @@ export function MomHome() {
         {latest && mood !== 'stale' && <div dir="ltr" className="flex items-baseline gap-1"><span className="text-[48px] font-extrabold leading-none">{glucoseText(latest.mg_dl, unit)}</span><span className="text-[30px]">{level !== null ? ARROW[level] : ''}</span></div>}
       </div>
 
-      <div className="flex min-h-[120px] flex-1 flex-col rounded-3xl border border-slate-100 bg-white px-1 pt-1">
+      <div className="flex max-h-[50dvh] min-h-[120px] flex-1 flex-col rounded-3xl border border-slate-100 bg-white px-1 pt-1">
         <div ref={box} className="min-h-0 flex-1">
           {merged && <BigGraph key={focusAt ?? 0} at={focusAt} aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} alarmHigh={s.alert_high_mgdl ?? 240}
             shots={shots.map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
@@ -130,8 +130,8 @@ export function MomHome() {
         </Link>
       )}
 
-      {/* one main button: the next step of whatever is going on */}
-      <div className="shrink-0">
+      {/* one main button: the next step of whatever is going on (kept at the bottom when the graph leaves room) */}
+      <div className="mt-auto shrink-0">
         {juice ? <Big className={big} onClick={ack}>✓ {t('فحصتها')}</Big>
           : lowNow ? <Big tone="danger" className={big} onClick={() => nav('/mom/juice')}>🧃 {t('عطيتها عصير')}</Big>
           : open ? <Big className={big} onClick={() => nav(open.eating_at ? `/mom/ate/${open.id}` : `/mom/given/${open.id}`)}>🍽️ {open.eating_at ? t('شكثر أكلت؟') : t('بدأت تاكل؟')}</Big>

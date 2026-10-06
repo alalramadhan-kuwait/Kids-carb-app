@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-06",
+    "version": "2.46.4",
+    "notes": [
+      "الوضع البسيط: الرسم ما ياخذ أكثر من نص الشاشة.",
+      "«نفس الوجبة» يشمل عصير الانخفاض: تشوفين كيف رفع السكر نفس العصير المرات اللي قبل."
+    ],
+    "notes_en": [
+      "Simple mode: the graph takes no more than half the screen.",
+      "“Same meal” includes low-treatment juice: see how the same juice raised her glucose the times before."
+    ]
+  },
+  {
+    "date": "2026-10-06",
     "version": "2.46.3",
     "notes": [
       "الوضع البسيط: تحت الرسم صفين ما يتداخلون: الأكل وعصير الانخفاض، ثم الإبر وقياس الوخز. الرسم أصغر شوي، والأوقات ما يغطيها شي."

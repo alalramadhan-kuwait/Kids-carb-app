@@ -10,33 +10,41 @@ import { sameMeals, sittingOf, sittings, type Sitting } from '../engine/sameMeal
 import { effectiveRange, formatGlucose, unitLabel } from '../lib/glucose';
 import { fmt } from '../lib/carbs';
 import { fmtTime, relDay } from '../lib/constants';
-import type { EventRow } from '../lib/types';
+import type { EventRow, HistoryEntry } from '../lib/types';
 import { t, tMaybe } from '../i18n';
 
 const MIN = 60000, BEFORE = 30, AFTER = 240;
 export const SAME_COLORS = ['rgb(var(--primary-strong))', '#e07a1f', '#2f8f55', '#8a84a0']; // today first
 
-/** A sitting and the earlier times it was the same meal. */
-export function useSameMeal(id: string | null | undefined) {
-  const { history } = useData();
-  return useMemo(() => {
-    if (!id) return null;
-    const all = sittings(history), target = sittingOf(id, all);
-    if (!target) return null;
-    return { target, matches: sameMeals(target, all).map((x) => x.s) };
-  }, [id, history]);
+/** What she ate: the food log and the low treatments (a juice for a low is food too, and has its own pattern). */
+function eaten(history: HistoryEntry[], events: EventRow[]): HistoryEntry[] {
+  const treats = events.filter((e) => e.kind === 'treatment' && !e.deleted_at && (e.carbs_g ?? 0) > 0).map((e) => ({
+    id: e.id, kind: 'snack', recipe_id: null, name: e.treatment || t('علاج انخفاض'), category: null, eaten_at: e.occurred_at, total_carbs: e.carbs_g ?? 0, lines: [],
+  }) as unknown as HistoryEntry);
+  return [...history, ...treats];
 }
 
-/** The last meal of the past 4 hours, when she had the same meal before. */
-export function useRecentSame() {
-  const { history } = useData();
+/** A sitting and the earlier times it was the same meal. */
+export function useSameMeal(id: string | null | undefined) {
+  const { history, events } = useData();
   return useMemo(() => {
-    const all = sittings(history), now = Date.now();
-    const last = [...all].reverse().find((s) => s.t0 <= now && now - s.t0 <= 4 * 3600000 && s.carbs >= 20);
+    if (!id) return null;
+    const all = sittings(eaten(history, events)), target = sittingOf(id, all);
+    if (!target) return null;
+    return { target, matches: sameMeals(target, all).map((x) => x.s) };
+  }, [id, history, events]);
+}
+
+/** The last thing she ate in the past 4 hours (a juice included), when she had the same before. */
+export function useRecentSame() {
+  const { history, events } = useData();
+  return useMemo(() => {
+    const all = sittings(eaten(history, events)), now = Date.now();
+    const last = [...all].reverse().find((s) => s.t0 <= now && now - s.t0 <= 4 * 3600000 && s.carbs >= 10);
     if (!last) return null;
     const matches = sameMeals(last, all).map((x) => x.s);
     return matches.length ? { target: last, matches } : null;
-  }, [history]);
+  }, [history, events]);
 }
 
 /** "Friday 9:22 PM", with the date once it is more than a week ago. */
