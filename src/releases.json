@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-06",
+    "version": "2.48.5",
+    "notes": [
+      "بيربل مي صار بالأحجام كـ«تقدير» (ميني ≈ 17 غ كارب)، لأن بيك ما تنشر وزن الكوب. «بالوزن» باقي للدقة."
+    ],
+    "notes_en": [
+      "Purple Mi now comes in sizes as an “estimate” (Mini ≈ 17 g carbs), since PICK does not publish cup weights. “By weight” stays for accuracy."
+    ]
+  },
+  {
+    "date": "2026-10-06",
     "version": "2.48.4",
     "notes": [
       "منيو المطعم صار مجموعات: برغر وسندويشات، مشروبات، فواكه وأكواب… اضغطي المجموعة تشوفين أصنافها بس. وفيه بحث بالمنيو."

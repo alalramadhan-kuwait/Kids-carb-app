@@ -247,7 +247,7 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   const open = sections.find((x) => x.section.key === sec) ?? (sections.length === 1 ? sections[0] : null);
   const found = q.trim() ? items.filter((p) => matches([p.name, p.name_ar ?? '', p.category], q)) : [];
   const cupRow = (cups: (typeof sections)[number]['cups']) => cups.sizes.length > 0 && (
-    <Choice icon="🍦" label={t('كوب: اختاري الحجم ثم النكهة')} sub={t('{n} نكهات', { n: new Set(cups.sizes.flatMap((z) => z.items.map((x) => x.flavour))).size + cups.weighed.length })} onClick={() => setSp({ cup: 'choose' })} />
+    <Choice icon="🍦" label={t('كوب: اختاري الحجم ثم النكهة')} sub={t('{n} نكهات', { n: new Set([...cups.sizes.flatMap((z) => z.items.map((x) => x.flavour)), ...cups.weighed.map((w) => w.name)]).size })} onClick={() => setSp({ cup: 'choose' })} />
   );
   const here = `${browse ? '/mom/food' : '/mom/add'}/r/${key}`;
   return (
