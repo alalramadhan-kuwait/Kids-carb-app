@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-06",
+    "version": "2.49.0",
+    "notes": [
+      "السجل يعرض التنبيهات مع المدخلات: اختاري الكل أو المدخلات أو التنبيهات.",
+      "«خط زمني»: كل تنبيه مع اللي انسوّى خلاله (العصير، الإبرة، القياس) ومتى انتهى.",
+      "«كل التنبيهات» تضيف المنخفض المتوقع والصعود والنزول السريع."
+    ],
+    "notes_en": [
+      "The Log shows alerts with the entries: choose All, Entries or Alerts.",
+      "“Timeline”: each alert with what was done during it (juice, dose, check) and when it ended.",
+      "“All alerts” adds low expected and rising or falling fast."
+    ]
+  },
+  {
+    "date": "2026-10-06",
     "version": "2.48.6",
     "notes": [
       "فروزن يوغرت بيك: الاختيار بالحجم بس. شلنا «بالوزن»."

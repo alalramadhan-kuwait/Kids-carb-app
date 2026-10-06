@@ -23,6 +23,9 @@ import { EntryActions } from '../components/EntryActions';
 import { useQuickItems } from '../lib/quick';
 import { brandsOf, sameBrand } from '../lib/brand';
 import type { PredictionRow } from '../lib/predictions';
+import type { AlertRow } from '../lib/types';
+import { ALERT_NAME } from '../components/AlertStrip';
+import { episodes as toEpisodes, timeline, MAIN_KINDS, type Episode } from '../engine/alarmLog';
 
 const DAY = 86400000;
 type Kind = 'all' | 'meals' | 'insulin' | 'treatment' | 'other';
@@ -35,6 +38,13 @@ type Item = { t: number; key: string; h?: HistoryEntry; e?: EventRow };
 export default function History() {
   const { history, events, reload, settings, nameOf, me } = useData();
   const [kind, setKind] = useState<Kind>('all');
+  // the doctor's view: alarms with the entries, or either alone; a list or a vertical timeline
+  const [view, setView] = useState<'all' | 'entries' | 'alarms'>('all');
+  const [allAlarms, setAllAlarms] = useState(false);
+  const [layout, setLayoutState] = useState<'list' | 'timeline'>(() => { try { return localStorage.getItem('log-layout') === 'timeline' ? 'timeline' : 'list'; } catch { return 'list'; } });
+  const setLayout = (v: 'list' | 'timeline') => { setLayoutState(v); try { localStorage.setItem('log-layout', v); } catch { /* blocked */ } };
+  const [alerts, setAlerts] = useState<AlertRow[]>([]);
+  const [openEp, setOpenEp] = useState<Episode | null>(null);
   const [brand, setBrand] = useState<string | null>(null);
   const quick = useQuickItems();
   const [days, setDays] = useState(7);
@@ -47,6 +57,13 @@ export default function History() {
   const times = useMemo(() => { const m = new Map<string, number>(); for (const h of history) m.set(keyOf(h), (m.get(keyOf(h)) ?? 0) + 1); return m; }, [history]);
 
   const since = dayStartOf(Date.now()) - (days - 1) * DAY;
+  useEffect(() => {
+    let live = true;
+    void supabase.from('alerts').select('*').not('active_at', 'is', null).gte('started_at', new Date(since - DAY).toISOString()).order('started_at', { ascending: false })
+      .then(({ data }) => { if (live) setAlerts((data ?? []) as AlertRow[]); });
+    return () => { live = false; };
+  }, [since]);
+  const eps = useMemo(() => toEpisodes(alerts, { all: allAlarms }).filter((e) => e.start >= since), [alerts, allAlarms, since]);
   const all: Item[] = useMemo(() => [
     ...history.map((h) => ({ t: Date.parse(h.eaten_at), key: 'h' + h.id, h })),
     ...events.map((e) => ({ t: Date.parse(e.occurred_at), key: 'e' + e.id, e })),
@@ -61,14 +78,21 @@ export default function History() {
   }, [brand, quick.items]);
   const match = (it: Item) => (ofBrand ? !!it.h && ofBrand(it.h) : true) && (kind === 'all' || (kind === 'meals' ? !!it.h
     : !!it.e && (kind === 'insulin' ? it.e.kind === 'insulin' : kind === 'treatment' ? it.e.kind === 'treatment' : it.e.kind !== 'insulin' && it.e.kind !== 'treatment')));
-  const shown = all.filter((it) => it.t >= since && match(it));
+  const shown = view === 'alarms' ? [] : all.filter((it) => it.t >= since && match(it));
+  const shownEps = view === 'entries' ? [] : eps;
   const older = all.some((it) => it.t < since && match(it));
 
+  // one list, newest first: entries and alarm episodes (list), or episodes holding their entries (timeline)
+  type Row = { t: number; key: string; it?: Item; ep?: Episode; inner?: Item[] };
+  const rows: Row[] = useMemo(() => layout === 'timeline'
+    ? timeline(shownEps, shown).map((x) => x.kind === 'episode' ? { t: x.t, key: 'a' + x.ep.id, ep: x.ep, inner: x.entries } : { t: x.t, key: x.entry.key, it: x.entry })
+    : [...shown.map((it) => ({ t: it.t, key: it.key, it })), ...shownEps.map((ep) => ({ t: ep.start, key: 'a' + ep.id, ep }))].sort((a, b) => b.t - a.t),
+  [shown, shownEps, layout]);
   const groups = useMemo(() => {
-    const m = new Map<number, Item[]>();
-    for (const it of shown) { const d = dayStartOf(it.t); m.set(d, [...(m.get(d) ?? []), it]); }
-    return [...m.entries()];
-  }, [shown]);
+    const m = new Map<number, Row[]>();
+    for (const r of rows) { const d = dayStartOf(r.t); m.set(d, [...(m.get(d) ?? []), r]); }
+    return [...m.entries()].sort((a, b) => b[0] - a[0]);
+  }, [rows]);
 
   const remove = async (it: Item) => {
     close();
@@ -83,10 +107,28 @@ export default function History() {
   const whoOf = (it: Item) => ((it.e ?? it.h)?.source ? '' : nameOf(it.e ? it.e.created_by : (it.h as unknown as { created_by?: string }).created_by));
   return (
     <Page title={t('السجل')}>
-      <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
-        {KINDS.map(([k, l]) => <Chip key={k} active={kind === k} onClick={() => { setKind(k); if (k !== 'all' && k !== 'meals') setBrand(null); }}>{l}</Chip>)}
+      <div className="mb-3 flex items-center gap-2">
+        <div className="grid flex-1 grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 text-sm">
+          {([['all', t('الكل')], ['entries', t('المدخلات')], ['alarms', t('التنبيهات')]] as const).map(([k, l]) => (
+            <button key={k} onClick={() => setView(k)} className={cx('min-h-[36px] rounded-full', view === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{l}</button>
+          ))}
+        </div>
       </div>
-      {brands.length > 0 && (
+      <div className="-mx-4 mb-3 flex items-center gap-2 overflow-x-auto px-4">
+        {view !== 'entries' && <>
+          <Chip active={!allAlarms} onClick={() => setAllAlarms(false)}>{t('التنبيهات المهمة')}</Chip>
+          <Chip active={allAlarms} onClick={() => setAllAlarms(true)}>{t('كل التنبيهات')}</Chip>
+        </>}
+        <div className="ms-auto flex shrink-0 gap-0.5 rounded-full bg-slate-100 p-0.5 text-xs">
+          {([['list', t('قائمة')], ['timeline', t('خط زمني')]] as const).map(([k, l]) => (
+            <button key={k} onClick={() => setLayout(k)} aria-pressed={layout === k} className={cx('min-h-[36px] rounded-full px-3', layout === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{l}</button>
+          ))}
+        </div>
+      </div>
+      {view !== 'alarms' && <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
+        {KINDS.map(([k, l]) => <Chip key={k} active={kind === k} onClick={() => { setKind(k); if (k !== 'all' && k !== 'meals') setBrand(null); }}>{l}</Chip>)}
+      </div>}
+      {view !== 'alarms' && brands.length > 0 && (
         <div className="-mx-4 -mt-2 mb-4 flex items-center gap-1.5 overflow-x-auto px-4">
           <span className="shrink-0 text-xs font-medium text-slate-500">{t('البراند')}</span>
           <Chip active={!brand} onClick={() => setBrand(null)}>{t('الكل')}</Chip>
@@ -103,16 +145,33 @@ export default function History() {
                 <h2 className="font-bold">{dayTitle(day)}</h2>
                 <span className="text-xs text-slate-500">{[tot.carbs ? t('{g} غ كارب', { g: fmt(tot.carbs) }) : '', tot.rapid ? t('{u} وحدة سريع', { u: fmt(tot.rapid) }) : ''].filter(Boolean).join(' · ')}</span>
               </div>
-              <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
-                {items.map((it) => <Row key={it.key} it={it} who={whoOf(it)} onOpen={() => { setEditing(false); setOpen(it); }} />)}
-              </ul>
+              {layout === 'timeline' ? (
+                <ol className="relative space-y-2 ps-5 before:absolute before:inset-y-1 before:start-[7px] before:w-0.5 before:rounded-full before:bg-slate-200">
+                  {items.map((r) => r.ep
+                    ? <EpisodeBlock key={r.key} ep={r.ep} unit={settings.glucose_unit} who={nameOf} onOpen={() => setOpenEp(r.ep!)} withEntries={view !== 'alarms'}
+                        entries={r.inner!.map((it) => ({ t: it.t, node: <Row key={it.key} it={it} who={whoOf(it)} onOpen={() => { setEditing(false); setOpen(it); }} /> }))} />
+                    : <li key={r.key} className="relative overflow-hidden rounded-2xl border border-slate-100 bg-white before:absolute before:-start-[17px] before:top-6 before:h-2.5 before:w-2.5 before:rounded-full before:bg-slate-300">
+                        <ul><Row it={r.it!} who={whoOf(r.it!)} onOpen={() => { setEditing(false); setOpen(r.it!); }} /></ul>
+                      </li>)}
+                </ol>
+              ) : (
+                <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
+                  {items.map((r) => r.ep
+                    ? <AlarmRow key={r.key} ep={r.ep} unit={settings.glucose_unit} who={nameOf} onOpen={() => setOpenEp(r.ep!)} />
+                    : <Row key={r.key} it={r.it!} who={whoOf(r.it!)} onOpen={() => { setEditing(false); setOpen(r.it!); }} />)}
+                </ul>
+              )}
             </section>
           );
         })}
         {!groups.length && <Card><p className="text-slate-500">{brand ? t('لا يوجد أكل من {b} في هذه الفترة.', { b: brand }) : t('لا يوجد شيء في هذه الفترة.')}</p></Card>}
-        {older && <Btn block kind="ghost" onClick={() => setDays(days + 7)}>{t('عرض أيام أقدم')}</Btn>}
+        {(older || view === 'alarms') && <Btn block kind="ghost" onClick={() => setDays(days + 7)}>{t('عرض أيام أقدم')}</Btn>}
         <div className="h-16" aria-hidden />{/* room so the Log button never covers the last entry */}
       </div>
+
+      <Sheet open={!!openEp} onClose={() => setOpenEp(null)} title={openEp ? epTitle(openEp) : ''}>
+        {openEp && <EpisodeDetail ep={openEp} unit={settings.glucose_unit} who={nameOf} />}
+      </Sheet>
 
       <Sheet open={!!open} onClose={close} title={editing === 'items' ? t('تعديل الأصناف') : editing ? t('تعديل التسجيل') : open?.h ? open.h.name : open?.e ? describeEvent(open.e) : ''}>
         {open && editing === 'entry' && <EditEntry e={open.e} h={open.h} onCancel={() => setEditing(false)} onDone={close} />}
@@ -137,6 +196,74 @@ export default function History() {
       </div>
       <LogSheet open={logOpen} onClose={() => setLogOpen(false)} />
     </Page>
+  );
+}
+
+// ── alarms ──────────────────────────────────────────────────────────────────────────────────────────
+const EP_STYLE = { low: { bar: 'bg-over-fill', soft: 'bg-over-soft text-over', icon: '🔴' }, high: { bar: 'bg-near-fill', soft: 'bg-near-soft text-near', icon: '🟠' }, data: { bar: 'bg-slate-300', soft: 'bg-slate-100 text-slate-700', icon: '📡' } } as const;
+// only early warnings (low expected, rising or falling fast): calmer, so a fast fall at 10 does not look like a low
+const EARLY_STYLE = { low: { bar: 'bg-over-fill/40', soft: 'bg-slate-50 text-slate-700', icon: '↘' }, high: { bar: 'bg-near-fill/40', soft: 'bg-slate-50 text-slate-700', icon: '↗' } } as const;
+const styleOf = (ep: Episode) => (ep.dir !== 'data' && !MAIN_KINDS.includes(ep.main) ? EARLY_STYLE[ep.dir] : EP_STYLE[ep.dir]);
+/** «منخفض متوقع ← منخفض ← منخفض جدًا»: the kinds in the order they came, each once. */
+const epTitle = (ep: Episode) => [...new Set(ep.alarms.map((a) => a.kind))].map((k) => tMaybe(ALERT_NAME[k])).join(' → ');
+const span = (ep: Episode) => `${fmtTime(new Date(ep.start))} – ${ep.open ? t('مستمر') : fmtTime(new Date(ep.end))}`;
+const ackText = (ep: Episode, who: (id: string | null) => string) => ep.ack ? `${ep.ack.ack_action === 'treated' ? t('عالجتها') : t('أنا عليها')} · ${who(ep.ack.acknowledged_by)}` : '';
+
+function AlarmRow({ ep, unit, who, onOpen }: { ep: Episode; unit: 'mmol' | 'mgdl'; who: (id: string | null) => string; onOpen: () => void }) {
+  const st = styleOf(ep);
+  return (
+    <li>
+      <button onClick={onOpen} className="flex min-h-[56px] w-full items-center gap-3 px-4 py-2 text-start active:bg-slate-50">
+        <span className="num w-[4.5rem] shrink-0 text-sm text-slate-500">{fmtTime(new Date(ep.start))}</span>
+        <span className={cx('grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm', st.soft)} aria-hidden>{st.icon}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium">{epTitle(ep)}</span>
+          <span className="block truncate text-xs text-slate-500"><bdi>{[span(ep), ackText(ep, who)].filter(Boolean).join(' · ')}</bdi></span>
+        </span>
+        {ep.worst !== null && <span className={cx('num shrink-0 rounded-full px-2 py-0.5 text-sm font-bold', st.soft)}>{formatGlucose(ep.worst, unit)}</span>}
+        <span className="text-slate-300">{isEn() ? '›' : '‹'}</span>
+      </button>
+    </li>
+  );
+}
+
+/** Timeline: the alarm episode as a coloured block on the line, with what was done during it inside. */
+function EpisodeBlock({ ep, unit, who, onOpen, withEntries, entries }: { ep: Episode; unit: 'mmol' | 'mgdl'; who: (id: string | null) => string; onOpen: () => void; withEntries: boolean; entries: { t: number; node: React.ReactNode }[] }) {
+  const st = styleOf(ep);
+  // in time order, with "ended" where it happened: the juice before it, the meal after it
+  const ended = <li key="end" className="px-3 py-1.5 text-xs text-slate-500">✓ {t('انتهى {t}', { t: fmtTime(new Date(ep.end)) })}</li>;
+  const during = entries.filter((x) => x.t <= ep.end), after = entries.filter((x) => x.t > ep.end);
+  return (
+    <li className="relative">
+      <span aria-hidden className={cx('absolute -start-[19px] top-1 bottom-1 w-1.5 rounded-full', st.bar)} />
+      <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white">
+        <button onClick={onOpen} className={cx('flex w-full items-center gap-2 px-3 py-2 text-start', st.soft)}>
+          <span aria-hidden>{st.icon}</span>
+          <span className="min-w-0 flex-1"><span className="block font-bold">{epTitle(ep)}</span><span className="block text-xs"><bdi>{[span(ep), ackText(ep, who)].filter(Boolean).join(' · ')}</bdi></span></span>
+          {ep.worst !== null && <span className="num shrink-0 text-lg font-extrabold">{formatGlucose(ep.worst, unit)}</span>}
+        </button>
+        {withEntries && !entries.length && <p className="px-3 py-2 text-xs text-slate-500">{t('ما في تسجيل خلال التنبيه')}</p>}
+        {withEntries && (entries.length > 0 || !ep.open) ? <ul className="divide-y divide-slate-100">
+          {withEntries && during.map((x) => x.node)}
+          {!ep.open && ended}
+          {withEntries && after.map((x) => x.node)}
+        </ul> : null}
+      </div>
+    </li>
+  );
+}
+
+function EpisodeDetail({ ep, unit, who }: { ep: Episode; unit: 'mmol' | 'mgdl'; who: (id: string | null) => string }) {
+  return (
+    <ul className="space-y-2 text-sm">
+      {ep.alarms.map((a) => (
+        <li key={a.id} className="rounded-xl bg-slate-50 px-3 py-2">
+          <div className="flex items-baseline justify-between gap-2"><b>{tMaybe(ALERT_NAME[a.kind])}</b>{(a.worst_mgdl ?? a.value_mgdl) !== null && <span className="num font-bold">{formatGlucose((a.worst_mgdl ?? a.value_mgdl)!, unit)} {tMaybe(unitLabel(unit))}</span>}</div>
+          <div className="text-slate-600">{fmtTime(new Date(a.started_at))} – {a.resolved_at ? fmtTime(new Date(a.resolved_at)) : t('مستمر')}</div>
+          {a.acknowledged_at && <div className="text-slate-600">{a.ack_action === 'treated' ? t('عالجتها') : t('أنا عليها')} · <bdi>{who(a.acknowledged_by)}</bdi> · {fmtTime(new Date(a.acknowledged_at))}</div>}
+        </li>
+      ))}
+    </ul>
   );
 }
 

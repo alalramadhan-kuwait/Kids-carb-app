@@ -2561,6 +2561,29 @@ test('Topi cheese is found by «توبي» and «جبن»', async () => {
 }
 
 {
+  const A = await import('../../engine/alarmLog');
+  const T0 = Date.UTC(2026, 9, 5, 2, 0), M = 60000;
+  const al = (id: string, kind: any, s: number, e: number | null, worst: number | null = null, ack = false) => ({ id, kind, state: e === null ? 'active' : 'resolved', started_at: new Date(T0 + s * M).toISOString(),
+    active_at: new Date(T0 + s * M).toISOString(), value_mgdl: worst, worst_mgdl: worst, acknowledged_by: ack ? 'u1' : null, acknowledged_at: ack ? new Date(T0 + (s + 2) * M).toISOString() : null, ack_action: ack ? 'treated' : null, snoozed_until: null, resolved_at: e === null ? null : new Date(T0 + e * M).toISOString() }) as any;
+  const night = [al('p', 'predicted_low', 0, 15, 76), al('l', 'low', 14, 40, 62, true), al('u', 'urgent_low', 20, 30, 52), al('f', 'rapid_fall', 5, 12), al('h', 'high', 300, 360, 250),
+    { ...al('x', 'low', 500, 505, 68), active_at: null }];
+  test('alarm log: low alarms that follow each other are one episode; early warnings only with «all»; a pending one that never alarmed is left out', () => {
+    const main = A.episodes(night, { now: T0 + 999 * M });
+    assert.deepEqual(main.map((e) => [e.dir, e.alarms.map((a) => a.id)]), [['high', ['h']], ['low', ['l', 'u']]]);
+    assert.equal(main[1].main, 'urgent_low'); assert.equal(main[1].worst, 52); assert.equal(main[1].ack?.id, 'l');
+    const all = A.episodes(night, { all: true, now: T0 + 999 * M });
+    assert.deepEqual(all[1].alarms.map((a) => a.id), ['p', 'f', 'l', 'u'], 'low expected and falling fast join the same night episode');
+    assert.equal(all[1].start, T0); assert.equal(all[1].end, T0 + 40 * M);
+  });
+  test('alarm log timeline: entries during an episode (and up to 30 min after) hang off it; others stand alone', () => {
+    const eps = A.episodes(night, { now: T0 + 999 * M });
+    const e = (k: string, m: number) => ({ k, t: T0 + m * M });
+    const tl = A.timeline(eps, [e('juice', 16), e('prick', 33), e('juice2', 65), e('dose', 320), e('meal', 200)]);
+    assert.deepEqual(tl.map((x) => x.kind === 'episode' ? [x.ep.dir, x.entries.map((y) => y.k)] : x.entry.k), [['high', ['dose']], 'meal', ['low', ['juice', 'prick', 'juice2']]]);
+  });
+}
+
+{
   const S = await import('../../engine/sameMeal');
   const h = (id: string, at: string, carbs: number, lines: [string, number][], name = id) => ({ id, kind: 'meal', recipe_id: null, name, category: null, eaten_at: at, total_carbs: carbs,
     lines: lines.map(([n, c]) => ({ name: n.split(' — ')[0], product: n, quantity: 1, unit: 'serving', state: 'as_is', role: 'main', carbs: c })) }) as any;
