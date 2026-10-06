@@ -1,14 +1,14 @@
 // Restaurants: fast food kept apart from home food. A product belongs to a restaurant by its brand; inside a
 // restaurant the menu is shown in sections (burgers, chicken, fries…) taken from the product's category. Pure.
 
-export interface Restaurant { key: string; brand: string; label: string; bg: string; fg: string; mark: string; lead?: string }
+export interface Restaurant { key: string; brand: string; label: string; bg: string; fg: string; mark: string; lead?: string; logo?: string }
 
-// the badge colours and letters stand in for each restaurant's logo
+// the badge colours and letters stand in for each restaurant's logo, unless the family gave us the logo itself
 export const RESTAURANTS: Restaurant[] = [
   { key: 'mcd', brand: "McDonald's", label: 'ماكدونالدز', bg: '#DA291C', fg: '#FFC72C', mark: 'M' }, // i18n-ok: stored labels, shown via tMaybe
   { key: 'bk', brand: 'Burger King', label: 'برغر كنغ', bg: '#F5EBDC', fg: '#D62300', mark: 'BK' }, // i18n-ok
   { key: 'kfc', brand: 'KFC', label: 'كنتاكي', bg: '#E4002B', fg: '#FFFFFF', mark: 'KFC' }, // i18n-ok
-  { key: 'pick', brand: 'PICK', label: 'بيك', bg: '#0BA182', fg: '#FFFFFF', mark: 'PICK', lead: 'frozen' }, // i18n-ok: frozen yogurt first
+  { key: 'pick', brand: 'PICK', label: 'بيك', bg: '#722C80', fg: '#FFFFFF', mark: 'PICK', lead: 'frozen', logo: 'brands/pick.webp' }, // i18n-ok: frozen yogurt first
 ];
 
 export const restaurantOf = (brand: string | null | undefined): Restaurant | null =>

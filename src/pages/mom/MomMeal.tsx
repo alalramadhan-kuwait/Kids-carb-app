@@ -10,7 +10,7 @@ import { groupByKey, groupOf, groupsIn, subgroupOf, subgroupsIn } from '../../li
 import { matches } from '../../lib/search';
 import { fmt } from '../../lib/carbs';
 import { supabase, uploadPhoto } from '../../lib/supabase';
-import { Photo, cx, inputCls, toast } from '../../components/ui';
+import { Photo, asset, cx, inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import { RESTAURANTS, cupsOf, menuOf, restaurantByKey, restaurantOf, type Restaurant } from '../../lib/restaurants';
 import { foodName } from '../../lib/foodName';
@@ -203,6 +203,7 @@ export function MomAdd({ browse = false }: { browse?: boolean }) {
 
 /** A restaurant's badge: its colours and letters, standing in for the logo. */
 export function RestaurantLogo({ r, size = 56 }: { r: Restaurant; size?: number }) {
+  if (r.logo) return <img src={asset(r.logo)} alt="" aria-hidden className="shrink-0 object-contain" style={{ width: size, height: size }} />;
   return (
     <span aria-hidden className="grid shrink-0 place-items-center overflow-hidden rounded-2xl font-black leading-none shadow-sm" dir="ltr"
       style={{ width: size, height: size, background: r.bg, color: r.fg, fontSize: size * (r.mark.length > 3 ? 0.27 : r.mark.length > 2 ? 0.34 : r.mark.length > 1 ? 0.42 : 0.7), letterSpacing: r.mark.length > 1 ? '-0.02em' : undefined,
