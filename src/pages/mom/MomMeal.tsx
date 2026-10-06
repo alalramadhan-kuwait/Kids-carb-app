@@ -33,6 +33,7 @@ export function useCatalog() {
     if (p) { const g = itemCarbs({ kind, id, portion_id: p.id }); return g === null ? null : t('{p} = {g} غ كارب', { p: tMaybe(p.label), g: fmt(g) }); }
     if (kind === 'recipe') { const g = itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'plate' }); return g === null ? null : t('صحن = {g} غ كارب', { g: fmt(g) }); }
     const pr = products.find((x) => x.id === id);
+    if (pr?.per_item) return t('الحبة = {g} غ كارب', { g: fmt(Number(pr.carbs_per_100)) });
     return pr ? t('{g} غ / 100 {u}', { g: fmt(Number(pr.carbs_per_100)), u: pr.unit === 'ml' ? t('مل') : t('غ') }) : null;
   };
   return { c, carbsOf, itemCarbs, mealCarbs, nameOf, photoOf, firstPortion, tileCarbs };
@@ -220,7 +221,7 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   return (
     <MomPage title={r ? tMaybe(r.label) : t('مطاعم')} back={back} foot={bar}>
       {r && <div className="flex justify-center"><RestaurantLogo r={r} size={64} /></div>}
-      {menuOf(items).map(({ section, items: xs }) => (
+      {menuOf(items, r?.lead).map(({ section, items: xs }) => (
         <section key={section.key} className="space-y-2">
           <h2 className="text-[17px] font-bold">{section.emoji} {tMaybe(section.label)}</h2>
           <div className="grid grid-cols-2 gap-2">{xs.map((p) => tile('product', p))}</div>
@@ -287,8 +288,9 @@ export function MomPortion() {
   const gUnit = prod?.unit === 'ml' ? t('مل') : t('غرام');
   const cur = k !== null ? d.items[Number(k)] ?? null : null;
   // the choice: one of Dad's portions, or 'serving' / 'g' / 'plate' with an amount
-  const [sel, setSel] = useState<string | null>(cur ? cur.portion_id ?? cur.unit ?? null : null);
-  const [amt, setAmt] = useState<number | null>(cur && !cur.portion_id ? cur.amount ?? null : null);
+  const each = !!prod?.per_item; // sold by the item: a count, never grams
+  const [sel, setSel] = useState<string | null>(cur ? cur.portion_id ?? cur.unit ?? null : each ? 'serving' : null);
+  const [amt, setAmt] = useState<number | null>(cur && !cur.portion_id ? cur.amount ?? null : each ? 1 : null);
   const free = sel === 'serving' || sel === 'g' || sel === 'plate';
   const showAmt = free && !(sel === 'g' && pack !== null && amt === pack);
   const item: MomItem | null = !sel ? null : free ? (amt && amt > 0 ? { kind, id, portion_id: null, amount: amt, unit: sel as 'serving' | 'g' | 'plate' } : null) : { kind, id, portion_id: sel };
@@ -312,17 +314,17 @@ export function MomPortion() {
         <Photo {...pic(x)} className="h-24 w-24 shrink-0 rounded-2xl" />
         {prod ? (
           <div className="space-y-0.5 text-[16px]">
-            <div><b className="num">{fmt(Number(prod.carbs_per_100))}</b> {t('غرام كارب بكل 100 {u}', { u: gUnit })}</div>
-            {ss && <div className="text-slate-600">{t('الحصة {s} {u} = {g}', { s: fmt(ss), u: gUnit, g: carbsText(itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'serving' })) })}</div>}
+            {each ? <div><b className="num">{fmt(Number(prod.carbs_per_100))}</b> {t('غرام كارب بالحبة')}</div> : <div><b className="num">{fmt(Number(prod.carbs_per_100))}</b> {t('غرام كارب بكل 100 {u}', { u: gUnit })}</div>}
+            {ss && !each && <div className="text-slate-600">{t('الحصة {s} {u} = {g}', { s: fmt(ss), u: gUnit, g: carbsText(itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'serving' })) })}</div>}
             {prod.brand && <div className="text-sm text-slate-500"><bdi>{prod.brand}</bdi></div>}
           </div>
         ) : <div className="text-[16px]">{t('الصحن الواحد = {g}', { g: carbsText(itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'plate' })) })}</div>}
       </div>
       <h2 className="text-[18px] font-bold">{t('كم؟')}</h2>
       {mine.map((p) => <Choice key={p.id} icon={p.photo_path ? <Photo path={p.photo_path} className="h-11 w-11" /> : '⭐'} label={tMaybe(p.label)} sub={carbsText(itemCarbs({ kind, id, portion_id: p.id }))} on={sel === p.id} onClick={() => pick(p.id, null)} />)}
-      {prod && ss && <Choice icon="🥄" label={t('بالحصة')} sub={t('حصة = {s} {u}', { s: fmt(ss), u: gUnit })} on={sel === 'serving'} onClick={() => pick('serving', sel === 'serving' ? amt : 1)} />}
-      {prod && pack && <Choice icon="📦" label={t('العلبة كاملة')} sub={`${fmt(pack)} ${gUnit} · ${carbsText(itemCarbs({ kind, id, portion_id: null, amount: pack, unit: 'g' }))}`} on={sel === 'g' && amt === pack} onClick={() => pick('g', pack)} />}
-      {prod && <Choice icon="⚖️" label={prod.unit === 'ml' ? t('بالمل') : t('بالغرام')} on={sel === 'g' && amt !== pack} onClick={() => pick('g', sel === 'g' && amt !== pack ? amt : ss ?? null)} />}
+      {prod && ss && <Choice icon={each ? '🔢' : '🥄'} label={each ? t('بالعدد') : t('بالحصة')} sub={each ? undefined : t('حصة = {s} {u}', { s: fmt(ss), u: gUnit })} on={sel === 'serving'} onClick={() => pick('serving', sel === 'serving' ? amt : 1)} />}
+      {prod && pack && !each && <Choice icon="📦" label={t('العلبة كاملة')} sub={`${fmt(pack)} ${gUnit} · ${carbsText(itemCarbs({ kind, id, portion_id: null, amount: pack, unit: 'g' }))}`} on={sel === 'g' && amt === pack} onClick={() => pick('g', pack)} />}
+      {prod && !each && <Choice icon="⚖️" label={prod.unit === 'ml' ? t('بالمل') : t('بالغرام')} on={sel === 'g' && amt !== pack} onClick={() => pick('g', sel === 'g' && amt !== pack ? amt : ss ?? null)} />}
       {!prod && <Choice icon="🍽️" label={t('بالصحون')} on={sel === 'plate'} onClick={() => pick('plate', sel === 'plate' ? amt : 1)} />}
       {showAmt && (
         <div className="flex items-center justify-center gap-4">
@@ -331,7 +333,7 @@ export function MomPortion() {
             ? <input inputMode="decimal" dir="ltr" className={cx(inputCls, '!w-28 !text-center !text-[28px] font-bold')} value={amt ?? ''} onChange={(e) => { const v = Number(e.target.value.replace(',', '.')); setAmt(e.target.value === '' || !Number.isFinite(v) ? null : v); }} />
             : <span className="num w-24 text-center text-[40px] font-extrabold">{amt === null ? '—' : fmt(amt)}</span>}
           <button aria-label="−" className="grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => setAmt(Math.max(0, Math.round(((amt ?? 0) - step) * 10) / 10))}>−</button>
-          <span className="text-[18px] text-slate-500">{sel === 'g' ? gUnit : sel === 'serving' ? t('حصة') : t('صحن')}</span>
+          <span className="text-[18px] text-slate-500">{sel === 'g' ? gUnit : sel === 'serving' ? (each ? t('حبة') : t('حصة')) : t('صحن')}</span>
         </div>
       )}
       {k !== null && <button className="min-h-[44px] font-bold text-over" onClick={() => { draftOps.remove(Number(k)); nav('/mom/meal', { replace: true }); }}>{t('شيليه من الصحن')}</button>}
@@ -397,9 +399,9 @@ export function MomFoodItem() {
   type Row = { label: string; a: number | null; b: number | null; unit: string; main?: boolean };
   let head: [string, string | null], rows: Row[];
   if (prod) {
-    const ss = prod.serving_size ? Number(prod.serving_size) : null, f = ss ? ss / 100 : null;
+    const ss = prod.serving_size && !prod.per_item ? Number(prod.serving_size) : null, f = ss ? ss / 100 : null;
     const both = (v: number | null | undefined) => ({ a: n(v), b: f === null ? null : n(v, f) });
-    head = [t('بكل 100 {u}', { u }), ss ? t('الحصة {s} {u}', { s: fmt(ss), u }) : null];
+    head = [prod.per_item ? t('الحبة الوحدة') : t('بكل 100 {u}', { u }), ss ? t('الحصة {s} {u}', { s: fmt(ss), u }) : null];
     rows = [
       { label: t('كارب'), ...both(prod.carbs_per_100), unit: t('غرام'), main: true },
       { label: t('سكر'), ...both(prod.sugar_per_100), unit: t('غرام') },

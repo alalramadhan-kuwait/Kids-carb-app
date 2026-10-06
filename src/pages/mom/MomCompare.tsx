@@ -37,7 +37,7 @@ export function MomCompare() {
       if (p) {
         const u = p.unit === 'ml' ? t('مل') : t('غ'), ss = p.serving_size ? Number(p.serving_size) : null, por = firstPortion('product', p.id);
         // per portion: the first household portion, else the label's serving, else nothing to show
-        const f = per === '100' ? 1 : por ? Number(por.amount) / 100 : ss ? ss / 100 : null;
+        const f = p.per_item ? (por ? Number(por.amount) / 100 : 1) : per === '100' ? 1 : por ? Number(por.amount) / 100 : ss ? ss / 100 : null; // per item: always one item
         sub = per === '100' ? (p.unit === 'ml' ? `100 ${u}` : null) : por ? `${tMaybe(por.label)} (${fmt(Number(por.amount))} ${u})` : ss ? t('الحصة {s} {u}', { s: fmt(ss), u }) : null;
         if (f !== null) v = { carbs: n(p.carbs_per_100, f), sugar: n(p.sugar_per_100, f), kcal: p.kcal_per_100 === null || p.kcal_per_100 === undefined ? null : Math.round(Number(p.kcal_per_100) * f), protein: n(p.protein_per_100, f), fat: n(p.fat_per_100, f), fiber: n(p.fiber_per_100, f) };
       }

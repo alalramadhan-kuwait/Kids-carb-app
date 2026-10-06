@@ -70,7 +70,7 @@ export function ProductPicker({ onPick, category }: { onPick: (p: Product) => vo
                 <span className="block truncate text-xs text-slate-500">{[p.brand, tMaybe(p.category)].filter(Boolean).join(' · ')}{!p.approved ? ' · ' + t('غير معتمد') : ''}</span>
               </span>
               <span className={cx('shrink-0 text-xs text-slate-600', !p.approved && 'opacity-50')}>
-                <b className="text-sm text-slate-900">{fmt(p.carbs_per_100)}</b> {t('غ')}/100{u(p)}
+                <b className="text-sm text-slate-900">{fmt(p.carbs_per_100)}</b> {p.per_item ? t('غ كارب بالحبة') : <>{t('غ')}/100{u(p)}</>}
               </span>
             </button>
           </li>

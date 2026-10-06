@@ -66,7 +66,7 @@ export function ProductList() {
                 <div className="min-w-0">
                   <div className="truncate font-bold">{p.name}</div>
                   <div className="truncate text-xs text-slate-500">{p.brand ?? (p.kind === 'natural' ? t('مرجعي') : '—')} • {tMaybe(p.category)}</div>
-                  <div className="text-sm"><span className="num font-bold">{fmt(p.carbs_per_100)}</span> {p.unit === 'g' ? t('غ/100غ') : t('غ/100مل')}
+                  <div className="text-sm"><span className="num font-bold">{fmt(p.carbs_per_100)}</span> {p.per_item ? t('غ كارب بالحبة') : p.unit === 'g' ? t('غ/100غ') : t('غ/100مل')}
                     {p.carbs_per_serving !== null && <> • {t('حصة')} <span className="num font-bold">{fmt(p.carbs_per_serving)}</span></>}</div>
                   <div className="mt-0.5 flex flex-wrap gap-1">
                     {p.approved ? <Badge tone="ok">{t('معتمد')}</Badge> : <Badge tone="near">{t('غير معتمد')}</Badge>}

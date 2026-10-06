@@ -44,7 +44,7 @@ function Body({ p, onClose, start }: { p: Product; onClose: () => void; start: '
   const x = amount && amount > 0 ? portion(p, amount) : null;
   const ok = !!x && amount! <= 3000 && p.approved;
   const kind = picked ?? (wasLow && (!x || x.carbs <= 25) ? 'low' : 'snack');
-  const label = (k: string, a: number) => (k === 'pack' ? t('العلبة ({a} {u})', { a: fmt(a), u }) : k === 'serving' ? t('حصة ({a} {u})', { a: fmt(a), u }) : `${fmt(a)} ${u}`);
+  const label = (k: string, a: number) => (k === 'item' ? t('{n} حبة', { n: fmt(a / 100) }) : k === 'pack' ? t('العلبة ({a} {u})', { a: fmt(a), u }) : k === 'serving' ? t('حصة ({a} {u})', { a: fmt(a), u }) : `${fmt(a)} ${u}`);
 
   const save = async () => {
     if (!ok) return;
@@ -70,7 +70,7 @@ function Body({ p, onClose, start }: { p: Product; onClose: () => void; start: '
         <Photo path={p.image_path} category={p.category} className="h-14 w-14 shrink-0 rounded-xl" />
         <div className="min-w-0 text-sm text-slate-600">
           <div>{p.brand ?? t('مرجعي')} · {tMaybe(p.category)}</div>
-          <div><b className="num text-slate-800">{fmt(p.carbs_per_100)}</b> {p.unit === 'ml' ? t('غ/100مل') : t('غ/100غ')}</div>
+          <div><b className="num text-slate-800">{fmt(p.carbs_per_100)}</b> {p.per_item ? t('غ كارب بالحبة') : p.unit === 'ml' ? t('غ/100مل') : t('غ/100غ')}</div>
         </div>
       </div>
 
@@ -92,10 +92,10 @@ function Body({ p, onClose, start }: { p: Product; onClose: () => void; start: '
               {choices.map((c) => (
                 <button key={c.key} onClick={() => setAmount(c.amount)} className={cx('min-h-[40px] rounded-full px-3.5 text-sm font-medium', amount === c.amount ? 'bg-brand text-white' : 'bg-slate-50 text-slate-700')}>{label(c.key, c.amount)}</button>
               ))}
-              <div className="flex items-center gap-1">
+              {!p.per_item && <div className="flex items-center gap-1">
                 <NumInput className="!min-h-[40px] !w-20 !rounded-xl !px-2 !py-1.5 !text-center" value={choices.some((c) => c.amount === amount) ? null : amount} onChange={setAmount} placeholder={t('أخرى')} />
                 <span className="text-sm text-slate-500">{u}</span>
-              </div>
+              </div>}
             </div>
           </div>
           {x && (

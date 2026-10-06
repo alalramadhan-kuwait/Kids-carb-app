@@ -18,7 +18,8 @@ export const glucoseCols = (g: Awaited<ReturnType<typeof glucoseAt>>) => ({ gluc
 export async function logProduct(p: Product, amount: number, at: number, kind: 'meal' | 'snack'): Promise<string> {
   const x = portion(p, amount);
   const g = await glucoseAt(at);
-  const line: HistoryLine = { name: p.name, product: [p.name, p.brand].filter(Boolean).join(' — '), quantity: amount, unit: p.unit, state: 'as_is', role: 'main', carbs: x.carbs };
+  // a per-item food is recorded as items (servings), not as its 100 storage units
+  const line: HistoryLine = { name: p.name, product: [p.name, p.brand].filter(Boolean).join(' — '), quantity: p.per_item ? amount / 100 : amount, unit: p.per_item ? 'serving' : p.unit, state: 'as_is', role: 'main', carbs: x.carbs };
   // the other label nutrients for this amount (null when the label does not give them)
   const micro = Object.fromEntries((Object.keys(MICRO_FIELD) as Micro[]).map((m) => {
     const v = p[MICRO_FIELD[m]] as number | null | undefined;

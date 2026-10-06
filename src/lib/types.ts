@@ -32,6 +32,9 @@ export interface Product {
   food_group?: string | null;
   serving_size: number | null; // also what "1 piece" means
   carbs_per_serving: number | null;
+  // sold by the item, no weight published (restaurant cups, sandwiches): one item is stored as 100 units, so every
+  // per-100 value is the per-item value and the usual maths holds; screens offer items only, never grams
+  per_item?: boolean;
   label_basis: 'as_sold' | 'cooked';
   cooked_yield: number | null; // cooked g per 1 g as sold
   available: boolean;

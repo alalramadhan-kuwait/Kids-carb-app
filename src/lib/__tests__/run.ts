@@ -2533,6 +2533,22 @@ test('Topi cheese is found by «توبي» and «جبن»', async () => {
 }
 
 {
+  const C = await import('../carbs');
+  const P = await import('../portion');
+  const M = await import('../../engine/mom');
+  const cup = { id: 'pick-s', name: 'Original Yo (Small)', brand: 'PICK', category: 'آيس كريم', kind: 'commercial', unit: 'g', per_item: true, // i18n-ok
+    carbs_per_100: 28, fat_per_100: 0, protein_per_100: 5, fiber_per_100: 6, kcal_per_100: 129, serving_size: 100, carbs_per_serving: 28, pack_size: null, label_basis: 'as_sold', approved: true, available: false } as any;
+  test('a per-item food: one item is one serving, the carbs are exactly the published number, and no grams are offered', () => {
+    const s = { tbsp_size: 15 } as any;
+    const items = M.planItemsOf({ kind: 'product', id: 'pick-s', portion_id: null, amount: 2, unit: 'serving' }, { products: [cup], recipes: [], ingsByRecipe: new Map(), portions: [] } as any)!;
+    const m = C.computeMeal(items.map((i: any, k: number) => ({ ...i, id: String(k), qty_confirmed: true, note: null, sort: k })), [cup], s);
+    assert.equal(m.total.carbs, 56, 'two Small cups = 2 × 28 g');
+    assert.deepEqual(P.amountChoices(cup).map((c) => [c.key, c.amount]), [['item', 100], ['item', 200]], 'items only, never 100 g');
+    assert.equal(P.portion(cup, 100).carbs, 28);
+  });
+}
+
+{
   const S = await import('../../engine/sameMeal');
   const h = (id: string, at: string, carbs: number, lines: [string, number][], name = id) => ({ id, kind: 'meal', recipe_id: null, name, category: null, eaten_at: at, total_carbs: carbs,
     lines: lines.map(([n, c]) => ({ name: n.split(' — ')[0], product: n, quantity: 1, unit: 'serving', state: 'as_is', role: 'main', carbs: c })) }) as any;

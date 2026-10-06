@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-06",
+    "version": "2.48.0",
+    "notes": [
+      "بيك في «مطاعم»: الفروزن يوغرت (Original Yo وVanilla Mi وPeach Yo وSicilian Lemon Ve) بكل الأحجام من قائمة بيك الرسمية، وأكواب الفواكه والأساي والمشروبات والسندويشات والحلى (187 صنف).",
+      "الأكل اللي ينباع بالحبة (كوب، سندويشة) تختارينه بالعدد: الكارب من رقم المطعم مباشرة بدون وزن.",
+      "إضافات الفروزن يوغرت مو محسوبة: قائمة بيك تعطي سعراتها بس."
+    ],
+    "notes_en": [
+      "PICK in “Restaurants”: frozen yogurt (Original Yo, Vanilla Mi, Peach Yo, Sicilian Lemon Ve) in every size from PICK's official menu, plus fruit cups, açaí bowls, drinks, sandwiches and desserts (187 items).",
+      "Food sold by the item (a cup, a sandwich) is chosen by count: the carbs come straight from the restaurant's number, no weight needed.",
+      "Frozen yogurt toppings are not counted: PICK's menu gives only their calories."
+    ]
+  },
+  {
+    "date": "2026-10-06",
     "version": "2.47.1",
     "notes": [
       "رابط المشاركة صار يعرض رسم السكر تحت القراءة، ويقدر اللي عنده الرابط يلمس الرسم ليشوف أي قراءة ووقتها."
