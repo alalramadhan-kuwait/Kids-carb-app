@@ -217,6 +217,7 @@ export function RestaurantLogo({ r, size = 56 }: { r: Restaurant; size?: number 
 export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   const { key } = useParams() as { key: string };
   const [sp, setSp] = useSearchParams();
+  const [q, setQ] = useState('');
   const r = restaurantByKey(key);
   const { products, tile, pick, tileCarbs } = useFoods(browse);
   const items = products.filter((p) => restaurantOf(p.brand)?.key === key);
@@ -241,16 +242,34 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
       </MomPage>
     );
   }
+  // the menu as section tiles (burgers, drinks, fruit…); a tap opens that section only; typing searches the whole menu
+  const sec = sp.get('sec');
+  const open = sections.find((x) => x.section.key === sec) ?? (sections.length === 1 ? sections[0] : null);
+  const found = q.trim() ? items.filter((p) => matches([p.name, p.name_ar ?? '', p.category], q)) : [];
+  const cupRow = (cups: (typeof sections)[number]['cups']) => cups.sizes.length > 0 && (
+    <Choice icon="🍦" label={t('كوب: اختاري الحجم ثم النكهة')} sub={t('{n} نكهات', { n: new Set(cups.sizes.flatMap((z) => z.items.map((x) => x.flavour))).size + cups.weighed.length })} onClick={() => setSp({ cup: 'choose' })} />
+  );
+  const here = `${browse ? '/mom/food' : '/mom/add'}/r/${key}`;
   return (
-    <MomPage title={r ? tMaybe(r.label) : t('مطاعم')} back={menuBack} foot={bar}>
-      {r && <div className="flex justify-center"><RestaurantLogo r={r} size={64} /></div>}
-      {sections.map(({ section, items: xs, cups }) => (
-        <section key={section.key} className="space-y-2">
-          <h2 className="text-[17px] font-bold">{section.emoji} {tMaybe(section.label)}</h2>
-          {cups.sizes.length > 0 && <Choice icon="🍦" label={t('كوب: اختاري الحجم ثم النكهة')} sub={t('{n} نكهات', { n: new Set(cups.sizes.flatMap((z) => z.items.map((x) => x.flavour))).size + cups.weighed.length })} onClick={() => setSp({ cup: 'choose' })} />}
-          <div className="grid grid-cols-2 gap-2">{(cups.sizes.length ? cups.rest : xs).map((p) => tile('product', p))}</div>
-        </section>
-      ))}
+    <MomPage title={open && sections.length > 1 ? `${open.section.emoji} ${tMaybe(open.section.label)}` : r ? tMaybe(r.label) : t('مطاعم')} back={open && sections.length > 1 ? here : menuBack} foot={bar}>
+      {!open && r && <div className="flex justify-center"><RestaurantLogo r={r} size={64} /></div>}
+      {!open && <input className={inputCls} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('ابحثي في المنيو')} />}
+      {q.trim() && !open ? (
+        found.length ? <div className="grid grid-cols-2 gap-2">{found.map((p) => tile('product', p))}</div> : <p className="text-center text-slate-500">{t('ما في شي بهالاسم')}</p>
+      ) : open ? (
+        <>
+          {cupRow(open.cups)}
+          <div className="grid grid-cols-2 gap-2">{(open.cups.sizes.length ? open.cups.rest : open.items).map((p) => tile('product', p))}</div>
+        </>
+      ) : (
+        <>
+          {sections.filter((x) => x.cups.sizes.length).map((x) => <div key={x.section.key}>{cupRow(x.cups)}</div>)}
+          <div className="grid grid-cols-2 gap-2">
+            {sections.map(({ section, items: xs, cups }) => (cups.sizes.length && !cups.rest.length ? null
+              : <GroupTile key={section.key} emoji={section.emoji} label={tMaybe(section.label)} n={cups.sizes.length ? cups.rest.length : xs.length} onClick={() => setSp({ sec: section.key })} />))}
+          </div>
+        </>
+      )}
       {!items.length && <p className="text-center text-slate-500">{t('ما في شي هني بعد')}</p>}
     </MomPage>
   );

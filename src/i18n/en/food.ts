@@ -767,6 +767,8 @@ export const food: Record<string, string> = {
   "النمط يحتاج {n} وجبات قابلة للمقارنة (الآن {k}).": "A pattern needs {n} comparable meals (now {k}).",
   "الوجبات المخططة": "Planned meals",
   "الوجبات المخططة لفريق الرعاية": "Meal plans for the care team",
+  "ابحثي في المنيو": "Search the menu",
+  "ما في شي بهالاسم": "Nothing by that name",
   "أي حجم؟": "Which size?",
   "{a}–{b} غ كارب": "{a}–{b} g carbs",
   "أي نكهة؟": "Which flavour?",
