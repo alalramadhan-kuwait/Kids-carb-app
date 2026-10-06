@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-06",
+    "version": "2.51.1",
+    "notes": [
+      "«نزول سريع» ما يطلع مربع فوق شاشة الآن (السهم والرقم في بطاقة السكر يكفون). الإشعار على الجوال باقي."
+    ],
+    "notes_en": [
+      "“Falling fast” no longer shows a box at the top of Now (the arrow and change on the glucose card say it). The phone notification stays."
+    ]
+  },
+  {
+    "date": "2026-10-06",
     "version": "2.51.0",
     "notes": [
       "الأكل البيتي صار ينوزن: اختاري الطبخة ⚖️ «وزنتها بالميزان» واكتبي الرقم اللي طلع، والكارب ينحسب.",
