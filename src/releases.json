@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-06",
+    "version": "2.47.0",
+    "notes": [
+      "تبويب «مطاعم» في التغذية وفي «شنو بتاكل؟»: كل مطعم بشعاره، والمنيو مقسّم: برغر، دجاج وناجت، بطاط، صوص، مشروبات، حلى. تبويب «أكل» صار لأكل البيت بس، والبحث يلقى الكل."
+    ],
+    "notes_en": [
+      "A “Restaurants” tab in Nutrition and in “What will she eat?”: each restaurant with its badge, its menu in sections: burgers, chicken & nuggets, fries, sauces, drinks, desserts. “Food” now holds home food only; search still finds everything."
+    ]
+  },
+  {
+    "date": "2026-10-06",
     "version": "2.46.5",
     "notes": [
       "«نفس الوجبة» يعرض كل المرات (لين 20 مرة في آخر 3 شهور) بخطوط رمادية خفيفة، وخط برتقالي «المعتاد» يمثّل وسطها، وتحتها كل مرة بسطر واحد."

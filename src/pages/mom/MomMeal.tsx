@@ -12,6 +12,7 @@ import { fmt } from '../../lib/carbs';
 import { supabase, uploadPhoto } from '../../lib/supabase';
 import { Photo, cx, inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
+import { RESTAURANTS, menuOf, restaurantByKey, restaurantOf, type Restaurant } from '../../lib/restaurants';
 import { Big, Choice, MomPage } from './MomUI';
 import type { PlanItem, Product, Recipe } from '../../lib/types';
 
@@ -142,7 +143,7 @@ export function MomAdd({ browse = false }: { browse?: boolean }) {
   const [sp, setSp] = useSearchParams();
   const { meals } = useSavedMeals();
   // browse: the «التغذية» tab — the same food list, but a tap opens the item's nutrition values
-  const tab = (sp.get('tab') ?? (meals.length && !browse ? 'saved' : 'products')) as 'saved' | 'recipes' | 'products';
+  const tab = (sp.get('tab') ?? (meals.length && !browse ? 'saved' : 'products')) as 'saved' | 'recipes' | 'products' | 'restaurants';
   const [q, setQ] = useState('');
   const { c, mealCarbs, nameOf, products, recipes, homeFirst, tile } = useFoods(browse);
   const rec = recent().filter((r) => readyForMom(r.kind, r.id, c)).slice(0, 4);
@@ -150,15 +151,26 @@ export function MomAdd({ browse = false }: { browse?: boolean }) {
   // searching finds every approved food in every group (restaurants, things not bought yet), what is at home first
   const found = q.trim() ? homeFirst(products.filter((p) => matches([p.name, p.brand, p.category], q))) : [];
   const foundRecipes = q.trim() ? recipes.filter((r) => matches([r.name, r.category], q)) : [];
-  const groups = groupsIn(products);
+  const groups = groupsIn(products.filter((p) => !restaurantOf(p.brand))); // restaurant food has its own tab
   const missing = q.trim() && !found.length && !foundRecipes.length;
   const base = browse ? '/mom/food' : '/mom/add';
   const bar = useCompareBar(browse);
   return (
     <MomPage title={browse ? t('التغذية') : t('شنو بتاكل؟')} back={browse ? null : '/mom/meal'} tabs={browse} foot={bar}>
-      <div className={cx('grid gap-1 rounded-full bg-slate-100 p-1 text-[15px]', browse ? 'grid-cols-2' : 'grid-cols-3')}>
-        {(browse ? ['products', 'recipes'] as const : ['saved', 'recipes', 'products'] as const).map((k) => <button key={k} onClick={() => setSp({ tab: k }, { replace: true })} className={cx('min-h-[44px] rounded-full', tab === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{k === 'saved' ? t('وجباتها') : k === 'recipes' ? t('طبخ البيت') : t('أكل')}</button>)}
+      <div className={cx('grid gap-1 rounded-full bg-slate-100 p-1', browse ? 'grid-cols-3 text-[15px]' : 'grid-cols-4 text-[14px]')}>
+        {(browse ? ['products', 'recipes', 'restaurants'] as const : ['saved', 'recipes', 'products', 'restaurants'] as const).map((k) => <button key={k} onClick={() => setSp({ tab: k }, { replace: true })} className={cx('min-h-[44px] rounded-full px-1 leading-tight', tab === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{k === 'saved' ? t('وجباتها') : k === 'recipes' ? t('طبخ البيت') : k === 'restaurants' ? t('مطاعم') : t('أكل')}</button>)}
       </div>
+      {tab === 'restaurants' && (
+        <div className="grid grid-cols-2 gap-2">
+          {RESTAURANTS.map((r) => ({ r, n: products.filter((p) => restaurantOf(p.brand)?.key === r.key).length })).filter((x) => x.n).map(({ r, n }) => (
+            <button key={r.key} onClick={() => nav(`${base}/r/${r.key}`)} className="flex min-h-[150px] flex-col items-center justify-center gap-2 rounded-2xl border border-slate-100 bg-white p-3 active:opacity-80">
+              <RestaurantLogo r={r} size={72} />
+              <span className="text-[17px] font-bold">{tMaybe(r.label)}</span>
+              <span className="num text-[14px] text-slate-500">{n}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {tab === 'saved' && (meals.length ? meals.map((m) => {
         const g = mealCarbs(m.items);
         return <Choice key={m.id} icon="⭐" label={m.name} sub={m.items.map((i) => nameOf(i)).join(' · ')} onClick={() => { draftOps.load(m); nav('/mom/meal'); }} color={g === null ? '#e2e8f0' : undefined} />;
@@ -183,6 +195,38 @@ export function MomAdd({ browse = false }: { browse?: boolean }) {
         </>
       )}
       <Big tone="ghost" className={cx('shrink-0', missing ? '' : 'mt-auto')} onClick={() => nav('/mom/new')}>{t('مو موجود؟')}</Big>
+    </MomPage>
+  );
+}
+
+/** A restaurant's badge: its colours and letters, standing in for the logo. */
+export function RestaurantLogo({ r, size = 56 }: { r: Restaurant; size?: number }) {
+  return (
+    <span aria-hidden className="grid shrink-0 place-items-center overflow-hidden rounded-2xl font-black leading-none shadow-sm" dir="ltr"
+      style={{ width: size, height: size, background: r.bg, color: r.fg, fontSize: size * (r.mark.length > 2 ? 0.34 : r.mark.length > 1 ? 0.42 : 0.7), letterSpacing: r.mark.length > 1 ? '-0.02em' : undefined,
+        ...(r.key === 'bk' ? { borderRadius: '50%', boxShadow: `inset 0 0 0 ${size * 0.06}px #F89D1C` } : {}) }}>
+      {r.mark}
+    </span>
+  );
+}
+
+/** One restaurant: its menu in sections (burgers, chicken, fries, sauces, drinks, desserts). */
+export function MomRestaurant({ browse = false }: { browse?: boolean }) {
+  const { key } = useParams() as { key: string };
+  const r = restaurantByKey(key);
+  const { products, tile } = useFoods(browse);
+  const items = products.filter((p) => restaurantOf(p.brand)?.key === key);
+  const bar = useCompareBar(browse), back = useBack(`${browse ? '/mom/food' : '/mom/add'}?tab=restaurants`);
+  return (
+    <MomPage title={r ? tMaybe(r.label) : t('مطاعم')} back={back} foot={bar}>
+      {r && <div className="flex justify-center"><RestaurantLogo r={r} size={64} /></div>}
+      {menuOf(items).map(({ section, items: xs }) => (
+        <section key={section.key} className="space-y-2">
+          <h2 className="text-[17px] font-bold">{section.emoji} {tMaybe(section.label)}</h2>
+          <div className="grid grid-cols-2 gap-2">{xs.map((p) => tile('product', p))}</div>
+        </section>
+      ))}
+      {!items.length && <p className="text-center text-slate-500">{t('ما في شي هني بعد')}</p>}
     </MomPage>
   );
 }
