@@ -1,5 +1,5 @@
 // Mom mode's log: the last two days, newest first — shots in pen colours, juice, food. A shot or juice opens its
-// page (change or delete); food shows what she ate and its carbs.
+// page (change or delete); food opens to rename it, change its time or delete it.
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { relDay } from '../../lib/constants';
@@ -20,7 +20,7 @@ export function MomLog() {
         ? { key: e.id, at: Date.parse(e.occurred_at), to: `/mom/entry/${e.id}`, icon: <PenBar type={type} />, label: <>{t(PEN_NAME[type])} <b className="num">{fmt(e.insulin_units!)}</b> {t('وحدة')}</>, sub: e.injection_site ? t(SITE_NAME[e.injection_site]) : '' }
         : { key: e.id, at: Date.parse(e.occurred_at), to: `/mom/entry/${e.id}`, icon: '🧃', label: <bdi>{tMaybe(e.treatment ?? '')}</bdi>, sub: `${fmt(e.carbs_g ?? 0)} ${t('غرام')}` };
     }),
-    ...history.filter((h) => Date.parse(h.eaten_at) >= from.getTime()).map((h): Row => ({ key: h.id, at: Date.parse(h.eaten_at), to: null, icon: '🍽️', label: <bdi>{tMaybe(h.name)}</bdi>, sub: `${fmt(h.total_carbs)} ${t('غرام')}` })),
+    ...history.filter((h) => Date.parse(h.eaten_at) >= from.getTime()).map((h): Row => ({ key: h.id, at: Date.parse(h.eaten_at), to: `/mom/meal-entry/${h.id}`, icon: '🍽️', label: <bdi>{tMaybe(h.name)}</bdi>, sub: `${fmt(h.total_carbs)} ${t('غرام')}` })),
   ].sort((a, b) => b.at - a.at);
   const days = [...new Set(rows.map((r) => new Date(r.at).toDateString()))];
   return (

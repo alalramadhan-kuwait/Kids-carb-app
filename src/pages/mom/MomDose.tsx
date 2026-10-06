@@ -17,7 +17,7 @@ import type { DoseSnapshot, PlannedMeal } from '../../lib/types';
 import { Big, Choice, MomPage, ago, clock, glucoseText, left } from './MomUI';
 import { useCatalog } from './MomMeal';
 
-const slotNow = (): PlannedMeal['slot'] => { const h = new Date().getHours(); return h < 10 ? 'breakfast' : h < 15 ? 'lunch' : h < 20 ? 'dinner' : 'snack'; };
+const slotNow = (): PlannedMeal['slot'] => { const h = new Date().getHours(); return h < 5 ? 'snack' : h < 10 ? 'breakfast' : h < 15 ? 'lunch' : h < 20 ? 'dinner' : 'snack'; };
 const ARROW: Record<number, string> = { [-3]: '⇊', [-2]: '↓', [-1]: '↘', 0: '→', 1: '↗', 2: '↑', 3: '⇈' };
 const SLOT = { breakfast: 'فطور', lunch: 'غدا', dinner: 'عشا', snack: 'سناك' } as const; // i18n-ok: stored name
 const PARTS: [number, string, string][] = [[1, '🟢', 'كلها'], [0.5, '◐', 'تقريبًا نصها'], [0.25, '◔', 'شوي']]; // i18n-ok: translated where shown

@@ -48,6 +48,7 @@ import { MomEntry } from './pages/mom/MomEntry';
 import { Alarm } from './components/Alarm';
 import { useKeepAwake } from './lib/keepAwake';
 import { MomLog } from './pages/mom/MomLog';
+import { MomMealEntry } from './pages/mom/MomMealEntry';
 import { SameMealPage, MomSame } from './pages/SameMeal';
 import { MomActivity, MomMore, MomPlanView, MomPlans, MomSensor, MomWhen } from './pages/mom/MomPlan';
 import { MomTabs } from './pages/mom/MomUI';
@@ -243,6 +244,7 @@ function Shell() {
         <Route path="/mom/site" element={<MomSite />} />
         <Route path="/mom/sites" element={<MomSites />} />
         <Route path="/mom/entry/:id" element={<MomEntry />} />
+        <Route path="/mom/meal-entry/:id" element={<MomMealEntry />} />
         <Route path="/mom/log" element={<MomLog />} />
         <Route path="/mom/more" element={<MomMore />} />
         <Route path="/mom/food" element={<MomAdd browse />} />

@@ -1,5 +1,17 @@
 [
   {
+    "date": "2026-10-07",
+    "version": "2.52.0",
+    "notes": [
+      "الأكل في السجل صار ينفتح: غيّري اسمه (فطور، غدا، عشا، سناك) أو وقته، أو امسحيه إذا غلط.",
+      "الأكل بعد منتصف الليل يتسمى «سناك» بدل «فطور»."
+    ],
+    "notes_en": [
+      "Meals in the Log now open: change the name (breakfast, lunch, dinner, snack) or the time, or delete one that was a mistake.",
+      "Food logged after midnight is called “Snack” instead of “Breakfast”."
+    ]
+  },
+  {
     "date": "2026-10-06",
     "version": "2.51.2",
     "notes": [
