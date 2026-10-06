@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-06",
+    "version": "2.50.0",
+    "notes": [
+      "جدول أخصائية التغذية: صفحة جديدة لكل يوم فيها رسم السكر وكل الأحداث مرقّمة.",
+      "لكل أكلة: المكوّنات والكمية والكارب ومن وين جا (ملصق، جدول قيم، منيو المطعم، حصة منزلية، تقدير)، والإبرة وتوقيتها، والسكر عندها وبعد ساعتين.",
+      "علامة ⚠ على القيم التقديرية والوصفات غير المؤكدة والمستوردة من Gluroo."
+    ],
+    "notes_en": [
+      "Dietitian sheet: a new page for each day with the glucose graph and every event, numbered.",
+      "For each meal: ingredients, amounts, carbs and where they came from (label, food table, restaurant menu, household portion, estimate), the dose and its timing, and glucose then and 2 hours later.",
+      "A ⚠ on estimated values, unconfirmed recipes and Gluroo imports."
+    ]
+  },
+  {
+    "date": "2026-10-06",
     "version": "2.49.0",
     "notes": [
       "السجل يعرض التنبيهات مع المدخلات: اختاري الكل أو المدخلات أو التنبيهات.",

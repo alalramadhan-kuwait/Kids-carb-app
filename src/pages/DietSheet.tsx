@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -17,6 +17,7 @@ import type { EventRow, HistoryEntry, Portion, Product, Unit } from '../lib/type
 import { Alert, Card, Page, cx } from '../components/ui';
 import { SharePdf } from '../components/SharePdf';
 import { makePdf } from '../lib/pdfShare';
+import { dayEvents, markers, type CarbSource, type DayEvent } from '../lib/dayEvents';
 import { isEn, locale, t, tMaybe } from '../i18n';
 
 const MIN = 60000, DAY = 86400000;
@@ -141,7 +142,7 @@ export default function DietSheetPage() {
         else if (x.kind === 'carbs' && x.carbs_g) foods.push({ t: t0, id: x.id, name: x.note?.trim() || t('كارب'), detail: null, carbs: Number(x.carbs_g), fat: null, protein: null, kcal: null, fiber: null, flags: x.note?.trim() ? [] : ['unnamed'] });
         else if (x.kind === 'treatment' && x.carbs_g !== null) {
           const tp = x.treatment ? productFor(null, x.treatment) : null;   // logged from the products list as a low treatment
-          treatments.push({ t: t0, name: tp ? foodName(tp) : tMaybe(x.treatment ?? t('علاج انخفاض')), named: !!tp && !untranslated(tp), carbs: Number(x.carbs_g) });
+          treatments.push({ t: t0, name: tp ? foodName(tp) : tMaybe(x.treatment ?? t('علاج انخفاض')), named: !!tp && !untranslated(tp), carbs: Number(x.carbs_g), productName: tp?.name ?? x.treatment });
         }
         else if (x.kind === 'bg_check' && x.bg_mgdl) pricks.push({ t: t0, mg: Number(x.bg_mgdl) });
         else if (x.kind === 'exercise') acts.push({ t: t0, text: t('رياضة {m} د', { m: x.activity_min ?? 0 }) + (x.note ? ` · ${x.note}` : '') });
@@ -159,7 +160,12 @@ export default function DietSheetPage() {
   const quick = (n: number) => { setFrom(isoDay(today - (n - 1) * DAY)); setTo(isoDay(today)); setCustom(false); };
   const zoom = boxW ? Math.min(1, boxW / 1065) : 0.3; // the A4 page (281 mm ≈ 1062 px) fitted to the width it has
   const ctx: Ctx = { g: (mg: number) => formatGlucose(mg, settings.glucose_unit), low, high, products, portions };
-  const pageOf = (s: DaySheet) => <SheetPage key={s.start} s={s} unit={settings.glucose_unit} low={low} high={high} child={settings.child_name ?? t('ليان')} rapidName={settings.rapid_insulin} basalName={settings.basal_insulin} ratios={settings.ratios} ctx={ctx} />;
+  const child = settings.child_name ?? t('ليان');
+  // each day: the dietitian's table, then the graph with every event (busy days continue on another page)
+  const pageOf = (s: DaySheet) => <Fragment key={s.start}>
+    <SheetPage s={s} unit={settings.glucose_unit} low={low} high={high} child={child} rapidName={settings.rapid_insulin} basalName={settings.basal_insulin} ratios={settings.ratios} ctx={ctx} />
+    <EventsPages s={s} unit={settings.glucose_unit} low={low} high={high} child={child} ctx={ctx} />
+  </Fragment>;
   const pages = sheets?.map(pageOf);
   const seg = (on: boolean) => cx('min-h-[40px] rounded-full px-3 text-sm font-bold', on ? 'bg-brand text-white' : 'text-slate-600');
 
@@ -184,7 +190,7 @@ export default function DietSheetPage() {
           {err && <Alert tone="over">{err}</Alert>}
           <SharePdf className="w-full" disabled={!sheets?.length || busy} filename={`layan-food-sheet-${from}-${to}.pdf`} title={t('جدول التغذية اليومي')}
             make={() => makePdf(Array.from(document.querySelectorAll<HTMLElement>('#print-root .diet-page')), { orientation: 'landscape', fit: 'page' })} />
-          <p className="text-center text-xs text-slate-500">{busy ? t('جارٍ التجهيز…') : sheets ? t('PDF للطباعة: {n} صفحة A4، صفحة لكل يوم', { n: sheets.length }) : ''}</p>
+          <p className="text-center text-xs text-slate-500">{busy ? t('جارٍ التجهيز…') : sheets ? t('PDF للطباعة: {n} صفحة A4، لكل يوم الجدول ثم الرسم والأحداث', { n: sheets.reduce((n, s) => n + 1 + eventPages(s, products), 0) }) : ''}</p>
           <details className="text-sm" open={showTimes} onToggle={(e) => setShowTimes((e.target as HTMLDetailsElement).open)}>
             <summary className="min-h-[36px] cursor-pointer py-1 text-slate-600">{t('أوقات الوجبات')}</summary>
             <div className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-5">
@@ -206,7 +212,7 @@ export default function DietSheetPage() {
           </div>
         )}
         {view === 'cards'
-          ? <div className="space-y-3">{[...(sheets ?? [])].reverse().map((s) => <DayCard key={s.start} s={s} unit={settings.glucose_unit} low={low} high={high} ctx={ctx} />)}</div>
+          ? <div className="space-y-3">{[...(sheets ?? [])].reverse().map((s) => <div key={s.start} className="space-y-2"><DayCard s={s} unit={settings.glucose_unit} low={low} high={high} ctx={ctx} />{s.recorded && <EventsCards s={s} unit={settings.glucose_unit} low={low} high={high} ctx={ctx} />}</div>)}</div>
           : <div className="space-y-3 overflow-hidden" style={{ zoom } as React.CSSProperties}>{pages}</div>}
       </div>
       {sheets && createPortal(<div id="print-root" dir={isEn() ? 'ltr' : 'rtl'}>{pages}</div>, document.body)}
@@ -542,5 +548,184 @@ function DayChart({ s, low, high, unit }: { s: DaySheet; low: number; high: numb
         );
       })}
     </svg>
+  );
+}
+
+// ── graph + events: one more landscape page per day (the dietitian's request) ─────────────────────────────────
+// The day's graph with numbered markers on two rows (food and treatments; insulin and the rest) and, below it, every
+// event with what was in it, where the carbs came from, the insulin and its timing, and the glucose then and after.
+const SOURCE_TEXT: Record<CarbSource, string> = { label: 'ملصق', table: 'جدول قيم', restaurant: 'منيو المطعم', portion: 'حصة منزلية', estimate: 'تقدير', gluroo: 'Gluroo' }; // i18n-ok: shown through t()
+const WARN_TEXT: Record<string, string> = { estimate: 'تقديري', gluroo: 'من Gluroo', review: 'يحتاج مراجعة', recipe: 'وصفة غير مؤكدة', duplicate: 'مكرر؟' }; // i18n-ok: shown through t()
+const ARROW = () => (isEn() ? '→' : '←');   // from the glucose then to the glucose after, in the reading direction
+const MARK_FILL = { food: C.carb, treat: C.low, dose: C.ins, note: C.ink3 } as const;
+
+/** What one event says, in words, for both the page and the phone. */
+function eventWords(e: DayEvent, ctx: Ctx) {
+  const g = ctx.g;
+  const sources = (xs: CarbSource[]) => [...new Set(xs)].map((x) => t(SOURCE_TEXT[x])).join(sep());
+  const after = e.after === null ? null : `${g(e.after)} (${e.afterMin === 15 ? t('بعد 15 د') : t('بعد ساعتين')})`;
+  const glucose = e.at === null && after === null ? null : `${e.at === null ? '—' : g(e.at)} ${ARROW()} ${after ?? '—'}`;
+  const warn = e.warn.map((w) => `⚠ ${t(WARN_TEXT[w] ?? w)}`);
+  if (e.kind === 'food') {
+    const doses = e.occ.doses.map((d) => `${t('{u} وحدة', { u: fmt(d.units) })} · ${doseWords(d, e.occ)[0]}`);
+    return { title: e.occ.foods.map((f) => nameOf(f.name).text).join(sep()), recipe: e.recipe, items: e.items, carbs: carbsText(e.occ.carbs), source: sources(e.items.map((i) => i.source)), doses, glucose, warn, extra: e.occ.foods.map((f) => partText(f)).filter(Boolean) as string[] };
+  }
+  if (e.kind === 'treat') return { title: `${t('علاج انخفاض')}: ${nameOf(e.tr.name).text}`, recipe: false, items: [], carbs: carbsText(e.tr.carbs), source: sources([e.source]), doses: [], glucose, warn, extra: e.tr.byCgm ? [t('حسب الحساس')] : [] };
+  if (e.kind === 'dose') return { title: e.dose.type === 'long' ? t('إنسولين طويل') : e.dose.purpose === 'correction' ? t('جرعة تصحيح') : t('إنسولين سريع'), recipe: false, items: [], carbs: null, source: '', doses: [t('{u} وحدة', { u: fmt(e.dose.units) })], glucose, warn, extra: [] };
+  return { title: e.text, recipe: false, items: [], carbs: null, source: '', doses: [], glucose, warn, extra: [] };
+}
+
+function EventsChart({ s, evs, low, high, unit, W = 1100 }: { s: DaySheet; evs: DayEvent[]; low: number; high: number; unit: GlucoseUnit; W?: number }) {
+  // W: the drawing's width in its own units; the phone uses a narrower one so the text and markers come out bigger
+  const x0 = 54, x1 = W - 10, y0 = 10, y1 = 150, STEP = 16, FOOD = 184, MED = FOOD + 3 * STEP + 4, H = MED + 2 * STEP + 10;
+  const lo = 40, hi = Math.max(300, ...s.points.map((p) => p[1]));
+  const x = (t0: number) => x0 + ((t0 - s.start) / DAY) * (x1 - x0);
+  const y = (mg: number) => y1 - ((Math.min(hi, Math.max(lo, mg)) - lo) / (hi - lo)) * (y1 - y0);
+  const ms = markers(evs, x, 20);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+      <rect x={x0} y={y(high)} width={x1 - x0} height={y(low) - y(high)} fill={C.band} />
+      <rect x={x0} y={y(low)} width={x1 - x0} height={y1 - y(low)} fill={C.lowDot} opacity={0.06} />
+      {[0, 3, 6, 9, 12, 15, 18, 21, 24].map((h) => (
+        <g key={h}><line x1={x(s.start + h * 3600000)} x2={x(s.start + h * 3600000)} y1={y0} y2={MED + 2 * STEP} stroke={C.line} strokeWidth={0.8} />
+          <text x={x(s.start + h * 3600000)} y={y1 + 15} fontSize={12} fill={C.ink3} textAnchor="middle">{String(h).padStart(2, '0')}</text></g>
+      ))}
+      <line x1={x0} x2={x1} y1={y(low)} y2={y(low)} stroke={C.lowDot} strokeWidth={1} strokeDasharray="5 4" />
+      <line x1={x0} x2={x1} y1={y(high)} y2={y(high)} stroke={C.highDot} strokeWidth={1} strokeDasharray="5 4" />
+      {[low, high].map((v) => <text key={v} x={x0 - 4} y={y(v) + 4} fontSize={11} fill={C.ink3} textAnchor="end">{formatGlucose(v, unit)}</text>)}
+      {s.points.map(([t0, v], i) => <circle key={i} cx={x(t0)} cy={y(v)} r={2} fill={v < low ? C.lowDot : v > high ? C.highDot : C.okDot} />)}
+      {/* each event's time on the curve, faint, so a number can be followed up to the glucose */}
+      {evs.map((e) => <line key={'v' + e.n} x1={x(e.t)} x2={x(e.t)} y1={y0} y2={y1} stroke={MARK_FILL[e.kind]} strokeWidth={0.8} opacity={0.35} />)}
+      <text x={x0 - 6} y={FOOD + 4} fontSize={11} fill={C.carb} textAnchor="end" fontWeight={700}>{t('أكل')}</text>
+      <text x={x0 - 6} y={MED + 4} fontSize={11} fill={C.ins} textAnchor="end" fontWeight={700}>{t('إنسولين')}</text>
+      <line x1={x0} x2={x1} y1={MED - STEP / 2 - 3} y2={MED - STEP / 2 - 3} stroke={C.line} strokeWidth={0.8} />
+      {ms.map((m, i) => {
+        const cx = x(m.t), cy = (m.lane === 'food' ? FOOD : MED) + m.step * STEP, fill = m.kind === 'dose' ? C.ins : MARK_FILL[m.kind];
+        return (
+          <g key={i}>
+            {m.kind === 'dose'
+              ? <rect x={cx - 9} y={cy - 7.5} width={18} height={15} rx={3} fill={fill} />
+              : <circle cx={cx} cy={cy} r={8} fill={fill} />}
+            <text x={cx} y={cy + 4} fontSize={10.5} fontWeight={700} fill="#fff" textAnchor="middle">{m.n}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+// how a day's events are laid out, from roomy to tight: columns, small text, and how many rows go on the page with
+// the graph and on each page after it. The page measures itself and steps down until every page fits A4.
+const LEVELS = [
+  { two: false, small: false, first: 8, next: 16 }, { two: true, small: false, first: 16, next: 28 }, { two: true, small: true, first: 16, next: 30 },
+  { two: true, small: true, first: 12, next: 24 }, { two: true, small: true, first: 8, next: 18 }, { two: true, small: true, first: 6, next: 12 },
+];
+const levelFor = (n: number) => (n <= LEVELS[0].first ? 0 : 1);
+const chunksOf = <T,>(xs: T[], first: number, next: number) => { const out = [xs.slice(0, first)]; for (let i = first; i < xs.length; i += next) out.push(xs.slice(i, i + next)); return out; };
+const eventPages = (s: DaySheet, products: Product[]) => { if (!s.recorded) return 0; const n = dayEvents(s, products).length, L = LEVELS[levelFor(n)]; return chunksOf(Array(n).fill(0), L.first, L.next).length; };
+
+function EventsPages({ s, unit, low, high, child, ctx }: { s: DaySheet; unit: GlucoseUnit; low: number; high: number; child: string; ctx: Ctx }) {
+  const evs = s.recorded ? dayEvents(s, ctx.products) : [];
+  const [level, setLevel] = useState(() => levelFor(evs.length));
+  const box = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const pages = box.current ? Array.from(box.current.querySelectorAll<HTMLElement>('.diet-page')) : [];
+    if (level < LEVELS.length - 1 && pages.some((el) => el.scrollHeight / el.offsetWidth > 193 / 281 + 0.005)) setLevel(level + 1);
+  });
+  if (!s.recorded) return null;
+  const L = LEVELS[level], two = L.two;
+  const chunks = chunksOf(evs, L.first, L.next);
+  const date = new Date(s.start + 3 * 3600000);
+  const dateText = date.toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
+  const u = tMaybe(unitLabel(unit));
+  return <div ref={box} style={{ display: 'contents' }}>{chunks.map((rows, p) => (
+    <section key={p} className="diet-page" style={{ width: '281mm', minHeight: '193mm', background: C.bg, color: C.ink, fontFamily: "'Rubik', system-ui, sans-serif", fontSize: '9pt', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: '2mm' }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: '3mm', borderBottom: `2px solid ${C.brand}`, paddingBottom: '1.5mm' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '13pt', fontWeight: 700, color: C.brand }}>{t('السكر والأحداث')} · {child}{chunks.length > 1 ? ` (${p + 1}/${chunks.length})` : ''}</div>
+          <div style={{ fontSize: '10pt', fontWeight: 600 }}>{dateText}</div>
+        </div>
+        <div style={{ fontSize: '7pt', color: C.ink2, textAlign: 'end', lineHeight: 1.45 }}>
+          <div>{t('السكر بوحدة {u} · النطاق {a}–{b}', { u, a: ctx.g(low), b: ctx.g(high) })}</div>
+          <div>{t('الأرقام على الرسم = رقم الحدث في الجدول')} · ⚠ {t('قيمة غير مقاسة، للمراجعة')}</div>
+        </div>
+      </header>
+      {p === 0 && <div style={{ border: `1px solid ${C.line}`, borderRadius: '2mm', padding: '1mm 2mm' }}><EventsChart s={s} evs={evs} low={low} high={high} unit={unit} /></div>}
+      <div style={{ display: 'grid', gridTemplateColumns: two ? '1fr 1fr' : '1fr', gap: '3mm', alignItems: 'start' }}>
+        {(two ? [rows.slice(0, Math.ceil(rows.length / 2)), rows.slice(Math.ceil(rows.length / 2))] : [rows]).map((col, ci) => <EventsTable key={ci} evs={col} ctx={ctx} small={L.small} narrow={two} low={low} high={high} />)}
+      </div>
+    </section>
+  ))}</div>;
+}
+
+function EventsTable({ evs, ctx, small, narrow, low, high }: { evs: DayEvent[]; ctx: Ctx; small: boolean; narrow: boolean; low: number; high: number }) {
+  if (!evs.length) return null;
+  const fs = small ? 6.8 : 8;
+  const cell: React.CSSProperties = { borderBottom: `1px solid ${C.line}`, padding: small ? '0.7mm 1mm' : '1mm 1.4mm', verticalAlign: 'top', fontSize: `${fs}pt`, lineHeight: 1.3 };
+  const head: React.CSSProperties = { ...cell, background: C.soft, color: C.brand, fontWeight: 700, textAlign: 'start' };
+  const sub: React.CSSProperties = { fontSize: `${fs - 0.8}pt`, color: C.ink2 };
+  const maxItems = small ? 3 : 6;
+  return (
+    <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+      <thead><tr>
+        <th style={{ ...head, width: narrow ? '6mm' : '7mm' }}>#</th><th style={{ ...head, width: narrow ? '15.5mm' : '17mm' }}>{t('الوقت')}</th>
+        <th style={head}>{t('الحدث')}</th><th style={{ ...head, width: narrow ? '21mm' : '30mm' }}>{t('الكارب ومصدره')}</th>
+        <th style={{ ...head, width: narrow ? '21mm' : '34mm' }}>{t('الإنسولين')}</th><th style={{ ...head, width: narrow ? '22mm' : '32mm' }}>{t('السكر عنده ← بعده')}</th>
+      </tr></thead>
+      <tbody>{evs.map((e) => {
+        const w = eventWords(e, ctx);
+        const shown = w.items.slice(0, maxItems);
+        return (
+          <tr key={e.n}>
+            <td style={cell}><span style={{ display: 'inline-block', minWidth: '4.2mm', textAlign: 'center', borderRadius: e.kind === 'dose' ? '1mm' : '3mm', background: MARK_FILL[e.kind], color: '#fff', fontWeight: 700 }}>{e.n}</span></td>
+            <td style={{ ...cell, fontWeight: 700 }}>{time(e.t)}</td>
+            <td style={cell}>
+              <div style={{ fontWeight: 700 }}><bdi>{w.title}</bdi>{w.recipe ? <span style={sub}> · {t('وصفة')}</span> : null}</div>
+              {w.items.length > 1 || (w.items.length === 1 && amountOf(w.items[0].line, ctx)) ? shown.map((i, k) => <div key={k} style={sub}><Name raw={i.line.name} named={i.line.named} /> · {amountOf(i.line, ctx) ?? t('كمية غير مسجّلة')} · {carbsText(i.line.carbs)}{w.items.length > 1 ? ` · ${t(SOURCE_TEXT[i.source])}` : ''}</div>) : null}
+              {w.items.length > shown.length && <div style={sub}>{t('+{n} أخرى', { n: w.items.length - shown.length })}</div>}
+              {w.extra.map((x, k) => <div key={'x' + k} style={sub}>{x}</div>)}
+            </td>
+            <td style={cell}>{w.carbs ? <><b style={{ color: e.kind === 'treat' ? C.low : C.carb }}>{w.carbs}</b><div style={sub}>{w.source}</div></> : <span style={{ color: C.ink3 }}>—</span>}
+              {w.warn.map((x, k) => <div key={k} style={{ ...sub, color: C.high, fontWeight: 700 }}>{x}</div>)}</td>
+            <td style={cell}>{w.doses.length ? w.doses.map((d, k) => <div key={k} style={{ color: C.ins, fontWeight: k ? 400 : 600 }}>{d}</div>) : e.kind === 'food' ? <span style={sub}>{t('لم تُسجّل جرعة')}</span> : <span style={{ color: C.ink3 }}>—</span>}</td>
+            <td style={cell}>{e.at !== null ? <b style={{ color: tone(e.at, low, high) }}>{ctx.g(e.at)}</b> : '—'} {ARROW()} {e.after !== null ? <b style={{ color: tone(e.after, low, high) }}>{ctx.g(e.after)}</b> : '—'}
+              {e.after !== null && <div style={sub}>{e.afterMin === 15 ? t('بعد 15 د') : t('بعد ساعتين')}</div>}</td>
+          </tr>
+        );
+      })}</tbody>
+    </table>
+  );
+}
+
+/** The phone view of the same page: the graph, then each event as a card. */
+function EventsCards({ s, unit, low, high, ctx }: { s: DaySheet; unit: GlucoseUnit; low: number; high: number; ctx: Ctx }) {
+  const evs = dayEvents(s, ctx.products);
+  const toneCls = (mg: number) => (mg < low ? 'text-over' : mg > high ? 'text-near' : 'text-ok');
+  return (
+    <details className="rounded-2xl border border-slate-100 bg-white">
+      <summary className="flex min-h-[44px] cursor-pointer items-center px-3 text-sm font-bold text-brand">{t('الرسم والأحداث')} · {evs.length}</summary>
+      <div className="space-y-2 px-2 pb-3">
+        <div className="overflow-hidden rounded-xl border border-slate-100 bg-white p-1"><EventsChart s={s} evs={evs} low={low} high={high} unit={unit} W={560} /></div>
+        <ol className="space-y-1.5">{evs.map((e) => {
+          const w = eventWords(e, ctx);
+          return (
+            <li key={e.n} className="flex gap-2 rounded-xl border border-slate-100 px-2.5 py-2">
+              <span className="num grid h-6 min-w-6 shrink-0 place-items-center rounded-full px-1 text-xs font-bold text-white" style={{ background: MARK_FILL[e.kind], borderRadius: e.kind === 'dose' ? 6 : 999 }}>{e.n}</span>
+              <div className="min-w-0 flex-1 space-y-0.5 text-sm">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="min-w-0"><b className="num">{time(e.t)}</b> · <bdi className="font-bold">{w.title}</bdi>{w.recipe ? <span className="text-xs text-slate-500"> · {t('وصفة')}</span> : null}</span>
+                  {w.carbs && <b className={cx('num shrink-0', e.kind === 'treat' ? 'text-over' : 'text-kcarb')}>{w.carbs}</b>}
+                </div>
+                {w.items.length > 1 && <div className="text-xs text-slate-600">{w.items.map((i) => `${nameOf(i.line.name).text} ${carbsText(i.line.carbs)}`).join(sep())}</div>}
+                {w.source && <div className="text-xs text-slate-500">{t('المصدر')}: {w.source}</div>}
+                {w.doses.length > 0 && <div className="text-xs font-bold text-kins">💉 {w.doses.join(' · ')}</div>}
+                {(e.at !== null || e.after !== null) && <div className="text-xs text-slate-600">{t('السكر')}: <b className={cx('num', e.at !== null && toneCls(e.at))}>{e.at !== null ? ctx.g(e.at) : '—'}</b> {ARROW()} <b className={cx('num', e.after !== null && toneCls(e.after))}>{e.after !== null ? ctx.g(e.after) : '—'}</b>{e.after !== null ? ` (${e.afterMin === 15 ? t('بعد 15 د') : t('بعد ساعتين')})` : ''}</div>}
+                {w.warn.length > 0 && <div className="text-xs font-bold text-near">{w.warn.join(' · ')}</div>}
+              </div>
+            </li>
+          );
+        })}</ol>
+      </div>
+    </details>
   );
 }

@@ -46,6 +46,8 @@ export interface Treat {
   t: number; name: string; carbs: number; named?: boolean;
   /** found by the sensor (a small snack logged while she was low), not logged as a treatment */
   byCgm?: boolean;
+  /** the product it was logged from (its stored name), or the food entry it was found in, for where its carbs came from */
+  productName?: string | null; food?: Food;
   startMg?: number | null; lowestMg?: number | null; after15?: number | null; followedByFood?: boolean; duplicate?: boolean;
 }
 export interface Activity { t: number; text: string }
@@ -156,7 +158,7 @@ export function buildDay(start: number, starts: SlotStarts, d: { foods: Food[]; 
       // later) is part of the same treatment
       if (now && now.mg >= d.low && firstLow !== null && treatAll.some((x) => x.t >= firstLow! - 10 * MIN && x.t <= f.t - TREAT_WORKS_MIN * MIN)) treat = false;
     }
-    if (treat) treatAll.push({ t: f.t, name: f.name, named: f.named, carbs: f.carbs, byCgm: true }); else foodsAll.push(f);
+    if (treat) treatAll.push({ t: f.t, name: f.name, named: f.named, carbs: f.carbs, byCgm: true, food: f }); else foodsAll.push(f);
   }
   const foods = foodsAll.filter((f) => inDay(f.t)).sort((a, b) => a.t - b.t);
   // 2. columns: the meal it was planned as, else the clock

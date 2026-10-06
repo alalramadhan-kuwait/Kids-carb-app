@@ -10,6 +10,7 @@ import { ICONS } from '../../icons/defs';
 import { describeEvent, sleepWindow, unitsWord } from '../events';
 import { buildMarks, defaultLayers, groupLabel, groupMarks, mealResponse } from '../../engine/events';
 import { dayStartOf, dayTitle, dayTotals, lowEpisodes } from '../../engine/day';
+import * as DE from '../dayEvents';
 import { inWindow, isNight, schoolWindow } from '../schedule';
 import { daysFor, solidRuns } from '../../engine/profile';
 import { seriesStats } from '../../engine/stats';
@@ -2165,6 +2166,31 @@ console.log('dietitian sheet');
     assert.equal(sheet.lows.length, 1); assert.equal(sheet.lows[0].nadir, 62); assert.ok(sheet.lows[0].minutes >= 25);
     assert.ok(sheet.glucose.inRange! > 80); assert.equal(sheet.glucose.min, 62);
     assert.equal(D.slotOf(4 * 60 + 59, D.DEFAULT_STARTS), null); assert.equal(D.slotOf(16 * 60, D.DEFAULT_STARTS), 'snack2');
+  });
+  test('graph + events page: the day in time order, numbered; a meal keeps its insulin, the rest get rows of their own', () => {
+    const ev = DE.dayEvents(sheet, []);
+    assert.deepEqual(ev.map((e) => `${e.n}:${e.kind}`), ['1:food', '2:treat', '3:food', '4:dose', '5:food', '6:note', '7:food', '8:dose']);
+    const bf = ev[2] as Extract<DE.DayEvent, { kind: 'food' }>;
+    assert.deepEqual(bf.items.map((i) => i.line.name), ['Toast', 'Milk'], 'toast and milk 5 minutes apart are one meal');
+    assert.equal(bf.at, 104, 'glucose at the meal: the finger-prick'); assert.equal(Math.round(bf.after!), 145);
+    assert.ok(bf.items.every((i) => i.source === 'estimate') && bf.warn.includes('estimate'), 'no product behind it: an estimate');
+    assert.equal((ev[1] as Extract<DE.DayEvent, { kind: 'treat' }>).afterMin, 15, 'a treatment is rechecked at 15 minutes');
+    assert.equal((ev[7] as Extract<DE.DayEvent, { kind: 'dose' }>).dose.type, 'long');
+    const ms = DE.markers(ev, (t) => (t - day) / 60000);
+    assert.ok(ms.some((m) => m.n === 3 && m.lane === 'med' && m.t === at(6, 50)), 'the breakfast dose is drawn in the insulin row with the meal\'s number');
+    assert.equal(ms.find((m) => m.n === 8)!.step, 1, 'the long-acting dose 5 minutes after the dinner dose moves down a step');
+  });
+  test('graph + events page: where the carbs came from', () => {
+    const P = (o: Record<string, unknown>) => ({ id: 'x', name: 'Bread', brand: null, kind: 'commercial', notes: null, per_item: false, ...o }) as never;
+    const L = (unit: string | null) => ({ unit, productKey: null, name: 'x' }) as never;
+    assert.equal(DE.sourceOf(L('g'), {}, P({})), 'label');
+    assert.equal(DE.sourceOf(L('g'), {}, P({ kind: 'natural' })), 'table');
+    assert.equal(DE.sourceOf(L('serving'), {}, P({ kind: 'natural' })), 'portion');
+    assert.equal(DE.sourceOf(L('tbsp'), {}, P({})), 'portion');
+    assert.equal(DE.sourceOf(L('serving'), {}, P({ brand: "McDonald's", per_item: true })), 'restaurant');
+    assert.equal(DE.sourceOf(L('serving'), {}, P({ brand: 'PICK', name: 'Purple Mi (Small cup) – estimate', per_item: true })), 'estimate');
+    assert.equal(DE.sourceOf(L('g'), { flags: ['imported'] }, P({})), 'gluroo');
+    assert.equal(DE.sourceOf(L('g'), {}, null), 'estimate');
   });
   // a second made-up day: a low at 7:50, a juice + crackers logged as a snack at 7:56 (the logged glucose already 72),
   // the real breakfast at 10:58 planned as breakfast, a low 40 minutes after dinner treated with juice
