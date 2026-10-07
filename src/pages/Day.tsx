@@ -43,7 +43,7 @@ export function DayView() {
   const anim = useRef(0);
   const viewRef = useRef(view); viewRef.current = view;
   const graphRef = useRef<HTMLDivElement>(null);
-  const height = useMemo(() => Math.round(Math.min(440, Math.max(250, window.innerHeight * 0.4))), []);
+  const height = useMemo(() => Math.round(Math.min(440, Math.max(250, window.innerHeight * 0.4)) + 52), []);
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
 
   useEffect(() => { setView({ end: day + DAY, span: DAY }); setFocus(null); }, [day]);

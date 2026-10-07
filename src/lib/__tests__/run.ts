@@ -666,17 +666,16 @@ test('zoom keeps the time under the fingers fixed; ticks follow Kuwait time', ()
 
 console.log('event rail');
 
-test('rail labels: centred under their marker when there is room, pushed apart (never overlapping) when close, dropped only if they cannot fit', async () => {
-  const { packLabels } = await import('../../engine/events');
-  assert.deepEqual(packLabels([{ x: 50, w: 40 }, { x: 200, w: 40 }], 300), [30, 180], 'room: centred');
-  const close = packLabels([{ x: 100, w: 90 }, { x: 120, w: 90 }], 360);
-  assert.ok(close[1]! >= close[0]! + 90 + 8, 'two close labels do not overlap');
-  const edge = packLabels([{ x: 290, w: 80 }], 300);
-  assert.ok(edge[0]! + 80 <= 298, 'kept inside the right edge');
-  const many = packLabels(Array.from({ length: 6 }, (_, i) => ({ x: 20 + i * 10, w: 90 })), 300);
-  const kept = many.map((l, i) => (l === null ? null : [l, l + 90])).filter(Boolean) as number[][];
-  for (let i = 1; i < kept.length; i++) assert.ok(kept[i][0] >= kept[i - 1][1] + 8, 'still no overlap');
-  assert.ok(kept.length >= 1 && kept.length < 6);
+test('events under the graph: two lanes; a neighbour that would touch goes to lane 2, never squeezed or overlapped', async () => {
+  const { laneLayout } = await import('../../engine/events');
+  assert.deepEqual(laneLayout([{ x: 60, w: 80 }, { x: 250, w: 80 }], 360), [{ lane: 0, left: 20 }, { lane: 0, left: 210 }], 'far apart: both in lane 1, centred on their time');
+  const near = laneLayout([{ x: 140, w: 110 }, { x: 190, w: 120 }], 360);
+  assert.equal(near[0]!.lane, 0); assert.equal(near[1]!.lane, 1);
+  assert.equal(near[1]!.left, 130, 'lane 2 keeps it centred on its own time');
+  const three = laneLayout([{ x: 100, w: 100 }, { x: 130, w: 100 }, { x: 160, w: 100 }], 360);
+  const boxes = three.map((p, i) => p && { lane: p.lane, l: p.left, r: p.left + 100, i }).filter(Boolean) as { lane: number; l: number; r: number }[];
+  for (const a1 of boxes) for (const b1 of boxes) if (a1 !== b1 && a1.lane === b1.lane) assert.ok(a1.r + 10 <= b1.l || b1.r + 10 <= a1.l, 'no overlap within a lane');
+  assert.equal(laneLayout([{ x: 340, w: 80 }], 360)[0]!.left, 278, 'kept inside the edge');
 });
 
 

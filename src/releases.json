@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-10-08",
+    "version": "2.55.1",
+    "notes": [
+      "تحت الرسم صار فيه مسارين للأحداث: كل حدث (الأيقونة والتفاصيل والوقت) في مكانه من الوقت، وإذا قرّب من حدث ثاني ينزل للمسار الثاني بدل ما يتداخل الكلام. خط منقّط يوصل كل حدث بوقته على الرسم."
+    ],
+    "notes_en": [
+      "Two lanes for events under the graph: each event (icon, details and time) sits at its time, and one that would run into another moves to the second lane instead of overlapping. A dotted line joins each event to its time on the graph."
+    ]
+  },
+  {
     "date": "2026-10-07",
     "version": "2.55.0",
     "notes": [

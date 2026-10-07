@@ -269,7 +269,7 @@ function CardGirl({ className }: { className?: string }) {
   const heart = 'M12 20.5s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.9c0 5.4-7.5 10-7.5 10z';
   return (
     <div className={cx('pointer-events-none absolute end-0', className)} style={{ width: GIRL_W, height: GIRL_H }} aria-hidden>
-      {([[-14, 2, 11, -12], [96, 8, 10, 14]] as const).map(([x, y, size, rot], i) => (
+      {([[2, 0, 11, -12], [98, 10, 10, 14]] as const).map(([x, y, size, rot], i) => (
         <svg key={i} viewBox="0 0 24 24" width={size} height={size} className="absolute text-[#F49AB6] opacity-50" style={{ insetInlineStart: x, top: y, transform: `rotate(${rot}deg)` }}>
           <path d={heart} fill="currentColor" fillOpacity="0.35" stroke="currentColor" strokeWidth="1.6" />
         </svg>
@@ -328,7 +328,7 @@ function HomeChart({ live }: { live: Reading[] }) {
   // IOB and COB as two thin strips under the graph, and where glucose heads from here (display only)
   // insulin and carbs on board are told under the graph in words (OnBoardLanes), so the graph keeps only glucose
   const { tracks, forecasts } = useGraphExtras({ series, now, iob: false, cob: false, act: true, forecast: true, projected30, start: view.end - view.span, end: view.end });
-  const height = useMemo(() => Math.round(window.innerWidth >= 1024 ? Math.min(650, Math.max(410, window.innerHeight * 0.58)) + 48 : Math.min(500, Math.max(290, window.innerHeight * 0.43)) + 48) + (tracks?.iob || tracks?.cob ? 68 : 0), [!!(tracks?.iob || tracks?.cob)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const height = useMemo(() => Math.round(window.innerWidth >= 1024 ? Math.min(650, Math.max(410, window.innerHeight * 0.58)) + 48 + 52 : Math.min(500, Math.max(290, window.innerHeight * 0.43)) + 48 + 52) + (tracks?.iob || tracks?.cob ? 68 : 0), [!!(tracks?.iob || tracks?.cob)]); // eslint-disable-line react-hooks/exhaustive-deps
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
   return (
     <>

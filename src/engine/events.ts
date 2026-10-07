@@ -78,25 +78,21 @@ export function groupLabel(g: Group): string {
 }
 
 /**
- * Rail labels in their own row, never overlapping: each label is centred under its marker if it can be, otherwise
- * pushed aside just enough (the caller draws a short leader back to the marker). Returns each label's left edge, or
- * null for one that cannot fit anywhere in the width (its marker stays; a tap still opens it).
+ * The events under the graph in two lanes. Each event (icon, what, when) is centred on its time; lane 1 is the
+ * default, and an event whose block would touch the one before it in lane 1 goes to lane 2. Only when both lanes are
+ * taken there is it nudged along (the caller draws its line back to the time), and one that still cannot fit is left
+ * out (null) rather than drawn over another. Items in time order.
  */
-export function packLabels(items: { x: number; w: number }[], width: number, gap = 8, edge = 2): (number | null)[] {
-  const n = items.length, left: number[] = new Array(n);
-  let prevRight = edge - gap;
-  for (let i = 0; i < n; i++) { left[i] = Math.max(items[i].x - items[i].w / 2, prevRight + gap, edge); prevRight = left[i] + items[i].w; }
-  let nextLeft = width - edge + gap;
-  for (let i = n - 1; i >= 0; i--) { left[i] = Math.min(left[i], nextLeft - gap - items[i].w); nextLeft = left[i]; }
-  if (n && left[0] >= edge - 0.5) return left;
-  // too many for the width: keep, from the left, the ones that still fit centred-or-shifted without crossing a neighbour
-  const out: (number | null)[] = new Array(n).fill(null);
-  let right = edge - gap;
-  for (let i = 0; i < n; i++) {
-    const l = Math.max(items[i].x - items[i].w / 2, right + gap, edge);
-    if (l + items[i].w <= width - edge && Math.abs(l + items[i].w / 2 - items[i].x) <= items[i].w) { out[i] = l; right = l + items[i].w; }
-  }
-  return out;
+export function laneLayout(items: { x: number; w: number }[], width: number, gap = 10, edge = 2): ({ lane: 0 | 1; left: number } | null)[] {
+  const right = [edge - gap, edge - gap];
+  return items.map(({ x, w }) => {
+    const c = Math.min(Math.max(x - w / 2, edge), width - edge - w);
+    for (const lane of [0, 1] as const) if (c >= right[lane] + gap) { right[lane] = c + w; return { lane, left: c }; }
+    const lane: 0 | 1 = right[0] <= right[1] ? 0 : 1, left = right[lane] + gap;
+    if (left + w > width - edge) return null;
+    right[lane] = left + w;
+    return { lane, left };
+  });
 }
 
 // ── meal response (GLUCOSE_PLAN 10.7) ─────────────────────────────────────────

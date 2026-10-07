@@ -8,7 +8,7 @@ import {
   type Series, type View,
 } from './series';
 import { cx } from '../components/ui';
-import { groupLabel, groupMarks, packLabels, type Group, type Layer, type Mark, type MarkKind } from './events';
+import { groupLabel, groupMarks, laneLayout, type Group, type Layer, type Mark, type MarkKind } from './events';
 import { ICONS, type IconName } from '../icons/defs';
 import { dir, t } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
@@ -77,11 +77,12 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
   // ── drawing ──
   const PAD_T = 10, PAD_B = 24;
   const hasRail = !!layers && layers.size > 0;
-  const RAIL = hasRail ? 76 : 0; // two rows: the markers at their times, then each one's details (never overlapping)
+  const LANE = 60;
+  const RAIL = hasRail ? 8 + 2 * LANE : 0; // two lanes of events (icon, what, when); the second takes any that would touch
   const trackList = (['iob', 'cob'] as const).filter((k) => tracks?.[k]);
   const TRACK_H = 34, TRK = trackList.length * TRACK_H;
   const groupsRef = useRef<Group[]>([]);
-  const labelBoxes = useRef<{ g: Group; l: number; r: number }[]>([]);
+  const labelBoxes = useRef<{ g: Group; l: number; r: number; t: number; b: number }[]>([]);
   const draw = useCallback(() => {
     const c = canvas.current; if (!c || !width) return;
     const dpr = Math.min(3, window.devicePixelRatio || 1);
@@ -338,46 +339,56 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
       g.direction = 'ltr';
     });
 
-    // event rail: one chip per group, its icon, a count when several, and a short label when there is room
+    // events: two lanes under the graph. Each event is one block (icon, what, when) centred on its time; one that
+    // would touch its neighbour in lane 1 drops to lane 2, never squeezed. A dotted line runs from the event's time on
+    // the graph down to its icon.
     if (hasRail) {
-      g.strokeStyle = css('--border'); g.lineWidth = 1; g.beginPath(); g.moveTo(0, PAD_T + plotH + 0.5); g.lineTo(width, PAD_T + plotH + 0.5); g.stroke();
+      const base = PAD_T + plotH + TRK;
+      g.strokeStyle = css('--border'); g.lineWidth = 1; g.beginPath(); g.moveTo(0, base + 0.5); g.lineTo(width, base + 0.5); g.stroke();
       if (layers!.has('exercise')) for (const m of marks) if (m.kind === 'exercise' && m.end! > start && m.t < end) {
-        g.fillStyle = css('--primary', 0.35); g.fillRect(X(m.t), railY + 13, Math.max(3, X(m.end!) - X(m.t)), 3);
+        g.fillStyle = css('--primary', 0.35); g.fillRect(X(m.t), base + 2, Math.max(3, X(m.end!) - X(m.t)), 3);
       }
-      g.font = '600 11px "Noto Sans Arabic", Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.direction = dir(); g.textBaseline = 'alphabetic';
-      // row 1: the markers, exactly at their time
-      groups.forEach((gr) => {
-        const x = Math.min(width - 14, Math.max(14, gr.x));
-        const kind = gr.marks[0].kind;
+      const words = span <= 12 * 3600000;
+      const FD = '600 13px "Noto Sans Arabic", Rubik, system-ui, sans-serif', FT = '500 12px Rubik, system-ui, sans-serif';
+      g.direction = dir();
+      const blocks = groups.map((gr) => {
+        const a = words ? groupLabel(gr) : '', b = words ? clock(gr.t) : '';
+        g.font = FD; const wa = a ? g.measureText(a).width : 0; g.font = FT; const wb = b ? g.measureText(b).width : 0;
+        return { gr, a, b, x: gr.x, w: Math.max(30, wa, wb) + 8 };
+      });
+      const place = laneLayout(blocks.map((k) => ({ x: k.x, w: k.w })), width);
+      const laneTop = (lane: number) => base + 6 + lane * LANE;
+      const boxes: { g: Group; l: number; r: number; t: number; b: number }[] = [];
+      // the lines first, so the lane-1 blocks sit over a line passing behind them to lane 2
+      g.strokeStyle = css('--text-3', 0.45); g.lineWidth = 1; g.setLineDash([2, 3]);
+      blocks.forEach((k, i) => {
+        const p = place[i]; if (!p) return;
+        const cx = p.left + k.w / 2, top = laneTop(p.lane), x = Math.round(k.x) + 0.5;
+        g.beginPath(); g.moveTo(x, base); g.lineTo(x, top - 1); if (Math.abs(cx - x) > 1) g.lineTo(cx, top + 1); g.stroke();
+      });
+      g.setLineDash([]);
+      g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+      blocks.forEach((k, i) => {
+        const p = place[i]; if (!p) return;
+        const cx = p.left + k.w / 2, top = laneTop(p.lane), iy = top + 14;
+        if (p.lane === 0 && k.a) { g.fillStyle = css('--bg', 0.85); g.fillRect(p.left, top + 28, k.w, 30); }
+        const kind = k.gr.marks[0].kind;
         const tone = KIND_STYLE[kind].token; // each kind its own colour
         g.fillStyle = css('--surface'); g.strokeStyle = css(tone, 0.55); g.lineWidth = 1.5;
-        g.beginPath(); g.arc(x, railY, 12.5, 0, 7); g.fill(); g.stroke();
-        g.save(); g.translate(x - 8.4, railY - 8.4); g.scale(0.7, 0.7);
+        g.beginPath(); g.arc(cx, iy, 12.5, 0, 7); g.fill(); g.stroke();
+        g.save(); g.translate(cx - 8.4, iy - 8.4); g.scale(0.7, 0.7);
         g.strokeStyle = css(tone); g.lineWidth = 2.4; g.lineCap = 'round'; g.lineJoin = 'round';
-        for (const p of pathsOf(MARK_ICON[kind])) g.stroke(p);
+        for (const pth of pathsOf(MARK_ICON[kind])) g.stroke(pth);
         g.restore();
-        if (gr.marks.length > 1) {
-          g.fillStyle = css('--primary-strong'); g.beginPath(); g.arc(x + 10, railY - 10, 7, 0, 7); g.fill();
-          g.fillStyle = css('--surface'); g.direction = 'ltr'; g.fillText(String(gr.marks.length), x + 10, railY - 6.5); g.direction = dir();
+        if (k.gr.marks.length > 1) {
+          g.font = '700 11px Rubik, system-ui, sans-serif';
+          g.fillStyle = css('--primary-strong'); g.beginPath(); g.arc(cx + 10, iy - 10, 7, 0, 7); g.fill();
+          g.fillStyle = css('--surface'); g.direction = 'ltr'; g.fillText(String(k.gr.marks.length), cx + 10, iy - 6); g.direction = dir();
         }
+        if (k.a) { g.fillStyle = css('--text'); g.font = FD; g.fillText(k.a, cx, top + 42); }
+        if (k.b) { g.fillStyle = css('--text-3'); g.font = FT; g.direction = 'ltr'; g.fillText(k.b, cx, top + 56); g.direction = dir(); }
+        boxes.push({ g: k.gr, l: p.left, r: p.left + k.w, t: top, b: top + LANE });
       });
-      // row 2: what each one was and when, in its own space; pushed aside (with a short line back) when two are close
-      const boxes: { g: Group; l: number; r: number }[] = [];
-      if (span <= 12 * 3600000) {
-        const FD = '600 12.5px "Noto Sans Arabic", Rubik, system-ui, sans-serif', FT = '500 11.5px Rubik, system-ui, sans-serif';
-        const rows = groups.map((gr) => { const a = groupLabel(gr), b = clock(gr.t); g.font = FD; const wa = g.measureText(a).width; g.font = FT; const wb = g.measureText(b).width; return { gr, a, b, x: Math.min(width - 14, Math.max(14, gr.x)), w: Math.max(wa, wb) + 10 }; })
-          .filter((r) => r.a);
-        const lefts = packLabels(rows.map((r) => ({ x: r.x, w: r.w })), width);
-        const top = railY + 19;
-        rows.forEach((r, i) => {
-          const l = lefts[i]; if (l === null) return;
-          const cx0 = l + r.w / 2;
-          if (Math.abs(cx0 - r.x) > 4) { g.strokeStyle = css('--text-3', 0.6); g.lineWidth = 1; g.beginPath(); g.moveTo(r.x, railY + 13.5); g.lineTo(cx0, top - 1); g.stroke(); }
-          g.fillStyle = css('--text'); g.font = FD; g.fillText(r.a, cx0, top + 13);
-          g.fillStyle = css('--text-3'); g.font = FT; g.direction = 'ltr'; g.fillText(r.b, cx0, top + 28); g.direction = dir();
-          boxes.push({ g: r.gr, l, r: l + r.w });
-        });
-      }
       labelBoxes.current = boxes;
       g.direction = 'ltr';
     }
@@ -503,9 +514,9 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
         s.lastTap = { t: now2, x: e.clientX };
         const y = e.clientY - r.top, x = e.clientX - r.left;
         if (hasRail && onSelect && y > height - PAD_B - RAIL) {
-          let best: Group | null = null;
-          for (const gr of groupsRef.current) if (Math.abs(Math.min(width - 14, Math.max(14, gr.x)) - x) <= 22 && (!best || Math.abs(gr.x - x) < Math.abs(best.x - x))) best = gr;
-          if (!best) best = labelBoxes.current.find((b) => x >= b.l && x <= b.r)?.g ?? null; // or its details below
+          // the event block under the finger (icon, what or when), else the nearest one in its lane
+          let best: Group | null = labelBoxes.current.find((b) => x >= b.l && x <= b.r && y >= b.t && y <= b.b)?.g ?? null;
+          if (!best) for (const b of labelBoxes.current) if (Math.abs((b.l + b.r) / 2 - x) <= 26 && (!best || Math.abs((b.l + b.r) / 2 - x) < Math.abs(best.x - x))) best = b.g;
           if (best) { setInspect(null); onSelect(best); }
           return void (s.pts.size === 0 && (s.mode = 'none'));
         }
