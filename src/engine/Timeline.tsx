@@ -8,7 +8,7 @@ import {
   type Series, type View,
 } from './series';
 import { cx } from '../components/ui';
-import { groupLabel, groupMarks, type Group, type Layer, type Mark, type MarkKind } from './events';
+import { groupLabel, groupMarks, packLabels, type Group, type Layer, type Mark, type MarkKind } from './events';
 import { ICONS, type IconName } from '../icons/defs';
 import { dir, t } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
@@ -75,12 +75,13 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
   }, []);
 
   // ── drawing ──
-  const PAD_T = 10, PAD_B = 22;
+  const PAD_T = 10, PAD_B = 24;
   const hasRail = !!layers && layers.size > 0;
-  const RAIL = hasRail ? 44 : 0;
+  const RAIL = hasRail ? 76 : 0; // two rows: the markers at their times, then each one's details (never overlapping)
   const trackList = (['iob', 'cob'] as const).filter((k) => tracks?.[k]);
   const TRACK_H = 34, TRK = trackList.length * TRACK_H;
   const groupsRef = useRef<Group[]>([]);
+  const labelBoxes = useRef<{ g: Group; l: number; r: number }[]>([]);
   const draw = useCallback(() => {
     const c = canvas.current; if (!c || !width) return;
     const dpr = Math.min(3, window.devicePixelRatio || 1);
@@ -119,7 +120,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
       const KWO = 3 * 3600000, DAY = 86400000;
       const hm = (x: string) => { const [h, m] = x.split(':').map(Number); return (h * 60 + (m || 0)) * 60000; };
       const a0 = hm(night.start), b0 = hm(night.end), len = ((b0 - a0 + DAY) % DAY) || DAY;
-      g.font = '500 10.5px Rubik, system-ui, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top'; g.direction = dir();
+      g.font = '500 12px Rubik, system-ui, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'top'; g.direction = dir();
       for (let d = Math.floor((start + KWO) / DAY) * DAY - KWO - DAY; d < end; d += DAY) {
         const from = d + a0, to = from + len;
         if (to <= start || from >= end) continue;
@@ -146,7 +147,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
     }
 
     // glucose grid labels (right edge), in the parents' unit
-    g.font = '11px Rubik, system-ui, sans-serif'; g.fillStyle = css('--text-3'); g.textAlign = 'right'; g.textBaseline = 'middle'; g.direction = 'ltr';
+    g.font = '12.5px Rubik, system-ui, sans-serif'; g.fillStyle = css('--text-3'); g.textAlign = 'right'; g.textBaseline = 'middle'; g.direction = 'ltr';
     const grid = yGrid(y0, y1, unit === 'mmol' ? 'mmol' : 'mgdl');
     g.strokeStyle = css('--border'); g.lineWidth = 1;
     const gridYs: [number, string][] = [];
@@ -209,7 +210,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
           const cur = A.at(now);
           const word = cur < A.ref * 0.03 ? null : at !== undefined ? t('مفعول الإنسولين: في الذروة الآن') : next !== undefined && A.at(next) > cur ? t('مفعول الإنسولين يصعد · الذروة {c}', { c: clock(next) }) : t('مفعول الإنسولين يخف');
           if (word) {
-            g.font = '600 10.5px Rubik, system-ui, sans-serif'; g.textAlign = 'left';
+            g.font = '600 12px Rubik, system-ui, sans-serif'; g.textAlign = 'left';
             const w = g.measureText(word).width + 8;
             g.fillStyle = css('--surface', 0.9); g.fillRect(2, base - 16, w, 14);
             g.fillStyle = css(tone); g.fillText(word, 6, base - 3);
@@ -217,7 +218,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
           }
         }
         // each peak: a dotted line down from the top of the curve, and its time on a chip at the bottom
-        g.font = '700 10.5px Rubik, system-ui, sans-serif'; g.textAlign = 'center';
+        g.font = '700 12px Rubik, system-ui, sans-serif'; g.textAlign = 'center';
         for (const pk of A.peaks) {
           const x = X(pk); if (x < 4 || x > width - 4) continue;
           const v = A.at(pk); if (v < top * 0.12) continue;
@@ -254,7 +255,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
     }
     g.globalAlpha = 1;
     // glucose labels on a chip so the trace never hides them
-    g.font = '11px Rubik, system-ui, sans-serif'; g.textAlign = 'right'; g.textBaseline = 'middle';
+    g.font = '12.5px Rubik, system-ui, sans-serif'; g.textAlign = 'right'; g.textBaseline = 'middle';
     for (const [y, label] of gridYs) {
       const w = g.measureText(label).width + 6;
       g.fillStyle = css('--surface', 0.9); g.fillRect(width - w - 1, y - 7, w, 14);
@@ -288,7 +289,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
           g.fillStyle = css('--surface'); g.strokeStyle = css('--primary-strong'); g.lineWidth = 1.5; g.beginPath(); g.arc(X(lastP.t), y, 3.5, 0, 7); g.fill(); g.stroke();
           if (f.kind === 'onboard') {
             const label = '≈' + formatGlucose(lastP.v, unit);
-            g.font = '700 11px Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.direction = 'ltr';
+            g.font = '700 12.5px Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'bottom'; g.direction = 'ltr';
             const w = g.measureText(label).width + 8;
             g.fillStyle = css('--surface', 0.92); g.fillRect(x - w / 2, y - 21, w, 15);
             g.fillStyle = css('--primary-strong'); g.fillText(label, x, y - 7);
@@ -343,8 +344,9 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
       if (layers!.has('exercise')) for (const m of marks) if (m.kind === 'exercise' && m.end! > start && m.t < end) {
         g.fillStyle = css('--primary', 0.35); g.fillRect(X(m.t), railY + 13, Math.max(3, X(m.end!) - X(m.t)), 3);
       }
-      g.font = '600 10.5px "Noto Sans Arabic", Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.direction = dir(); g.textBaseline = 'alphabetic';
-      groups.forEach((gr, k) => {
+      g.font = '600 11px "Noto Sans Arabic", Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.direction = dir(); g.textBaseline = 'alphabetic';
+      // row 1: the markers, exactly at their time
+      groups.forEach((gr) => {
         const x = Math.min(width - 14, Math.max(14, gr.x));
         const kind = gr.marks[0].kind;
         const tone = KIND_STYLE[kind].token; // each kind its own colour
@@ -358,12 +360,25 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
           g.fillStyle = css('--primary-strong'); g.beginPath(); g.arc(x + 10, railY - 10, 7, 0, 7); g.fill();
           g.fillStyle = css('--surface'); g.direction = 'ltr'; g.fillText(String(gr.marks.length), x + 10, railY - 6.5); g.direction = dir();
         }
-        const label = span <= 12 * 3600000 ? groupLabel(gr) : '';
-        if (label) {
-          const w = g.measureText(label).width, next = groups[k + 1]?.x ?? Infinity, prev = groups[k - 1]?.x ?? -Infinity;
-          if (next - x > w / 2 + 16 && x - prev > w / 2 + 16) { g.fillStyle = css('--text-2'); g.fillText(label, x, railY + 25); }
-        }
       });
+      // row 2: what each one was and when, in its own space; pushed aside (with a short line back) when two are close
+      const boxes: { g: Group; l: number; r: number }[] = [];
+      if (span <= 12 * 3600000) {
+        const FD = '600 12.5px "Noto Sans Arabic", Rubik, system-ui, sans-serif', FT = '500 11.5px Rubik, system-ui, sans-serif';
+        const rows = groups.map((gr) => { const a = groupLabel(gr), b = clock(gr.t); g.font = FD; const wa = g.measureText(a).width; g.font = FT; const wb = g.measureText(b).width; return { gr, a, b, x: Math.min(width - 14, Math.max(14, gr.x)), w: Math.max(wa, wb) + 10 }; })
+          .filter((r) => r.a);
+        const lefts = packLabels(rows.map((r) => ({ x: r.x, w: r.w })), width);
+        const top = railY + 19;
+        rows.forEach((r, i) => {
+          const l = lefts[i]; if (l === null) return;
+          const cx0 = l + r.w / 2;
+          if (Math.abs(cx0 - r.x) > 4) { g.strokeStyle = css('--text-3', 0.6); g.lineWidth = 1; g.beginPath(); g.moveTo(r.x, railY + 13.5); g.lineTo(cx0, top - 1); g.stroke(); }
+          g.fillStyle = css('--text'); g.font = FD; g.fillText(r.a, cx0, top + 13);
+          g.fillStyle = css('--text-3'); g.font = FT; g.direction = 'ltr'; g.fillText(r.b, cx0, top + 28); g.direction = dir();
+          boxes.push({ g: r.gr, l, r: l + r.w });
+        });
+      }
+      labelBoxes.current = boxes;
       g.direction = 'ltr';
     }
 
@@ -490,6 +505,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
         if (hasRail && onSelect && y > height - PAD_B - RAIL) {
           let best: Group | null = null;
           for (const gr of groupsRef.current) if (Math.abs(Math.min(width - 14, Math.max(14, gr.x)) - x) <= 22 && (!best || Math.abs(gr.x - x) < Math.abs(best.x - x))) best = gr;
+          if (!best) best = labelBoxes.current.find((b) => x >= b.l && x <= b.r)?.g ?? null; // or its details below
           if (best) { setInspect(null); onSelect(best); }
           return void (s.pts.size === 0 && (s.mode = 'none'));
         }

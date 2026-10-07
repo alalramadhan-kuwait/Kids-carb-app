@@ -97,12 +97,12 @@ export default function Now() {
     <main className="mx-auto max-w-2xl px-4 pb-28 pt-[max(8px,env(safe-area-inset-top))] lg:max-w-none lg:px-8 lg:pb-12">
       <h1 className="sr-only">{t('الآن')}</h1>
       <LayanHeader alertCount={alerts.open.length} night={isNight(settings)} />
-      <div className="space-y-4 pb-24 lg:pb-0">
+      <div className="space-y-3 pb-24 lg:pb-0">
         {/* the only things allowed above her glucose: alerts that need someone now */}
         <AlertStrip alerts={alerts.open} onChange={alerts.reload} onTreat={() => { setLogKind('treatment'); setLogOpen(true); }} />
         {/* desktop: glucose and the graph on the wide side, the day beside it */}
-        <div className="space-y-4 lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:items-start lg:gap-8 lg:space-y-0">
-        <div className="space-y-4">
+        <div className="space-y-3 lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:items-start lg:gap-8 lg:space-y-0">
+        <div className="space-y-3">
 
         {/* 1 · Primary: the current glucose, its direction and a short status — or the one action that gets it */}
         {notConnected ? (
@@ -112,28 +112,34 @@ export default function Now() {
             <Link to="/cgm" className="flex min-h-[52px] items-center justify-center rounded-2xl bg-brand text-lg font-bold text-white">{t('ربط الآن')}</Link>
           </Card>
         ) : (
-          <Card className="!pb-2">
+          <Card className="relative overflow-hidden !pb-2">
+            {/* her corner: everything below the first line keeps clear of her */}
+            <div className="relative" style={{ minHeight: GIRL_H + 30 }}>
             <div className="flex items-center gap-2">
               <span className={cx('h-3 w-3 shrink-0 rounded-full', TONE_DOT[sentence.tone])} />
-              <span className={cx('text-base font-bold', TONE_TEXT[sentence.tone])}>{g ? sentence.text : failed ? t('تعذّر تحميل القراءة') : '…'}</span>
-              {latest && <span className="ms-auto text-sm text-slate-500">{sinceText(latest.taken_at)}</span>}
+              <span className={cx('text-[17px] font-bold', TONE_TEXT[sentence.tone])}>{g ? sentence.text : failed ? t('تعذّر تحميل القراءة') : '…'}</span>
+              {latest && <span className="ms-auto text-[15px] text-slate-500">{sinceText(latest.taken_at)}</span>}
             </div>
+            <div style={{ paddingInlineEnd: GIRL_W - 8 }}>
             {latest && age?.state !== 'stale' ? (
               <div className={cx('mt-1 flex items-center gap-3', age?.state === 'old' && 'opacity-50')}>
-                <span className="num text-[56px] font-bold leading-none text-brand-num">{formatGlucose(latest.mg_dl, unit)}</span>
-                <span className="text-brand-num"><TrendArrow trend={trend} libre={latest.trend} size={36} /></span>
-                <span className="self-end pb-2 text-sm text-slate-500">{unitLabel(unit)}</span>
+                <span className="num text-[60px] font-bold leading-none text-brand-num">{formatGlucose(latest.mg_dl, unit)}</span>
+                <span className="text-brand-num"><TrendArrow trend={trend} libre={latest.trend} size={38} /></span>
+                <span className="self-end pb-2 text-[15px] text-slate-500">{unitLabel(unit)}</span>
               </div>
             ) : null}
-            {latest && age?.state === 'fresh' && <TrendLine compact trend={trend} libre={latest.trend} unit={unit} className="mt-1 text-sm text-slate-600" />}
+            {latest && age?.state === 'fresh' && <TrendLine compact trend={trend} libre={latest.trend} unit={unit} className="mt-1 text-[15px] text-slate-600" />}
             {latest && age?.state === 'stale' ? (
-              <p className="mt-1 text-sm text-near">{t('آخر قراءة')} <span className="num font-bold">{formatGlucose(latest.mg_dl, unit)}</span> {sinceText(latest.taken_at)}. {t('تحقق من جوال ليان والحساس.')}</p>
+              <p className="mt-1 text-[15px] text-near">{t('آخر قراءة')} <span className="num font-bold">{formatGlucose(latest.mg_dl, unit)}</span> {sinceText(latest.taken_at)}. {t('تحقق من جوال ليان والحساس.')}</p>
             ) : null}
-            {g?.error && <p className="mt-1 text-sm text-over">{GLUCOSE_ERRORS[g.error] ?? g.error} <button className="min-h-[44px] underline" onClick={reload}>{t('إعادة')}</button></p>}
+            {g?.error && <p className="mt-1 text-[15px] text-over">{GLUCOSE_ERRORS[g.error] ?? g.error} <button className="min-h-[44px] underline" onClick={reload}>{t('إعادة')}</button></p>}
             <NextDose />
+            </div>
+            <CardGirl className={sensor && sensor.state !== 'ok' ? 'bottom-0' : '-bottom-2'} />
+            </div>
             {/* the sensor only when it is nearly done; what is still on board is told under the graph */}
             {sensor && sensor.state !== 'ok' && (
-              <Link to="/status" className="-mx-1 mt-1 flex min-h-[44px] items-center gap-2 border-t border-slate-100 px-1 pt-1 text-sm text-slate-600">
+              <Link to="/status" className="-mx-1 mt-1 flex min-h-[44px] items-center gap-2 border-t border-slate-100 px-1 pt-1 text-[15px] text-slate-600">
                 <b className="min-w-0 flex-1 truncate text-slate-900">{sensor.state === 'ended' ? t('انتهى الحساس') : t('الحساس ينتهي {time}', { time: sinceUntil(sensor.left) })}</b>
                 <span className="shrink-0 font-bold text-brand">{t('الحالة')} {isEn() ? '›' : '‹'}</span>
               </Link>
@@ -230,31 +236,17 @@ function SetupRing({ done, total }: { done: number; total: number }) {
  * Layan peeks over the glucose card; a few faint hearts around her only — never around the data. Kept small so
  * the glucose stays high on the screen. Only the bell (alerts) is always here; the night screen appears at night.
  */
+/** The top controls only: the alerts bell, the night screen in the evening, the simple-mode switch. Layan herself
+ *  lives inside the glucose card now, so nothing above it takes height. */
 function LayanHeader({ alertCount, night }: { alertCount: number; night: boolean }) {
   const nav = useNavigate();
-  const heart = 'M12 20.5s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.9c0 5.4-7.5 10-7.5 10z';
-  const W = 100, H = 78; // artwork box
-  const hearts: [number, number, number, number][] = [[-78, 24, 12, -12], [64, 10, 12, 14], [74, 46, 14, -8]]; // dx from centre, y, size, rotation
   const evening = night || new Date().getHours() >= 19;
   return (
-    <header className="relative z-10 flex items-start justify-between" style={{ height: H }}>
+    <header className="flex h-11 items-center justify-between">
       <Link to="/alerts" aria-label={alertCount ? t('التنبيهات: {n} مفتوح', { n: alertCount }) : t('التنبيهات')} className="relative grid h-11 w-11 place-items-center rounded-full text-slate-500">
         <Icon name="bell" size={26} />
         {alertCount > 0 && <span className="absolute end-2 top-1.5 h-2.5 w-2.5 rounded-full bg-over-fill ring-2 ring-[rgb(var(--bg))]" />}
       </Link>
-      <div className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2" style={{ width: W, height: H }} aria-hidden>
-        {hearts.map(([dx, y, size, rot], i) => (
-          <svg key={i} viewBox="0 0 24 24" width={size} height={size} className="absolute text-[#F49AB6] opacity-50"
-            style={{ left: `calc(50% + ${dx}px)`, top: y, transform: `rotate(${rot}deg)` }}>
-            <path d={heart} fill="currentColor" fillOpacity="0.35" stroke="currentColor" strokeWidth="1.6" />
-          </svg>
-        ))}
-        <picture>
-          <source srcSet={layanWebp} type="image/webp" />
-          {/* the artwork's card edge sits at 95.5% of its height: her fingers hang over the card's top border */}
-          <img src={layanPng} alt="" className="absolute left-0 w-full select-none" style={{ bottom: `calc(-0.0454 * ${W}px * 388 / 480)` }} draggable={false} />
-        </picture>
-      </div>
       <div className="flex items-center gap-1">
         {evening && (
           <Link to="/night" aria-label={t('شاشة الليل')} className="grid h-11 w-11 place-items-center rounded-full text-slate-500">
@@ -262,11 +254,32 @@ function LayanHeader({ alertCount, night }: { alertCount: number; night: boolean
           </Link>
         )}
         {/* one tap to the simple screens (the same as More → «افتح الوضع البسيط») */}
-        <button onClick={() => { setFullModeNow(false); nav('/mom'); }} className="mt-1.5 min-h-[36px] rounded-full bg-brand-soft px-3 text-sm font-bold text-brand active:opacity-80">
+        <button onClick={() => { setFullModeNow(false); nav('/mom'); }} className="min-h-[36px] rounded-full bg-brand-soft px-3 text-[15px] font-bold text-brand active:opacity-80">
           {t('البسيط')}
         </button>
       </div>
     </header>
+  );
+}
+
+/** Layan, rising from the bottom corner of the glucose card and looking at the number (mirrored so she faces it in
+ *  either reading direction). Decoration only: the text beside her keeps clear of her. */
+const GIRL_W = 112, GIRL_H = Math.round(GIRL_W * 388 / 480);
+function CardGirl({ className }: { className?: string }) {
+  const heart = 'M12 20.5s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.9c0 5.4-7.5 10-7.5 10z';
+  return (
+    <div className={cx('pointer-events-none absolute end-0', className)} style={{ width: GIRL_W, height: GIRL_H }} aria-hidden>
+      {([[-14, 2, 11, -12], [96, 8, 10, 14]] as const).map(([x, y, size, rot], i) => (
+        <svg key={i} viewBox="0 0 24 24" width={size} height={size} className="absolute text-[#F49AB6] opacity-50" style={{ insetInlineStart: x, top: y, transform: `rotate(${rot}deg)` }}>
+          <path d={heart} fill="currentColor" fillOpacity="0.35" stroke="currentColor" strokeWidth="1.6" />
+        </svg>
+      ))}
+      <picture>
+        <source srcSet={layanWebp} type="image/webp" />
+        {/* the artwork looks to its right; in an LTR page the number is to her left, so she is mirrored */}
+        <img src={layanPng} alt="" draggable={false} className="absolute inset-x-0 bottom-0 w-full select-none" style={{ transform: isEn() ? 'scaleX(-1)' : undefined }} />
+      </picture>
+    </div>
   );
 }
 
@@ -315,7 +328,7 @@ function HomeChart({ live }: { live: Reading[] }) {
   // IOB and COB as two thin strips under the graph, and where glucose heads from here (display only)
   // insulin and carbs on board are told under the graph in words (OnBoardLanes), so the graph keeps only glucose
   const { tracks, forecasts } = useGraphExtras({ series, now, iob: false, cob: false, act: true, forecast: true, projected30, start: view.end - view.span, end: view.end });
-  const height = useMemo(() => Math.round(window.innerWidth >= 1024 ? Math.min(620, Math.max(380, window.innerHeight * 0.55)) + 48 : Math.min(440, Math.max(240, window.innerHeight * 0.36)) + 48) + (tracks?.iob || tracks?.cob ? 68 : 0), [!!(tracks?.iob || tracks?.cob)]); // eslint-disable-line react-hooks/exhaustive-deps
+  const height = useMemo(() => Math.round(window.innerWidth >= 1024 ? Math.min(650, Math.max(410, window.innerHeight * 0.58)) + 48 : Math.min(500, Math.max(290, window.innerHeight * 0.43)) + 48) + (tracks?.iob || tracks?.cob ? 68 : 0), [!!(tracks?.iob || tracks?.cob)]); // eslint-disable-line react-hooks/exhaustive-deps
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
   return (
     <>

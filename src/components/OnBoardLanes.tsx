@@ -40,7 +40,7 @@ export function OnBoardLanes({ statusLink = true }: { statusLink?: boolean }) {
             line={t('آخر أكل قبل {d}', { d: dur(now - cob.last) })} />}
         </div>
       )}
-      {statusLink && <Link to="/status" className="flex min-h-[40px] items-center justify-end px-1 text-sm font-bold text-brand">{t('الحالة')} {isEn() ? '›' : '‹'}</Link>}
+      {statusLink && <Link to="/status" className="flex min-h-[40px] items-center justify-end px-1 text-[15.5px] font-bold text-brand">{t('الحالة')} {isEn() ? '›' : '‹'}</Link>}
     </section>
   );
 }
@@ -53,7 +53,7 @@ function Lane({ lane, now, icon, tone, num, unit, line }: { lane: OnBoardLane; n
       <span className={cx('mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full', c.soft, c.text)}><Icon name={icon} size={16} /></span>
       <div className="min-w-0 flex-1">
         {/* primary: active now · how long ago the last one was */}
-        <p className="text-sm">
+        <p className="text-[15.5px]">
           <b className={cx('tabular-nums', c.text)}><bdi dir="ltr">{num}</bdi> {unit} {t('نشط')}</b>
           <span className="text-slate-600"> · {line}</span>
         </p>
@@ -63,7 +63,7 @@ function Lane({ lane, now, icon, tone, num, unit, line }: { lane: OnBoardLane; n
             <div className={cx('h-full rounded-full', c.bar)} style={{ width: `${frac * 100}%` }} />
             <span className={cx('absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full border-2 border-white shadow', c.bar)} style={{ left: `calc(${frac * 100}% - 6px)` }} />
           </div>
-          <span className="shrink-0 text-[11px] text-slate-500 tabular-nums">{t('حتى ~{time}', { time: fmtTime(new Date(lane.end)) })}</span>
+          <span className="shrink-0 text-[13px] text-slate-500 tabular-nums">{t('حتى ~{time}', { time: fmtTime(new Date(lane.end)) })}</span>
         </div>
       </div>
     </div>

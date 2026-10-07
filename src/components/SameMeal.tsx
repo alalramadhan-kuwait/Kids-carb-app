@@ -187,7 +187,7 @@ function Row({ color, title, carbs, units, what, start, peak, after2, dose, g }:
 /** One line that opens the comparison, for the home screens and an entry's details. */
 export function SameMealLink({ to, target, matches, className, short }: { to: string; target: Sitting; matches: Sitting[]; className?: string; short?: boolean }) {
   return (
-    <Link to={to} className={className ?? 'flex min-h-[44px] items-center gap-2 rounded-2xl bg-brand-soft px-3 py-2 text-sm font-medium text-brand'}>
+    <Link to={to} className={className ?? 'flex min-h-[44px] items-center gap-2 rounded-2xl bg-brand-soft px-3 py-2 text-[15.5px] font-medium text-brand'}>
       <span aria-hidden>🔁</span>
       <span className="min-w-0 flex-1 truncate">{t('نفس وجبة {w}', { w: short ? relDay(new Date(matches[0].t0)) : whenText(matches[0].t0) })}{!short && matches.length > 1 ? ` ${t('+{n} قبلها', { n: matches.length - 1 })}` : ''}</span>
       <span>{t('قارن')}</span>

@@ -17,7 +17,7 @@ export function NextDose() {
   const g = doseGap(doses, now, s.dose_gap_min ?? 120);
   if (!g || g.left <= 0) return null;
   return (
-    <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+    <p className="mt-2 flex items-center gap-1.5 text-[13.5px] text-slate-500">
       <Icon name="clock" size={14} className="shrink-0" />
       <span>{t('فاصل الجرعات حسب الخطة: باقي {time}', { time: dur(g.left) })}</span>
     </p>

@@ -666,6 +666,20 @@ test('zoom keeps the time under the fingers fixed; ticks follow Kuwait time', ()
 
 console.log('event rail');
 
+test('rail labels: centred under their marker when there is room, pushed apart (never overlapping) when close, dropped only if they cannot fit', async () => {
+  const { packLabels } = await import('../../engine/events');
+  assert.deepEqual(packLabels([{ x: 50, w: 40 }, { x: 200, w: 40 }], 300), [30, 180], 'room: centred');
+  const close = packLabels([{ x: 100, w: 90 }, { x: 120, w: 90 }], 360);
+  assert.ok(close[1]! >= close[0]! + 90 + 8, 'two close labels do not overlap');
+  const edge = packLabels([{ x: 290, w: 80 }], 300);
+  assert.ok(edge[0]! + 80 <= 298, 'kept inside the right edge');
+  const many = packLabels(Array.from({ length: 6 }, (_, i) => ({ x: 20 + i * 10, w: 90 })), 300);
+  const kept = many.map((l, i) => (l === null ? null : [l, l + 90])).filter(Boolean) as number[][];
+  for (let i = 1; i < kept.length; i++) assert.ok(kept[i][0] >= kept[i - 1][1] + 8, 'still no overlap');
+  assert.ok(kept.length >= 1 && kept.length < 6);
+});
+
+
 const evr = (o: any) => ({ id: o.id ?? 'x', client_id: 'c', kind: 'insulin', occurred_at: '2026-10-01T12:00:00Z', insulin_units: null, insulin_type: null, bolus_purpose: null,
   carbs_g: null, treatment: null, note: null, created_by: 'u', deleted_at: null, ...o });
 const meal = (o: any) => ({ id: 'm1', kind: 'meal', recipe_id: null, name: 'مجبوس دجاج', category: null, eaten_at: '2026-10-01T12:05:00Z', total_carbs: 45,

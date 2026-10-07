@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-07",
+    "version": "2.55.0",
+    "notes": [
+      "صفحة الآن أرتب: قراءة السكر صارت فوق مباشرة، وليان داخل بطاقة السكر تطالع الرقم.",
+      "الرسم صار أكبر، وتحت الرسم صفّين: الأيقونات في وقتها، وتحتها التفاصيل والوقت بدون ما يتداخل الكلام.",
+      "الخط أكبر شوي في الصفحة."
+    ],
+    "notes_en": [
+      "A tidier Now screen: the glucose reading sits right at the top, with Layan inside its card looking at the number.",
+      "A bigger graph, with two rows under it: the icons at their time, then the details and time, never overlapping.",
+      "Slightly larger text across the screen."
+    ]
+  },
+  {
+    "date": "2026-10-07",
     "version": "2.54.4",
     "notes": [
       "السجل يتحدّث لحاله: لما ترجعين للتطبيق، أو كل دقيقة، أو إذا رجع النت. التسجيلات الجديدة (حتى من الأب أو الأم) ما تنتظر حتى تعيدين فتح التطبيق."
