@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as PE } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
+import { syncComparisons } from '../../lib/fingerprick';
 import { useGlucose } from '../../hooks/useGlucose';
 import { fetchSeries } from '../../engine/useSeries';
 import { mergeSeries, type Series } from '../../engine/series';
@@ -40,6 +41,8 @@ export function MomHome() {
     ro.observe(el); return () => ro.disconnect();
   }, []);
   const { settings: s, events, history } = useData();
+  // a finger-prick is compared with the sensor once its readings are in: done here, in the background, so nobody has to open a page for it
+  useEffect(() => { void syncComparisons(events, history).catch(() => {}); }, [events, history]);
   const { g } = useGlucose();
   const [now, setNow] = useState(Date.now());
   const [series, setSeries] = useState<Series | null>(null);

@@ -6,6 +6,7 @@ import { useData } from '../../lib/data';
 import { deleteEvent, setEventUnits } from '../../lib/api';
 import { setEntryTime } from '../../lib/entrySave';
 import { updateEvent } from '../../lib/editSave';
+import { useComparisons } from '../../lib/fingerprick';
 import { formatGlucose, toMgdl } from '../../lib/glucose';
 import { TimePicker } from '../../components/TimePicker';
 import { setGivenUnits, skipPlan, usePlans } from '../../lib/plans';
@@ -17,7 +18,8 @@ import { Big, MomPage, PenBar, PEN_NAME, SITE_NAME, clock, ago } from './MomUI';
 export function MomEntry() {
   const nav = useNavigate();
   const { id } = useParams();
-  const { events, settings, me, reload } = useData();
+  const { events, history, settings, me, reload } = useData();
+  const { rows: cmpRows } = useComparisons(events, history);   // also completes a finger-prick's comparison with the sensor
   const { plans } = usePlans();
   const e = events.find((x) => x.id === id && !x.deleted_at);
   const plan = plans.find((p) => p.dose_event_id === id);
@@ -42,7 +44,8 @@ export function MomEntry() {
   };
   const saveAll = () => run(async () => {
     if (shot && u !== null && u !== e.insulin_units) { await setEventUnits(e.id, units, me); if (plan) await setGivenUnits(plan.id, units); }
-    if (prick && bgText !== null && bgOk && bgMg !== e.bg_mgdl) await updateEvent(e, { t: when ?? at, bg: bgMg }, me);   // also recomputes its sensor comparison
+    // a finger-prick's number or time changing restarts its comparison with the sensor (updateEvent does both)
+    if (prick && ((bgText !== null && bgOk && bgMg !== e.bg_mgdl) || timeChanged)) await updateEvent(e, { t: when ?? at, bg: bgText !== null && bgOk ? bgMg! : e.bg_mgdl! }, me);
     else if (timeChanged) await setEntryTime({ e }, when!, me);
   }, t('تم ✓'));
   const remove = () => {
@@ -62,6 +65,13 @@ export function MomEntry() {
       {plan && <p className="text-center text-[16px] text-slate-500">🍽️ <bdi>{plan.name}</bdi></p>}
       {prick && <input inputMode="decimal" dir="ltr" value={bgText ?? formatGlucose(e.bg_mgdl ?? 0, settings.glucose_unit)} onChange={(x) => setBgText(x.target.value)}
         className={cx(inputCls, '!min-h-[72px] !text-center !text-[40px] font-extrabold')} />}
+      {prick && (() => {
+        const c = cmpRows?.find((r) => r.event_id === e.id);
+        const unit = settings.glucose_unit;
+        if (!c || !c.complete || c.libre_now === null) return <p className="text-center text-[16px] text-slate-500">{t('بنقارنها مع الحساس لما تتوفر قراءاته')}</p>;
+        const d = c.diff_pct;
+        return <p className="rounded-2xl bg-white px-4 py-3 text-center text-[17px]">📡 {t('الحساس وقتها')} <b className="num">{formatGlucose(c.libre_now, unit)}</b>{d !== null && <span className="text-slate-500"> · <span dir="ltr" className="num">{d > 0 ? '+' : ''}{Math.round(d)}%</span> {Math.abs(d) <= 15 ? t('متقاربة ✓') : t('الفرق كبير')}</span>}</p>;
+      })()}
       {shot && <>
         <div className="text-center text-[17px] font-bold">{t('كم عطيتيها؟')}</div>
         <div className="flex items-center justify-center gap-6">

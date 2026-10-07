@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-07",
+    "version": "2.53.2",
+    "notes": [
+      "فحص الإصبع يتقارن مع الحساس لحاله (ما تحتاجين تفتحين شي). صفحته تعرض قراءة الحساس وقتها والفرق.",
+      "إذا غيّرتي وقت أو رقم الفحص، المقارنة تنعاد على الوقت الجديد."
+    ],
+    "notes_en": [
+      "A finger-prick is compared with the sensor by itself (nothing to open). Its page shows what the sensor said then and the difference.",
+      "If you change the time or number of a finger-prick, the comparison is redone for the new time."
+    ]
+  },
+  {
+    "date": "2026-10-07",
     "version": "2.53.1",
     "notes": [
       "فحص الإصبع يطلع في السجل، وتقدرين تغيّرين رقمه أو وقته أو تمسحينه.",
