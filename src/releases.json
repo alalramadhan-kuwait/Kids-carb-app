@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-07",
+    "version": "2.54.2",
+    "notes": [
+      "الرسم على صفحة الآن صار ينزلق من أول لمسة: كان يرجع مكانه إذا سحبتيه قليلًا."
+    ],
+    "notes_en": [
+      "The graph on Now now slides from the first touch. A small slide used to snap straight back."
+    ]
+  },
+  {
+    "date": "2026-10-07",
     "version": "2.54.1",
     "notes": [
       "فتح أي تسجيل في السجل صار بسطر واحد أو سطرين فقط، بدون تكرار الرقم. الوقت والباقي تحت «تفاصيل».",

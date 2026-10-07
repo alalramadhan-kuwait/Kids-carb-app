@@ -302,7 +302,9 @@ function HomeChart({ live }: { live: Reading[] }) {
   useEffect(() => { setNow(Date.now()); }, [live]);
   useEffect(() => { if (following) setView((v) => ({ span: v.span, end: limitEnd(Infinity, now, v.span, AHEAD) })); }, [now, following]);
   const onView = useCallback((v: View) => {
-    const t1 = Date.now(), isLive = v.end >= t1 + v.span * 0.02;
+    // live = at (or within 2% of) the live edge, which sits AHEAD of now; measured from now instead, a slide of up to a
+    // quarter of the screen counted as still live and snapped straight back, so the graph seemed stuck
+    const t1 = Date.now(), isLive = v.end >= limitEnd(Infinity, t1, v.span, AHEAD) - v.span * 0.02;
     setFollowing(isLive);
     setView(isLive ? { span: v.span, end: limitEnd(Infinity, t1, v.span, AHEAD) } : v);
   }, []);
