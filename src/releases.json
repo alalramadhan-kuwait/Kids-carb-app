@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-07",
+    "version": "2.53.0",
+    "notes": [
+      "زر جديد «وخز 🩸» في الرئيسية: سجّلي فحص الإصبع (رقم واحد وحفظ). يقارن مع الحساس ولا يغيّر الجرعة.",
+      "إذا الرقم أقل من الطبيعي يقول لك تعطينها عصير."
+    ],
+    "notes_en": [
+      "New “Prick 🩸” button on Home: log a finger-prick (one number, then save). It is compared with the sensor and does not change the dose.",
+      "If the number is below normal it tells you to give juice."
+    ]
+  },
+  {
+    "date": "2026-10-07",
     "version": "2.52.1",
     "notes": [
       "الرسم: إذا ما تحمّلت القراءات يعيد المحاولة لحاله، ويطلع شريط «أعيدي المحاولة» مع السبب.",

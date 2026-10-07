@@ -142,9 +142,10 @@ export function MomHome() {
             </div>}
       </div>
       {next && <Link to={`/mom/plan/${next.id}`} className="shrink-0 rounded-2xl bg-white px-4 py-2 text-[16px]">📅 <bdi>{next.name}</bdi> · {dayWord(Date.parse(next.dose_at))} 💉 {clock(Date.parse(next.dose_at))} ›</Link>}
-      <div className="grid shrink-0 grid-cols-2 gap-2">
+      <div className="grid shrink-0 grid-cols-3 gap-2">
         {lowNow || juice ? <Big tone="ghost" className="min-h-[52px] text-[18px]" disabled={lowNow} onClick={() => build('now')}>🍽️ {t('وجبة')}</Big> : <Big tone="ghost" className="min-h-[52px] text-[18px]" onClick={() => nav('/mom/juice')}>🧃 {t('عصير')}</Big>}
         <Big tone="ghost" className="min-h-[52px] text-[18px]" disabled={lowNow} onClick={() => nav('/mom/shot')}>💉 {t('إبرة')}</Big>
+        <Big tone="ghost" className="min-h-[52px] !px-2 text-[18px]" onClick={() => nav('/mom/prick')}>🩸 {t('وخز')}</Big>
       </div>
     </main>
   );
