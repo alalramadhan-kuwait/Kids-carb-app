@@ -20,6 +20,7 @@ import { LogSheet } from '../components/LogSheet';
 import { EditEntry } from '../components/EditEntry';
 import { EditItems } from '../components/EditItems';
 import { EntryActions } from '../components/EntryActions';
+import { EntryGlance } from '../components/EntryGlance';
 import { useQuickItems } from '../lib/quick';
 import { brandsOf, sameBrand } from '../lib/brand';
 import type { PredictionRow } from '../lib/predictions';
@@ -46,6 +47,7 @@ export default function History() {
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [openEp, setOpenEp] = useState<Episode | null>(null);
   const [brand, setBrand] = useState<string | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
   const quick = useQuickItems();
   const [days, setDays] = useState(7);
   const [open, setOpen] = useState<Item | null>(null);
@@ -102,39 +104,42 @@ export default function History() {
     } else if (it.h && confirm(t('حذف هذا التسجيل من السجل؟'))) { await deleteHistory(it.h.id); await reload(); toast(t('تم الحذف')); }
   };
 
+  // how many less-used filters are away from their default (shown on the Filter button)
+  const extra = (brand ? 1 : 0) + (allAlarms ? 1 : 0) + (layout === 'timeline' ? 1 : 0);
   const KINDS: [Kind, string][] = [['all', t('الكل')], ['meals', t('الوجبات')], ['insulin', t('إنسولين')], ['treatment', t('علاج انخفاض')], ['other', t('أخرى')]];
   // imported entries name who logged them in the other app (in the note), not the account that imported them
   const whoOf = (it: Item) => ((it.e ?? it.h)?.source ? '' : nameOf(it.e ? it.e.created_by : (it.h as unknown as { created_by?: string }).created_by));
   return (
     <Page title={t('السجل')}>
-      <div className="mb-3 flex items-center gap-2">
-        <div className="grid flex-1 grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 text-sm">
-          {([['all', t('الكل')], ['entries', t('المدخلات')], ['alarms', t('التنبيهات')]] as const).map(([k, l]) => (
-            <button key={k} onClick={() => setView(k)} className={cx('min-h-[36px] rounded-full', view === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{l}</button>
-          ))}
-        </div>
+      <div className="mb-3 grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 text-sm">
+        {([['all', t('الكل')], ['entries', t('المدخلات')], ['alarms', t('التنبيهات')]] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setView(k)} className={cx('min-h-[36px] rounded-full', view === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{l}</button>
+        ))}
       </div>
-      <div className="-mx-4 mb-3 flex items-center gap-2 overflow-x-auto px-4">
-        {view !== 'entries' && <>
-          <Chip active={!allAlarms} onClick={() => setAllAlarms(false)}>{t('التنبيهات المهمة')}</Chip>
-          <Chip active={allAlarms} onClick={() => setAllAlarms(true)}>{t('كل التنبيهات')}</Chip>
-        </>}
-        <div className="ms-auto flex shrink-0 gap-0.5 rounded-full bg-slate-100 p-0.5 text-xs">
-          {([['list', t('قائمة')], ['timeline', t('خط زمني')]] as const).map(([k, l]) => (
-            <button key={k} onClick={() => setLayout(k)} aria-pressed={layout === k} className={cx('min-h-[36px] rounded-full px-3', layout === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{l}</button>
-          ))}
+      <div className="mb-4 flex items-center gap-2">
+        <div className="-ms-4 flex min-w-0 flex-1 gap-2 overflow-x-auto ps-4">
+          {view !== 'alarms' && KINDS.map(([k, l]) => <Chip key={k} active={kind === k} onClick={() => { setKind(k); if (k !== 'all' && k !== 'meals') setBrand(null); }}>{l}</Chip>)}
         </div>
+        <button onClick={() => setFilterOpen(true)} className={cx('flex min-h-[44px] shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-medium', extra ? 'border-brand bg-brand-soft text-brand' : 'border-slate-200 bg-white text-slate-700')}>
+          {t('تصفية')}{extra > 0 && <span className="grid h-5 min-w-[20px] place-items-center rounded-full bg-brand px-1 text-xs font-bold text-white">{extra}</span>}
+        </button>
       </div>
-      {view !== 'alarms' && <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
-        {KINDS.map(([k, l]) => <Chip key={k} active={kind === k} onClick={() => { setKind(k); if (k !== 'all' && k !== 'meals') setBrand(null); }}>{l}</Chip>)}
-      </div>}
-      {view !== 'alarms' && brands.length > 0 && (
-        <div className="-mx-4 -mt-2 mb-4 flex items-center gap-1.5 overflow-x-auto px-4">
-          <span className="shrink-0 text-xs font-medium text-slate-500">{t('البراند')}</span>
-          <Chip active={!brand} onClick={() => setBrand(null)}>{t('الكل')}</Chip>
-          {brands.map((b) => <Chip key={b} active={sameBrand(brand, b)} onClick={() => { setBrand(b); if (kind !== 'all' && kind !== 'meals') setKind('all'); }}><bdi>{b}</bdi></Chip>)}
+      <Sheet open={filterOpen} onClose={() => setFilterOpen(false)} title={t('تصفية')}>
+        <div className="space-y-5">
+          {view !== 'entries' && (
+            <div><div className="mb-2 text-sm font-bold text-slate-600">{t('التنبيهات')}</div>
+              <div className="flex flex-wrap gap-2"><Chip active={!allAlarms} onClick={() => setAllAlarms(false)}>{t('التنبيهات المهمة')}</Chip><Chip active={allAlarms} onClick={() => setAllAlarms(true)}>{t('كل التنبيهات')}</Chip></div></div>
+          )}
+          <div><div className="mb-2 text-sm font-bold text-slate-600">{t('العرض')}</div>
+            <div className="flex flex-wrap gap-2">{([['list', t('قائمة')], ['timeline', t('خط زمني')]] as const).map(([k, l]) => <Chip key={k} active={layout === k} onClick={() => setLayout(k)}>{l}</Chip>)}</div></div>
+          {view !== 'alarms' && brands.length > 0 && (
+            <div><div className="mb-2 text-sm font-bold text-slate-600">{t('البراند')}</div>
+              <div className="flex flex-wrap gap-2"><Chip active={!brand} onClick={() => setBrand(null)}>{t('الكل')}</Chip>
+                {brands.map((b) => <Chip key={b} active={sameBrand(brand, b)} onClick={() => { setBrand(b); if (kind !== 'all' && kind !== 'meals') setKind('all'); }}><bdi>{b}</bdi></Chip>)}</div></div>
+          )}
+          <Btn block onClick={() => setFilterOpen(false)}>{t('تم')}</Btn>
         </div>
-      )}
+      </Sheet>
 
       <div className="space-y-5">
         {groups.map(([day, items]) => {
@@ -178,7 +183,8 @@ export default function History() {
         {open?.h && editing === 'items' && <EditItems h={open.h} onCancel={() => setEditing(false)} onDone={close} />}
         {open?.h && !editing && <MealDetail h={open.h} n={times.get(keyOf(open.h)) ?? 1} unit={settings.glucose_unit} onEditItems={() => setEditing('items')} />}
         {open?.e && !editing && (
-          <div className="space-y-1 text-sm text-slate-600">
+          <div className="space-y-2 text-sm text-slate-600">
+            <EntryGlance e={open.e} />
             {open.e.note && <p dir="auto" className="text-base text-slate-800">{open.e.note}</p>}
             <p>{fmtTime(new Date(open.e.occurred_at))}{open.e.source ? '' : <> · <bdi>{nameOf(open.e.created_by)}</bdi></>}</p>
           </div>
@@ -291,6 +297,7 @@ function Row({ it, who, onOpen }: { it: Item; who: string; onOpen: () => void })
 function MealDetail({ h, n, unit, onEditItems }: { h: HistoryEntry; n: number; unit: 'mmol' | 'mgdl'; onEditItems: () => void }) {
   const { recipes } = useData();
   const recipe = h.recipe_id ? recipes.find((r) => r.id === h.recipe_id) : null;
+  const [more, setMore] = useState(false);
   return (
     <div className="space-y-3 text-sm">
       {recipe && (
@@ -299,10 +306,13 @@ function MealDetail({ h, n, unit, onEditItems }: { h: HistoryEntry; n: number; u
         </Link>
       )}
       <div className="flex items-baseline gap-2">
-        <span className="num text-3xl font-bold text-brand-num">{fmt(h.total_carbs)}</span><span className="text-slate-500">{t('غ كارب')}</span>
+        <EntryGlance h={h} />
         <span className="ms-auto text-slate-500">{fmtTime(new Date(h.eaten_at))}</span>
       </div>
       {h.photo_path && <a href={photoUrl(h.photo_path)!} target="_blank" rel="noreferrer"><img src={photoUrl(h.photo_path)!} alt={t('صورة الأكل')} className="max-h-56 w-full rounded-xl object-cover" /></a>}
+      {h.needs_review && <Link to="/import" className="block rounded-xl bg-near-soft p-2.5 text-sm font-medium text-near">{t('ربما سُجّل جزء منها مرتين في Gluroo، فهي مستبعدة من البحث تلقائيًا. لا يلزم شيء منكم.')}</Link>}
+      <button onClick={() => setMore(!more)} aria-expanded={more} className="min-h-[44px] text-sm font-bold text-brand">{more ? t('أقل') : t('تفاصيل')}</button>
+      {more && <>
       {h.glucose_mgdl !== null && (
         <p className="flex items-center gap-1 text-slate-600">{t('السكر عند التسجيل:')} <b className="num">{formatGlucose(h.glucose_mgdl, unit)}</b> {tMaybe(unitLabel(unit))} {h.glucose_trend ? <Icon name={TREND_ICON[h.glucose_trend]} size={14} label={tMaybe(TREND_WORDS[h.glucose_trend])} /> : null}</p>
       )}
@@ -314,8 +324,8 @@ function MealDetail({ h, n, unit, onEditItems }: { h: HistoryEntry; n: number; u
       {h.lines.length > 0 && <button onClick={onEditItems} className="min-h-[44px] text-sm font-bold text-brand">{t('تعديل الأصناف والكميات')}</button>}
       {h.total_kcal !== null && <p className="num text-xs text-slate-500">{t('دهون {fat}غ • ألياف {fiber}غ • بروتين {protein}غ • {kcal} سعرة', { fat: fmt(h.total_fat), fiber: fmt(h.total_fiber), protein: fmt(h.total_protein), kcal: h.total_kcal })}</p>}
       <p className="text-xs text-slate-500">{t('اختيرت {n} مرة', { n })}{h.modified ? ' · ' + t('معدّلة') : ''}</p>
-      {h.needs_review && <Link to="/import" className="block rounded-xl bg-near-soft p-2.5 text-sm font-medium text-near">{t('ربما سُجّل جزء منها مرتين في Gluroo، فهي مستبعدة من البحث تلقائيًا. لا يلزم شيء منكم.')}</Link>}
       <MealPrediction id={h.id} unit={unit} />
+      </>}
     </div>
   );
 }

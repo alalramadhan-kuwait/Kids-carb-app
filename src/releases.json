@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-07",
+    "version": "2.54.0",
+    "notes": [
+      "السجل أهدأ: افتحي أي تسجيل وتشوفين المهم بسطر: وخز الإصبع مع الحساس، الإنسولين المعطى مع الموصى به، الكارب مع الإنسولين، وعلاج الانخفاض قبل وبعد.",
+      "زر «كيف؟» يفتح الحساب كامل إذا بغيتي.",
+      "فلاتر أقل: الأنواع الأساسية فوق، وكل الباقي (البراند، التنبيهات، طريقة العرض) تحت زر «تصفية»."
+    ],
+    "notes_en": [
+      "The Log is calmer: open any entry and see what matters in one line: finger-prick with the sensor, insulin given with recommended, carbs with insulin, a low treatment before and after.",
+      "\"How?\" opens the full calculation if you want it.",
+      "Fewer filters: the main types on top, everything else (brand, alerts, view) under one Filter button."
+    ]
+  },
+  {
+    "date": "2026-10-07",
     "version": "2.53.2",
     "notes": [
       "فحص الإصبع يتقارن مع الحساس لحاله (ما تحتاجين تفتحين شي). صفحته تعرض قراءة الحساس وقتها والفرق.",
