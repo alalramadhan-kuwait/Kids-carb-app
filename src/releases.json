@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-07",
+    "version": "2.52.1",
+    "notes": [
+      "الرسم: إذا ما تحمّلت القراءات يعيد المحاولة لحاله، ويطلع شريط «أعيدي المحاولة» مع السبب.",
+      "الرسم يتحدّث لحاله لما يرجع التطبيق من النوم أو ترجع الشبكة."
+    ],
+    "notes_en": [
+      "Graph: if the readings do not load it tries again by itself, and shows a “Try again” bar with the reason.",
+      "The graph refreshes by itself when the app wakes up or the network comes back."
+    ]
+  },
+  {
+    "date": "2026-10-07",
     "version": "2.52.0",
     "notes": [
       "الأكل في السجل صار ينفتح: غيّري اسمه (فطور، غدا، عشا، سناك) أو وقته، أو امسحيه إذا غلط.",

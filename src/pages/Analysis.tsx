@@ -8,6 +8,7 @@ import { Chip, Page, cx } from '../components/ui';
 import { Timeline } from '../engine/Timeline';
 import { useLandscape } from '../hooks/useLandscape';
 import { useSeries } from '../engine/useSeries';
+import { GraphLoadNotice } from '../components/GraphLoadNotice';
 import { PERIODS, delta15, freshness, limitEnd, rateAt, type View } from '../engine/series';
 import StatsPanel from './Advanced';
 import { ResearchPanel } from './Research';
@@ -133,7 +134,7 @@ function Live() {
     anim.current = requestAnimationFrame(step);
   }, []);
 
-  const { series, loading } = useSeries(view.end - view.span, view.end, g?.readings);
+  const { series, loading, error: loadError, retry } = useSeries(view.end - view.span, view.end, g?.readings);
   const past = usePredictions(g?.sensor?.started_at ? Date.parse(g.sensor.started_at) : null);
   const projected30 = useMemo(() => (g?.readings ? trendFrom(g.readings, now)?.projected30 ?? null : null), [g?.readings, now]);
   const { tracks, forecasts, ahead } = useGraphExtras({ series, now, iob: layers.has('iob'), cob: layers.has('cob'), act: layers.has('act'), forecast: layers.has('forecast'),
@@ -161,6 +162,7 @@ function Live() {
         </div>
       </div>
       <div className="flex-1 bg-white">
+        <GraphLoadNotice error={loadError} empty={!series.t.length} retry={retry} className="mb-1" />
         <Timeline series={series} view={view} now={now} onView={onView} unit={unit} height={Math.max(160, land.height - 48)}
           range={rng} marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={ahead} night={nightOf(settings)} />
       </div>
@@ -186,6 +188,7 @@ function Live() {
         </span>
       </div>
 
+      {loadError && <div className="mb-2"><GraphLoadNotice error={loadError} empty={!series.t.length} retry={retry} /></div>}
       <div className="relative -mx-4 bg-white py-2 shadow-card">
         <Timeline series={series} view={view} now={now} onView={onView} unit={unit} height={height}
           range={rng}

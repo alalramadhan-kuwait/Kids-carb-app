@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Timeline } from '../engine/Timeline';
 import { useSeries } from '../engine/useSeries';
+import { GraphLoadNotice } from '../components/GraphLoadNotice';
 import { limitEnd, type View } from '../engine/series';
 import { buildMarks, defaultLayers, type Group } from '../engine/events';
 import { EventSheet } from '../components/EventSheet';
@@ -305,7 +306,7 @@ function HomeChart({ live }: { live: Reading[] }) {
     setFollowing(isLive);
     setView(isLive ? { span: v.span, end: limitEnd(Infinity, t1, v.span, AHEAD) } : v);
   }, []);
-  const { series } = useSeries(view.end - view.span, view.end, live);
+  const { series, error: loadError, retry } = useSeries(view.end - view.span, view.end, live);
   const marks = useMemo(() => buildMarks(history, events), [history, events]);
   const layers = useMemo(() => defaultLayers(), []);
   const projected30 = useMemo(() => trendFrom(live, now)?.projected30 ?? null, [live, now]);
@@ -315,6 +316,8 @@ function HomeChart({ live }: { live: Reading[] }) {
   const height = useMemo(() => Math.round(window.innerWidth >= 1024 ? Math.min(620, Math.max(380, window.innerHeight * 0.55)) + 48 : Math.min(440, Math.max(240, window.innerHeight * 0.36)) + 48) + (tracks?.iob || tracks?.cob ? 68 : 0), [!!(tracks?.iob || tracks?.cob)]); // eslint-disable-line react-hooks/exhaustive-deps
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
   return (
+    <>
+    {loadError && <div className="mb-2"><GraphLoadNotice error={loadError} empty={!series.t.length} retry={retry} /></div>}
     <div className="relative -mx-4 lg:mx-0">
       <Timeline series={series} view={view} now={now} onView={onView} unit={settings.glucose_unit} height={height}
         range={rng} marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={AHEAD} night={nightOf(settings)} />
@@ -325,6 +328,7 @@ function HomeChart({ live }: { live: Reading[] }) {
       <GraphHelp tracks={!!(tracks?.iob || tracks?.cob)} act={!!tracks?.act} className="absolute right-12 top-2" />
       <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
     </div>
+    </>
   );
 }
 
