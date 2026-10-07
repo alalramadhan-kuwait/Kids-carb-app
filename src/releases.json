@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-07",
+    "version": "2.54.3",
+    "notes": [
+      "صورة المنتج: صار تقدرين تختارين صورة من مكتبة الصور في الآيفون، مو بس تصوّرين."
+    ],
+    "notes_en": [
+      "Product photo: you can now choose a picture from the iPhone photo library, not only take one."
+    ]
+  },
+  {
+    "date": "2026-10-07",
     "version": "2.54.2",
     "notes": [
       "الرسم على صفحة الآن صار ينزلق من أول لمسة: كان يرجع مكانه إذا سحبتيه قليلًا."

@@ -95,8 +95,9 @@ export default function ProductEdit() {
             <Photo path={image} category={category} className="h-20 w-20 rounded-xl" />
             <label className="min-h-[44px] cursor-pointer rounded-xl bg-brand-soft px-4 py-2.5 font-medium text-brand">
               {image ? t('تغيير الصورة') : t('صورة المنتج')}
-              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={async (e) => {
-                const f = e.target.files?.[0]; if (!f) return;
+              <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                // no capture attribute: on an iPhone it forced the camera; without it the phone offers Photo Library, Take Photo or Files
+                const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
                 try { setImage(await uploadPhoto(f, 'products')); } catch (er) { toast(t('تعذّر رفع الصورة: {err}', { err: (er as Error).message })); }
               }} />
             </label>
