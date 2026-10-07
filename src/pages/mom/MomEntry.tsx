@@ -4,9 +4,13 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { deleteEvent, setEventUnits } from '../../lib/api';
+import { setEntryTime } from '../../lib/entrySave';
+import { updateEvent } from '../../lib/editSave';
+import { formatGlucose, toMgdl } from '../../lib/glucose';
+import { TimePicker } from '../../components/TimePicker';
 import { setGivenUnits, skipPlan, usePlans } from '../../lib/plans';
 import { fmt } from '../../lib/carbs';
-import { toast } from '../../components/ui';
+import { cx, inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import { Big, MomPage, PenBar, PEN_NAME, SITE_NAME, clock, ago } from './MomUI';
 
@@ -18,35 +22,46 @@ export function MomEntry() {
   const e = events.find((x) => x.id === id && !x.deleted_at);
   const plan = plans.find((p) => p.dose_event_id === id);
   const [u, setU] = useState<number | null>(null);
+  const [when, setWhen] = useState<number | null>(null);
+  const [bgText, setBgText] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   if (!e) return <MomPage title="…" back="/mom"><span /></MomPage>;
-  const shot = e.kind === 'insulin';
+  const shot = e.kind === 'insulin', prick = e.kind === 'bg_check';
   const type = e.insulin_type === 'long' ? 'long' as const : 'rapid' as const;
   const step = type === 'long' ? 1 : settings.pen_step ?? 1;
   const units = u ?? e.insulin_units ?? 0;
-  const changed = shot && u !== null && u !== e.insulin_units;
   const at = Date.parse(e.occurred_at);
+  const bgMg = bgText !== null && bgText.trim() !== '' && Number.isFinite(Number(bgText.replace(',', '.'))) ? toMgdl(Number(bgText.replace(',', '.')), settings.glucose_unit) : null;
+  const bgOk = bgMg !== null && bgMg >= 20 && bgMg <= 600;
+  const timeChanged = when !== null && when !== at;
+  const changed = (shot && u !== null && u !== e.insulin_units && units > 0) || (prick && bgText !== null && bgOk && bgMg !== e.bg_mgdl) || timeChanged;
   const run = async (f: () => Promise<unknown>, done: string) => {
     setBusy(true);
     try { await f(); await reload(); toast(done); nav('/mom', { replace: true }); }
     catch (x) { toast((x as Error).message); setBusy(false); }
   };
-  const saveUnits = () => run(async () => { await setEventUnits(e.id, units, me); if (plan) await setGivenUnits(plan.id, units); }, t('تم ✓'));
+  const saveAll = () => run(async () => {
+    if (shot && u !== null && u !== e.insulin_units) { await setEventUnits(e.id, units, me); if (plan) await setGivenUnits(plan.id, units); }
+    if (prick && bgText !== null && bgOk && bgMg !== e.bg_mgdl) await updateEvent(e, { t: when ?? at, bg: bgMg }, me);   // also recomputes its sensor comparison
+    else if (timeChanged) await setEntryTime({ e }, when!, me);
+  }, t('تم ✓'));
   const remove = () => {
     if (!window.confirm(t('تمسحينها؟'))) return;
     void run(async () => { await deleteEvent(e.id, me); if (plan && plan.status === 'dosed') await skipPlan(plan.id); }, t('انمسحت'));
   };
   return (
-    <MomPage title={shot ? t(PEN_NAME[type]) : t('عصير')} back="/mom" foot={<>
-      {changed && <Big disabled={busy || units <= 0} onClick={saveUnits}>✓ {t('احفظي {u} وحدة', { u: fmt(units) })}</Big>}
+    <MomPage title={shot ? t(PEN_NAME[type]) : prick ? t('فحص بالإصبع') : t('عصير')} back="/mom" foot={<>
+      {changed && <Big disabled={busy} onClick={saveAll}>✓ {shot && u !== null && u !== e.insulin_units ? t('احفظي {u} وحدة', { u: fmt(units) }) : t('احفظي')}</Big>}
       <Big tone="ghost" disabled={busy} onClick={remove} className="!text-over">🗑 {t('غلط · امسحيها')}</Big>
     </>}>
       <div className="flex items-center gap-3 rounded-3xl bg-white px-4 py-3">
-        {shot ? <PenBar type={type} /> : <span className="text-3xl">🧃</span>}
-        <span className="flex-1 text-[18px]">{shot ? `${fmt(e.insulin_units ?? 0)} ${t('وحدة')}` : <><bdi>{tMaybe(e.treatment ?? '')}</bdi> · {fmt(e.carbs_g ?? 0)} {t('غرام')}</>}</span>
+        {shot ? <PenBar type={type} /> : <span className="text-3xl">{prick ? '🩸' : '🧃'}</span>}
+        <span className="flex-1 text-[18px]">{shot ? `${fmt(e.insulin_units ?? 0)} ${t('وحدة')}` : prick ? <b className="num">{formatGlucose(e.bg_mgdl ?? 0, settings.glucose_unit)}</b> : <><bdi>{tMaybe(e.treatment ?? '')}</bdi> · {fmt(e.carbs_g ?? 0)} {t('غرام')}</>}</span>
         <span className="text-[15px] text-slate-500">{clock(at)} · {ago(at)}</span>
       </div>
       {plan && <p className="text-center text-[16px] text-slate-500">🍽️ <bdi>{plan.name}</bdi></p>}
+      {prick && <input inputMode="decimal" dir="ltr" value={bgText ?? formatGlucose(e.bg_mgdl ?? 0, settings.glucose_unit)} onChange={(x) => setBgText(x.target.value)}
+        className={cx(inputCls, '!min-h-[72px] !text-center !text-[40px] font-extrabold')} />}
       {shot && <>
         <div className="text-center text-[17px] font-bold">{t('كم عطيتيها؟')}</div>
         <div className="flex items-center justify-center gap-6">
@@ -59,6 +74,8 @@ export function MomEntry() {
           <span>💉 {e.injection_site ? t(SITE_NAME[e.injection_site]) : t('وين عطيتيها؟')}</span><span className="text-brand font-bold">{t('غيّري')}</span>
         </button>
       </>}
+      <div className="text-[17px] font-bold">{t('متى؟')}</div>
+      <TimePicker value={when ?? at} onChange={setWhen} />
     </MomPage>
   );
 }

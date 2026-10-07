@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { relDay } from '../../lib/constants';
 import { fmt } from '../../lib/carbs';
+import { formatGlucose } from '../../lib/glucose';
 import { t, tMaybe } from '../../i18n';
 import { MomPage, PenBar, PEN_NAME, SITE_NAME, clock } from './MomUI';
 
@@ -11,11 +12,12 @@ type Row = { key: string; at: number; to: string | null; icon: React.ReactNode; 
 
 export function MomLog() {
   const nav = useNavigate();
-  const { events, history } = useData();
+  const { events, history, settings } = useData();
   const from = new Date(); from.setHours(0, 0, 0, 0); from.setDate(from.getDate() - 1);
   const rows: Row[] = [
-    ...events.filter((e) => !e.deleted_at && Date.parse(e.occurred_at) >= from.getTime() && ((e.kind === 'insulin' && e.insulin_units) || e.kind === 'treatment')).map((e): Row => {
+    ...events.filter((e) => !e.deleted_at && Date.parse(e.occurred_at) >= from.getTime() && ((e.kind === 'insulin' && e.insulin_units) || e.kind === 'treatment' || (e.kind === 'bg_check' && e.bg_mgdl))).map((e): Row => {
       const type = e.insulin_type === 'long' ? 'long' as const : 'rapid' as const;
+      if (e.kind === 'bg_check') return { key: e.id, at: Date.parse(e.occurred_at), to: `/mom/entry/${e.id}`, icon: '🩸', label: <><b className="num">{formatGlucose(e.bg_mgdl!, settings.glucose_unit)}</b></>, sub: t('فحص بالإصبع') };
       return e.kind === 'insulin'
         ? { key: e.id, at: Date.parse(e.occurred_at), to: `/mom/entry/${e.id}`, icon: <PenBar type={type} />, label: <>{t(PEN_NAME[type])} <b className="num">{fmt(e.insulin_units!)}</b> {t('وحدة')}</>, sub: e.injection_site ? t(SITE_NAME[e.injection_site]) : '' }
         : { key: e.id, at: Date.parse(e.occurred_at), to: `/mom/entry/${e.id}`, icon: '🧃', label: <bdi>{tMaybe(e.treatment ?? '')}</bdi>, sub: `${fmt(e.carbs_g ?? 0)} ${t('غرام')}` };

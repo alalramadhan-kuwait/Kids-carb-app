@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-07",
+    "version": "2.53.1",
+    "notes": [
+      "فحص الإصبع يطلع في السجل، وتقدرين تغيّرين رقمه أو وقته أو تمسحينه.",
+      "الإبرة والعصير صار لهم «متى؟»: غيّري الوقت واحفظي."
+    ],
+    "notes_en": [
+      "Finger-pricks now show in the Log, and you can change the number or time, or delete one.",
+      "Shots and juice now have “When?”: change the time and save."
+    ]
+  },
+  {
+    "date": "2026-10-07",
     "version": "2.53.0",
     "notes": [
       "زر جديد «وخز 🩸» في الرئيسية: سجّلي فحص الإصبع (رقم واحد وحفظ). يقارن مع الحساس ولا يغيّر الجرعة.",
