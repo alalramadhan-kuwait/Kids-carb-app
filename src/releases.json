@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-07",
+    "version": "2.54.4",
+    "notes": [
+      "السجل يتحدّث لحاله: لما ترجعين للتطبيق، أو كل دقيقة، أو إذا رجع النت. التسجيلات الجديدة (حتى من الأب أو الأم) ما تنتظر حتى تعيدين فتح التطبيق."
+    ],
+    "notes_en": [
+      "The Log refreshes by itself: when you come back to the app, every minute, or when the connection returns. New entries (even from the other parent) no longer wait for you to reopen the app."
+    ]
+  },
+  {
+    "date": "2026-10-07",
     "version": "2.54.3",
     "notes": [
       "صورة المنتج: صار تقدرين تختارين صورة من مكتبة الصور في الآيفون، مو بس تصوّرين."

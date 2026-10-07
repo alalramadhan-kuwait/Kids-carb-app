@@ -92,14 +92,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { void reload(); }, [reload]);
 
-  // the other parent's entries appear without refreshing
+  // the other parent's entries appear without refreshing. A phone that sleeps or switches apps drops the live
+  // connection without a word, so the list is also reloaded when the app comes back to the screen, when the network
+  // returns, whenever the live connection (re)connects, and every minute while it is open: an entry never waits for a restart.
   useEffect(() => {
-    let t: number | undefined;
+    let t: number | undefined, last = 0;
+    const soon = () => { window.clearTimeout(t); t = window.setTimeout(() => { last = Date.now(); void reload(); }, 400); };
     const ch = supabase.channel('events-live')
-      .on('postgres_changes', { event: '*', schema: 'carb', table: 'events' }, () => { window.clearTimeout(t); t = window.setTimeout(() => void reload(), 400); })
-      .on('postgres_changes', { event: '*', schema: 'carb', table: 'meal_history' }, () => { window.clearTimeout(t); t = window.setTimeout(() => void reload(), 400); })
-      .subscribe();
-    return () => { window.clearTimeout(t); void supabase.removeChannel(ch); };
+      .on('postgres_changes', { event: '*', schema: 'carb', table: 'events' }, soon)
+      .on('postgres_changes', { event: '*', schema: 'carb', table: 'meal_history' }, soon)
+      .subscribe((status) => { if (status === 'SUBSCRIBED' && Date.now() - last > 3000) soon(); });
+    const wake = () => { if (document.visibilityState === 'visible' && Date.now() - last > 3000) soon(); };
+    const tick = window.setInterval(() => { if (document.visibilityState === 'visible' && Date.now() - last > 55000) soon(); }, 60000);
+    document.addEventListener('visibilitychange', wake);
+    window.addEventListener('focus', wake); window.addEventListener('online', wake); window.addEventListener('pageshow', wake);
+    return () => {
+      window.clearTimeout(t); window.clearInterval(tick); void supabase.removeChannel(ch);
+      document.removeEventListener('visibilitychange', wake);
+      window.removeEventListener('focus', wake); window.removeEventListener('online', wake); window.removeEventListener('pageshow', wake);
+    };
   }, [reload]);
 
   const nameOf = useCallback((id: string | null | undefined) => {
