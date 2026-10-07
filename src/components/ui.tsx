@@ -83,7 +83,7 @@ function useSwipeDown(onClose: () => void) {
   return ref;
 }
 
-export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+export function Sheet({ open, onClose, title, hideTitle, children }: { open: boolean; onClose: () => void; title: string; hideTitle?: boolean; children: ReactNode }) {
   const area = useVisibleArea();
   const panel = useSwipeDown(onClose);
   useEffect(() => { if (open) hideToast(); }, [open]);
@@ -92,7 +92,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
     <div className="fixed inset-x-0 z-50 flex items-end justify-center bg-black/40 lg:items-center lg:p-6" style={{ top: area.top, height: area.height }} onClick={onClose}>
       <div ref={panel} role="dialog" aria-label={title} className="w-full max-w-2xl overflow-y-auto overscroll-contain rounded-t-[22px] bg-white px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-2 lg:max-w-xl lg:rounded-[22px] lg:px-6 lg:pb-6" style={{ maxHeight: area.height - 24, touchAction: 'pan-y' }} onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} aria-label={t('إغلاق')} className="mx-auto mb-1 flex h-6 w-16 items-center justify-center"><span className="h-1.5 w-10 rounded-full bg-slate-200" /></button>
-        <h2 className="mb-2 text-lg font-bold">{title}</h2>
+        {hideTitle ? <div className="mb-1" /> : <h2 className="mb-2 text-lg font-bold">{title}</h2>}
         {children}
       </div>
     </div>

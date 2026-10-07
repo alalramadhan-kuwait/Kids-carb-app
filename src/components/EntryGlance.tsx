@@ -4,7 +4,7 @@ import { fmt } from '../lib/carbs';
 import { formatGlucose } from '../lib/glucose';
 import { fetchSeries } from '../engine/useSeries';
 import { nearest, type Series } from '../engine/series';
-import { isEn, t } from '../i18n';
+import { isEn, t, tMaybe } from '../i18n';
 import type { EventRow, HistoryEntry } from '../lib/types';
 
 const MIN = 60000;
@@ -41,7 +41,7 @@ export function EntryGlance({ e, h }: { e?: EventRow; h?: HistoryEntry }) {
     const t0 = Date.parse(h.eaten_at);
     const dose = events.find((x) => x.kind === 'insulin' && x.insulin_type === 'rapid' && !x.deleted_at && (x.insulin_units ?? 0) > 0
       && Date.parse(x.occurred_at) >= t0 - 30 * MIN && Date.parse(x.occurred_at) <= t0 + 15 * MIN);
-    return <Line><bdi>{fmt(h.total_carbs)} {t('غ كارب')}</bdi>{dose ? <bdi> + 💉 {t('{u} وحدة', { u: fmt(dose.insulin_units) })}</bdi> : null}</Line>;
+    return <Line><bdi>{fmt(h.total_carbs)} {t('غ كارب')}{dose ? ` · ${t('{u} وحدة', { u: fmt(dose.insulin_units) })}` : ''}</bdi></Line>;
   }
   if (!e) return null;
 
@@ -50,7 +50,6 @@ export function EntryGlance({ e, h }: { e?: EventRow; h?: HistoryEntry }) {
     return (
       <Line>
         <bdi>{t('إصبع')} {g(e.bg_mgdl)} {arrow} {sensor !== null ? <>{t('الحساس')} {g(sensor)}</> : <span className="font-medium text-slate-500">{t('لا قراءة حساس وقتها')}</span>}</bdi>
-        {sensor !== null && <span className="block text-sm font-medium text-slate-500">{t('في نفس الوقت')}</span>}
       </Line>
     );
   }
@@ -59,10 +58,10 @@ export function EntryGlance({ e, h }: { e?: EventRow; h?: HistoryEntry }) {
     const t0 = Date.parse(e.occurred_at);
     const before = mgAt(around, t0), after = mgAt(around, t0 + 15 * MIN, 6 * MIN);
     return (
-      <Line>
-        <bdi>{t('{g} غ كارب', { g: fmt(e.carbs_g) })}</bdi>
-        {before !== null && <span className="block text-base"><bdi>{t('السكر')} {g(before)}{after !== null ? ` ${arrow} ${g(after)}` : ''}</bdi></span>}
-      </Line>
+      <div className="space-y-0.5">
+        <Line><bdi>{t('{g} غ كارب', { g: fmt(e.carbs_g) })}{before !== null ? ` · ${g(before)}${after !== null ? ` ${arrow} ${g(after)}` : ''}` : ''}</bdi></Line>
+        {e.treatment && <p className="text-sm text-slate-500"><bdi>{tMaybe(e.treatment)}</bdi></p>}
+      </div>
     );
   }
 
@@ -71,9 +70,7 @@ export function EntryGlance({ e, h }: { e?: EventRow; h?: HistoryEntry }) {
     if (!c) return <Line><bdi>{t('أُعطيت {u} وحدة', { u: fmt(given) })}</bdi></Line>;
     const same = Math.abs(c.suggested - given) < 0.01;
     const hasCorr = Math.abs(c.correction) >= 0.05, hasFood = c.carbs > 0;
-    const sum = hasFood && hasCorr ? t('{c} غ كارب + تصحيح = {u} وحدة', { c: fmt(c.carbs), u: fmt(c.suggested) })
-      : hasFood ? t('{c} غ كارب = {u} وحدة', { c: fmt(c.carbs), u: fmt(c.suggested) })
-      : t('تصحيح = {u} وحدة', { u: fmt(c.suggested) });
+    const sum = hasFood && hasCorr ? t('{c} غ كارب + تصحيح', { c: fmt(c.carbs) }) : hasFood ? t('{g} غ كارب', { g: fmt(c.carbs) }) : t('التصحيح');
     const tgt = c.glucose > c.target[1] ? c.target[1] : c.target[0];
     const n1 = (x: number) => String(Math.round(x * 10) / 10);
     return (

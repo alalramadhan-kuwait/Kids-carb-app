@@ -178,17 +178,11 @@ export default function History() {
         {openEp && <EpisodeDetail ep={openEp} unit={settings.glucose_unit} who={nameOf} />}
       </Sheet>
 
-      <Sheet open={!!open} onClose={close} title={editing === 'items' ? t('تعديل الأصناف') : editing ? t('تعديل التسجيل') : open?.h ? open.h.name : open?.e ? describeEvent(open.e) : ''}>
+      <Sheet open={!!open} onClose={close} hideTitle={!editing && !!open?.e && ['bg_check', 'treatment', 'insulin'].includes(open.e.kind)} title={editing === 'items' ? t('تعديل الأصناف') : editing ? t('تعديل التسجيل') : open?.h ? open.h.name : open?.e ? describeEvent(open.e) : ''}>
         {open && editing === 'entry' && <EditEntry e={open.e} h={open.h} onCancel={() => setEditing(false)} onDone={close} />}
         {open?.h && editing === 'items' && <EditItems h={open.h} onCancel={() => setEditing(false)} onDone={close} />}
         {open?.h && !editing && <MealDetail h={open.h} n={times.get(keyOf(open.h)) ?? 1} unit={settings.glucose_unit} onEditItems={() => setEditing('items')} />}
-        {open?.e && !editing && (
-          <div className="space-y-2 text-sm text-slate-600">
-            <EntryGlance e={open.e} />
-            {open.e.note && <p dir="auto" className="text-base text-slate-800">{open.e.note}</p>}
-            <p>{fmtTime(new Date(open.e.occurred_at))}{open.e.source ? '' : <> · <bdi>{nameOf(open.e.created_by)}</bdi></>}</p>
-          </div>
-        )}
+        {open?.e && !editing && <EventSummary e={open.e} who={open.e.source ? '' : nameOf(open.e.created_by)} />}
         {open && !editing && <EntryActions key={open.key} e={open.e} h={open.h} onEdit={() => setEditing('entry')} onRemove={() => remove(open)} onClose={close} onOpenOther={(x) => setOpen({ t: Date.parse(x.eaten_at), key: 'h' + x.id, h: x })} />}
       </Sheet>
 
@@ -291,6 +285,19 @@ function Row({ it, who, onOpen }: { it: Item; who: string; onOpen: () => void })
         <span className="text-slate-300">{isEn() ? '›' : '‹'}</span>
       </button>
     </li>
+  );
+}
+
+/** An entry's one or two lines; its time and who logged it wait under Details. */
+function EventSummary({ e, who }: { e: EventRow; who: string }) {
+  const [more, setMore] = useState(false);
+  return (
+    <div className="space-y-2 text-sm text-slate-600">
+      <EntryGlance e={e} />
+      {e.note && <p dir="auto" className="text-base text-slate-800">{e.note}</p>}
+      <button onClick={() => setMore(!more)} aria-expanded={more} className="min-h-[44px] text-sm font-bold text-brand">{more ? t('أقل') : t('تفاصيل')}</button>
+      {more && <p>{fmtTime(new Date(e.occurred_at))}{who ? <> · <bdi>{who}</bdi></> : null}</p>}
+    </div>
   );
 }
 

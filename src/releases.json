@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-07",
+    "version": "2.54.1",
+    "notes": [
+      "فتح أي تسجيل في السجل صار بسطر واحد أو سطرين فقط، بدون تكرار الرقم. الوقت والباقي تحت «تفاصيل».",
+      "«كيف؟» تفتح الحساب فقط لما تبينها."
+    ],
+    "notes_en": [
+      "Opening an entry in the Log now shows just one or two lines, with no repeated numbers. The time and the rest are under \"Details\".",
+      "\"How?\" shows the calculation only when you ask for it."
+    ]
+  },
+  {
+    "date": "2026-10-07",
     "version": "2.54.0",
     "notes": [
       "السجل أهدأ: افتحي أي تسجيل وتشوفين المهم بسطر: وخز الإصبع مع الحساس، الإنسولين المعطى مع الموصى به، الكارب مع الإنسولين، وعلاج الانخفاض قبل وبعد.",
