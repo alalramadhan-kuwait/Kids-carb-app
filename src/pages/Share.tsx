@@ -12,6 +12,16 @@ type LinkRow = { id: string; scope: 'school' | 'viewer'; label: string; created_
 const appUrl = () => location.href.split('#')[0];
 
 /** المشاركة والتقارير: read-only links (school, family), CSV export, and the clinic report. */
+/** Copies the link; where the clipboard is blocked, the old select-and-copy way. */
+async function copyLink(url: string) {
+  try { await navigator.clipboard.writeText(url); toast(t('نُسخ الرابط ✓')); return; } catch { /* fall back below */ }
+  const ta = document.createElement('textarea');
+  ta.value = url; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, url.length);
+  const ok = document.execCommand('copy'); ta.remove();
+  toast(ok ? t('نُسخ الرابط ✓') : t('اضغط مطولًا على الرابط لنسخه'));
+}
+
 export default function SharePage() {
   const nav = useNavigate();
   const { nameOf } = useData();
@@ -69,7 +79,13 @@ export default function SharePage() {
           <Field label={t('اسم للرابط')}><input className={inputCls} value={label} onChange={(e) => setLabel(e.target.value)} placeholder={scope === 'school' ? t('ممرضة المدرسة') : t('الجدة')} /></Field>
           <div className="flex gap-1.5">{[1, 7, 30, 90].map((d) => <Chip key={d} active={days === d} onClick={() => setDays(d)}>{d === 1 ? t('يوم') : t('{n} يوم', { n: d })}</Chip>)}</div>
           <Btn kind="primary" block onClick={create}>{t('أنشئ الرابط')}</Btn>
-          {fresh && <Alert tone="info"><div className="space-y-1"><div>{t('انسخ الرابط الآن، لن يظهر مرة أخرى:')}</div><div dir="ltr" className="break-all text-xs">{fresh}</div></div></Alert>}
+          {fresh && <Alert tone="info"><div className="space-y-1"><div>{t('انسخ الرابط الآن، لن يظهر مرة أخرى:')}</div><div dir="ltr" className="break-all text-xs">{fresh}</div>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <Btn kind="primary" className="min-h-[44px]" onClick={() => void copyLink(fresh)}>{t('نسخ')}</Btn>
+              {typeof navigator.share === 'function'
+                ? <Btn className="min-h-[44px]" onClick={() => void navigator.share({ url: fresh }).catch(() => {})}>{t('مشاركة')}</Btn>
+                : null}
+            </div></div></Alert>}
           <p className="text-xs text-slate-500">{t('من معه الرابط يرى القراءة بدون حساب. لا يستطيع التسجيل أو التعديل. أوقفه متى شئتم.')}</p>
         </Card>
 

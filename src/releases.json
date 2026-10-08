@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-08",
+    "version": "2.55.3",
+    "notes": [
+      "رابط المشاركة الجديد له زر «نسخ» وزر «مشاركة» يفتح واتساب والرسائل وغيرها."
+    ],
+    "notes_en": [
+      "A new sharing link now has a Copy button, and a Share button that opens WhatsApp, Messages and the rest."
+    ]
+  },
+  {
+    "date": "2026-10-08",
     "version": "2.55.2",
     "notes": [
       "السجل يتحدّث أسرع: التحديث التلقائي يجيب التسجيلات الجديدة بس، مو كل قائمة المنتجات."
