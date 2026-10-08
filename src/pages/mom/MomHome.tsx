@@ -9,7 +9,7 @@ import { fetchSeries } from '../../engine/useSeries';
 import { mergeSeries, type Series } from '../../engine/series';
 import { levelFromLibre, trendFrom } from '../../engine/trend';
 import { effectiveRange } from '../../lib/glucose';
-import { layanFace, moodOf, nextRapidAllowed, type LayanFace, type Mood } from '../../engine/mom';
+import { bigGraphScale, layanFace, moodOf, nextRapidAllowed, type LayanFace, type Mood } from '../../engine/mom';
 import { useAlerts } from '../../hooks/useAlerts';
 import { usePlans } from '../../lib/plans';
 import { draftOps, useSensor } from '../../lib/mom';
@@ -225,9 +225,12 @@ function lane<T extends { t: number }>(items: T[], x: (t: number) => number, rig
 export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, meals, treats, pricks, at, span = 12 }: { span?: number; at?: number | null; treats: number[]; pricks: number[]; aspect: number; s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: number[] }) {
   const W = 340, PL = 6, PR = 30, PT = 30, HH = Math.max(180, Math.round(W * aspect)), PH = HH - PT - 64;
   const t0 = now - span * H; // hours shown (12 at home)
-  const top = unit === 'mmol' ? 21 * 18.016 : 350, bottom = unit === 'mmol' ? 3 * 18.016 : 50;
-  const ticks = unit === 'mmol' ? [3, 6, 9, 12, 15, 18, 21].map((v) => v * 18.016) : [50, 100, 150, 200, 250, 300, 350];
-  const x = (t: number) => PL + ((t - t0) / (span * H)) * (W - PL - PR);
+  // the scale: a few fixed steps chosen by the highest reading in these hours (see bigGraphScale)
+  let maxSeen: number | null = null;
+  for (let i = 0; i < s.t.length; i++) if (s.t[i] >= t0 && s.t[i] <= now + 60000 && (maxSeen === null || s.v[i] > maxSeen)) maxSeen = s.v[i];
+  const { top, bottom, ticks } = bigGraphScale(maxSeen, unit);
+  const XR = W - PR - 9; // the newest dot stays clear of the axis numbers
+  const x = (t: number) => PL + ((t - t0) / (span * H)) * (XR - PL);
   const y = (v: number) => PT + PH - ((Math.min(Math.max(v, bottom), top) - bottom) / (top - bottom)) * PH;
   // like Libre's graph: one point per 15 minutes (their average) and the newest reading, joined by a smooth curve
   // that never overshoots the real values; a gap of more than 20 minutes stays a gap
@@ -259,7 +262,7 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
     const r = svgRef.current?.getBoundingClientRect(); if (!r || !pts.length) return;
     const k = Math.min(r.width / W, r.height / HH); // the svg keeps its aspect, centred in its box
     const vx = (e.clientX - r.left - (r.width - W * k) / 2) / k;
-    setPick(nearest(t0 + ((vx - PL) / (W - PL - PR)) * span * H));
+    setPick(nearest(t0 + ((vx - PL) / (XR - PL)) * span * H));
   };
   const end = () => setPick(null);
   const px = pick ? x(pick.t) : 0;
@@ -276,7 +279,9 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
       onPointerDown={(e) => { (e.currentTarget as Element).setPointerCapture?.(e.pointerId); point(e); }} onPointerMove={point} onPointerUp={end} onPointerCancel={end} onPointerLeave={end}>
       <rect x={PL} y={y(band[1])} width={W - PL - PR} height={y(band[0]) - y(band[1])} fill="#2f8f55" opacity="0.14" />
       {ticks.map((v) => <g key={v}><line x1={PL} x2={W - PR} y1={y(v)} y2={y(v)} stroke="rgb(var(--text-3))" strokeOpacity="0.25" /><text x={W - PR + 4} y={y(v) + 4} fontSize="14" fill="#8a84a0">{glucoseText(v, unit).replace(/\.0$/, '')}</text></g>)}
-      <line x1={PL} x2={W - PR} y1={y(alarmHigh)} y2={y(alarmHigh)} stroke="#f0a020" strokeWidth="2" strokeDasharray="6 5" />
+      {alarmHigh <= top
+        ? <line x1={PL} x2={W - PR} y1={y(alarmHigh)} y2={y(alarmHigh)} stroke="#f0a020" strokeWidth="2" strokeDasharray="6 5" />
+        : <text x={W - PR - 2} y={PT - 6} fontSize="12" fontWeight="700" fill="#c27a00" textAnchor="end">{glucoseText(alarmHigh, unit)} ↑</text>}
       <line x1={PL} x2={W - PR} y1={y(low)} y2={y(low)} stroke="#d6303c" strokeWidth="2" strokeDasharray="6 5" />
       <path d={d} fill="none" stroke="rgb(var(--text))" strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" />
       {lastV !== null && <circle cx={x(lastT)} cy={y(lastV)} r="8" fill={dot} stroke="#fff" strokeWidth="3" />}

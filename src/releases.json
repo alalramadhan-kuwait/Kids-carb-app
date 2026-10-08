@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-08",
+    "version": "2.57.1",
+    "notes": [
+      "الوضع البسيط: رسم السكر يكبر ويصغر حسب أعلى قراءة (حتى 12 أو 15 أو 18 أو 21)، فيصير الخط أوضح. والهبوط تحت 3 يبان كاملًا، والنقطة الأخيرة ما تغطي الأرقام."
+    ],
+    "notes_en": [
+      "Simple mode: the glucose graph now scales to the highest reading (up to 12, 15, 18 or 21), so the line is easier to read. Lows under 3 show in full, and the latest dot no longer covers the numbers."
+    ]
+  },
+  {
+    "date": "2026-10-08",
     "version": "2.57.0",
     "notes": [
       "وجبة من السجل: اختاري وجبة سابقة، عدّلي كمياتها، وتنحفظ وجبة جديدة وتنفتح الإبرة مع حاسبة الجرعة. الوجبة القديمة تبقى كما هي.",

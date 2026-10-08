@@ -686,6 +686,17 @@ test('a new meal from the Log: meals with items, the last 30 days, the same meal
   assert.deepEqual(list.map((x) => `${x.name}:${x.lines[0].quantity}:${x.eaten_at === ago(0.5) ? 'n' : x.eaten_at === ago(1) ? '1' : '?'}`), ['lunch:150:n', 'lunch:100:1']);
 });
 
+test('simple-mode graph scale: the smallest of a few fixed steps that holds the highest reading, never cutting a low', async () => {
+  const { bigGraphScale } = await import('../../engine/mom');
+  const mm = (x: number) => x * 18.016, top = (v: number | null) => Math.round(bigGraphScale(v, 'mmol').top / 18.016);
+  assert.equal(top(mm(9)), 12); assert.equal(top(mm(12.5)), 15); assert.equal(top(mm(16)), 18); assert.equal(top(mm(19.6)), 21); assert.equal(top(mm(25)), 21);
+  assert.equal(top(null), 12);
+  const s = bigGraphScale(mm(12.5), 'mmol');
+  assert.equal(Math.round(s.bottom / 18.016), 2, 'room under 3.0: a 2.4 is drawn as 2.4');
+  assert.deepEqual(s.ticks.map((v) => Math.round(v / 18.016)), [3, 6, 9, 12, 15]);
+  assert.equal(bigGraphScale(260, 'mgdl').top, 300);
+});
+
 console.log('event rail');
 
 test('events under the graph: two lanes; a neighbour that would touch goes to lane 2, never squeezed or overlapped', async () => {

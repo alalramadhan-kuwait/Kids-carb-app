@@ -117,6 +117,25 @@ export function layanFace(mood: Mood, mg: number | null, urgentLow: number, lowE
   return lowExpected ? 'watching' : 'ok';
 }
 
+/**
+ * The simple-mode graph's scale: a few fixed steps, the smallest that holds the highest reading in view with some room
+ * above it, so the curve uses the height without the axis jumping with every reading. The bottom sits under the
+ * very-low range (2 mmol/L, 40 mg/dL) so a deep low is drawn at its real depth. Values in mg/dL.
+ */
+export function bigGraphScale(maxVisible: number | null, unit: 'mmol' | 'mgdl'): { bottom: number; top: number; ticks: number[] } {
+  const MM = 18.016;
+  if (unit === 'mmol') {
+    const m = (maxVisible ?? 0) / MM;
+    const top = [12, 15, 18, 21].find((x) => m + 1.5 <= x) ?? 21;
+    const ticks: number[] = []; for (let v = 3; v <= top; v += 3) ticks.push(v * MM);
+    return { bottom: 2 * MM, top: top * MM, ticks };
+  }
+  const m = maxVisible ?? 0;
+  const top = [200, 250, 300, 350].find((x) => m + 25 <= x) ?? 350;
+  const ticks: number[] = []; for (let v = 50; v <= top; v += 50) ticks.push(v);
+  return { bottom: 40, top, ticks };
+}
+
 // ── injection sites ─────────────────────────────────────────────────────────────────────────────
 export const SITES: InjectionSite[] = ['belly_r', 'belly_l', 'thigh_r', 'thigh_l', 'arm_r', 'arm_l', 'buttock_r', 'buttock_l'];
 export interface Shot { t: number; site: InjectionSite | null; type: 'rapid' | 'long' }
