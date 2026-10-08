@@ -664,6 +664,17 @@ test('zoom keeps the time under the fingers fixed; ticks follow Kuwait time', ()
   assert.equal(tickLabel(Date.parse('2026-10-01T21:00:00Z'), 3600000), '2/10'); // midnight in Kuwait shows the date
 });
 
+test('Layan in simple mode follows the box status: never her own thresholds, low expected only turns happy into watching, hidden at very low', async () => {
+  const { layanFace } = await import('../../engine/mom');
+  assert.equal(layanFace('ok', 120, 54, false), 'ok');
+  assert.equal(layanFace('ok', 120, 54, true), 'watching', 'low expected, nothing more serious');
+  assert.equal(layanFace('falling', 95, 54, false), 'watching');
+  assert.equal(layanFace('high', 200, 54, true), 'high', 'low expected never overrides high');
+  assert.equal(layanFace('low', 62, 54, true), 'low');
+  assert.equal(layanFace('low', 50, 54, false), null, 'very low: the alarm has the screen');
+  assert.equal(layanFace('stale', 50, 54, true), 'no-reading', 'no new reading wins over everything');
+});
+
 console.log('event rail');
 
 test('events under the graph: two lanes; a neighbour that would touch goes to lane 2, never squeezed or overlapped', async () => {

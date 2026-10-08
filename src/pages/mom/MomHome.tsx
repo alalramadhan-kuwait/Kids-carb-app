@@ -9,13 +9,24 @@ import { fetchSeries } from '../../engine/useSeries';
 import { mergeSeries, type Series } from '../../engine/series';
 import { levelFromLibre, trendFrom } from '../../engine/trend';
 import { effectiveRange } from '../../lib/glucose';
-import { moodOf, nextRapidAllowed, type Mood } from '../../engine/mom';
+import { layanFace, moodOf, nextRapidAllowed, type LayanFace, type Mood } from '../../engine/mom';
+import { useAlerts } from '../../hooks/useAlerts';
 import { usePlans } from '../../lib/plans';
 import { draftOps, useSensor } from '../../lib/mom';
 import { phase } from '../../engine/mealPlan';
 import { cx } from '../../components/ui';
 import { SameMealLink, useRecentSame } from '../../components/SameMeal';
-import { t } from '../../i18n';
+import { isEn, t } from '../../i18n';
+import okPng from '../../assets/layan/layan-ok.png';
+import okWebp from '../../assets/layan/layan-ok.webp';
+import watchingPng from '../../assets/layan/layan-watching.png';
+import watchingWebp from '../../assets/layan/layan-watching.webp';
+import lowPng from '../../assets/layan/layan-low.png';
+import lowWebp from '../../assets/layan/layan-low.webp';
+import highPng from '../../assets/layan/layan-high.png';
+import highWebp from '../../assets/layan/layan-high.webp';
+import noReadingPng from '../../assets/layan/layan-no-reading.png';
+import noReadingWebp from '../../assets/layan/layan-no-reading.webp';
 import { Big, PEN, PEN_NAME, PenBar, TABS_PAD, ago, clock, dayWord, glucoseText, left, sensorLeft } from './MomUI';
 
 const H = 3600000;
@@ -66,6 +77,8 @@ export function MomHome() {
   const level = tr?.level ?? (latest ? levelFromLibre(latest.trend) : null);
   const mood = moodOf(latest?.mg_dl ?? null, at === null ? null : (now - at) / 60000, level, low, high);
   const m = MOOD[mood];
+  const alerts = useAlerts();
+  const face = layanFace(mood, latest?.mg_dl ?? null, s.alert_urgent_low_mgdl ?? 54, alerts.open.some((a) => a.kind === 'predicted_low'));
 
   const shots = events.filter((e) => e.kind === 'insulin' && !e.deleted_at && e.insulin_units);
   const lastOf = (type: 'rapid' | 'long') => shots.filter((e) => (type === 'long' ? e.insulin_type === 'long' : e.insulin_type !== 'long')).sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))[0] ?? null;
@@ -94,9 +107,10 @@ export function MomHome() {
   return (
     // one fixed screen: nothing scrolls; the graph takes whatever room is left
     <main className={cx('mx-auto flex h-[100dvh] max-w-md flex-col gap-2 overflow-hidden px-4 pt-[calc(8px+env(safe-area-inset-top))]', TABS_PAD)}>
-      <div className="flex shrink-0 items-center gap-3 rounded-3xl px-4 py-2.5" style={{ color: '#fff', background: m.bg }}>
+      <div className="relative flex min-h-[92px] shrink-0 items-center gap-3 overflow-hidden rounded-3xl py-2.5 ps-4 pe-1" style={{ color: '#fff', background: m.bg }}>
         <div className="min-w-0 flex-1"><div className="text-[14px] opacity-90">{t('ليان')} · {at ? ago(at, now) : ''}{sensor ? ` · 📡 ${sensorLeft(sensor.life.left)}` : ''}</div><div className="text-[20px] font-bold leading-tight">{t(m.word)}</div><div className="text-[15px] opacity-90">{t(m.todo)}</div></div>
         {latest && mood !== 'stale' && <div dir="ltr" className="flex items-baseline gap-1"><span className="text-[48px] font-extrabold leading-none">{glucoseText(latest.mg_dl, unit)}</span><span className="text-[30px]">{level !== null ? ARROW[level] : ''}</span></div>}
+        <LayanCorner face={face} />
       </div>
 
       <div className="flex max-h-[50dvh] min-h-[120px] flex-1 flex-col rounded-3xl border border-slate-100 bg-white px-1 pt-1">
@@ -151,6 +165,25 @@ export function MomHome() {
         <Big tone="ghost" className="min-h-[52px] !px-2 text-[18px]" onClick={() => nav('/mom/prick')}>🩸 {t('وخز')}</Big>
       </div>
     </main>
+  );
+}
+
+const FACE: Record<LayanFace, [string, string]> = {
+  ok: [okWebp, okPng], watching: [watchingWebp, watchingPng], low: [lowWebp, lowPng], high: [highWebp, highPng], 'no-reading': [noReadingWebp, noReadingPng],
+};
+/** Layan in the card's end corner, rising from its bottom edge and looking at the number beside her (the artwork
+ *  looks to its right, so in English, where the number is to her left, she is mirrored). Her own column: she never
+ *  covers the text. Decoration only; hidden (null) when the urgent alarm has the screen. */
+function LayanCorner({ face }: { face: LayanFace | null }) {
+  useEffect(() => { for (const [w] of Object.values(FACE)) { const i = new Image(); i.src = w; } }, []); // all five ready, no flash on a change
+  if (!face) return null;
+  return (
+    <div aria-hidden className="pointer-events-none relative w-[clamp(60px,19vw,90px)] shrink-0 self-stretch">
+      <picture key={face}>
+        <source srcSet={FACE[face][0]} type="image/webp" />
+        <img src={FACE[face][1]} alt="" draggable={false} className="layan-in absolute inset-x-0 -bottom-2.5 w-full select-none" style={{ transform: isEn() ? 'scaleX(-1)' : undefined }} />
+      </picture>
+    </div>
   );
 }
 

@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-08",
+    "version": "2.56.0",
+    "notes": [
+      "ليان صارت داخل بطاقة السكر في الوضع البسيط وتطالع الرقم، ووجهها يتغيّر مع الحالة: مبسوطة، تراقب لما السكر ينزل، تشرب عصير لما ينخفض، ماسكة ماي لما يرتفع، ومحتارة لما ما في قراءة جديدة."
+    ],
+    "notes_en": [
+      "Layan now sits inside the glucose card in simple mode, looking at the number, and her face follows the status: happy, watching when it is going down, drinking juice when low, holding water when high, and puzzled when there is no new reading."
+    ]
+  },
+  {
+    "date": "2026-10-08",
     "version": "2.55.4",
     "notes": [
       "شلنا بطاقة التنبيه الوردية من أعلى صفحة الآن، فصارت قراءة السكر أول شي. التنبيهات نفسها ما تغيّرت: توصل إشعارات، والإنذار يظهر بملء الشاشة، والجرس فوق يبيّن إذا فيه تنبيه."

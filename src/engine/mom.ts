@@ -100,6 +100,23 @@ export function moodOf(mg: number | null, ageMin: number | null, level: number |
   return 'ok';
 }
 
+/**
+ * Layan's face in the simple-mode glucose card, from the same status as the box (never its own thresholds):
+ * no reading → puzzled; low → drinking juice; falling (fast, or slowly near the limit) → watching; high (over the box's
+ * high, 10.0 by default, not the 13.9 alarm) → holding water; otherwise happy. An open "low expected" alert only turns
+ * a happy face into a watching one: it never overrides anything more serious. At or under the very-low limit she is
+ * not shown at all: the urgent alarm has the screen. Decoration only.
+ */
+export type LayanFace = 'ok' | 'watching' | 'low' | 'high' | 'no-reading';
+export function layanFace(mood: Mood, mg: number | null, urgentLow: number, lowExpected: boolean): LayanFace | null {
+  if (mood === 'stale') return 'no-reading';
+  if (mg !== null && mg <= urgentLow) return null;
+  if (mood === 'low') return 'low';
+  if (mood === 'falling') return 'watching';
+  if (mood === 'high') return 'high';
+  return lowExpected ? 'watching' : 'ok';
+}
+
 // ── injection sites ─────────────────────────────────────────────────────────────────────────────
 export const SITES: InjectionSite[] = ['belly_r', 'belly_l', 'thigh_r', 'thigh_l', 'arm_r', 'arm_l', 'buttock_r', 'buttock_l'];
 export interface Shot { t: number; site: InjectionSite | null; type: 'rapid' | 'long' }
