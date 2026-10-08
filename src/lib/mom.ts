@@ -94,6 +94,8 @@ export const draftOps = {
   add: (it: MomItem) => setDraft({ ...draft, items: [...draft.items, it] }),
   replace: (k: number, it: MomItem) => setDraft({ ...draft, items: draft.items.map((x, i) => (i === k ? it : x)) }),
   remove: (k: number) => setDraft({ ...draft, items: draft.items.filter((_, i) => i !== k) }),
+  /** A meal from the Log on the plate, to change into a new one (named by the time it is eaten, like any meal). */
+  loadItems: (items: MomItem[], left: string[]) => setDraft({ items, savedId: null, name: null, left, mode: 'now' }),
   load: (m: SavedMeal) => setDraft({ items: m.items.map((i) => ({ ...i })), savedId: m.id, name: m.name, left: draft.left, mode: draft.mode }),
   leaveOut: (name: string) => setDraft({ ...draft, left: [...draft.left.filter((x) => x !== name), name] }),
   clear: () => setDraft(empty),

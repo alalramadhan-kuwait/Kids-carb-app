@@ -14,6 +14,7 @@ import RecipeEdit from './pages/RecipeEdit';
 import { ProductList } from './pages/Products';
 import ProductEdit from './pages/ProductEdit';
 import History from './pages/History';
+import { ReuseEdit, ReusePick } from './pages/Reuse';
 import Plan from './pages/Plan';
 import Cgm from './pages/Cgm';
 import Status from './pages/Status';
@@ -260,6 +261,8 @@ function Shell() {
         <Route path="/mom/activity" element={<MomActivity />} />
         <Route path="/mom/same/:id" element={<MomSame />} />
         <Route path="/same/:id" element={<SameMealPage />} />
+        <Route path="/reuse" element={<ReusePick />} />
+        <Route path="/reuse/:id" element={<ReuseEdit />} />
         <Route path="/mom/when" element={<MomWhen />} />
         <Route path="/mom/plans" element={<MomPlans />} />
         <Route path="/mom/plan/:id" element={<MomPlanView />} />

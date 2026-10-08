@@ -11,6 +11,8 @@ import { TimePicker } from '../../components/TimePicker';
 import { toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import { Big, Choice, MomPage, clock, ago } from './MomUI';
+import { plateFromLog, useCatalog } from './MomMeal';
+import { draftOps } from '../../lib/mom';
 
 const NAMES = [['breakfast', 'فطور', '🍳'], ['lunch', 'غدا', '🍛'], ['dinner', 'عشا', '🍽️'], ['snack', 'سناك', '🍎']] as const; // i18n-ok: stored names, shown via t()
 
@@ -22,6 +24,7 @@ export function MomMealEntry() {
   const [name, setName] = useState<string | null>(null);
   const [at, setAt] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const { c, itemCarbs } = useCatalog();
   if (!h) return <MomPage title="…" back="/mom/log"><span /></MomPage>;
   const was = Date.parse(h.eaten_at);
   const nameNow = name ?? h.name;
@@ -42,6 +45,8 @@ export function MomMealEntry() {
   return (
     <MomPage title={t('الأكل')} back="/mom/log" foot={<>
       {changed && <Big disabled={busy} onClick={save}>✓ {t('احفظي')}</Big>}
+      {/* the same food again, its amounts changed: onto the plate as a new meal (this one stays as it is) */}
+      {!changed && h.lines.length > 0 && <Big tone="soft" disabled={busy} onClick={() => { const r = plateFromLog(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.left); nav('/mom/meal'); }}>🍽️ {t('عدّليها لوجبة جديدة')}</Big>}
       <Big tone="ghost" disabled={busy} onClick={remove} className="!text-over">🗑 {t('غلط · امسحيها')}</Big>
     </>}>
       <div className="flex items-center gap-3 rounded-3xl bg-white px-4 py-3">

@@ -15,7 +15,9 @@ import { t, tMaybe } from '../../i18n';
 import { RESTAURANTS, cupsOf, menuOf, restaurantByKey, restaurantOf, type Restaurant } from '../../lib/restaurants';
 import { foodName } from '../../lib/foodName';
 import { Big, Choice, MomPage } from './MomUI';
-import type { PlanItem, Product, Recipe } from '../../lib/types';
+import type { HistoryEntry, PlanItem, Product, Recipe } from '../../lib/types';
+import { productOf } from '../../lib/mealItems';
+import { reusable } from '../../lib/entryActions';
 
 /** The catalogue Mom mode reads, and the carbs of any item or meal (null if any part is unknown). */
 export function useCatalog() {
@@ -49,12 +51,32 @@ const remember = (x: { kind: 'product' | 'recipe'; id: string }) => {
   try { localStorage.setItem(RECENT, JSON.stringify([x, ...recent().filter((r) => !(r.kind === x.kind && r.id === x.id))].slice(0, 12))); } catch { /* blocked */ }
 };
 
+/**
+ * A logged meal's items as plate items: each line's product at the same amount. A line is only taken when the plate
+ * gives it the same carbs as were logged (within 1 g or 10%); anything else (no product, a unit the plate does not
+ * use, a cooked/raw difference) is listed as left out, so nothing is counted wrong.
+ */
+export function plateFromLog(h: HistoryEntry, products: Product[], itemCarbs: (it: MomItem) => number | null): { items: MomItem[]; left: string[] } {
+  const items: MomItem[] = [], left: string[] = [];
+  for (const l of h.lines) {
+    const p = productOf(l, products);
+    const unit = l.unit === 'serving' ? 'serving' : l.unit === 'g' || l.unit === 'ml' ? 'g' : null;
+    const it: MomItem | null = p && unit ? { kind: 'product', id: p.id, portion_id: null, amount: l.quantity, unit } : null;
+    const g = it ? itemCarbs(it) : null, want = l.carbs ?? null;
+    if (it && g !== null && want !== null && Math.abs(g - want) <= Math.max(1, want * 0.1)) items.push(it);
+    else left.push(tMaybe(l.name));
+  }
+  return { items, left };
+}
+
 /** «وجبة ليان»: what is on her plate, the carb total (small), add more, then next. */
 export function MomMeal() {
   const nav = useNavigate();
   const d = useDraft();
   const { itemCarbs, mealCarbs, nameOf, photoOf, c } = useCatalog();
   const { meals } = useSavedMeals();
+  const { history } = useData();
+  const fromLog = useMemo(() => reusable(history), [history]);
   const total = mealCarbs(d.items);
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
@@ -68,6 +90,10 @@ export function MomMeal() {
       <Left />
       {meals.length > 0 && <h2 className="text-[17px] font-bold text-slate-500">⭐ {t('وجباتها')}</h2>}
       {meals.slice(0, 6).map((m) => <Choice key={m.id} icon="⭐" label={m.name} sub={m.items.map((i) => nameOf(i)).join(' · ')} onClick={() => draftOps.load(m)} />)}
+      {/* or a meal she had lately, onto the plate to change */}
+      {d.mode === 'now' && fromLog.length > 0 && <h2 className="text-[17px] font-bold text-slate-500">🕘 {t('من السجل')}</h2>}
+      {d.mode === 'now' && fromLog.slice(0, 4).map((h) => <Choice key={h.id} icon="🍽️" label={`${tMaybe(h.name)} · ${fmt(h.total_carbs)} ${t('غ')}`} sub={h.lines.map((l) => tMaybe(l.name)).join(' · ')}
+        onClick={() => { const r = plateFromLog(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.left); }} />)}
       <Big tone={meals.length ? 'soft' : 'primary'} onClick={() => nav(meals.length ? '/mom/add?tab=recipes' : '/mom/add')}>+ {t('شي ثاني')}</Big>
     </MomPage>
   );

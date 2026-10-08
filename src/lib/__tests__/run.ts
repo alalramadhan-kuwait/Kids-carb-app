@@ -675,6 +675,17 @@ test('Layan in simple mode follows the box status: never her own thresholds, low
   assert.equal(layanFace('stale', 50, 54, true), 'no-reading', 'no new reading wins over everything');
 });
 
+test('a new meal from the Log: meals with items, the last 30 days, the same meal once, newest first', async () => {
+  const { reusable } = await import('../entryActions');
+  const now = Date.parse('2026-10-08T12:00:00Z'), ago = (d: number) => new Date(now - d * 86400000).toISOString();
+  const L = (q: number) => [{ name: 'rice', quantity: q, unit: 'g' }];
+  const list = reusable([
+    { name: 'lunch', eaten_at: ago(1), lines: L(100) }, { name: 'lunch', eaten_at: ago(2), lines: L(100) }, // the same: once (the newer)
+    { name: 'lunch', eaten_at: ago(0.5), lines: L(150) }, { name: 'juice', eaten_at: ago(0.2), lines: [] }, { name: 'old', eaten_at: ago(40), lines: L(10) },
+  ], now);
+  assert.deepEqual(list.map((x) => `${x.name}:${x.lines[0].quantity}:${x.eaten_at === ago(0.5) ? 'n' : x.eaten_at === ago(1) ? '1' : '?'}`), ['lunch:150:n', 'lunch:100:1']);
+});
+
 console.log('event rail');
 
 test('events under the graph: two lanes; a neighbour that would touch goes to lane 2, never squeezed or overlapped', async () => {

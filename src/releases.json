@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-08",
+    "version": "2.57.0",
+    "notes": [
+      "وجبة من السجل: اختاري وجبة سابقة، عدّلي كمياتها، وتنحفظ وجبة جديدة وتنفتح الإبرة مع حاسبة الجرعة. الوجبة القديمة تبقى كما هي.",
+      "من زر «سجّل» ← أكل ← «من وجبة سابقة»، أو افتحي أي وجبة في السجل ← «عدّليها لوجبة جديدة».",
+      "في الوضع البسيط: «من السجل» في صفحة الوجبة، وزر «عدّليها لوجبة جديدة» لما تفتحين أكلة."
+    ],
+    "notes_en": [
+      "A meal from the Log: pick an earlier meal, change its amounts, and it is saved as a new meal and the insulin entry opens with the dose calculator. The earlier meal stays as it is.",
+      "From Log (+) → Food → \"From an earlier meal\", or open any meal in the Log → \"Change into a new meal\".",
+      "In simple mode: \"From the Log\" on the meal page, and \"Change into a new meal\" when you open a meal."
+    ]
+  },
+  {
+    "date": "2026-10-08",
     "version": "2.56.1",
     "notes": [
       "في الوضع البسيط، لما تفتحين أكلة من السجل تشوفين شنو أكلت: كل صنف وكميته وكم كارب فيه، والصورة إذا فيه."

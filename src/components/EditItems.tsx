@@ -14,18 +14,22 @@ const UNIT: Record<string, () => string> = { g: () => t('غ'), ml: () => t('مل
  * The items of THIS logged meal: change an amount, remove one, add a product. Carbs and nutrition are recalculated
  * from each product's label; the recipe itself is not changed.
  */
-export function EditItems({ h, onCancel, onDone }: { h: HistoryEntry; onCancel: () => void; onDone: () => void }) {
+export function EditItems({ h, onCancel, onDone, onSave, saveLabel, note, extra }: {
+  h: HistoryEntry; onCancel: () => void; onDone: () => void;
+  /** a new meal from this one: the edited items go here instead of changing this entry */
+  onSave?: (r: ReturnType<typeof recompute>) => Promise<void>; saveLabel?: string; note?: string; extra?: React.ReactNode;
+}) {
   const { products, settings, me, reload } = useData();
   const [rows, setRows] = useState<ItemRow[]>(() => rowsOf(h, products));
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
   const r = useMemo(() => recompute(h, rows, settings), [h, rows, settings]);
   const setQty = (i: number, q: number | null) => setRows((xs) => xs.map((x, k) => (k === i ? { ...x, line: { ...x.line, quantity: q ?? 0 } } : x)));
-  const changed = rows.some((x) => x.added || x.line.quantity !== x.q0);
+  const changed = !!onSave || rows.some((x) => x.added || x.line.quantity !== x.q0);
   const save = async () => {
     if (!r.lines.length) return toast(t('أبقوا صنفًا واحدًا على الأقل، أو احذفوا التسجيل كله'));
     setBusy(true);
-    try { await updateMealItems(h, r, me); await reload(); toast(t('تم التعديل ✓')); onDone(); }
+    try { if (onSave) await onSave(r); else { await updateMealItems(h, r, me); await reload(); toast(t('تم التعديل ✓')); } onDone(); }
     catch (e) { toast((e as Error).message); } finally { setBusy(false); }
   };
 
@@ -59,10 +63,11 @@ export function EditItems({ h, onCancel, onDone }: { h: HistoryEntry; onCancel: 
         <span className="text-sm text-slate-600">{t('المجموع')}</span>
         <span><b className="num text-xl text-brand-num">{fmt(r.carbs)}</b> <span className="text-sm text-slate-500">{t('غ كارب')}</span>{r.carbs !== h.total_carbs && <span className="text-xs text-slate-500"> ({t('كان {g}', { g: fmt(h.total_carbs) })})</span>}</span>
       </div>
-      <p className="text-[11px] text-slate-500">{t('يتغيّر هذا التسجيل فقط، والوصفة كما هي. الإنسولين المعطى لا يتغير.')}</p>
+      {extra}
+      <p className="text-[11px] text-slate-500">{note ?? t('يتغيّر هذا التسجيل فقط، والوصفة كما هي. الإنسولين المعطى لا يتغير.')}</p>
       <div className="grid grid-cols-2 gap-2">
         <Btn kind="ghost" onClick={onCancel} disabled={busy}>{t('إلغاء')}</Btn>
-        <Btn kind="primary" onClick={save} disabled={busy || !changed}>{busy ? t('جارٍ الحفظ…') : t('حفظ')}</Btn>
+        <Btn kind="primary" onClick={save} disabled={busy || !changed}>{busy ? t('جارٍ الحفظ…') : saveLabel ?? t('حفظ')}</Btn>
       </div>
     </div>
   );

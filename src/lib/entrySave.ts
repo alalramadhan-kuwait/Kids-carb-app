@@ -1,7 +1,8 @@
 // Saving quick actions on a logged entry. Each returns what is needed to undo it.
 import { glucoseAt, glucoseCols } from './productLog';
 import { supabase } from './supabase';
-import type { EventRow, HistoryEntry } from './types';
+import type { EventRow, HistoryEntry, HistoryLine } from './types';
+import { totalsPatch, type Nut } from './mealItems';
 
 /** The same food again, now (with the glucose now when the reading is fresh). Returns the new id. */
 export async function mealAgain(h: HistoryEntry): Promise<string> {
@@ -12,6 +13,19 @@ export async function mealAgain(h: HistoryEntry): Promise<string> {
     total_carbs: h.total_carbs, total_fat: h.total_fat, total_fiber: h.total_fiber, total_protein: h.total_protein, total_kcal: h.total_kcal,
     modified: h.modified, lines: h.lines, notes: null,
     glucose_mgdl: fresh ? g.mg_dl : null, glucose_trend: fresh ? g.trend : null, glucose_at: fresh ? g.taken_at : null,
+  }).select('id').single();
+  if (error) throw new Error(error.message);
+  return (data as { id: string }).id;
+}
+
+/** A new meal built from a logged one: its items as edited, a name (breakfast, lunch…) and a time. The old entry
+ *  is not touched. Returns the new id. */
+export async function mealFrom(h: HistoryEntry, r: { lines: HistoryLine[]; carbs: number; totals: Record<Nut, number | null> }, name: string, at: number): Promise<string> {
+  const changed = r.carbs !== h.total_carbs || JSON.stringify(r.lines) !== JSON.stringify(h.lines);
+  const { data, error } = await supabase.from('meal_history').insert({
+    kind: name === 'سناك' ? 'snack' : 'meal', recipe_id: h.recipe_id, name, category: h.category, brand: h.brand ?? null, // i18n-ok: stored name
+    eaten_at: new Date(at).toISOString(), total_carbs: r.carbs, ...totalsPatch(r.totals),
+    modified: h.modified || changed, lines: r.lines, notes: null, ...glucoseCols(await glucoseAt(at)),
   }).select('id').single();
   if (error) throw new Error(error.message);
   return (data as { id: string }).id;

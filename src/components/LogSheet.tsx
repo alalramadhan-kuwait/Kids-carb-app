@@ -144,6 +144,8 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
             <p className="flex-1 text-sm text-slate-600">{t('اختاروا المنتج من القائمة. إذا لم يكن فيها: اكتبوا الكارب، أو صوّروا الأكل.')}</p>
             <button onClick={() => setFood(false)} className="min-h-[36px] shrink-0 text-sm font-medium text-slate-500">{t('رجوع')}</button>
           </div>
+          {/* a meal from the Log, changed into a new one (full page, its own way back) */}
+          <Link to="/reuse" onClick={close} className={cx(SMALL, '!flex-row w-full justify-center gap-2', KIND_STYLE.meal.soft)}><Icon name="repeat" size={22} />{t('من وجبة سابقة')}</Link>
           <div className="grid grid-cols-3 gap-2">
             <button onClick={() => { setFood(false); setKind('carbs'); }} className={cx(SMALL, KIND_STYLE.carbs.soft)}><Icon name="carbs" size={22} />{t('كارب فقط')}</button>
             <Link to="/scan" onClick={close} className={cx(SMALL, KIND_STYLE.carbs.soft)}><Icon name="camera" size={22} />{t('صورة + كارب')}</Link>

@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { SameMealLink, useSameMeal } from './SameMeal';
 import { useData } from '../lib/data';
@@ -26,6 +27,7 @@ export function EntryActions({ e, h, onEdit, onRemove, onOpenOther, onClose }: {
   e?: EventRow; h?: HistoryEntry; onEdit: () => void; onRemove: () => void; onOpenOther: (h: HistoryEntry) => void; onClose: () => void;
 }) {
   const { me, reload, history, nameOf, settings } = useData();
+  const nav = useNavigate();
   const [panel, setPanel] = useState<'note' | 'time' | null>(null);
   const [note, setNote] = useState((h ? h.notes : e?.note) ?? '');
   const [busy, setBusy] = useState(false);
@@ -58,6 +60,7 @@ export function EntryActions({ e, h, onEdit, onRemove, onOpenOther, onClose }: {
     { icon: 'note', label: t('ملاحظة'), on: () => setPanel(panel === 'note' ? null : 'note'), show: true },
     { icon: 'clock', label: t('الوقت'), on: () => setPanel(panel === 'time' ? null : 'time'), show: true },
     { icon: 'repeat', label: t('سجّل مرة ثانية'), on: again, show: canLogAgain(kind) },
+    { icon: 'edit', label: t('عدّليها لوجبة جديدة'), on: () => { onClose(); nav(`/reuse/${h!.id}`); }, show: !!h && h.lines.length > 0 },
     { icon: 'copy', label: t('نسخ'), on: copy, show: true },
     { icon: 'trash', label: t('حذف'), on: onRemove, show: true, tone: 'text-over' },
   ];

@@ -5,7 +5,7 @@ import { GraphLoadNotice } from '../components/GraphLoadNotice';
 import { limitEnd, type View } from '../engine/series';
 import { buildMarks, defaultLayers, type Group } from '../engine/events';
 import { EventSheet } from '../components/EventSheet';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { setFullModeNow } from '../lib/mom';
 import { useData } from '../lib/data';
 import { useGlucose } from '../hooks/useGlucose';
@@ -50,7 +50,13 @@ export default function Now() {
   const { settings, history, events, nameOf, members, products } = useData();
   const { g, failed, reload } = useGlucose();
   const [logOpen, setLogOpen] = useState(false);
-  const [logKind, setLogKind] = useState<'treatment' | null>(null);
+  const [logKind, setLogKind] = useState<'treatment' | 'insulin' | null>(null);
+  // arriving from "a new meal from an earlier one" (?log=insulin): the insulin entry opens, its calculator taking the new meal's carbs
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    if (params.get('log') !== 'insulin') return;
+    setLogKind('insulin'); setLogOpen(true); setParams({}, { replace: true });
+  }, [params, setParams]);
   const alerts = useAlerts();
   const [today, setToday] = useState<GlucoseStats | null>(null);
 
