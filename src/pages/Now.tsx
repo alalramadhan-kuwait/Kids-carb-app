@@ -16,7 +16,6 @@ import { fmt } from '../lib/carbs';
 import type { IconName } from '../icons/defs';
 import { Icon, TREND_ICON, TREND_WORDS } from '../components/Icon';
 import { LogSheet } from '../components/LogSheet';
-import { AlertStrip } from '../components/AlertStrip';
 import { ResearchQuestion } from '../components/ResearchQuestion';
 import { VersionTag } from '../components/Version';
 import { isNight, schoolWindow } from '../lib/schedule';
@@ -98,8 +97,8 @@ export default function Now() {
       <h1 className="sr-only">{t('الآن')}</h1>
       <LayanHeader alertCount={alerts.open.length} night={isNight(settings)} />
       <div className="space-y-3 pb-24 lg:pb-0">
-        {/* the only things allowed above her glucose: alerts that need someone now */}
-        <AlertStrip alerts={alerts.open} onChange={alerts.reload} onTreat={() => { setLogKind('treatment'); setLogOpen(true); }} />
+        {/* open alerts are not shown here as a card: they reach the parents as notifications and the full-screen alarm,
+            and the bell above shows that one is open */}
         {/* desktop: glucose and the graph on the wide side, the day beside it */}
         <div className="space-y-3 lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)] lg:items-start lg:gap-8 lg:space-y-0">
         <div className="space-y-3">

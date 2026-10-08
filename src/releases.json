@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-08",
+    "version": "2.55.4",
+    "notes": [
+      "شلنا بطاقة التنبيه الوردية من أعلى صفحة الآن، فصارت قراءة السكر أول شي. التنبيهات نفسها ما تغيّرت: توصل إشعارات، والإنذار يظهر بملء الشاشة، والجرس فوق يبيّن إذا فيه تنبيه."
+    ],
+    "notes_en": [
+      "The pink alert card is gone from the top of Now, so the glucose reading comes first. Alerts themselves are unchanged: they still arrive as notifications, the full-screen alarm still appears, and the bell at the top shows when one is open."
+    ]
+  },
+  {
+    "date": "2026-10-08",
     "version": "2.55.3",
     "notes": [
       "رابط المشاركة الجديد له زر «نسخ» وزر «مشاركة» يفتح واتساب والرسائل وغيرها."
