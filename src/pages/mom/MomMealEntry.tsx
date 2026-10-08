@@ -1,11 +1,12 @@
 // Simple mode: something she ate, opened from the Log. Change what it is called (breakfast, lunch, dinner, snack),
-// change the time, or remove it as a mistake. Nothing else about the food changes here.
+// change the time, or remove it as a mistake. What she ate is listed (read only); nothing else about the food changes here.
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { deleteHistory } from '../../lib/api';
 import { setEntryTime, setMealName } from '../../lib/entrySave';
-import { fmt } from '../../lib/carbs';
+import { fmt, unitText } from '../../lib/carbs';
+import { photoUrl } from '../../lib/supabase';
 import { TimePicker } from '../../components/TimePicker';
 import { toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
@@ -48,6 +49,23 @@ export function MomMealEntry() {
         <span className="min-w-0 flex-1 text-[18px]"><bdi>{tMaybe(nameNow)}</bdi> · <b className="num">{fmt(h.total_carbs)}</b> {t('غرام')}</span>
         <span className="text-[15px] text-slate-500">{clock(was)} · {ago(was)}</span>
       </div>
+      {/* what was logged: each food, how much, and its carbs */}
+      {(h.lines.length > 0 || h.photo_path) && (
+        <div className="space-y-2 rounded-3xl bg-white px-4 py-3">
+          <div className="text-[17px] font-bold">{t('شنو أكلت؟')}</div>
+          {h.lines.length > 0 && (
+            <ul className="divide-y divide-slate-100">
+              {h.lines.map((l, i) => (
+                <li key={i} className="flex items-baseline gap-2 py-2 text-[17px]">
+                  <span className="min-w-0 flex-1"><bdi>{tMaybe(l.name)}</bdi> <span className="num text-[15px] text-slate-500">· {fmt(l.unit === 'g' || l.unit === 'ml' ? Math.round(l.quantity) : l.quantity)} {unitText(l.unit)}</span></span>
+                  <span className="num shrink-0 font-bold">{fmt(l.carbs)} <span className="text-[14px] font-normal text-slate-500">{t('غرام')}</span></span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {h.photo_path && <img src={photoUrl(h.photo_path)!} alt={t('صورة الأكل')} className="max-h-48 w-full rounded-2xl object-cover" />}
+        </div>
+      )}
       <div className="text-[17px] font-bold">{t('شنو هذي؟')}</div>
       <div className="grid grid-cols-2 gap-2">
         {NAMES.map(([k, ar, icon]) => <Choice key={k} icon={icon} label={t(ar)} on={nameNow === ar} onClick={() => setName(ar)} />)}
