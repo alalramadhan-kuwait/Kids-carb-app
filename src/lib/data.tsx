@@ -92,12 +92,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { void reload(); }, [reload]);
 
+  /** Only what the Logs and the graph show (meals and entries, a few dozen small rows), not the 700-product
+   *  catalogue: what the automatic refreshes use, so a new entry appears in a moment even on a slow phone network. */
+  const reloadEntries = useCallback(async () => {
+    const since = new Date(Date.now() - 60 * 86400000).toISOString();
+    const [h, ev] = await Promise.all([
+      supabase.from('meal_history').select('*').order('eaten_at', { ascending: false }).limit(1000),
+      supabase.from('events').select('*').is('deleted_at', null).gte('occurred_at', since).order('occurred_at', { ascending: false }).limit(1000),
+    ]);
+    if (h.error || ev.error) return;
+    setState((x) => ({ ...x, history: (h.data ?? []).map(fixHist), events: (ev.data ?? []).map((e: any) => ({ ...e, insulin_units: num(e.insulin_units), carbs_g: num(e.carbs_g) })) }));
+  }, []);
+
   // the other parent's entries appear without refreshing. A phone that sleeps or switches apps drops the live
   // connection without a word, so the list is also reloaded when the app comes back to the screen, when the network
   // returns, whenever the live connection (re)connects, and every minute while it is open: an entry never waits for a restart.
   useEffect(() => {
     let t: number | undefined, last = 0;
-    const soon = () => { window.clearTimeout(t); t = window.setTimeout(() => { last = Date.now(); void reload(); }, 400); };
+    const soon = () => { window.clearTimeout(t); t = window.setTimeout(() => { last = Date.now(); void reloadEntries(); }, 150); };
     const ch = supabase.channel('events-live')
       .on('postgres_changes', { event: '*', schema: 'carb', table: 'events' }, soon)
       .on('postgres_changes', { event: '*', schema: 'carb', table: 'meal_history' }, soon)
@@ -111,7 +123,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       document.removeEventListener('visibilitychange', wake);
       window.removeEventListener('focus', wake); window.removeEventListener('online', wake); window.removeEventListener('pageshow', wake);
     };
-  }, [reload]);
+  }, [reloadEntries]);
 
   const nameOf = useCallback((id: string | null | undefined) => {
     if (!id) return '';
