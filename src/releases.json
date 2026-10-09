@@ -1,6 +1,26 @@
 [
   {
     "date": "2026-10-09",
+    "version": "2.59.0",
+    "notes": [
+      "عدّلي الأكل نفسه: «✏️ عدّلي الأكل» يغيّر الكميات، يشيل صنف أو يضيف صنف، أو «كم أكلت منها؟». نفس الوجبة، ما تنحفظ وجبة ثانية.",
+      "السجل: كل الأيام («أيام أقدم») وبحث عن أي أكلة، ومكتوب مين سجّل كل شي ومين عدّله.",
+      "الكارب مكتوب «غ كارب» والوزن بروحه، عشان ما يختلطون.",
+      "«شنو هذي؟» (فطور، غدا…) ما يغيّر اسم الأكل.",
+      "الوجبة تنحفظ مع الإبرة على طول. إذا ما انقال «كم أكلت؟» تبقى «⏳ كم أكلت؟» بالسجل، وما تنحسب لين تنجاوب.",
+      "بعد تعديل الأكل: تحت «💉 الإبرة» تشوفين الإبرة اللي انحسبت وقتها، وكم كانت بتكون للأكل بعد التصحيح، واللي انعطت فعلًا. للمراجعة فقط، الإبرة المسجّلة ما تتغير."
+    ],
+    "notes_en": [
+      "Edit the meal itself: \"✏️ Edit the food\" changes amounts, removes or adds a food, or sets how much she ate. Same meal; no second meal is saved.",
+      "The Log (simple mode): every day (\"Older days\") and a search for any meal, with who logged and who edited each entry.",
+      "Carbs say \"g carbs\" and weight is shown apart, so they can't be mixed up.",
+      "\"What is this?\" (breakfast, lunch…) no longer changes the food's name.",
+      "A meal is saved together with its dose. If \"How much did she eat?\" isn't answered, it stays in the Log as \"⏳ How much did she eat?\" and isn't counted until answered.",
+      "After a meal is corrected: under \"💉 Injection\" (simple) or in the meal's details (full): the dose calculated at the time, what it would be for the corrected meal with the settings used then, and the dose actually given. For review only; the recorded dose never changes."
+    ]
+  },
+  {
+    "date": "2026-10-09",
     "version": "2.58.0",
     "notes": [
       "الإبرة تنحفظ مرة وحدة: لو ضعف النت وضغطتي مرة ثانية، ما تتكرر.",

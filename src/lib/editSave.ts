@@ -5,6 +5,7 @@ import { quickFromMeal } from './quick';
 import { normBrand } from './brand';
 import type { EventRow, HistoryEntry, HistoryLine } from './types';
 import { totalsPatch, type Nut } from './mealItems';
+import { recordRecalc } from './recalc';
 
 export async function updateEvent(e: EventRow, d: EditDraft, me: string | null) {
   const patch: Record<string, unknown> = { occurred_at: new Date(d.t!).toISOString(), edited_by: me, edited_at: new Date().toISOString() };
@@ -42,6 +43,8 @@ export async function updateMeal(h: HistoryEntry, d: EditDraft, me: string | nul
   }
   const { error } = await supabase.from('meal_history').update(patch).eq('id', h.id);
   if (error) throw new Error(error.message);
+  // the carbs changed after a dose: the dose recalculated for review (the dose given is not touched)
+  if (d.carbs != null) await recordRecalc(h, d.carbs, f !== null ? 'part' : 'carbs');
   if (d.toQuick) await quickFromMeal(h.name, { name: d.name!.trim(), brand: d.brand ?? null, kind: h.kind === 'meal' ? 'meal' : 'snack', carbs: d.carbs!, fat: d.fat ?? null, protein: d.protein ?? null, kcal: d.kcal ?? null, fiber: d.fiber ?? null, at: patch.eaten_at as string, label: d.label ?? null });
 }
 
@@ -72,5 +75,26 @@ export async function updateMealItems(h: HistoryEntry, r: { lines: HistoryLine[]
   const { error } = await supabase.from('meal_history').update({
     lines: r.lines, total_carbs: r.carbs, ...totalsPatch(r.totals), modified: true, edited_by: me, edited_at: new Date().toISOString(),
   }).eq('id', h.id);
+  if (error) throw new Error(error.message);
+  await recordRecalc(h, r.carbs, 'items');
+}
+
+/** A meal logged as carbs only (no items): its carbs corrected. The other totals cannot follow a typed number, so
+ *  they become unknown (never wrong); a part of it ("she ate half") scales them instead. */
+export async function setMealCarbs(h: HistoryEntry, carbs: number, part: number | null, me: string | null) {
+  const patch: Record<string, unknown> = { total_carbs: carbs, modified: true, edited_by: me, edited_at: new Date().toISOString() };
+  for (const k of ['total_fat', 'total_fiber', 'total_protein', 'total_kcal', 'total_sat_fat', 'total_sugar_added', 'total_sodium', 'total_calcium', 'total_iron', 'total_potassium', 'total_vit_d'] as const) {
+    const v = h[k];
+    if (v != null) patch[k] = part !== null ? Math.round(v * part * 10) / 10 : null;
+  }
+  if (h.lines?.length === 1) patch.lines = [{ ...h.lines[0], carbs }];
+  const { error } = await supabase.from('meal_history').update(patch).eq('id', h.id);
+  if (error) throw new Error(error.message);
+  await recordRecalc(h, carbs, part !== null ? 'part' : 'carbs');
+}
+
+/** Breakfast, lunch, dinner or snack: the meal's kind, set apart from its name (which stays). */
+export async function setMealSlot(id: string, slot: HistoryEntry['meal_slot'], me: string | null) {
+  const { error } = await supabase.from('meal_history').update({ meal_slot: slot, kind: slot === 'snack' ? 'snack' : 'meal', edited_by: me, edited_at: new Date().toISOString() }).eq('id', id);
   if (error) throw new Error(error.message);
 }

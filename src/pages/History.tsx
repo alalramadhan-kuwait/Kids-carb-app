@@ -21,6 +21,8 @@ import { EditEntry } from '../components/EditEntry';
 import { EditItems } from '../components/EditItems';
 import { EntryActions } from '../components/EntryActions';
 import { EntryGlance } from '../components/EntryGlance';
+import { DoseReview } from '../components/DoseReview';
+import { ate, fetchPlan } from '../lib/plans';
 import { useQuickItems } from '../lib/quick';
 import { brandsOf, sameBrand } from '../lib/brand';
 import type { PredictionRow } from '../lib/predictions';
@@ -37,7 +39,7 @@ type Item = { t: number; key: string; h?: HistoryEntry; e?: EventRow };
  * older days load on request. Tapping a row opens its details, where it can be deleted.
  */
 export default function History() {
-  const { history, events, reload, settings, nameOf, me } = useData();
+  const { history, pendingMeals, events, reload, settings, nameOf, me } = useData();
   const [kind, setKind] = useState<Kind>('all');
   // the doctor's view: alarms with the entries, or either alone; a list or a vertical timeline
   const [view, setView] = useState<'all' | 'entries' | 'alarms'>('all');
@@ -67,9 +69,9 @@ export default function History() {
   }, [since]);
   const eps = useMemo(() => toEpisodes(alerts, { all: allAlarms }).filter((e) => e.start >= since), [alerts, allAlarms, since]);
   const all: Item[] = useMemo(() => [
-    ...history.map((h) => ({ t: Date.parse(h.eaten_at), key: 'h' + h.id, h })),
+    ...[...history, ...pendingMeals].map((h) => ({ t: Date.parse(h.eaten_at), key: 'h' + h.id, h })),
     ...events.map((e) => ({ t: Date.parse(e.occurred_at), key: 'e' + e.id, e })),
-  ].sort((a, b) => b.t - a.t), [history, events]);
+  ].sort((a, b) => b.t - a.t), [history, pendingMeals, events]);
   // brands: from logged meals and frequent foods; an older entry without a brand still matches by its food's name
   const brands = useMemo(() => brandsOf([...history.map((h) => ({ brand: h.brand ?? null })), ...quick.items]), [history, quick.items]);
   const ofBrand = useMemo(() => {
@@ -274,7 +276,7 @@ function EpisodeDetail({ ep, unit, who }: { ep: Episode; unit: 'mmol' | 'mgdl'; 
 function Row({ it, who, onOpen }: { it: Item; who: string; onOpen: () => void }) {
   const icon: IconName = it.h ? 'meals' : EVENT_ICON[it.e!.kind];
   const main = it.h ? <bdi>{it.h.name}</bdi> : it.e!.kind === 'note' ? <bdi>{it.e!.note}</bdi> : describeEvent(it.e!);
-  const sub = it.h ? [it.h.recipe_id ? t('وصفة') : '', it.h.kind === 'snack' ? t('سناك') : '', isFatty(it.h.total_fat, it.h.total_protein) ? t('دسمة') : '', it.h.brand ?? '', it.h.needs_review ? t('خارج البحث') : '', it.h.source === 'gluroo' ? it.h.notes ?? 'Gluroo' : ''].filter(Boolean).join(' · ') : it.e!.kind !== 'note' && it.e!.note ? it.e!.note : '';
+  const sub = it.h ? [it.h.intake === 'pending' ? `⏳ ${t('كم أكلت؟ لم يُحدَّد بعد')}` : '', it.h.recipe_id ? t('وصفة') : '', it.h.kind === 'snack' ? t('سناك') : '', isFatty(it.h.total_fat, it.h.total_protein) ? t('دسمة') : '', it.h.brand ?? '', it.h.needs_review ? t('خارج البحث') : '', it.h.source === 'gluroo' ? it.h.notes ?? 'Gluroo' : ''].filter(Boolean).join(' · ') : it.e!.kind !== 'note' && it.e!.note ? it.e!.note : '';
   return (
     <li>
       <button onClick={onOpen} className="flex min-h-[56px] w-full items-center gap-3 px-4 py-2 text-start active:bg-slate-50">
@@ -285,7 +287,7 @@ function Row({ it, who, onOpen }: { it: Item; who: string; onOpen: () => void })
           {(sub || who) && <span className="block truncate text-xs text-slate-500"><bdi>{[sub, who].filter(Boolean).join(' · ')}</bdi></span>}
         </span>
         {it.h?.photo_path && <span className="shrink-0" aria-label={t('مع صورة')}>📷</span>}
-        {it.h && <span className="num shrink-0 text-lg font-bold text-brand-num">{fmt(it.h.total_carbs)}<span className="text-xs font-medium"> {t('غ')}</span></span>}
+        {it.h && <span className={cx('num shrink-0 text-lg font-bold', it.h.intake === 'pending' ? 'text-slate-400' : 'text-brand-num')}>{fmt(it.h.total_carbs)}<span className="text-xs font-medium"> {t('غ')}</span></span>}
         <span className="text-slate-300">{isEn() ? '›' : '‹'}</span>
       </button>
     </li>
@@ -321,6 +323,8 @@ function MealDetail({ h, n, unit, onEditItems }: { h: HistoryEntry; n: number; u
         <span className="ms-auto text-slate-500">{fmtTime(new Date(h.eaten_at))}</span>
       </div>
       {h.photo_path && <a href={photoUrl(h.photo_path)!} target="_blank" rel="noreferrer"><img src={photoUrl(h.photo_path)!} alt={t('صورة الأكل')} className="max-h-56 w-full rounded-xl object-cover" /></a>}
+      {h.intake === 'pending' && <PendingAte h={h} />}
+      <DoseReview h={h} />
       {h.needs_review && <Link to="/import" className="block rounded-xl bg-near-soft p-2.5 text-sm font-medium text-near">{t('ربما سُجّل جزء منها مرتين في Gluroo، فهي مستبعدة من البحث تلقائيًا. لا يلزم شيء منكم.')}</Link>}
       <button onClick={() => setMore(!more)} aria-expanded={more} className="min-h-[44px] text-sm font-bold text-brand">{more ? t('أقل') : t('تفاصيل')}</button>
       {more && <>
@@ -337,6 +341,29 @@ function MealDetail({ h, n, unit, onEditItems }: { h: HistoryEntry; n: number; u
       <p className="text-xs text-slate-500">{t('اختيرت {n} مرة', { n })}{h.modified ? ' · ' + t('معدّلة') : ''}</p>
       <MealPrediction id={h.id} unit={unit} />
       </>}
+    </div>
+  );
+}
+
+/** Saved with its dose, how much she ate not said yet: counted nowhere until it is. One tap confirms it (same entry). */
+function PendingAte({ h }: { h: HistoryEntry }) {
+  const { products, settings, reload } = useData();
+  const [busy, setBusy] = useState(false);
+  const say = async (part: number) => {
+    setBusy(true);
+    try {
+      const p = h.client_id ? await fetchPlan(h.client_id) : null;
+      if (!p) throw new Error(t('الوجبة ما عادت موجودة'));
+      const at = p.eating_at ? Date.parse(p.eating_at) : Math.min(Date.now(), Date.parse(h.eaten_at));
+      await ate(p, part, at, products, settings); await reload(); toast(t('سُجّلت الوجبة ✓'));
+    } catch (e) { toast((e as Error).message === 'already_eaten' ? t('هذه الوجبة مسجّلة من قبل') : (e as Error).message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="space-y-2 rounded-xl bg-near-soft p-3">
+      <p className="font-bold text-near">{t('كم أكلت؟ لم يُحدَّد بعد · لا تُحسب حتى يُحدَّد')}</p>
+      <div className="grid grid-cols-4 gap-1.5">
+        {([[1, t('كلها')], [0.75, '¾'], [0.5, '½'], [0.25, '¼']] as const).map(([v, l]) => <Btn key={v} kind={v === 1 ? 'primary' : 'soft'} disabled={busy} onClick={() => void say(v)}>{l}</Btn>)}
+      </div>
     </div>
   );
 }

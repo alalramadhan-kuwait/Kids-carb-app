@@ -69,7 +69,7 @@ export function EntryActions({ e, h, onEdit, onRemove, onOpenOther, onClose }: {
     <div className="mt-3 space-y-3">
       {(h || edited) && (
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
-          {h && <span className="rounded-full bg-near-soft px-2.5 py-1 font-medium text-near">{h.kind === 'snack' ? t('سناك') : SLOT[mealSlot(at)]}</span>}
+          {h && <span className="rounded-full bg-near-soft px-2.5 py-1 font-medium text-near">{h.meal_slot ? (h.meal_slot === 'snack' ? t('سناك') : SLOT[h.meal_slot]) : h.kind === 'snack' ? t('سناك') : SLOT[mealSlot(at)]}</span>}
           {h?.brand && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600"><bdi>{h.brand}</bdi></span>}
           {edited && <span className="text-slate-500">{t('عُدّل {when} · {who}', { when: `${day(edited)} ${fmtTime(new Date(edited))}`, who: nameOf((h ?? e)!.edited_by ?? null) })}</span>}
         </div>

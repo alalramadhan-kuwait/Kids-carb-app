@@ -9,15 +9,16 @@ import { mealFrom } from '../lib/entrySave';
 import { mealSlot, reusable } from '../lib/entryActions';
 import { dayTitle, dayStartOf } from '../engine/day';
 import { fmtTime } from '../lib/constants';
-import type { HistoryEntry } from '../lib/types';
+import type { HistoryEntry, MealSlot } from '../lib/types';
+import { useSubmitId } from '../lib/useSubmitId';
 import { EditItems } from '../components/EditItems';
 import { TimePicker } from '../components/TimePicker';
 import { Card, Chip, Page, inputCls, toast } from '../components/ui';
 import { isEn, t, tMaybe } from '../i18n';
 
-/** The names a meal is logged under (as simple mode stores them), by time of day. */
-export const MEAL_NAMES = ['فطور', 'غدا', 'عشا', 'سناك'] as const; // i18n-ok: stored names, shown via t()
-const nameFor = (ms: number) => ({ breakfast: 'فطور', lunch: 'غدا', dinner: 'عشا', late: 'سناك' } as const)[mealSlot(ms)]; // i18n-ok
+/** The kinds of meal, with the words shown for them. The kind is its own field: the food keeps its name. */
+export const SLOTS: [MealSlot, string][] = [['breakfast', 'فطور'], ['lunch', 'غدا'], ['dinner', 'عشا'], ['snack', 'سناك']]; // i18n-ok: shown via t()
+export const slotFor = (ms: number): MealSlot => ({ breakfast: 'breakfast', lunch: 'lunch', dinner: 'dinner', late: 'snack' } as const)[mealSlot(ms)];
 
 /** Step 1: which meal. */
 export function ReusePick() {
@@ -59,7 +60,8 @@ export function ReuseEdit() {
   const { history, reload } = useData();
   const h = history.find((x) => x.id === id);
   const [at, setAt] = useState(() => Date.now());
-  const [name, setName] = useState<string>(() => nameFor(Date.now()));
+  const [slot, setSlot] = useState<MealSlot>(() => slotFor(Date.now()));
+  const [cid] = useSubmitId();
   if (!h) return <Page title={t('من وجبة سابقة')} back={() => nav(-1)}><Card><p className="text-slate-500">…</p></Card></Page>;
   return (
     <Page title={t('عدّلي لوجبة جديدة')} back={() => nav(-1)}>
@@ -80,7 +82,7 @@ export function ReuseEdit() {
               <div className="space-y-3 pt-1">
                 <div>
                   <div className="mb-1.5 text-[15px] font-bold">{t('شنو هذي؟')}</div>
-                  <div className="flex flex-wrap gap-2">{MEAL_NAMES.map((n) => <Chip key={n} active={name === n} onClick={() => setName(n)}>{t(n)}</Chip>)}</div>
+                  <div className="flex flex-wrap gap-2">{SLOTS.map(([k, w]) => <Chip key={k} active={slot === k} onClick={() => setSlot(k)}>{t(w)}</Chip>)}</div>
                 </div>
                 <div>
                   <div className="mb-1.5 text-[15px] font-bold">{t('متى أكلت؟')}</div>
@@ -90,9 +92,9 @@ export function ReuseEdit() {
             )}
             onSave={async (r) => {
               if (!r.lines.length) throw new Error(t('أبقوا صنفًا واحدًا على الأقل، أو احذفوا التسجيل كله'));
-              await mealFrom(h, r, name, at);
+              await mealFrom(h, r, slot, at, cid);
               await reload();
-              toast(t('انحفظت: {x}', { x: `${t(name)} · ${t('{g} غ', { g: fmt(r.carbs) })}` }));
+              toast(t('انحفظت: {x}', { x: `${tMaybe(h.name)} · ${t('{g} غ', { g: fmt(r.carbs) })}` }));
               nav('/?log=insulin', { replace: true });
             }} />
         </Card>

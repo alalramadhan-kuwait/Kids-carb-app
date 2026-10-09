@@ -82,8 +82,8 @@ export function MomJuice() {
   }
   return (
     <MomPage title={t('عصير')} back="/mom" foot={<Big tone="danger" disabled={busy} onClick={give}>🧃 {t('عطيتها')}</Big>}>
-      {usual.length ? usual.map((u, k) => <Choice key={u.name + u.carbs} icon="🧃" label={tMaybe(u.name)} sub={`${fmt(u.carbs)} ${t('غرام')}`} on={sel === k} onClick={() => setSel(k)} />)
-        : <Choice icon="🧃" label={t('عصير')} sub={`15 ${t('غرام')}`} on onClick={() => undefined} />}
+      {usual.length ? usual.map((u, k) => <Choice key={u.name + u.carbs} icon="🧃" label={tMaybe(u.name)} sub={`${fmt(u.carbs)} ${t('غ كارب')}`} on={sel === k} onClick={() => setSel(k)} />)
+        : <Choice icon="🧃" label={t('عصير')} sub={`15 ${t('غ كارب')}`} on onClick={() => undefined} />}
     </MomPage>
   );
 }

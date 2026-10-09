@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { mealChangeDose } from '../engine/dose';
-import { adoptDose, approveDose, ate, deletePlan, planMeal, savePlan, setDoseTime, skipPlan, topUpDose, treatFromPlan, usePlanHistory, usePlans, type DoseConflict } from '../lib/plans';
+import { adoptDose, approveDose, ate, logPendingMeal, deletePlan, planMeal, savePlan, setDoseTime, skipPlan, topUpDose, treatFromPlan, usePlanHistory, usePlans, type DoseConflict } from '../lib/plans';
 import { useSubmitId } from '../lib/useSubmitId';
 import { SameDose } from './SameDose';
 import { useLiveDose } from '../lib/useLiveDose';
@@ -284,10 +284,11 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
       const res = await approveDose(plan, { given: units ?? r.dose, calc: r.dose, reason: (units ?? r.dose) !== r.dose ? reason : null, purpose: live.purpose, snapshot: snapshot(), carbs: meal.total.carbs }, cid, separate);
       if (res.status === 'already_dosed' || res.status === 'recent_dose') { setConflict({ ...res.event, mine: res.status === 'already_dosed' }); throw new Error(t('في إبرة مسجّلة')); }
       if (res.status !== 'ok') throw new Error(t('الوجبة ما عادت موجودة'));
+      await logPendingMeal(plan.id, products, settings); // in the Log now; "she ate" confirms it
       setConflict(null);
     }, t('سُجّلت الجرعة · الأكل بعد {m} د', { m: plan.eat_after_min }));
   };
-  const sameDose = () => conflict && run(async () => { if (!conflict.mine) await adoptDose(plan.id, conflict); setConflict(null); }, t('ما تسجّلت: الإبرة مسجّلة من قبل'), true);
+  const sameDose = () => conflict && run(async () => { if (!conflict.mine && await adoptDose(plan.id, conflict) === 'linked') await logPendingMeal(plan.id, products, settings); setConflict(null); }, t('ما تسجّلت: الإبرة مسجّلة من قبل'), true);
   const dosed = plan.status === 'dosed', eatTime = eatAt(plan);
   const treatFirst = r.block === 'low' || r.block === 'falling';
 

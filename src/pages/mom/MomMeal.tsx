@@ -92,7 +92,7 @@ export function MomMeal() {
       {meals.slice(0, 6).map((m) => <Choice key={m.id} icon="⭐" label={m.name} sub={m.items.map((i) => nameOf(i)).join(' · ')} onClick={() => draftOps.load(m)} />)}
       {/* or a meal she had lately, onto the plate to change */}
       {d.mode === 'now' && fromLog.length > 0 && <h2 className="text-[17px] font-bold text-slate-500">🕘 {t('من السجل')}</h2>}
-      {d.mode === 'now' && fromLog.slice(0, 4).map((h) => <Choice key={h.id} icon="🍽️" label={`${tMaybe(h.name)} · ${fmt(h.total_carbs)} ${t('غ')}`} sub={h.lines.map((l) => tMaybe(l.name)).join(' · ')}
+      {d.mode === 'now' && fromLog.slice(0, 4).map((h) => <Choice key={h.id} icon="🍽️" label={<><bdi>{tMaybe(h.name)}</bdi> · <span className="num">{fmt(h.total_carbs)}</span> {t('غ كارب')}</>} sub={h.lines.map((l) => tMaybe(l.name)).join(' · ')}
         onClick={() => { const r = plateFromLog(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.left); }} />)}
       <Big tone={meals.length ? 'soft' : 'primary'} onClick={() => nav(meals.length ? '/mom/add?tab=recipes' : '/mom/add')}>+ {t('شي ثاني')}</Big>
     </MomPage>
@@ -107,14 +107,14 @@ export function MomMeal() {
               <button onClick={() => nav(`/mom/item/${it.kind}/${it.id}?k=${k}`)} className="flex min-w-0 flex-1 items-center gap-3 text-start">
                 <Photo {...pic(p)} className="h-14 w-14 shrink-0 rounded-xl" />
                 <span className="min-w-0 flex-1"><b className="block truncate text-[18px]"><bdi>{nameOf(it)}</bdi></b><span className="text-[15px] text-slate-500"><bdi>{portionLabel(it)}</bdi></span></span>
-                <span className="text-[15px] text-slate-500">{g === null ? '—' : g < 1 ? t('بدون كارب') : `${fmt(g)} ${t('غرام')}`}</span>
+                <span className="shrink-0 text-[16px] font-bold">{g === null ? '—' : g < 1 ? <span className="font-normal text-slate-500">{t('بدون كارب')}</span> : <>{fmt(g)} <span className="text-[14px] font-normal text-slate-500">{t('غ كارب')}</span></>}</span>
               </button>
             </li>
           );
         })}
       </ul>
       <Left />
-      <div className="flex items-baseline justify-between px-1 text-slate-500"><span>{t('الكارب')}</span><b className="num text-[22px] text-slate-900">{total === null ? '—' : `${fmt(total)} ${t('غرام')}`}</b></div>
+      <div className="flex items-baseline justify-between px-1 text-slate-500"><span>{t('الكارب')}</span><b className="num text-[22px] text-slate-900">{total === null ? '—' : `${fmt(total)} ${t('غ كارب')}`}</b></div>
       <Big tone="soft" onClick={() => nav('/mom/add')}>+ {t('إضافة شي')}</Big>
       {!sameAsSaved && d.items.length > 1 && (naming ? (
         <div className="flex gap-2">

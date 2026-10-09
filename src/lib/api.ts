@@ -1,6 +1,6 @@
 import { glucoseAt, glucoseCols } from './productLog';
 import { supabase } from './supabase';
-import type { EventRow, HistoryLine, Ingredient, Product, Recipe, Settings, Snack } from './types';
+import type { EventRow, HistoryLine, Ingredient, MealSlot, Product, Recipe, Settings, Snack } from './types';
 import type { MealResult } from './carbs';
 import type { GlucoseState } from './glucose';
 
@@ -67,6 +67,9 @@ export async function logMeal(input: {
   eatenAt?: string; // when she started eating, if not now
   /** the same submission sent again (a retry, the other phone) saves once: the first one's id comes back */
   client_id?: string;
+  /** 'pending': saved with its dose; how much she ate comes later (never counted as eaten until then) */
+  intake?: 'pending';
+  meal_slot?: MealSlot | null;
 }) {
   const { meal } = input;
   const lines: HistoryLine[] = meal.lines.map((l) => ({
@@ -80,6 +83,7 @@ export async function logMeal(input: {
   const g = await glucoseAt(input.eatenAt ? Date.parse(input.eatenAt) : Date.now());
   const r0 = await supabase.from('meal_history').insert({
     ...(input.client_id ? { client_id: input.client_id } : {}),
+    ...(input.intake ? { intake: input.intake } : {}), ...(input.meal_slot ? { meal_slot: input.meal_slot } : {}),
     ...glucoseCols(g),
     kind: input.kind, recipe_id: input.recipe_id, name: input.name, category: input.category,
     total_carbs: r(meal.total.carbs),
@@ -97,6 +101,25 @@ export async function logMeal(input: {
   }).select('id').single();
   if (r0.error?.code === '23505' && input.client_id) return await savedMeal(input.client_id);
   return ok(r0) as { id: string };
+}
+/** The columns a computed meal writes (lines and every total), to update a meal in place. */
+export function mealColumns(meal: MealResult) {
+  const r = (n: number) => Math.round(n * 10) / 10;
+  return {
+    lines: meal.lines.map((l) => ({
+      name: l.ing.label ?? l.product?.name ?? l.ing.slot_category ?? '',
+      product: l.product ? [l.product.name, l.product.brand].filter(Boolean).join(' — ') : null,
+      quantity: l.ing.quantity, unit: l.ing.unit, state: l.ing.state, role: l.ing.role,
+      carbs: l.carbs === null ? null : r(l.carbs),
+    })) as HistoryLine[],
+    total_carbs: r(meal.total.carbs),
+    total_fat: meal.missing.fat ? null : r(meal.total.fat), total_fiber: meal.missing.fiber ? null : r(meal.total.fiber),
+    total_protein: meal.missing.protein ? null : r(meal.total.protein), total_kcal: meal.missing.kcal ? null : Math.round(meal.total.kcal),
+    total_sat_fat: meal.micro.sat_fat === null ? null : r(meal.micro.sat_fat), total_sugar_added: meal.micro.sugar_added === null ? null : r(meal.micro.sugar_added),
+    total_sodium: meal.micro.sodium === null ? null : Math.round(meal.micro.sodium), total_calcium: meal.micro.calcium === null ? null : Math.round(meal.micro.calcium),
+    total_iron: meal.micro.iron === null ? null : r(meal.micro.iron), total_potassium: meal.micro.potassium === null ? null : Math.round(meal.micro.potassium),
+    total_vit_d: meal.micro.vit_d === null ? null : r(meal.micro.vit_d),
+  };
 }
 /** The meal a submission already saved (by its client id). */
 export async function savedMeal(clientId: string): Promise<{ id: string }> {

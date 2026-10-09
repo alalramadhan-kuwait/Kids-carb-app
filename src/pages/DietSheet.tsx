@@ -81,7 +81,7 @@ export default function DietSheetPage() {
     (async () => {
       const start = a, end = b + DAY, after = end + 6 * 3600000;   // the late rise after dinner runs past midnight
       const [h, e, series] = await Promise.all([
-        supabase.from('meal_history').select('*').is('deleted_at', null).gte('eaten_at', new Date(start).toISOString()).lt('eaten_at', new Date(after).toISOString()).order('eaten_at').limit(3000),
+        supabase.from('meal_history').select('*').is('deleted_at', null).eq('intake', 'confirmed').gte('eaten_at', new Date(start).toISOString()).lt('eaten_at', new Date(after).toISOString()).order('eaten_at').limit(3000),
         supabase.from('events').select('*').is('deleted_at', null).gte('occurred_at', new Date(start - 3600000).toISOString()).lt('occurred_at', new Date(after).toISOString()).order('occurred_at').limit(5000),
         fetchSeries(start, after),
       ]);

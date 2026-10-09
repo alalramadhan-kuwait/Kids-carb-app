@@ -15,6 +15,8 @@ interface Data {
   recipes: Recipe[];
   snacks: Snack[];
   history: HistoryEntry[];
+  /** meals saved with their dose whose eaten amount is not confirmed yet: shown in the Logs, counted nowhere */
+  pendingMeals: HistoryEntry[];
   plan: PlanRow[];
   events: EventRow[];
   members: Member[];
@@ -51,9 +53,12 @@ const fixHist = (h: any): HistoryEntry => ({
   glucose_mgdl: num(h.glucose_mgdl), glucose_trend: num(h.glucose_trend),
 });
 
+/** Confirmed meals are what every calculation reads; pending ones (amount eaten not said yet) only the Logs show. */
+const splitMeals = (all: HistoryEntry[]) => ({ history: all.filter((h) => h.intake !== 'pending'), pendingMeals: all.filter((h) => h.intake === 'pending') });
+
 export function DataProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Omit<Data, 'reload' | 'ingsByRecipe' | 'candidates' | 'nameOf'>>({
-    loading: true, error: null, settings: DEFAULT_SETTINGS, products: [], recipes: [], snacks: [], history: [], plan: [],
+    loading: true, error: null, settings: DEFAULT_SETTINGS, products: [], recipes: [], snacks: [], history: [], pendingMeals: [], plan: [],
     events: [], members: [], me: null,
   });
   const [ings, setIngs] = useState<Ingredient[]>([]);
@@ -82,7 +87,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       products: (p.data ?? []).map(fixProduct),
       recipes: (r.data ?? []).map((x: any) => ({ ...x, saved_total_carbs: num(x.saved_total_carbs) })),
       snacks: (sn.data ?? []).map((x: any) => ({ ...x, quantity: Number(x.quantity) })),
-      history: (h.data ?? []).map(fixHist),
+      ...splitMeals((h.data ?? []).map(fixHist)),
       plan: pl.data ?? [],
       events: (ev.data ?? []).map((e: any) => ({ ...e, insulin_units: num(e.insulin_units), carbs_g: num(e.carbs_g) })),
       members: (mem.data ?? []) as Member[],
@@ -101,7 +106,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       supabase.from('events').select('*').is('deleted_at', null).gte('occurred_at', since).order('occurred_at', { ascending: false }).limit(1000),
     ]);
     if (h.error || ev.error) return;
-    setState((x) => ({ ...x, history: (h.data ?? []).map(fixHist), events: (ev.data ?? []).map((e: any) => ({ ...e, insulin_units: num(e.insulin_units), carbs_g: num(e.carbs_g) })) }));
+    setState((x) => ({ ...x, ...splitMeals((h.data ?? []).map(fixHist)), events: (ev.data ?? []).map((e: any) => ({ ...e, insulin_units: num(e.insulin_units), carbs_g: num(e.carbs_g) })) }));
   }, []);
 
   // the other parent's entries appear without refreshing. A phone that sleeps or switches apps drops the live

@@ -6,7 +6,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { useLiveDose } from '../../lib/useLiveDose';
 import { draftOps, useDraft } from '../../lib/mom';
-import { adoptDose, approveDose, ate, planMeal, planNow, startEating, usePlans, type DoseConflict } from '../../lib/plans';
+import { adoptDose, approveDose, ate, fetchPlan, logPendingMeal, planMeal, planNow, startEating, usePlans, type DoseConflict } from '../../lib/plans';
 import { insulinNear, logMeal, saveEvent } from '../../lib/api';
 import { useSubmitId } from '../../lib/useSubmitId';
 import { SameDose } from '../../components/SameDose';
@@ -105,6 +105,7 @@ export function MomDose() {
       const res = await approveDose(target, dose, cid, separate);
       if (res.status === 'already_dosed' || res.status === 'recent_dose') { setConflict({ dose: res.event, planId: target.id, mine: res.status === 'already_dosed' }); setBusy(false); return; }
       if (res.status !== 'ok') throw new Error(t('الوجبة ما عادت موجودة'));
+      await logPendingMeal(target.id, products, s); // in the Log now, as "how much did she eat?" not answered yet
       if (!plan) draftOps.clear();
       await reload();
       nav(`/mom/given/${target.id}`, { replace: true });
@@ -119,6 +120,7 @@ export function MomDose() {
       // this meal's own dose (the other parent gave it from their phone): nothing to link, just carry on
       if (conflict.mine) { await reload(); nav(`/mom/given/${conflict.planId}`, { replace: true }); return; }
       const how = await adoptDose(conflict.planId, conflict.dose);
+      if (how === 'linked') await logPendingMeal(conflict.planId, products, s);
       if (!plan) draftOps.clear();
       await reload();
       if (how === 'linked') nav(`/mom/given/${conflict.planId}`, { replace: true });
@@ -235,16 +237,26 @@ export function MomAte() {
   const nav = useNavigate();
   const { id } = useParams();
   const { plans } = usePlans();
-  const { products, settings } = useData();
+  const { products, settings, reload } = useData();
   const [part, setPart] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
-  const p = plans.find((x) => x.id === id);
+  // a meal from days ago (opened from the Log) is not in the recent plans: read it once
+  const [older, setOlder] = useState<PlannedMeal | null>(null);
+  const recent = plans.find((x) => x.id === id);
+  useEffect(() => { if (!recent && id) void fetchPlan(id).then(setOlder); }, [recent, id]);
+  const p = recent ?? older;
   if (!p) return <MomPage title="…" back="/mom"><span /></MomPage>;
   const done = async () => {
     if (part === null) return;
     setBusy(true);
-    try { await ate(p, part, p.eating_at ? Date.parse(p.eating_at) : Date.now(), products, settings); toast(t('تم ✓')); nav('/mom', { replace: true }); }
-    catch (e) { toast((e as Error).message); setBusy(false); }
+    // when she started: as said («بدأت تاكل»), else the planned eating time (an answer given hours later keeps the meal at its time)
+    const eatAt = p.eating_at ? Date.parse(p.eating_at) : p.dosed_at ? Math.min(Date.now(), Date.parse(p.dosed_at) + p.eat_after_min * 60000) : Date.now();
+    try { await ate(p, part, eatAt, products, settings); await reload(); toast(t('تم ✓')); nav('/mom', { replace: true }); }
+    catch (e) {
+      // the other parent answered first: nothing is saved twice, and she is told so
+      if ((e as Error).message === 'already_eaten') { await reload(); toast(t('انحسبت من قبل ✓')); nav('/mom', { replace: true }); return; }
+      toast((e as Error).message); setBusy(false);
+    }
   };
   return (
     <MomPage title={t('شكثر أكلت؟')} back="/mom" foot={<Big disabled={part === null || busy} onClick={done}>{t('تم')}</Big>}>

@@ -202,7 +202,14 @@ export interface HistoryEntry {
   edited_at?: string | null; edited_by?: string | null;
   /** who logged it; a deleted meal is kept (deleted_at) so it can be brought back */
   created_by?: string | null; created_at?: string | null; deleted_at?: string | null; deleted_by?: string | null;
+  /** breakfast, lunch, dinner or snack: its own field, never the food's name */
+  meal_slot?: MealSlot | null;
+  /** 'pending': saved with its dose, how much she ate not said yet (never counted as eaten) */
+  intake?: 'confirmed' | 'pending';
+  /** the submission (or, for a planned meal, the plan) it was saved from */
+  client_id?: string | null;
 }
+export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 export interface PlanRow {
   id: string;

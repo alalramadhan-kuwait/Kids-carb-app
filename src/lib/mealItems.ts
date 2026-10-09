@@ -105,3 +105,7 @@ export function totalsPatch(t: Record<Nut, number | null>) {
   for (const k of NUTS) { const v = t[k]; out[COL[k] as string] = v === null ? null : k === 'kcal' || k === 'sodium' || k === 'calcium' || k === 'potassium' ? Math.round(v) : r1(v); }
   return out;
 }
+
+/** The rows as they will be saved when she ate only part of it: each amount times that part. */
+export const scaledRows = (rows: ItemRow[], part: number): ItemRow[] =>
+  part === 1 ? rows : rows.map((x) => ({ ...x, line: { ...x.line, quantity: Math.round(x.line.quantity * part * 10) / 10 } }));

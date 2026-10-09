@@ -14,11 +14,12 @@ import { fmt } from '../../lib/carbs';
 import { cx, inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import { Big, MomPage, PenBar, PEN_NAME, SITE_NAME, clock, ago } from './MomUI';
+import { whoLine } from './MomMealEntry';
 
 export function MomEntry() {
   const nav = useNavigate();
   const { id } = useParams();
-  const { events, history, settings, me, reload } = useData();
+  const { events, history, settings, me, reload, nameOf } = useData();
   const { rows: cmpRows } = useComparisons(events, history);   // also completes a finger-prick's comparison with the sensor
   const { plans } = usePlans();
   const e = events.find((x) => x.id === id && !x.deleted_at);
@@ -60,9 +61,10 @@ export function MomEntry() {
     </>}>
       <div className="flex items-center gap-3 rounded-3xl bg-white px-4 py-3">
         {shot ? <PenBar type={type} /> : <span className="text-3xl">{prick ? '🩸' : '🧃'}</span>}
-        <span className="flex-1 text-[18px]">{shot ? `${fmt(e.insulin_units ?? 0)} ${t('وحدة')}` : prick ? <b className="num">{formatGlucose(e.bg_mgdl ?? 0, settings.glucose_unit)}</b> : <><bdi>{tMaybe(e.treatment ?? '')}</bdi> · {fmt(e.carbs_g ?? 0)} {t('غرام')}</>}</span>
+        <span className="flex-1 text-[18px]">{shot ? `${fmt(e.insulin_units ?? 0)} ${t('وحدة')}` : prick ? <b className="num">{formatGlucose(e.bg_mgdl ?? 0, settings.glucose_unit)}</b> : <><bdi>{tMaybe(e.treatment ?? '')}</bdi> · {fmt(e.carbs_g ?? 0)} {t('غ كارب')}</>}</span>
         <span className="text-[15px] text-slate-500">{clock(at)} · {ago(at)}</span>
       </div>
+      {!e.source && <p className="px-2 text-[15px] text-slate-500">{whoLine(e, nameOf)}</p>}
       {plan && <p className="text-center text-[16px] text-slate-500">🍽️ <bdi>{plan.name}</bdi></p>}
       {prick && <input inputMode="decimal" dir="ltr" value={bgText ?? formatGlucose(e.bg_mgdl ?? 0, settings.glucose_unit)} onChange={(x) => setBgText(x.target.value)}
         className={cx(inputCls, '!min-h-[72px] !text-center !text-[40px] font-extrabold')} />}

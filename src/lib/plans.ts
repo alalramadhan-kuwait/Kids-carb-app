@@ -2,9 +2,11 @@
 // dose, a treatment, the meal) reaches the log, insulin and carbs on board, predictions and research.
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from './supabase';
-import { logMeal, saveEvent } from './api';
+import { logMeal, mealColumns, saveEvent } from './api';
+import { glucoseAt, glucoseCols } from './productLog';
+import { recordRecalc } from './recalc';
 import { computeMeal } from './carbs';
-import type { DoseSnapshot, PlanItem, PlannedMeal, Product, Settings } from './types';
+import type { DoseSnapshot, HistoryEntry, MealSlot, PlanItem, PlannedMeal, Product, Settings } from './types';
 
 let cache: PlannedMeal[] | null = null;
 const subs = new Set<(l: PlannedMeal[]) => void>();
@@ -87,7 +89,24 @@ export async function deletePlan(id: string) {
   if (error) throw new Error(error.message);
   await load();
 }
-export const skipPlan = (id: string) => patch(id, { status: 'skipped' });
+/** Cancelled: the meal saved with its dose (if she was never said to have eaten it) is set aside too, recoverably. */
+export async function skipPlan(id: string) {
+  await patch(id, { status: 'skipped' });
+  await supabase.from('meal_history').update({ deleted_at: new Date().toISOString() }).eq('client_id', id).eq('intake', 'pending').is('deleted_at', null);
+}
+
+/** The dose is recorded: the meal goes in the Log now, as 'pending' (amount eaten not said yet), so it is never lost
+ *  if nobody answers "how much did she eat?". Pending is counted nowhere. One per plan (the plan's id is its client
+ *  id), so a retry or the other phone cannot add it twice. */
+export async function logPendingMeal(planId: string, products: Product[], settings: Settings) {
+  const p = await fetchPlan(planId);
+  if (!p || !p.items.length) return;
+  const meal = planMeal(p.items, products, settings);
+  if (!meal.complete) return;
+  const eatAt = (p.dosed_at ? Date.parse(p.dosed_at) : Date.now()) + p.eat_after_min * 60000;
+  await logMeal({ kind: p.slot === 'snack' ? 'snack' : 'meal', recipe_id: p.recipe_id, name: p.name, category: null, meal, modified: !p.recipe_id,
+    eatenAt: new Date(eatAt).toISOString(), notes: p.note ?? undefined, client_id: p.id, intake: 'pending', meal_slot: p.slot as MealSlot });
+}
 
 /** What recording a plan's dose came to: saved, or not saved because a dose is already there (shown to the parent,
  *  who decides; nothing is merged or dropped silently). */
@@ -145,8 +164,21 @@ export async function ate(p: PlannedMeal, part: number, eatingAt: number, produc
   const meal = computeMeal(items, products, settings);
   if (!meal.complete) throw new Error('incomplete');
   const full = planMeal(p.items, products, settings).total.carbs;
-  // one meal per plan: the plan's id is the meal's client id, so a retry or the other phone cannot log it twice
-  const r = await logMeal({ kind: p.slot === 'snack' ? 'snack' : 'meal', recipe_id: p.recipe_id, name: p.name, category: null, meal, modified: part !== 1 || !p.recipe_id, eatenAt: new Date(eatingAt).toISOString(), notes: p.note ?? undefined, client_id: p.id });  // the plan's note (a weighed plate, an item left out) stays with the meal
+  // one meal per plan: the plan's id is the meal's client id, so a retry or the other phone cannot log it twice.
+  // The meal saved with the dose ('pending') is confirmed in place: same entry, now with what she ate.
+  const { data: had } = await supabase.from('meal_history').select('*').eq('client_id', p.id).is('deleted_at', null).maybeSingle();
+  let r: { id: string };
+  if (had) {
+    const h = had as HistoryEntry;
+    const { error } = await supabase.from('meal_history').update({ ...mealColumns(meal), ...glucoseCols(await glucoseAt(eatingAt)), eaten_at: new Date(eatingAt).toISOString(),
+      intake: 'confirmed', modified: part !== 1 || !p.recipe_id }).eq('id', h.id);
+    if (error) throw new Error(error.message);
+    r = { id: h.id };
+    // she ate part of it: the dose for what she ate, for review (the dose given is not touched)
+    if (part !== 1) await recordRecalc({ ...h, total_carbs: Number(h.total_carbs) }, Math.round(meal.total.carbs * 10) / 10, 'part');
+  } else {
+    r = await logMeal({ kind: p.slot === 'snack' ? 'snack' : 'meal', recipe_id: p.recipe_id, name: p.name, category: null, meal, modified: part !== 1 || !p.recipe_id, eatenAt: new Date(eatingAt).toISOString(), notes: p.note ?? undefined, client_id: p.id, meal_slot: p.slot as MealSlot });
+  }  // the plan's note (a weighed plate, an item left out) stays with the meal
   await patch(p.id, { status: 'eaten', history_id: r.id, eaten_at: new Date().toISOString(), eating_at: new Date(eatingAt).toISOString(), part_eaten: part,
     carbs_planned: p.carbs_planned ?? Math.round(full * 10) / 10, carbs_eaten: Math.round(meal.total.carbs * 10) / 10 });
 }
