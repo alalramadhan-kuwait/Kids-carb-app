@@ -53,17 +53,16 @@ export function Big({ children, onClick, tone = 'primary', disabled, className }
 }
 
 /** A choice row: picture/emoji, big words, selected tick. */
-export function Choice({ icon, label, sub, on, onClick, color }: { icon?: ReactNode; label: ReactNode; sub?: ReactNode; on?: boolean; onClick: () => void; color?: string }) {
+export function Choice({ icon, label, sub, on, onClick, color, compact }: { icon?: ReactNode; label: ReactNode; sub?: ReactNode; on?: boolean; onClick: () => void; color?: string; /** two side by side on a phone: smaller icon, and the coloured border alone marks the choice */ compact?: boolean }) {
   return (
-    <button onClick={onClick} style={color ? { borderColor: color } : undefined}
-      className={cx('flex min-h-[64px] w-full items-center gap-3 rounded-2xl border-2 bg-white px-4 py-2 text-start active:opacity-80', on ? 'border-brand bg-brand-soft' : 'border-slate-200')}>
-      {icon && <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl text-3xl">{icon}</span>}
-      <span className="min-w-0 flex-1"><span className="block text-[19px] font-bold leading-snug"><bdi>{label}</bdi></span>{sub && <span className="block text-sm text-slate-500">{sub}</span>}</span>
-      {on && <span className="text-2xl text-brand">✓</span>}
+    <button onClick={onClick} style={color ? { borderColor: color } : undefined} aria-pressed={on}
+      className={cx('flex min-h-[64px] w-full items-center rounded-2xl border-2 bg-white py-2 text-start active:opacity-80', compact ? 'gap-2 px-3' : 'gap-3 px-4', on ? 'border-brand bg-brand-soft' : 'border-slate-200')}>
+      {icon && <span className={cx('grid shrink-0 place-items-center overflow-hidden rounded-xl', compact ? 'h-9 w-9 text-2xl' : 'h-11 w-11 text-3xl')}>{icon}</span>}
+      <span className="min-w-0 flex-1"><span className={cx('block font-bold leading-snug', compact ? 'text-[18px]' : 'text-[19px]')}><bdi>{label}</bdi></span>{sub && <span className="block text-sm text-slate-500">{sub}</span>}</span>
+      {on && !compact && <span className="shrink-0 text-2xl text-brand">✓</span>}
     </button>
   );
 }
-
 export function PenBar({ type }: { type: 'rapid' | 'long' }) {
   return <span aria-hidden className="inline-block h-9 w-3 shrink-0 rounded-full" style={{ background: PEN[type] }} />;
 }

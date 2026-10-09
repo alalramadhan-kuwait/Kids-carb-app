@@ -65,7 +65,7 @@ export function EditItems({ h, onCancel, onDone, onSave, saveLabel, note, extra 
       </div>
       {extra}
       <p className="text-[11px] text-slate-500">{note ?? t('يتغيّر هذا التسجيل فقط، والوصفة كما هي. الإنسولين المعطى لا يتغير.')}</p>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="sticky bottom-0 -mx-4 grid grid-cols-2 gap-2 border-t border-slate-100 bg-white px-4 pb-1 pt-2 lg:-mx-6 lg:px-6">
         <Btn kind="ghost" onClick={onCancel} disabled={busy}>{t('إلغاء')}</Btn>
         <Btn kind="primary" onClick={save} disabled={busy || !changed}>{busy ? t('جارٍ الحفظ…') : saveLabel ?? t('حفظ')}</Btn>
       </div>

@@ -99,15 +99,19 @@ export default function History() {
   }, [rows]);
 
   const remove = async (it: Item) => {
+    // asked first, with the sheet still open: "Cancel" leaves everything as it was
+    if (it.h && !confirm(t('حذف هذا التسجيل من السجل؟'))) return;
     close();
-    if (it.e) {
-      await deleteEvent(it.e.id, me); await reload();
-      toast(t('حُذف التسجيل'), { label: t('تراجع'), run: async () => { await restoreEvent(it.e!.id); await reload(); } });
-    } else if (it.h && confirm(t('حذف هذا التسجيل من السجل؟'))) {
-      // kept and marked, not erased: Undo here, or later from More › Recently deleted
-      await deleteHistory(it.h.id, me); await reload();
-      toast(t('حُذف التسجيل'), { label: t('تراجع'), run: async () => { await restoreHistory(it.h!.id); await reload(); } });
-    }
+    try {
+      if (it.e) {
+        await deleteEvent(it.e.id, me); await reload();
+        toast(t('حُذف التسجيل'), { label: t('تراجع'), run: async () => { await restoreEvent(it.e!.id); await reload(); } });
+      } else if (it.h) {
+        // kept and marked, not erased: Undo here, or later from More › Recently deleted
+        await deleteHistory(it.h.id, me); await reload();
+        toast(t('حُذف التسجيل'), { label: t('تراجع'), run: async () => { await restoreHistory(it.h!.id); await reload(); } });
+      }
+    } catch (x) { toast((x as Error).message); }
   };
 
   // how many less-used filters are away from their default (shown on the Filter button)
@@ -185,7 +189,7 @@ export default function History() {
       </Sheet>
 
       <Sheet open={!!open} onClose={close} hideTitle={!editing && !!open?.e && ['bg_check', 'treatment', 'insulin'].includes(open.e.kind)} title={editing === 'items' ? t('تعديل الأصناف') : editing ? t('تعديل التسجيل') : open?.h ? open.h.name : open?.e ? describeEvent(open.e) : ''}>
-        {open && editing === 'entry' && <EditEntry e={open.e} h={open.h} onCancel={() => setEditing(false)} onDone={close} />}
+        {open && editing === 'entry' && <EditEntry e={open.e} h={open.h} onCancel={() => setEditing(false)} onDone={close} onItems={open.h && open.h.lines.length > 0 ? () => setEditing('items') : undefined} />}
         {open?.h && editing === 'items' && <EditItems h={open.h} onCancel={() => setEditing(false)} onDone={close} />}
         {open?.h && !editing && <MealDetail h={open.h} n={times.get(keyOf(open.h)) ?? 1} unit={settings.glucose_unit} onEditItems={() => setEditing('items')} />}
         {open?.e && !editing && <EventSummary e={open.e} who={open.e.source ? '' : nameOf(open.e.created_by)} />}

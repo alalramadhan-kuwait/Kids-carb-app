@@ -10,7 +10,7 @@ import { brandsOf } from '../lib/brand';
 import { nutrProblem, scaled, totalsOf, type NutrState } from '../lib/per100';
 import { NutritionFields, nutrStateFrom } from './NutritionFields';
 import { TimePicker } from './TimePicker';
-import { t, tr } from '../i18n';
+import { isEn, t, tr } from '../i18n';
 
 const PROBLEM: Record<EditProblem, string> = tr({ // i18n-ok: values translated when read
   time: 'اختاروا الوقت', future: 'الوقت في المستقبل', units: 'الوحدات بين 0 و100', carbs: 'الكارب بين 0 و300 غ', // i18n-ok
@@ -21,7 +21,7 @@ const PROBLEM: Record<EditProblem, string> = tr({ // i18n-ok: values translated 
 // the part of the portion she ate
 const PARTS: [number, () => string][] = [[0.25, () => '¼'], [0.5, () => '½'], [0.75, () => '¾'], [1, () => t('كلها')], [1.5, () => '1½'], [2, () => '2×']];
 
-export function EditEntry({ e, h, onDone, onCancel }: { e?: EventRow; h?: HistoryEntry; onDone: () => void; onCancel: () => void }) {
+export function EditEntry({ e, h, onDone, onCancel, onItems }: { e?: EventRow; h?: HistoryEntry; onDone: () => void; onCancel: () => void; /** a meal with items: change them one by one instead */ onItems?: () => void }) {
   const { me, settings, reload, products } = useData();
   const quick = useQuickItems();
   const unit = settings.glucose_unit;
@@ -70,6 +70,7 @@ export function EditEntry({ e, h, onDone, onCancel }: { e?: EventRow; h?: Histor
   const others = brands.filter((b) => b.toLowerCase() !== brand.trim().toLowerCase()).slice(0, 8);
   return (
     <div className="space-y-2.5">
+      {onItems && <button type="button" onClick={onItems} className="flex min-h-[44px] w-full items-center justify-between rounded-xl bg-brand-soft px-3 text-sm font-bold text-brand">{t('تعديل الأصناف والكميات')}<span>{isEn() ? '›' : '‹'}</span></button>}
       <TimePicker value={whenMs} onChange={setWhenMs} />
       {kind === 'meal' && (
         <div className="grid grid-cols-[3fr_2fr] gap-2">
@@ -116,7 +117,8 @@ export function EditEntry({ e, h, onDone, onCancel }: { e?: EventRow; h?: Histor
         </label>
       )}
       {problem && problem !== 'time' && <Alert tone="near">{PROBLEM[problem]}</Alert>}
-      <div className="grid grid-cols-2 gap-2 pt-0.5">
+      {/* always in reach: stays at the bottom of the sheet on a small phone and above the keyboard */}
+      <div className="sticky bottom-0 -mx-4 grid grid-cols-2 gap-2 border-t border-slate-100 bg-white px-4 pb-1 pt-2 lg:-mx-6 lg:px-6">
         <Btn kind="ghost" onClick={onCancel} disabled={busy}>{t('إلغاء')}</Btn>
         <Btn kind="primary" onClick={save} disabled={busy || !!problem}>{busy ? t('جارٍ الحفظ…') : t('حفظ')}</Btn>
       </div>

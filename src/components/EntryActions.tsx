@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { SameMealLink, useSameMeal } from './SameMeal';
 import { useData } from '../lib/data';
 import { canLogAgain, mealSlot, similar } from '../lib/entryActions';
-import { eventAgain, mealAgain, setEntryNote, setEntryTime } from '../lib/entrySave';
+import { eventAgain, mealAgain } from '../lib/entrySave';
 import { deleteEvent, deleteHistory } from '../lib/api';
 import { describeEvent } from '../lib/events';
 import { fmt } from '../lib/carbs';
@@ -11,29 +11,26 @@ import { fmtTime } from '../lib/constants';
 import { formatGlucose } from '../lib/glucose';
 import type { EventRow, HistoryEntry } from '../lib/types';
 import { Icon } from './Icon';
-import { TimePicker } from './TimePicker';
 import type { IconName } from '../icons/defs';
-import { Btn, cx, inputCls, toast } from './ui';
+import { Btn, cx, toast } from './ui';
 import { locale, t, tMaybe, tr } from '../i18n';
 
 const SLOT: Record<string, string> = tr({ breakfast: 'فطور', lunch: 'غداء', dinner: 'عشاء', late: 'ليلي' }); // i18n-ok: values translated when read
 const day = (iso: string) => new Date(iso).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
 
 /**
- * What can be done with a logged entry, in one tap each (as in Gluroo): edit, note, time, log again, copy, delete;
- * for a meal also when it was eaten (breakfast, lunch…), who changed it last, and the earlier times she had it.
+ * What can be done with a logged entry: Edit first (time, note and every value are in it); then log again, a new
+ * meal from this one, copy; Delete on its own at the bottom. For a meal also its kind (breakfast, lunch…), who
+ * changed it last, and the earlier times she had it.
  */
 export function EntryActions({ e, h, onEdit, onRemove, onOpenOther, onClose }: {
   e?: EventRow; h?: HistoryEntry; onEdit: () => void; onRemove: () => void; onOpenOther: (h: HistoryEntry) => void; onClose: () => void;
 }) {
   const { me, reload, history, nameOf, settings } = useData();
   const nav = useNavigate();
-  const [panel, setPanel] = useState<'note' | 'time' | null>(null);
-  const [note, setNote] = useState((h ? h.notes : e?.note) ?? '');
   const [busy, setBusy] = useState(false);
   const kind = h ? 'meal' : e!.kind;
   const at = Date.parse(h ? h.eaten_at : e!.occurred_at);
-  const [pick, setPick] = useState(at);
   const edited = (h ?? e)?.edited_at;
   const before = h ? similar(h, history) : [];
   const same = useSameMeal(h?.id);
@@ -45,25 +42,18 @@ export function EntryActions({ e, h, onEdit, onRemove, onOpenOther, onClose }: {
     toast(t('سُجّل مرة ثانية الآن: {x}', { x: h ? `${tMaybe(h.name)} · ${t('{g} غ', { g: fmt(h.total_carbs) })}` : describeEvent(e!) }),
       { label: t('تراجع'), run: async () => { if (h) await deleteHistory(id); else await deleteEvent(id, me); await reload(); } });
   });
-  const moveTo = (ms: number) => run(async () => {
-    await setEntryTime({ e, h }, ms, me); await reload(); setPanel(null);
-    toast(t('صار الوقت {t}', { t: fmtTime(new Date(ms)) }), { label: t('تراجع'), run: async () => { await setEntryTime({ e, h }, at, me); await reload(); } });
-  });
-  const saveNote = () => run(async () => { await setEntryNote({ e, h }, note, me); await reload(); setPanel(null); toast(t('تم الحفظ ✓')); });
   const copy = async () => {
     const text = h ? `${h.name}${h.brand ? ` (${h.brand})` : ''} · ${t('{g} غ كارب', { g: fmt(h.total_carbs) })} · ${fmtTime(new Date(at))}` : `${describeEvent(e!)} · ${fmtTime(new Date(at))}`;
     try { await navigator.clipboard.writeText(text); toast(t('نُسخ ✓')); } catch { toast(text); }
   };
 
-  const tiles: { icon: IconName; label: string; on: () => void; show: boolean; tone?: string }[] = [
-    { icon: 'edit', label: t('تعديل'), on: onEdit, show: true },
-    { icon: 'note', label: t('ملاحظة'), on: () => setPanel(panel === 'note' ? null : 'note'), show: true },
-    { icon: 'clock', label: t('الوقت'), on: () => setPanel(panel === 'time' ? null : 'time'), show: true },
+  // one main action (Edit holds the time, the note and every value), three small ones, and Delete on its own
+  const more: { icon: IconName; label: string; on: () => void; show: boolean }[] = [
     { icon: 'repeat', label: t('سجّل مرة ثانية'), on: again, show: canLogAgain(kind) },
-    { icon: 'edit', label: t('عدّليها لوجبة جديدة'), on: () => { onClose(); nav(`/reuse/${h!.id}`); }, show: !!h && h.lines.length > 0 },
+    { icon: 'meals', label: t('وجبة جديدة منها'), on: () => { onClose(); nav(`/reuse/${h!.id}`); }, show: !!h && h.lines.length > 0 },
     { icon: 'copy', label: t('نسخ'), on: copy, show: true },
-    { icon: 'trash', label: t('حذف'), on: onRemove, show: true, tone: 'text-over' },
   ];
+  const shown = more.filter((x) => x.show);
 
   return (
     <div className="mt-3 space-y-3">
@@ -75,29 +65,14 @@ export function EntryActions({ e, h, onEdit, onRemove, onOpenOther, onClose }: {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-2">
-        {tiles.filter((x) => x.show).map((x) => (
-          <button key={x.label} disabled={busy} onClick={x.on} className={cx('flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-2xl bg-slate-50 text-sm font-medium active:bg-slate-100', x.tone ?? 'text-slate-700', (x.label === t('ملاحظة') && panel === 'note') || (x.label === t('الوقت') && panel === 'time') ? 'ring-2 ring-brand' : '')}>
-            <Icon name={x.icon} size={20} />{x.label}
+      <Btn kind="primary" block className="flex min-h-[52px] items-center justify-center gap-2 text-base" disabled={busy} onClick={onEdit}><Icon name="edit" size={20} />{t('تعديل')}</Btn>
+      <div className={cx('grid gap-2', shown.length === 3 ? 'grid-cols-3' : shown.length === 2 ? 'grid-cols-2' : 'grid-cols-1')}>
+        {shown.map((x) => (
+          <button key={x.label} disabled={busy} onClick={x.on} className="flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl bg-slate-50 px-1 text-[13px] font-medium leading-tight text-slate-700 active:bg-slate-100">
+            <Icon name={x.icon} size={18} /><span className="max-w-full text-center">{x.label}</span>
           </button>
         ))}
       </div>
-
-      {panel === 'note' && (
-        <div className="flex gap-2">
-          <input className={inputCls} dir="auto" value={note} maxLength={300} autoFocus placeholder={t('اكتبوا ملاحظة')} onChange={(x) => setNote(x.target.value)} onKeyDown={(x) => x.key === 'Enter' && saveNote()} />
-          <Btn kind="primary" disabled={busy} onClick={saveNote}>{t('حفظ')}</Btn>
-        </div>
-      )}
-      {panel === 'time' && (
-        <div className="space-y-2 rounded-2xl border border-slate-100 p-3">
-          <TimePicker value={pick} onChange={setPick} />
-          <div className="grid grid-cols-2 gap-2">
-            <Btn kind="ghost" onClick={() => { setPick(at); setPanel(null); }}>{t('إلغاء')}</Btn>
-            <Btn kind="primary" disabled={busy || pick === at} onClick={() => moveTo(pick)}>{t('حفظ')}</Btn>
-          </div>
-        </div>
-      )}
 
       {same && same.matches.length > 0 && <SameMealLink to={`/same/${same.target.id}`} target={same.target} matches={same.matches} />}
       {before.length > 0 && (
@@ -113,6 +88,11 @@ export function EntryActions({ e, h, onEdit, onRemove, onOpenOther, onClose }: {
           </ul>
         </div>
       )}
+      {/* set apart from everything else; kept and recoverable (Undo, or More › Recently deleted) */}
+      <div className="border-t border-slate-100 pt-2">
+        <button disabled={busy} onClick={onRemove} className="flex min-h-[44px] items-center gap-2 text-sm font-bold text-over"><Icon name="trash" size={18} /> {t('حذف')}</button>
+        <p className="text-[11px] text-slate-500">{t('يمكن إرجاعه: «تراجع» بعد الحذف، أو المزيد › المحذوفة مؤخرًا.')}</p>
+      </div>
     </div>
   );
 }

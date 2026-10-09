@@ -91,7 +91,7 @@ export function MomMealEntry() {
       <DoseReview h={h} simple />
       <div className="text-[17px] font-bold">{t('شنو هذي؟')}</div>
       <div className="grid grid-cols-2 gap-2">
-        {SLOT_CHOICES.map(([k, w, icon]) => <Choice key={k} icon={icon} label={t(w)} on={h.meal_slot === k} onClick={() => void slot(k)} />)}
+        {SLOT_CHOICES.map(([k, w, icon]) => <Choice key={k} compact icon={icon} label={t(w)} on={h.meal_slot === k} onClick={() => void slot(k)} />)}
       </div>
       <div className="text-[17px] font-bold">{t('متى أكلت؟')}</div>
       <TimePicker value={at ?? was} onChange={setAt} />

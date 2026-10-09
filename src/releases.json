@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-09",
+    "version": "2.60.0",
+    "notes": [
+      "الوضع الكامل: لما تفتح تسجيل، «تعديل» زر واحد كبير فيه الوقت والملاحظة وكل القيم. تحته: سجّل مرة ثانية، وجبة جديدة منها، نسخ.",
+      "«حذف» بروحه تحت. إلغاء السؤال يخلّي كل شي مثل ما هو، والمحذوف يرجع بـ«تراجع» أو من المحذوفة مؤخرًا.",
+      "على الشاشات الصغيرة: زر «حفظ» يبقى ظاهر تحت في التعديل، وأزرار نوع الوجبة ما تتداخل."
+    ],
+    "notes_en": [
+      "Full mode: opening an entry shows one large Edit button holding the time, the note and every value. Below it: Log again, New meal from this, Copy.",
+      "Delete sits on its own at the bottom. Cancelling leaves everything as it was, and a deleted entry comes back with Undo or from Recently deleted.",
+      "Small phones: Save stays visible at the bottom while editing, and the meal-type buttons no longer overlap."
+    ]
+  },
+  {
+    "date": "2026-10-09",
     "version": "2.59.0",
     "notes": [
       "عدّلي الأكل نفسه: «✏️ عدّلي الأكل» يغيّر الكميات، يشيل صنف أو يضيف صنف، أو «كم أكلت منها؟». نفس الوجبة، ما تنحفظ وجبة ثانية.",

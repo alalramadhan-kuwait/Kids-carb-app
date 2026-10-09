@@ -64,7 +64,7 @@ export function ReuseEdit() {
   const [cid] = useSubmitId();
   if (!h) return <Page title={t('من وجبة سابقة')} back={() => nav(-1)}><Card><p className="text-slate-500">…</p></Card></Page>;
   return (
-    <Page title={t('عدّلي لوجبة جديدة')} back={() => nav(-1)}>
+    <Page title={t('وجبة جديدة منها')} back={() => nav(-1)}>
       <div className="space-y-4">
         <Card className="flex items-center gap-3">
           <span className="min-w-0 flex-1">
