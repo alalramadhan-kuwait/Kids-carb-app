@@ -14,17 +14,6 @@ export function Icon({ name, size = 24, active, className, label }: { name: Icon
   );
 }
 
-/** Glucose status drop (no face). Always shown next to the number and the words. */
-export function StatusIcon({ name, size = 20 }: { name: StatusName; size?: number }) {
-  const st = STATUS[name];
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden>
-      <path d={DROP_PATH} fill={`var(${st.token}, ${st.color})`} />
-      <g fill="none" stroke="#fff" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">{st.mark.map((p) => <path key={p} d={p} />)}</g>
-    </svg>
-  );
-}
-
 /** LibreLinkUp trend 1–5 → icon (Libre convention: straight arrows are the fast ones). */
 export const TREND_ICON: Record<number, IconName> = {
   1: 'trend_falling_fast', 2: 'trend_falling', 3: 'trend_stable', 4: 'trend_rising', 5: 'trend_rising_fast',

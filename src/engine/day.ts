@@ -9,12 +9,6 @@ const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR, KW = 3 * HOUR;
 /** Kuwait midnight (as UTC ms) of the day containing t. Kuwait has no daylight saving. */
 export const dayStartOf = (t: number) => Math.floor((t + KW) / DAY) * DAY - KW;
 
-/** Labels stay Arabic here; show them with t(part.label). */
-export const DAY_PARTS = [
-  { label: 'ليل', from: 0, to: 6 }, { label: 'صباح', from: 6, to: 12 }, // i18n-ok
-  { label: 'ظهر', from: 12, to: 18 }, { label: 'مساء', from: 18, to: 24 }, // i18n-ok
-] as const;
-
 export interface Episode { t: number; end: number; nadir: number; minutes: number }
 
 /**

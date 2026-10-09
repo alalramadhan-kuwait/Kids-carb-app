@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { computeLine, computeMeal, deriveLabel, labelMismatch, levelFor, targetMiss } from '../carbs';
 import { blocker, candidatesOf, suggest } from '../suggest';
-import { shoppingList } from '../shopping';
 import { hostFor, loginProblem, redirectRegion, maskEmail, parseLluTimestamp, readingsFromGraph, sha256Hex, toReading, tooSoon } from '../../../supabase/functions/carb-glucose/lib';
 import { effectiveRange, formatGlucose, glucoseAge, glucoseLevel, glucoseStatus, mergeReading, toMgdl } from '../glucose';
 import { TREND_ICON, TREND_WORDS } from '../../components/Icon';
@@ -223,32 +222,6 @@ test('favourites and pantry stock win', () => {
   const fav = candidatesOf([mkRecipe('a', { favorite: true }), ...recipes.slice(1, 4)], byRecipe, products, S);
   assert.equal(suggest({ candidates: fav, history: [], settings: S, today, count: 1 })[0].recipe.id, 'a');
 });
-
-console.log('shopping list');
-
-test('scales by people, converts cooked back to dry, rounds up packs, keeps unresolved visible', () => {
-  const pasta = prod({ name: 'pasta', category: 'باستا', carbs_per_100: 72, cooked_yield: 2.4, pack_size: 500, available: true });
-  const nug = products[1];
-  const pr = [pasta, nug, rice];
-  const r = [mkRecipe('p'), mkRecipe('n')];
-  const ibr = new Map<string, Ingredient[]>([
-    ['p', [ing({ slot_category: 'باستا', quantity: 120, state: 'cooked' }), ing({ slot_category: 'جبن', label: 'جبن' })]],
-    ['n', [ing({ slot_category: 'ناجت', quantity: 100 })]],
-  ]);
-  const plan = [
-    { id: '1', plan_date: '2026-10-01', recipe_id: 'p', people: 4 },
-    { id: '2', plan_date: '2026-10-02', recipe_id: 'p', people: 4 },
-    { id: '3', plan_date: '2026-10-03', recipe_id: 'n', people: 2 },
-  ];
-  const list = shoppingList(plan, r, ibr, pr, S);
-  const pastaItem = list.find((i) => i.name === 'pasta')!;
-  close(pastaItem.qty, 50 * 8); // 120/2.4 = 50 g dry × 8 servings
-  close(pastaItem.plated, 120 * 8);
-  assert.equal(pastaItem.packs, 1);
-  assert.equal(list.find((i) => i.name === 'nuggets')!.qty, 200);
-  assert.ok(list.find((i) => i.unresolved && i.name === 'جبن'));
-});
-
 
 console.log('glucose');
 

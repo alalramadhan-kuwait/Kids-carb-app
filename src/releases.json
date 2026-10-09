@@ -1,6 +1,22 @@
 [
   {
     "date": "2026-10-09",
+    "version": "2.61.0",
+    "notes": [
+      "تنظيف: انشالت «قائمة الأسبوع» (الوجبات المخططة تكفي)، وقائمة «السناكات» القديمة (الأكل المتكرر يكفي)، وإعدادات مفتاح تقدير الصور اللي كانت متوقفة.",
+      "صفحة الوجبات صارت أبسط: قائمة وحدة للأكل المتكرر.",
+      "«صوّر الأكل» يقرأ الباركود، أو يحفظ الصورة مع الكارب اللي تكتبونه.",
+      "قراءات الحساس تنحفظ مرة وحدة بدل ما تنكتب من جديد كل دقيقة: أخف وأسرع."
+    ],
+    "notes_en": [
+      "Cleanup: removed the weekly meal list (planned meals cover it), the old Snacks list (frequent foods cover it) and the photo-estimate key settings, which were switched off.",
+      "The Meals page is simpler: one list of frequent foods.",
+      "\"Photograph food\" reads a barcode, or saves the photo with the carbs you enter.",
+      "Sensor readings are saved once instead of being rewritten every minute: lighter and faster."
+    ]
+  },
+  {
+    "date": "2026-10-09",
     "version": "2.60.0",
     "notes": [
       "الوضع الكامل: لما تفتح تسجيل، «تعديل» زر واحد كبير فيه الوقت والملاحظة وكل القيم. تحته: سجّل مرة ثانية، وجبة جديدة منها، نسخ.",

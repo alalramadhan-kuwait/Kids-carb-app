@@ -15,12 +15,10 @@ import { ProductList } from './pages/Products';
 import ProductEdit from './pages/ProductEdit';
 import History from './pages/History';
 import { ReuseEdit, ReusePick } from './pages/Reuse';
-import Plan from './pages/Plan';
 import Cgm from './pages/Cgm';
 import Status from './pages/Status';
 import ImportPage from './pages/Import';
 import SensorAccuracy from './pages/SensorAccuracy';
-import Research from './pages/Research';
 import { useLabRunner } from './lib/lab';
 import AlertsPage from './pages/Alerts';
 import CarePlanPage from './pages/CarePlan';
@@ -36,7 +34,7 @@ import { isNight } from './lib/schedule';
 import { UpdateBanner, VersionTag } from './components/Version';
 import { Icon } from './components/Icon';
 import type { IconName } from './icons/defs';
-import { More, SnacksPage, SettingsPage } from './pages/More';
+import { More, SettingsPage } from './pages/More';
 import { themePref } from './lib/theme';
 import { t, useLang } from './i18n';
 import { LangSwitch } from './components/LangSwitch';
@@ -117,8 +115,8 @@ function Login() {
   );
 }
 
-/** Reached from the reset email (the link signs the person in), or from "المزيد". */
-export function SetPassword({ onDone }: { onDone: () => void }) {
+/** Reached from the reset email (the link signs the person in); More has its own password form. */
+function SetPassword({ onDone }: { onDone: () => void }) {
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
   const [err, setErr] = useState('');
@@ -185,7 +183,7 @@ function Claim({ onDone }: { onDone: () => void }) {
 const TABS: { to: string; label: string; icon: IconName; match: string[] }[] = [
   { to: '/', label: 'الآن', icon: 'home', match: ['/'] }, // i18n-ok
   { to: '/timeline', label: 'السجل', icon: 'history', match: ['/timeline'] }, // i18n-ok
-  { to: '/meals', label: 'الوجبات', icon: 'meals', match: ['/meals', '/recipes', '/products', '/plan', '/plans', '/snacks', '/scan'] }, // i18n-ok
+  { to: '/meals', label: 'الوجبات', icon: 'meals', match: ['/meals', '/recipes', '/products', '/plans', '/scan'] }, // i18n-ok
   { to: '/analysis', label: 'التحليل', icon: 'advanced', match: ['/analysis', '/advanced'] }, // i18n-ok
   { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm', '/alerts', '/care-plan', '/share', '/widget', '/diet-sheet', '/report'] }, // i18n-ok
 ];
@@ -276,9 +274,7 @@ function Shell() {
         <Route path="/portions/:kind/:id" element={<PortionEdit />} />
         <Route path="/meals" element={<Today />} />
         <Route path="/timeline" element={<History />} />
-        <Route path="/history" element={<Navigate to="/timeline" replace />} />
         <Route path="/analysis" element={<Analysis />} />
-        <Route path="/advanced" element={<Navigate to="/analysis?mode=stats" replace />} />
         <Route path="/recipes" element={<RecipeList />} />
         <Route path="/recipes/new" element={<RecipeEdit />} />
         <Route path="/recipes/:id" element={<RecipeView />} />
@@ -286,7 +282,6 @@ function Shell() {
         <Route path="/products" element={<ProductList />} />
         <Route path="/products/new" element={<ProductEdit />} />
         <Route path="/products/:id" element={<ProductEdit />} />
-        <Route path="/plan" element={<Plan />} />
         <Route path="/plans/history" element={<PlanHistoryPage />} />
         <Route path="/plans/report" element={<PlanReport />} />
         <Route path="/plans/:id" element={<PlanPage />} />
@@ -295,7 +290,6 @@ function Shell() {
         <Route path="/status" element={<Status />} />
         <Route path="/import" element={<ImportPage />} />
         <Route path="/sensor-accuracy" element={<SensorAccuracy />} />
-        <Route path="/research" element={<Research />} />
         <Route path="/alerts" element={<AlertsPage />} />
         <Route path="/care-plan" element={<CarePlanPage />} />
         <Route path="/night" element={<Night />} />
@@ -304,7 +298,6 @@ function Shell() {
         <Route path="/diet-sheet" element={<DietSheetPage />} />
         <Route path="/growth" element={<GrowthPage />} />
         <Route path="/report" element={<Report />} />
-        <Route path="/snacks" element={<SnacksPage />} />
         <Route path="/settings" element={<SettingsPage part="food" />} />
         <Route path="/settings/advanced" element={<SettingsPage part="advanced" />} />
         <Route path="/doctor" element={<SettingsPage part="doctor" />} />

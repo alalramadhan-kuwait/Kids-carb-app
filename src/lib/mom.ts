@@ -68,7 +68,6 @@ export async function saveMeal(m: Omit<SavedMeal, 'id' | 'sort'> & { id?: string
   await ok(m.id ? supabase.from('saved_meals').update(row).eq('id', m.id) : supabase.from('saved_meals').insert(row));
   await mealsT.load();
 }
-export async function deleteMeal(id: string) { await ok(supabase.from('saved_meals').delete().eq('id', id)); await mealsT.load(); }
 
 export const setSimpleMode = (user: string, on: boolean) => ok(supabase.rpc('set_simple_mode', { p_user: user, p_on: on }));
 

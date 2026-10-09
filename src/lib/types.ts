@@ -75,19 +75,6 @@ export interface Recipe {
   saved_total_carbs: number | null;
 }
 
-export interface Snack {
-  id: string;
-  name: string;
-  image_path: string | null;
-  product_id: string | null;
-  slot_category: string | null;
-  quantity: number;
-  unit: Unit;
-  state: State;
-  qty_confirmed: boolean;
-  note: string | null;
-}
-
 export interface CategoryTarget {
   category: string;
   basis: 'per100' | 'serving';
@@ -210,13 +197,6 @@ export interface HistoryEntry {
   client_id?: string | null;
 }
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
-
-export interface PlanRow {
-  id: string;
-  plan_date: string;
-  recipe_id: string;
-  people: number;
-  }
 
 export const DEFAULT_SETTINGS: Settings = {
   max_meal_carbs: 60,

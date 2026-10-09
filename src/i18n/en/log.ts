@@ -48,4 +48,6 @@ export const log: Record<string, string> = {
   "انحسبت من قبل ✓": "Already answered ✓",
   "وجبة جديدة منها": "New meal from this",
   "يمكن إرجاعه: «تراجع» بعد الحذف، أو المزيد › المحذوفة مؤخرًا.": "Can be brought back: Undo right after, or More › Recently deleted.",
+  "تعذّر قراءة الصورة: {e}": "Couldn't read the photo: {e}",
+  "ابحث: وصفة، منتج، أكل متكرر": "Search: recipe, product, frequent food",
 };

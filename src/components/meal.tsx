@@ -10,9 +10,6 @@ import { KIND_STYLE } from '../lib/kinds';
 
 export const lineName = (l: Line) => l.ing.label ?? l.product?.name ?? (l.ing.slot_category ? tMaybe(l.ing.slot_category) : t('؟'));
 
-export const mainNames = (meal: MealResult, n = 4) =>
-  [...meal.lines].filter((l) => l.ing.role === 'main').sort((a, b) => (b.carbs ?? 0) - (a.carbs ?? 0)).slice(0, n).map(lineName).join(' • ');
-
 /** Log a meal, with the warning the parents asked for instead of a hard block. */
 export function useChoose() {
   const { settings, reload } = useData();

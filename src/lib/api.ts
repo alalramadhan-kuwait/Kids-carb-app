@@ -1,6 +1,6 @@
 import { glucoseAt, glucoseCols } from './productLog';
 import { supabase } from './supabase';
-import type { EventRow, HistoryLine, Ingredient, MealSlot, Product, Recipe, Settings, Snack } from './types';
+import type { EventRow, HistoryLine, Ingredient, MealSlot, Product, Recipe, Settings } from './types';
 import type { MealResult } from './carbs';
 import type { GlucoseState } from './glucose';
 
@@ -51,10 +51,6 @@ export const setRecipeImage = async (id: string, image_path: string) =>
 export const acceptTotal = async (id: string, total: number) =>
   ok(await supabase.from('recipes').update({ saved_total_carbs: total }).eq('id', id));
 
-export async function saveSnack(s: Partial<Snack> & { name: string; quantity: number }) {
-  return ok(await supabase.from('snacks').upsert(clean(s)));
-}
-export const deleteSnack = async (id: string) => ok(await supabase.from('snacks').delete().eq('id', id));
 
 export async function logMeal(input: {
   kind: 'meal' | 'snack';
@@ -137,10 +133,6 @@ export async function saveSettings(s: Settings) {
   return ok(await supabase.from('settings').upsert({ id: true, ...s, updated_at: new Date().toISOString() }));
 }
 
-export async function addPlan(rows: { plan_date: string; recipe_id: string; people: number }[]) {
-  return ok(await supabase.from('meal_plan').upsert(rows, { onConflict: 'plan_date,recipe_id' }));
-}
-export const deletePlan = async (ids: string[]) => ok(await supabase.from('meal_plan').delete().in('id', ids));
 
 /** The carb-glucose edge function: save / read / clear / status. */
 export async function callGlucose(body: Record<string, unknown>): Promise<GlucoseState> {

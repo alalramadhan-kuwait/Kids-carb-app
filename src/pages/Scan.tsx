@@ -1,69 +1,50 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useData } from '../lib/data';
-import { callFood, findBarcode, logEstimated, logPhotoEntry, lookupBarcode, scaleItem, shrinkPhoto, totals, type EstItem, type Estimate, type FoodStatus, type Packaged } from '../lib/food';
+import { findBarcode, logEstimated, logPhotoEntry, lookupBarcode, scaleItem, shrinkPhoto, totals, type EstItem, type Packaged } from '../lib/food';
 import { fmt } from '../lib/carbs';
 import { Alert, Btn, Card, NumInput, Page, cx, inputCls, toast } from '../components/ui';
 import { uploadPhoto } from '../lib/supabase';
 import { Icon } from '../components/Icon';
 import { isEn, lang, t } from '../i18n';
 
-type Step = { s: 'pick' } | { s: 'working'; url: string; what: 'photo' | 'barcode' } | { s: 'estimate'; url: string; est: Estimate; scanId: string | null }
-  | { s: 'packaged'; url: string; p: Packaged } | { s: 'nofood'; url: string } | { s: 'manual'; url: string; file: File };
-
-/** The AI photo estimate is on hold: a photo is kept with the parents' own carb count, to re-estimate later. */
-const AI_ON = false;
-
-const ERR: Record<string, string> = { // i18n-ok: shown through t()
-  no_key: 'الميزة تحتاج مفتاح Anthropic في الإعدادات.', daily_limit: 'وصلتم لحد الصور اليومي. جرّبوا غدًا أو سجّلوا يدويًا.', // i18n-ok
-  refused: 'لم يتمكن التقدير من قراءة هذه الصورة.', unreadable: 'لم يتمكن التقدير من قراءة هذه الصورة.', bad_image: 'تعذّر قراءة الصورة.', // i18n-ok
-  busy: 'الخدمة مشغولة الآن. حاولوا بعد قليل.', bad_key: 'مفتاح Anthropic غير صالح. غيّروه من الإعدادات.', // i18n-ok
-};
+type Step = { s: 'pick' } | { s: 'working'; url: string } | { s: 'packaged'; url: string; p: Packaged } | { s: 'manual'; url: string; file: File };
 
 /**
- * صوّر الأكل: one photo. While the AI estimate is on hold (AI_ON), a photo without a barcode is saved with the
- * carbs the parents count themselves, and kept for reference. A barcode in it is looked up (Open Food Facts); otherwise the photo is estimated by AI.
- * The result is always an editable estimate: nothing is saved until the parents check it and tap save.
+ * صوّر الأكل: one photo. A barcode in it is looked up (Open Food Facts) and shown as an editable entry; any other
+ * photo is saved with the carbs the parents count themselves, and kept for reference. Nothing is saved until they
+ * check it and tap save.
  */
 export default function Scan() {
   const nav = useNavigate();
   const { reload, settings } = useData();
   const [step, setStep] = useState<Step>({ s: 'pick' });
-  const [note, setNote] = useState('');
-  const [status, setStatus] = useState<FoodStatus | null>(null);
   const [err, setErr] = useState('');
   const cam = useRef<HTMLInputElement>(null), gallery = useRef<HTMLInputElement>(null);
-  useEffect(() => { if (AI_ON) callFood<FoodStatus>({ action: 'status' }).then(setStatus).catch(() => setStatus(null)); }, []);
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
     setErr('');
     try {
       const photo = await shrinkPhoto(file);
-      setStep({ s: 'working', url: photo.url, what: 'barcode' });
+      setStep({ s: 'working', url: photo.url });
       const code = await findBarcode(file);
       if (code) {
         const p = await lookupBarcode(code, lang()).catch(() => null);
         if (p) return setStep({ s: 'packaged', url: photo.url, p });
       }
-      if (!AI_ON) return setStep({ s: 'manual', url: photo.url, file });
-      if (!status?.configured) { setErr(t(ERR.no_key)); return setStep({ s: 'pick' }); }
-      setStep({ s: 'working', url: photo.url, what: 'photo' });
-      const r = await callFood<{ estimate: Estimate; scan_id: string | null }>({ action: 'photo', image: photo.data, media_type: photo.media_type, note });
-      setStep(r.estimate.is_food ? { s: 'estimate', url: photo.url, est: r.estimate, scanId: r.scan_id } : { s: 'nofood', url: photo.url });
-      setStatus((x) => (x ? { ...x, used: x.used + 1 } : x));
+      setStep({ s: 'manual', url: photo.url, file });
     } catch (e) {
-      const code = (e as Error).message;
-      setErr(ERR[code] ? t(ERR[code]) : t('تعذّر التقدير: {e}', { e: code }));
+      setErr(t('تعذّر قراءة الصورة: {e}', { e: (e as Error).message }));
       setStep({ s: 'pick' });
     }
   };
 
-  const save = async (name: string, items: EstItem[], kind: 'meal' | 'snack', scanId: string | null, source: string) => {
+  const save = async (name: string, items: EstItem[], kind: 'meal' | 'snack', source: string) => {
     const tot = totals(items);
     if (tot.carbs > settings.max_meal_carbs && !confirm(t('هذه الوجبة {carbs}غ كارب وتتجاوز الحد ({max}غ). هل تريدون تسجيلها رغم ذلك؟', { carbs: fmt(tot.carbs), max: settings.max_meal_carbs }))) return;
     try {
-      await logEstimated({ name: name.trim() || t('وجبة مصوّرة'), kind, items, lang: lang(), notes: [source, note.trim()].filter(Boolean).join(' · '), scanId });
+      await logEstimated({ name: name.trim() || t('وجبة مصوّرة'), kind, items, lang: lang(), notes: source, scanId: null });
       await reload(); toast(t('تم التسجيل في السجل ✓')); nav('/');
     } catch (e) { toast(t('تعذّر التسجيل: {err}', { err: (e as Error).message })); }
   };
@@ -75,46 +56,27 @@ export default function Scan() {
 
       {step.s === 'pick' && (
         <div className="space-y-4">
-          {err && <Alert tone="over">{err} {err === t(ERR.no_key) && <Link to="/settings/advanced" className="underline">{t('إعدادات متقدمة')}</Link>}</Alert>}
+          {err && <Alert tone="over">{err}</Alert>}
           <button onClick={() => cam.current?.click()} className="flex min-h-[136px] w-full flex-col items-center justify-center gap-3 rounded-3xl bg-brand text-white active:opacity-90">
             <Icon name="camera" size={44} /><span className="text-xl font-bold">{t('التقاط صورة')}</span>
-            <span className="text-sm opacity-80">{AI_ON ? t('للأكل أو لباركود المنتج') : t('تُحفظ مع الكارب الذي تقدّرونه')}</span>
+            <span className="text-sm opacity-80">{t('تُحفظ مع الكارب الذي تقدّرونه')}</span>
           </button>
           <Btn block kind="ghost" onClick={() => gallery.current?.click()}>{t('اختيار من الصور')}</Btn>
-          {AI_ON && <label className="block space-y-1.5">
-            <span className="text-sm font-medium text-slate-600">{t('ملاحظة تساعد التقدير (اختياري)')}</span>
-            <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('مثلًا: شاي بملعقتين سكر، نصف الصحن')} />
-          </label>}
-          {!AI_ON && <Alert tone="info">{t('التقدير بالذكاء الاصطناعي متوقف حاليًا. صوّروا الأكل واكتبوا الكارب الذي تقدّرونه: تُحفظ الصورة مع التسجيل لنعيد تقدير الكارب لاحقًا إذا احتجنا. باركود المنتج ما زال يُقرأ.')}</Alert>}
-          {AI_ON && <p className="text-xs leading-relaxed text-slate-500">
-            {t('الصورة تُقدَّر بالذكاء الاصطناعي، والباركود يُقرأ من Open Food Facts. كل الأرقام تقدير تراجعونه قبل الحفظ.')}
-            {status && status.configured && <> {t('اليوم {n} من {max} صورة.', { n: status.used, max: status.limit })}</>}
-          </p>}
+          <p className="text-sm text-slate-600">{t('صوّروا الأكل واكتبوا الكارب الذي تقدّرونه: تُحفظ الصورة مع التسجيل. باركود المنتج يُقرأ تلقائيًا.')}</p>
         </div>
       )}
 
       {step.s === 'working' && (
         <div className="space-y-4 text-center">
           <img src={step.url} alt="" className="mx-auto max-h-[50vh] rounded-2xl object-contain" />
-          <p className="animate-pulse font-medium text-slate-600">{step.what === 'barcode' ? t('نبحث عن باركود…') : t('نقدّر ما في الصورة…')}</p>
-        </div>
-      )}
-
-      {step.s === 'nofood' && (
-        <div className="space-y-4">
-          <img src={step.url} alt="" className="max-h-[40vh] w-full rounded-2xl object-cover" />
-          <Alert tone="near">{t('لم نجد أكلًا أو شرابًا في الصورة.')}</Alert>
-          <Btn block kind="primary" onClick={() => setStep({ s: 'pick' })}>{t('صورة أخرى')}</Btn>
+          <p className="animate-pulse font-medium text-slate-600">{t('نبحث عن باركود…')}</p>
         </div>
       )}
 
       {step.s === 'manual' && <PhotoEntry url={step.url} file={step.file} onRetake={() => setStep({ s: 'pick' })} onDone={async () => { await reload(); nav('/'); }} />}
 
-      {step.s === 'estimate' && <EstimateReview url={step.url} est={step.est} onRetake={() => setStep({ s: 'pick' })}
-        onSave={(name, items, kind) => save(name, items, kind, step.scanId, t('تقدير من صورة'))} />}
-
       {step.s === 'packaged' && <PackagedReview url={step.url} p={step.p} onRetake={() => setStep({ s: 'pick' })}
-        onSave={(name, items, kind) => save(name, items, kind, null, t('من الباركود {code}', { code: step.p.code }))} />}
+        onSave={(name, items, kind) => save(name, items, kind, t('من الباركود {code}', { code: step.p.code }))} />}
     </Page>
   );
 }
@@ -161,27 +123,6 @@ function ReviewFooter({ items, name, setName, onSave, onRetake }: { items: EstIt
       </div>
       <Btn block kind="primary" className="min-h-[56px] text-lg" disabled={!items.length} onClick={() => onSave(kind)}>{t('سجّل {g} غ كارب', { g: fmt(tot.carbs) })}</Btn>
       <Btn block kind="ghost" onClick={onRetake}>{t('صورة أخرى')}</Btn>
-    </div>
-  );
-}
-
-function EstimateReview({ url, est, onSave, onRetake }: { url: string; est: Estimate; onSave: (name: string, items: EstItem[], kind: 'meal' | 'snack') => void; onRetake: () => void }) {
-  const [items, setItems] = useState<EstItem[]>(est.items);
-  const [name, setName] = useState(() => est.items.map((i) => (isEn() ? i.name_en : i.name_ar)).join(' + '));
-  const notes = isEn() ? est.notes_en : est.notes_ar;
-  const blank: EstItem = { name_ar: '', name_en: '', grams: 0, carbs_g: 0, protein_g: 0, fat_g: 0, kcal: 0, confidence: 'high', hidden_sugar: false };
-  return (
-    <div className="space-y-4">
-      <div className="flex items-start gap-3">
-        <img src={url} alt="" className="h-20 w-20 shrink-0 rounded-2xl object-cover" />
-        <Alert tone="info">{t('تقدير من صورة بالذكاء الاصطناعي. راجعوا الكميات والكارب قبل الحفظ.')}</Alert>
-      </div>
-      <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
-        {items.map((i, k) => <ItemRow key={k} item={i} onChange={(n) => setItems(items.map((x, j) => (j === k ? n : x)))} onRemove={() => setItems(items.filter((_, j) => j !== k))} />)}
-        <li><button onClick={() => setItems([...items, blank])} className="min-h-[48px] w-full px-4 text-start text-sm font-bold text-brand">{t('+ إضافة صنف')}</button></li>
-      </ul>
-      {notes && <p className="px-1 text-sm text-slate-600">{notes}</p>}
-      <ReviewFooter items={items} name={name} setName={setName} onSave={(kind) => onSave(name, items, kind)} onRetake={onRetake} />
     </div>
   );
 }

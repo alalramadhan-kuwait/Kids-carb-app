@@ -5,21 +5,20 @@ import { setAlarmSound, testAlarm, useAlarmSound } from '../components/Alarm';
 import { keepAwakeSupported, setKeepAwake, useKeepAwakePref } from '../lib/keepAwake';
 import { supabase, uploadPhoto } from '../lib/supabase';
 import { useData } from '../lib/data';
-import { computeSnack, fmt, problemText } from '../lib/carbs';
-import { deleteSnack, saveSettings, saveSnack } from '../lib/api';
+import { fmt, problemText } from '../lib/carbs';
+import { saveSettings } from '../lib/api';
 import { PRODUCT_CATEGORIES } from '../lib/constants';
 import { VersionTag } from '../components/Version';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../icons/defs';
 import { formatGlucose, toMgdl, unitLabel } from '../lib/glucose';
-import type { CategoryTarget, Settings, Snack, Unit } from '../lib/types';
-import { Alert, Badge, Btn, Card, CarbBadge, Field, NumInput, Page, Photo, Toggle, asset, cx, inputCls, snackArt, toast } from '../components/ui';
+import type { CategoryTarget, Settings, Unit } from '../lib/types';
+import { Alert, Badge, Btn, Card, CarbBadge, Field, NumInput, Page, Photo, Toggle, asset, cx, inputCls, toast } from '../components/ui';
 import { setFullModeNow, setSimpleMode } from '../lib/mom';
 import { setThemePref, themePref, type ThemePref } from '../lib/theme';
 import { isEn, t, tMaybe } from '../i18n';
 import { LangSwitch } from '../components/LangSwitch';
 import { PhonePush } from './Alerts';
-import { callFood, type FoodStatus } from '../lib/food';
 import { ratioOk, type Ratio } from '../engine/status';
 
 /** Puts values into a translated sentence as bold numbers: rich(t('… {a} …'), { a: 5 }). */
@@ -116,7 +115,7 @@ export function More() {
         {group(t('ليان'), <>
           {link('/alerts', 'bell', t('التنبيهات وماذا نفعل'), t('الحدود، الليل والمدرسة، من يصله التنبيه، وخطوات الطبيب'))}
           {link('/doctor', 'insulin', t('أرقام الطبيب'), t('نسبة الكارب، التصحيح، هدف الجرعة، خطوة القلم'))}
-          {link('/growth', 'heart', t('النمو والتغذية'), t('الوزن والطول، الطاقة، التوازن، وجدول أخصائية التغذية'))}
+          {link('/growth', 'heart', t('النمو والتغذية'), t('الوزن والطول، الطاقة، التوازن'))}
         </>)}
         {group(t('الأكل'), <>
           {link('/portions', 'meals', t('كميات ليان'), t('صحن ليان الصغير والكبير… لوضع ماما'))}
@@ -175,7 +174,7 @@ export function More() {
           <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between px-4 font-medium text-slate-600">{t('متقدم')}<span className="text-slate-300">{isEn() ? '›' : '‹'}</span></summary>
           <ul className="divide-y divide-slate-100 border-t border-slate-100">
             {link('/cgm', 'sensor', t('ربط الحساس'), t('LibreLinkUp لعرض السكر الحي'))}
-            {link('/settings/advanced', 'settings', t('إعدادات متقدمة'), t('نوع الحساس، مفتاح تقدير الصور'))}
+            {link('/settings/advanced', 'settings', t('إعدادات متقدمة'), t('نوع الحساس'))}
           </ul>
         </details>
         <footer className="space-y-1 pt-1 text-center text-xs text-slate-400 lg:col-span-2">
@@ -187,112 +186,7 @@ export function More() {
   );
 }
 
-// ── snacks ──────────────────────────────────────────────────────────────────
-export function SnacksPage() {
-  const nav = useNavigate();
-  const { snacks, products, settings, reload } = useData();
-  const [edit, setEdit] = useState<Partial<Snack> | null>(null);
-  const slots = [...new Set([...PRODUCT_CATEGORIES, ...products.map((p) => p.category)])];
-
-  const pickValue = edit ? (edit.product_id ? `prod:${edit.product_id}` : edit.slot_category ? `slot:${edit.slot_category}` : '') : '';
-  const save = async () => {
-    if (!edit?.name?.trim() || !edit.quantity || (!edit.product_id && !edit.slot_category)) return toast(t('اكتب الاسم والمنتج والكمية'));
-    try {
-      await saveSnack({ ...edit, name: edit.name.trim(), quantity: edit.quantity, unit: edit.unit ?? 'g', state: 'as_is', qty_confirmed: true });
-      await reload(); setEdit(null); toast(t('تم حفظ السناك ✓'));
-    } catch (e) { toast((e as Error).message); }
-  };
-
-  return (
-    <Page title={t('السناكات')} back={() => nav(-1)} action={<Btn kind="primary" onClick={() => setEdit({ unit: 'g' })}>{t('+ سناك')}</Btn>}>
-      {edit && (
-        <Card className="mb-4 space-y-3">
-          <Field label={t('الاسم')}><input className={inputCls} value={edit.name ?? ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field>
-          <Field label={t('المنتج')}>
-            <select className={inputCls} value={pickValue} onChange={(e) => {
-              const v = e.target.value;
-              setEdit({ ...edit, product_id: v.startsWith('prod:') ? v.slice(5) : null, slot_category: v.startsWith('slot:') ? v.slice(5) : null });
-            }}>
-              <option value="">{t('اختر…')}</option>
-              <optgroup label={t('أي منتج مسجّل من الفئة')}>{slots.map((s) => <option key={s} value={`slot:${s}`}>{tMaybe(s)}</option>)}</optgroup>
-              <optgroup label={t('منتج محدد')}>{products.map((p) => <option key={p.id} value={`prod:${p.id}`}>{p.name}{p.brand ? ` — ${p.brand}` : ''}</option>)}</optgroup>
-            </select>
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t('الكمية')}><NumInput value={edit.quantity} onChange={(v) => setEdit({ ...edit, quantity: v ?? undefined })} /></Field>
-            <Field label={t('الوحدة')}>
-              <select className={inputCls} value={edit.unit ?? 'g'} onChange={(e) => setEdit({ ...edit, unit: e.target.value as Unit })}>
-                <option value="g">{t('غرام')}</option><option value="ml">{t('مل')}</option><option value="serving">{t('حبة/حصة')}</option><option value="tbsp">{t('ملعقة كبيرة')}</option>
-              </select>
-            </Field>
-          </div>
-          <div className="flex items-center gap-3">
-            <Photo path={edit.image_path} category={edit.name} art={snackArt(edit.name)} className="h-16 w-16 rounded-xl" />
-            <label className="cursor-pointer rounded-xl bg-brand-soft px-4 py-2.5 font-medium text-brand">{t('صورة')}
-              <input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) try { setEdit({ ...edit, image_path: await uploadPhoto(f, 'snacks') }); } catch (er) { toast((er as Error).message); } }} />
-            </label>
-          </div>
-          <div className="grid grid-cols-2 gap-2"><Btn kind="primary" onClick={save}>{t('حفظ')}</Btn><Btn kind="ghost" onClick={() => setEdit(null)}>{t('إلغاء')}</Btn></div>
-        </Card>
-      )}
-      <div className="space-y-3">
-        {snacks.map((s) => {
-          const m = computeSnack(s, products, settings);
-          return (
-            <Card key={s.id} className="flex items-center gap-3 !p-3">
-              <Photo path={s.image_path} category={s.name} art={snackArt(s.name)} className="h-16 w-16 shrink-0 rounded-xl" />
-              <div className="min-w-0 flex-1">
-                <div className="font-bold">{s.name}</div>
-                <div className="truncate text-xs text-slate-500">{m.lines[0].product?.name ?? tMaybe(s.slot_category)} • <span className="num">{fmt(s.quantity)}</span> {s.unit === 'g' ? t('غ') : s.unit === 'ml' ? t('مل') : s.unit === 'tbsp' ? t('ملعقة') : t('حبة')}</div>
-                {m.lines[0].problem && <div className="text-xs font-medium text-brand">{problemText(m.lines[0].problem)}</div>}
-                {m.lines[0].product && !m.lines[0].product.approved && <Badge tone="near">{t('منتج غير معتمد')}</Badge>}
-              </div>
-              {m.complete && <CarbBadge carbs={m.total.carbs} level="normal" />}
-              <div className="flex flex-col gap-1">
-                <button className="text-sm text-brand" onClick={() => setEdit(s)}>{t('تعديل')}</button>
-                <button className="min-h-[44px] px-2 text-sm text-slate-500" onClick={async () => { if (confirm(t('حذف السناك؟'))) { await deleteSnack(s.id); await reload(); } }}>{t('حذف')}</button>
-              </div>
-            </Card>
-          );
-        })}
-      </div>
-    </Page>
-  );
-}
-
 // ── settings ────────────────────────────────────────────────────────────────
-/** The Anthropic key for photo estimates: write-only (kept in Vault by the server, never shown again). */
-function AiKeyCard() {
-  const [st, setSt] = useState<FoodStatus | null>(null);
-  const [key, setKey] = useState('');
-  const [busy, setBusy] = useState(false);
-  const load = () => callFood<FoodStatus>({ action: 'status' }).then(setSt).catch(() => setSt(null));
-  useEffect(() => { void load(); }, []);
-  const save = async () => {
-    setBusy(true);
-    try { await callFood({ action: 'save_key', key }); setKey(''); toast(t('تم حفظ المفتاح ✓')); await load(); }
-    catch (e) { toast((e as Error).message === 'bad_key' ? t('المفتاح غير صالح.') : t('تعذّر التحقق من المفتاح.')); }
-    finally { setBusy(false); }
-  };
-  return (
-    <Card className="space-y-3">
-      <h2 className="font-bold">{t('تقدير الأكل من الصور')}</h2>
-      <p className="text-sm text-slate-600">{t('يستخدم Claude من Anthropic. يحتاج مفتاح API من console.anthropic.com (الاستخدام مدفوع، بحد {n} صورة في اليوم). يُحفظ المفتاح مشفّرًا ولا يظهر مرة أخرى.', { n: st?.limit ?? 40 })}</p>
-      {st?.configured ? (
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-medium text-brand">{t('المفتاح محفوظ ✓')}</span>
-          <Btn kind="ghost" onClick={async () => { if (confirm(t('حذف المفتاح؟ يتوقف تقدير الصور.'))) { await callFood({ action: 'clear_key' }); await load(); } }}>{t('حذف المفتاح')}</Btn>
-        </div>
-      ) : (
-        <div className="flex gap-2">
-          <input className={inputCls} dir="ltr" type="password" autoComplete="off" placeholder="sk-ant-…" value={key} onChange={(e) => setKey(e.target.value)} />
-          <Btn kind="primary" disabled={!key || busy} onClick={save}>{t('حفظ')}</Btn>
-        </div>
-      )}
-    </Card>
-  );
-}
-
 export type SettingsPart = 'food' | 'doctor' | 'advanced';
 const PART_TITLE: Record<SettingsPart, string> = { food: 'إعدادات الأكل', doctor: 'أرقام الطبيب', advanced: 'متقدم' }; // i18n-ok
 /** Settings in three pages (food, the doctor's numbers, advanced), one form and one save underneath. */
@@ -449,7 +343,6 @@ export function SettingsPage({ part = 'food' }: { part?: SettingsPart }) {
         </Card>
         </>}
         {part === 'advanced' && <>
-        <AiKeyCard />
         </>}
 
         <Btn kind="primary" block disabled={bad} onClick={async () => {

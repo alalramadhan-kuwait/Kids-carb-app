@@ -5,7 +5,7 @@
 import { supabase } from './supabase';
 import type { HistoryEntry } from './types';
 
-export { matchDose, recalcRow, reviewDose, type DoseLink, type Recalc } from '../engine/doseReview';
+export { reviewDose, type DoseLink, type Recalc } from '../engine/doseReview';
 import { matchDose, recalcRow, type DoseLink, type EventLike, type PlanLike, type Recalc } from '../engine/doseReview';
 
 async function loadLinkInputs(h: HistoryEntry & { client_id?: string | null }) {

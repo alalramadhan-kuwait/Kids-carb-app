@@ -2,17 +2,16 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { blocker, suggest } from '../lib/suggest';
-import { computeSnack, problemText, type Problem } from '../lib/carbs';
+import { problemText, type Problem } from '../lib/carbs';
 import { sameDay } from '../lib/constants';
-import { Alert, Btn, Page, CarbBadge, Photo, cx, inputCls, snackArt, recipeArt, toast } from '../components/ui';
+import { Alert, Btn, Page, CarbBadge, Photo, cx, inputCls, recipeArt, toast } from '../components/ui';
 import { matches } from '../lib/search';
 import { logQuick, rankQuick, useQuickItems, type QuickItem } from '../lib/quick';
 import { ProductSheet } from '../components/ProductSheet';
-import { deleteHistory, saveSnack } from '../lib/api';
-import { uploadPhoto } from '../lib/supabase';
+import { deleteHistory } from '../lib/api';
 import { fmt } from '../lib/carbs';
-import type { Product, Snack } from '../lib/types';
-import { MealCard, useChoose } from '../components/meal';
+import type { Product } from '../lib/types';
+import { MealCard } from '../components/meal';
 import { PlannedSection } from '../components/Plans';
 import { Icon } from '../components/Icon';
 import { isEn, t, tMaybe } from '../i18n';
@@ -23,10 +22,9 @@ const SHUFFLE_KEY = 'kc-shuffle';
 const readShuffle = () => { try { const v = JSON.parse(localStorage.getItem(SHUFFLE_KEY) ?? 'null'); return v?.day === new Date().toDateString() ? Number(v.n) : 0; } catch { return 0; } };
 
 export default function Today() {
-  const { candidates, history, settings, snacks, products, recipes, reload } = useData();
+  const { candidates, history, settings, products, recipes, reload } = useData();
   const [q, setQ] = useState('');
   const [shuffle, setShuffle] = useState(readShuffle);
-  const { choose, busy } = useChoose();
   const today = new Date();
 
   const picks = useMemo(() => suggest({ candidates, history, settings, today: new Date(), shuffle }), [candidates, history, settings, shuffle]);
@@ -58,14 +56,14 @@ export default function Today() {
     <Page title={t('الوجبات')}>
       <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
         <Link to="/scan" className="flex shrink-0 items-center gap-1.5 rounded-full bg-brand px-4 py-2 text-sm font-bold text-white"><Icon name="camera" size={16} /> {t('صوّر الأكل')}</Link>
-        {[['/recipes', t('الوصفات')], ['/products', t('المنتجات')], ['/plan', t('قائمة الأسبوع')], ['/snacks', t('السناكات')]].map(([to, l]) => (
+        {[['/recipes', t('الوصفات')], ['/products', t('المنتجات')]].map(([to, l]) => (
           <Link key={to} to={to} className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-medium ring-1 ring-slate-200">{l}</Link>
         ))}
       </div>
 
       <PlannedSection />
       <input type="search" enterKeyHint="search" dir="auto" className={cx(inputCls, 'mb-4')} value={q} onChange={(e) => setQ(e.target.value)}
-        placeholder={t('ابحث: وصفة، سناك، منتج، أكل متكرر')} aria-label={t('بحث')} />
+        placeholder={t('ابحث: وصفة، منتج، أكل متكرر')} aria-label={t('بحث')} />
       {q.trim() ? <SearchResults q={q} /> : <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-8">
       <div>
       <h2 className="mb-2 text-lg font-bold">{t('اقتراحات اليوم')}</h2>
@@ -97,25 +95,6 @@ export default function Today() {
 
       </div>
       <div>
-      <h2 className="mb-2 mt-6 text-lg font-bold lg:mt-0">{t('السناكات')}</h2>
-      <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
-        {snacks.map((s) => {
-          const meal = computeSnack(s, products, settings);
-          return (
-            <li key={s.id} className="flex items-center gap-3 px-4 py-2.5">
-              <SnackPhoto s={s} onSaved={reload} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-bold">{s.name}</span>
-                <span className="mt-1 block"><CarbBadge carbs={meal.total.carbs} level="normal" size="sm" unknown={!meal.complete} /></span>
-              </span>
-              <Btn kind="soft" className={cx('min-h-[44px] shrink-0 !px-4', KIND_STYLE.meal.soft)} disabled={busy || !meal.complete}
-                onClick={() => choose({ kind: 'snack', recipe_id: null, name: s.name,
-                  category: 'سناك', // i18n-ok: stored category name
-                  meal, modified: false })}>{t('اخترناه')}</Btn>
-            </li>
-          );
-        })}
-      </ul>
       <QuickItemsSection />
       {recipes.length === 0 && <div className="mt-4"><Alert tone="info">{t('لا توجد وصفات بعد.')}</Alert></div>}
       </div>
@@ -125,31 +104,13 @@ export default function Today() {
 }
 
 /** A snack's picture; tapping it takes or picks a new photo and saves it with the snack. */
-function SnackPhoto({ s, onSaved }: { s: Snack; onSaved: () => Promise<void> }) {
-  const [busy, setBusy] = useState(false);
-  return (
-    <label className={cx('relative shrink-0 cursor-pointer', busy && 'opacity-50')} aria-label={t('صورة {name}', { name: s.name })}>
-      <Photo path={s.image_path} category={s.name} art={snackArt(s.name)} className="h-12 w-12 rounded-xl" />
-      <span className="absolute -bottom-1 -end-1 grid h-5 w-5 place-items-center rounded-full bg-white text-[11px] shadow ring-1 ring-slate-200" aria-hidden>📷</span>
-      <input type="file" accept="image/*" className="hidden" disabled={busy} onChange={async (e) => {
-        const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
-        setBusy(true);
-        try { await saveSnack({ ...s, image_path: await uploadPhoto(f, 'snacks') }); await onSaved(); toast(t('حُفظت الصورة ✓')); }
-        catch (er) { toast(t('تعذّر رفع الصورة: {err}', { err: (er as Error).message })); } finally { setBusy(false); }
-      }} />
-    </label>
-  );
-}
-
-/** One search over recipes, snacks, products and frequent foods, each with its picture, carbs and its own action. */
+/** One search over recipes, products and frequent foods, each with its picture, carbs and its own action. */
 function SearchResults({ q }: { q: string }) {
-  const { recipes, snacks, products, candidates, settings, history, reload } = useData();
+  const { recipes, products, candidates, settings, history, reload } = useData();
   const quick = useQuickItems();
-  const { choose, busy } = useChoose();
   const [picked, setPicked] = useState<Product | null>(null);
   const recipeCarbs = useMemo(() => new Map(candidates.map((c) => [c.recipe.id, c.meal])), [candidates]);
   const r = recipes.filter((x) => matches([x.name, x.category], q)).slice(0, 15);
-  const sn = snacks.filter((x) => matches([x.name], q)).slice(0, 15);
   const pr = products.filter((x) => matches([x.name, x.brand, x.category], q)).slice(0, 25);
   const qi = rankQuick(quick.items, history).filter((x) => matches([x.name, x.brand], q)).slice(0, 15);
   const logQ = async (x: QuickItem) => {
@@ -163,7 +124,7 @@ function SearchResults({ q }: { q: string }) {
     <section className="mb-4"><h2 className="mb-1.5 text-sm font-bold text-slate-600">{title} <span className="font-normal text-slate-400">{n}</span></h2>
       <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">{body}</ul></section>
   );
-  const none = !r.length && !sn.length && !pr.length && !qi.length;
+  const none = !r.length && !pr.length && !qi.length;
   return (
     <div>
       {none && <Alert tone="info">{t('لا توجد نتائج. أضيفوا منتجًا جديدًا من «المنتجات».')}</Alert>}
@@ -173,17 +134,6 @@ function SearchResults({ q }: { q: string }) {
           <Btn kind="soft" className={cx('min-h-[44px] shrink-0 !px-4', KIND_STYLE.meal.soft)} onClick={() => logQ(x)}>{t('سجّل')}</Btn>
         </li>
       )))}
-      {section(t('السناكات'), sn.length, sn.map((x) => {
-        const meal = computeSnack(x, products, settings);
-        return (
-          <li key={x.id} className={row}>
-            <Photo path={x.image_path} category={x.name} art={snackArt(x.name)} className="h-12 w-12 shrink-0 rounded-xl" />
-            <span className="min-w-0 flex-1"><span className="block truncate font-bold">{x.name}</span><CarbBadge carbs={meal.total.carbs} level="normal" size="sm" unknown={!meal.complete} /></span>
-            <Btn kind="soft" className={cx('min-h-[44px] shrink-0 !px-4', KIND_STYLE.meal.soft)} disabled={busy || !meal.complete}
-              onClick={() => choose({ kind: 'snack', recipe_id: null, name: x.name, category: 'سناك', /* i18n-ok: stored category name */ meal, modified: false })}>{t('اخترناه')}</Btn>
-          </li>
-        );
-      }))}
       {section(t('الوصفات'), r.length, r.map((x) => {
         const meal = recipeCarbs.get(x.id);
         return (

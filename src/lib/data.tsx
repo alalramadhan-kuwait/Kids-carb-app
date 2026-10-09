@@ -4,7 +4,7 @@ import { computeMeal } from './carbs';
 import { candidatesOf, type Candidate } from './suggest';
 import { t } from '../i18n';
 import {
-  DEFAULT_SETTINGS, type EventRow, type HistoryEntry, type Ingredient, type Member, type PlanRow, type Product, type Recipe, type Settings, type Snack,
+  DEFAULT_SETTINGS, type EventRow, type HistoryEntry, type Ingredient, type Member, type Product, type Recipe, type Settings,
 } from './types';
 
 interface Data {
@@ -13,11 +13,9 @@ interface Data {
   settings: Settings;
   products: Product[];
   recipes: Recipe[];
-  snacks: Snack[];
   history: HistoryEntry[];
   /** meals saved with their dose whose eaten amount is not confirmed yet: shown in the Logs, counted nowhere */
   pendingMeals: HistoryEntry[];
-  plan: PlanRow[];
   events: EventRow[];
   members: Member[];
   me: string | null;
@@ -58,7 +56,7 @@ const splitMeals = (all: HistoryEntry[]) => ({ history: all.filter((h) => h.inta
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Omit<Data, 'reload' | 'ingsByRecipe' | 'candidates' | 'nameOf'>>({
-    loading: true, error: null, settings: DEFAULT_SETTINGS, products: [], recipes: [], snacks: [], history: [], pendingMeals: [], plan: [],
+    loading: true, error: null, settings: DEFAULT_SETTINGS, products: [], recipes: [], history: [], pendingMeals: [],
     events: [], members: [], me: null,
   });
   const [ings, setIngs] = useState<Ingredient[]>([]);
@@ -66,15 +64,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const reload = useCallback(async () => {
     const q = (t: string) => supabase.from(t).select('*');
     const since = new Date(Date.now() - 60 * 86400000).toISOString();
-    const [s, p, r, i, sn, h, pl, ev, mem, au] = await Promise.all([
+    const [s, p, r, i, h, ev, mem, au] = await Promise.all([
       q('settings').maybeSingle(), q('products').order('name'), q('recipes').order('created_at'),
-      q('recipe_ingredients').order('sort'), q('snacks').order('created_at'),
-      q('meal_history').is('deleted_at', null).order('eaten_at', { ascending: false }).limit(1000), q('meal_plan').order('plan_date'),
+      q('recipe_ingredients').order('sort'),
+      q('meal_history').is('deleted_at', null).order('eaten_at', { ascending: false }).limit(1000),
       supabase.from('events').select('*').is('deleted_at', null).gte('occurred_at', since).order('occurred_at', { ascending: false }).limit(1000),
       supabase.from('members').select('user_id,display_name,alert_role,simple_mode,activity_push'),
       supabase.auth.getUser(),
     ]);
-    const err = [s, p, r, i, sn, h, pl, ev, mem].find((x) => x.error)?.error;
+    const err = [s, p, r, i, h, ev, mem].find((x) => x.error)?.error;
     if (err) { setState((x) => ({ ...x, loading: false, error: err.message })); return; }
     setIngs((i.data ?? []).map(fixIng));
     setState({
@@ -86,9 +84,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         alert_rapid_rate: num((s.data as any).alert_rapid_rate), alert_fall_rate: num((s.data as any).alert_fall_rate), alert_rise_rate: num((s.data as any).alert_rise_rate), pen_step: Number((s.data as any).pen_step ?? 1) } : DEFAULT_SETTINGS,
       products: (p.data ?? []).map(fixProduct),
       recipes: (r.data ?? []).map((x: any) => ({ ...x, saved_total_carbs: num(x.saved_total_carbs) })),
-      snacks: (sn.data ?? []).map((x: any) => ({ ...x, quantity: Number(x.quantity) })),
       ...splitMeals((h.data ?? []).map(fixHist)),
-      plan: pl.data ?? [],
       events: (ev.data ?? []).map((e: any) => ({ ...e, insulin_units: num(e.insulin_units), carbs_g: num(e.carbs_g) })),
       members: (mem.data ?? []) as Member[],
       me: au.data.user?.id ?? null,
@@ -147,10 +143,4 @@ export function DataProvider({ children }: { children: ReactNode }) {
   );
 
   return <Ctx.Provider value={{ ...state, ingsByRecipe, candidates, reload, nameOf }}>{children}</Ctx.Provider>;
-}
-
-/** Look at one recipe with today's products. */
-export function useMeal(ings: Ingredient[]) {
-  const { products, settings } = useData();
-  return useMemo(() => computeMeal(ings, products, settings), [ings, products, settings]);
 }

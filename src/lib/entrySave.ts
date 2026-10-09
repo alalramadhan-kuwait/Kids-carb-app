@@ -51,15 +51,3 @@ export async function setEntryTime(it: { e?: EventRow; h?: HistoryEntry }, at: n
     : await supabase.from('events').update({ occurred_at: iso, ...stamp, ...(it.e!.ends_at ? { ends_at: new Date(Date.parse(it.e!.ends_at) + at - Date.parse(it.e!.occurred_at)).toISOString() } : {}) }).eq('id', it.e!.id);
   if (r.error) throw new Error(r.error.message);
 }
-
-/** A meal given another name (breakfast, lunch…), recorded as an edit. */
-export async function setMealName(id: string, name: string, me: string | null) {
-  const r = await supabase.from('meal_history').update({ name: name.trim(), edited_by: me, edited_at: new Date().toISOString() }).eq('id', id);
-  if (r.error) throw new Error(r.error.message);
-}
-
-export async function setEntryNote(it: { e?: EventRow; h?: HistoryEntry }, note: string, me: string | null) {
-  const v = note.trim() || null, stamp = { edited_by: me, edited_at: new Date().toISOString() };
-  const r = it.h ? await supabase.from('meal_history').update({ notes: v, ...stamp }).eq('id', it.h.id) : await supabase.from('events').update({ note: v, ...stamp }).eq('id', it.e!.id);
-  if (r.error) throw new Error(r.error.message);
-}

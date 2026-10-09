@@ -7,20 +7,6 @@ import { offToPackaged, totals, type EstItem, type Packaged } from './foodcalc';
 
 export * from './foodcalc';
 
-export interface FoodStatus { configured: boolean; used: number; limit: number }
-
-export async function callFood<T>(body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke('carb-food', { body });
-  if (data && (data as { error?: string }).error) throw new Error((data as { error: string }).error);
-  if (error) {
-    // a non-2xx reply still carries the function's own error code in its body
-    const ctx = (error as { context?: Response }).context;
-    const code = ctx ? await ctx.json().then((j: { error?: string }) => j.error).catch(() => null) : null;
-    throw new Error(code ?? error.message);
-  }
-  return data as T;
-}
-
 // ── barcodes ──
 export async function lookupBarcode(code: string, lang: 'ar' | 'en'): Promise<Packaged | null> {
   const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}?fields=product_name,product_name_ar,product_name_en,brands,nutriments,serving_quantity`);

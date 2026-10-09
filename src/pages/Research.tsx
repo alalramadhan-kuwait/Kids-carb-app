@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { runLabNow, slotOf, useLab, type ModelRow, type RunRow, type UnexplainedRow } from '../lib/lab';
 import { formatGlucose, unitLabel, type GlucoseUnit } from '../lib/glucose';
@@ -240,7 +239,3 @@ const Fact = ({ label, value }: { label: string; value: string }) => (
   <div className="flex justify-between gap-3 text-sm"><span className="text-slate-600">{label}</span><b className="num">{value}</b></div>
 );
 
-/** The old address opens the lab inside التحليل. */
-export default function Research() {
-  return <Navigate to="/analysis?mode=lab" replace />;
-}

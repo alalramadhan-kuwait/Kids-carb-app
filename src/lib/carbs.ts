@@ -1,5 +1,5 @@
 import { t } from '../i18n';
-import type { Ingredient, Product, Role, Settings, Snack, State, Unit } from './types';
+import type { Ingredient, Product, Role, Settings, State, Unit } from './types';
 
 /**
  * The carb engine. One rule runs through all of it: never guess. If a number
@@ -169,10 +169,6 @@ export function computeMeal<T extends Computable>(
   const complete = lines.length > 0 && lines.every((l) => l.carbs !== null);
   const nutritionPartial = Object.values(missing).some(Boolean);
   return { lines, complete, total, nutritionPartial, missing, micro, byRole, level: levelFor(total.carbs, settings) };
-}
-
-export function computeSnack(s: Snack, products: Product[], settings: Settings) {
-  return computeMeal([{ ...s, role: 'snack' as Role }], products, settings);
 }
 
 export const fmt = (n: number | null | undefined): string =>

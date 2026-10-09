@@ -78,7 +78,7 @@ export const growth: Record<string, string> = {
   "الوزن أقل مما كان قبل شهرين أو أكثر بـ 3% أو أكثر.": "Weight is 3% or more lower than 2 or more months ago.",
   "الوزن للعمر": "Weight-for-age",
   "الوزن نقص": "Weight down",
-  "الوزن والطول، الطاقة، التوازن، وجدول أخصائية التغذية": "Weight and height, energy, balance, and the dietitian sheet",
+  "الوزن والطول، الطاقة، التوازن": "Weight and height, energy, balance",
   "اليوم حتى الآن.": "Today so far.",
   "بداية السجل: يُحكم على مسار النمو بعد قياسين بينهما 3 أشهر على الأقل. التغيرات القصيرة تُعرض فقط.": "Establishing a baseline: the growth trajectory is judged once two measurements are at least 3 months apart. Short-term changes are only shown.",
   "بروتين (لحم، دجاج، بيض)": "Protein foods (meat, chicken, eggs)",

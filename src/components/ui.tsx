@@ -188,8 +188,6 @@ export function CarbBadge({ carbs, level, size = 'md', unknown }: { carbs: numbe
   );
 }
 
-export const levelText = (l: Level) => LEVEL[l].text;
-
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block">
