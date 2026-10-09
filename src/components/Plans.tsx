@@ -6,7 +6,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { mealChangeDose } from '../engine/dose';
-import { approveDose, ate, deletePlan, planMeal, savePlan, setDoseTime, skipPlan, topUpDose, treatFromPlan, usePlanHistory, usePlans } from '../lib/plans';
+import { adoptDose, approveDose, ate, deletePlan, planMeal, savePlan, setDoseTime, skipPlan, topUpDose, treatFromPlan, usePlanHistory, usePlans, type DoseConflict } from '../lib/plans';
+import { useSubmitId } from '../lib/useSubmitId';
+import { SameDose } from './SameDose';
 import { useLiveDose } from '../lib/useLiveDose';
 import { eatAt, expectedDose, isFastDrink, phase, planAlerts, remindAt, upcoming, type PlanAlert, type Phase, type Slot } from '../engine/mealPlan';
 import { fmt } from '../lib/carbs';
@@ -272,6 +274,20 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
     catch (e) { const m = (e as Error).message; toast(m === 'incomplete' ? t('لا يمكن التسجيل: الكارب غير مكتمل') : m === 'already_eaten' ? t('هذه الوجبة مسجّلة من قبل') : m); if (m === 'already_eaten') onClose(); }
     finally { setBusy(false); }
   };
+  // the dose: one submission id kept across retries; a dose already recorded is shown, never saved over
+  const [cid] = useSubmitId();
+  // a low treated twice is two treatments: a new id after each one is saved
+  const [tid, nextTid] = useSubmitId();
+  const [conflict, setConflict] = useState<(DoseConflict & { mine?: boolean }) | null>(null);
+  const give = (separate: boolean) => {
+    return run(async () => {
+      const res = await approveDose(plan, { given: units ?? r.dose, calc: r.dose, reason: (units ?? r.dose) !== r.dose ? reason : null, purpose: live.purpose, snapshot: snapshot(), carbs: meal.total.carbs }, cid, separate);
+      if (res.status === 'already_dosed' || res.status === 'recent_dose') { setConflict({ ...res.event, mine: res.status === 'already_dosed' }); throw new Error(t('في إبرة مسجّلة')); }
+      if (res.status !== 'ok') throw new Error(t('الوجبة ما عادت موجودة'));
+      setConflict(null);
+    }, t('سُجّلت الجرعة · الأكل بعد {m} د', { m: plan.eat_after_min }));
+  };
+  const sameDose = () => conflict && run(async () => { if (!conflict.mine) await adoptDose(plan.id, conflict); setConflict(null); }, t('ما تسجّلت: الإبرة مسجّلة من قبل'), true);
   const dosed = plan.status === 'dosed', eatTime = eatAt(plan);
   const treatFirst = r.block === 'low' || r.block === 'falling';
 
@@ -308,15 +324,16 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
       {!dosed && treatFirst && (
         <div className="space-y-2">
           {drinks.map(({ i, l }) => (
-            <Btn key={i} kind="primary" block disabled={busy} onClick={() => run(() => treatFromPlan(plan, { grams: l.carbs ?? 0, name: itemName(plan.items[i], products), itemIndex: i }), t('سُجّل علاج الانخفاض · أعيدوا القياس بعد 15 د'))}>
+            <Btn key={i} kind="primary" block disabled={busy} onClick={() => run(() => treatFromPlan(plan, { grams: l.carbs ?? 0, name: itemName(plan.items[i], products), itemIndex: i }, 15, tid).then(nextTid), t('سُجّل علاج الانخفاض · أعيدوا القياس بعد 15 د'))}>
               {t('علاج بـ {x} من الخطة ({g} غ)', { x: itemName(plan.items[i], products), g: fmt(Math.round((l.carbs ?? 0) * 10) / 10) })}
             </Btn>
           ))}
-          <Btn block disabled={busy} onClick={() => run(() => treatFromPlan(plan, { grams: 15, name: t('عصير') }), t('سُجّل علاج الانخفاض · أعيدوا القياس بعد 15 د'))}>{t('علاج آخر: 15 غ')}</Btn>
+          <Btn block disabled={busy} onClick={() => run(() => treatFromPlan(plan, { grams: 15, name: t('عصير') }, 15, tid).then(nextTid), t('سُجّل علاج الانخفاض · أعيدوا القياس بعد 15 د'))}>{t('علاج آخر: 15 غ')}</Btn>
         </div>
       )}
 
       {/* the dose: the calculator's (doctor's numbers), the parent can change it */}
+      {conflict && (dosed || r.block) && <SameDose dose={{ ...conflict, type: 'rapid' }} busy={busy} onSame={() => void sameDose()} onSeparate={() => void give(true)} />}
       {!dosed && !r.block && (
         <div className="space-y-2 rounded-2xl bg-slate-50 p-3">
           <div className="text-sm text-slate-600">
@@ -337,8 +354,9 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
           {(units ?? r.dose) !== r.dose && (
             <input className={inputCls} dir="auto" maxLength={200} placeholder={t('لماذا تختلف؟ (اختياري)')} value={reason} onChange={(e) => setReason(e.target.value)} aria-label={t('لماذا تختلف؟ (اختياري)')} />
           )}
-          {(units ?? r.dose) > 0 && (
-            <Btn kind="primary" block disabled={busy} onClick={() => run(() => approveDose(plan, { given: units ?? r.dose, calc: r.dose, reason: (units ?? r.dose) !== r.dose ? reason : null, purpose: live.purpose, snapshot: snapshot(), carbs: meal.total.carbs }), t('سُجّلت الجرعة · الأكل بعد {m} د', { m: plan.eat_after_min }))}>
+          {conflict && <SameDose dose={{ ...conflict, type: 'rapid' }} busy={busy} onSame={() => void sameDose()} onSeparate={() => void give(true)} />}
+          {(units ?? r.dose) > 0 && !conflict && (
+            <Btn kind="primary" block disabled={busy} onClick={() => void give(false)}>
               {t('أعطِ {u} وحدة الآن · الأكل {time}', { u: fmt(units ?? r.dose), time: clock(Date.now() + plan.eat_after_min * MIN) })}
             </Btn>
           )}
@@ -378,6 +396,7 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
 function MealChange({ plan, carbs, complete, ratio }: { plan: PlannedMeal; carbs: number; complete: boolean; ratio: number | null }) {
   const { settings, reload } = useData();
   const [busy, setBusy] = useState(false);
+  const [cid, nextCid] = useSubmitId();
   const was = plan.carbs_planned ?? plan.dose_snapshot?.carbs ?? null;
   const cr = plan.dose_snapshot?.cr ?? ratio;
   if (was === null || !cr || !complete || Math.abs(carbs - was) < 1) return null;
@@ -391,7 +410,7 @@ function MealChange({ plan, carbs, complete, ratio }: { plan: PlannedMeal; carbs
       {c.diff > 0 ? (c.extra > 0 ? (
         <Btn kind="primary" block disabled={busy} onClick={async () => {
           setBusy(true);
-          try { await topUpDose(plan, { given: c.extra, calc: c.extra, carbs }); await reload(); toast(t('سُجّلت {u} وحدة إضافية', { u: fmt(c.extra) })); } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
+          try { await topUpDose(plan, { given: c.extra, calc: c.extra, carbs }, cid); nextCid(); await reload(); toast(t('سُجّلت {u} وحدة إضافية', { u: fmt(c.extra) })); } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
         }}>{t('أعطِ {u} وحدة إضافية الآن', { u: fmt(c.extra) })}</Btn>
       ) : <p className="text-slate-600">{t('أقل من خطوة القلم ({s} و): لا جرعة إضافية', { s: fmt(step) })}</p>)
         : <p className="font-medium text-near">{t('الجرعة المعطاة أكثر من الوجبة الجديدة بحوالي {u} وحدة. راقبوا السكر، قد ينزل.', { u: r1(c.over).toFixed(1) })}</p>}

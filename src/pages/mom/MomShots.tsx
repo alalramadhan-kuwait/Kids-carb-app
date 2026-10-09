@@ -5,7 +5,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { useSensor } from '../../lib/mom';
-import { saveEvent, setInjectionSite } from '../../lib/api';
+import { insulinNear, saveEvent, setInjectionSite } from '../../lib/api';
+import { useSubmitId } from '../../lib/useSubmitId';
+import { SameDose } from '../../components/SameDose';
+import { TimePicker } from '../../components/TimePicker';
+import type { EventRow } from '../../lib/types';
 import { usualLowTreatments } from '../../lib/lowUsual';
 import { SITES, nextRapidAllowed, siteCounts, siteSuggestion, type Shot } from '../../engine/mom';
 import { fmt } from '../../lib/carbs';
@@ -53,11 +57,12 @@ export function MomJuice() {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const x = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(x); }, []);
   const min = settings.treat_recheck_min ?? 15;
+  const [cid] = useSubmitId(); // one juice per visit to this page, however many times the button is pressed
   const give = async () => {
     const u = usual[sel] ?? { name: 'عصير', carbs: 15 }; // i18n-ok: stored value
     setBusy(true);
     try {
-      await saveEvent({ client_id: crypto.randomUUID(), kind: 'treatment', occurred_at: new Date().toISOString(), carbs_g: u.carbs, treatment: u.name,
+      await saveEvent({ client_id: cid, kind: 'treatment', occurred_at: new Date().toISOString(), carbs_g: u.carbs, treatment: u.name,
         insulin_units: null, insulin_type: null, bolus_purpose: null, note: null, activity_min: null, activity_level: null, ends_at: null, dose_calc: null, bg_mgdl: null });
       await reload(); setDoneAt(Date.now());
     } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
@@ -103,6 +108,8 @@ export function MomShot() {
       <Card type="rapid" sub={lr ? t('آخر وحدة {u} · {when}', { u: lr.insulin_units ?? 0, when: ago(Date.parse(lr.occurred_at)) }) : t('السريعة')}
         off={nextAt ? t('لا نوفورابيد قبل الساعة {c}', { c: clock(nextAt) }) : null} onClick={() => nav(`/mom/site?type=rapid&next=${encodeURIComponent('/mom/dose?correction=1')}`)} />
       <Card type="long" sub={longToday ? t('انعطت {when} · {u} وحدة', { when: ago(Date.parse(ll!.occurred_at)), u: ll!.insulin_units ?? 0 }) : t('ما انعطت اليوم')} onClick={() => nav(longToday ? '/mom/tresiba' : `/mom/site?type=long&next=${encodeURIComponent('/mom/tresiba')}`)} />
+      {/* a dose someone already gave (school, Dad, earlier): recorded as it happened, no calculation */}
+      <button onClick={() => nav('/mom/record')} className="mt-2 flex min-h-[64px] w-full items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-slate-300 bg-white text-[18px] font-bold text-slate-700">📝 {t('إبرة انعطت؟ سجّليها')}</button>
     </MomPage>
   );
 }
@@ -118,10 +125,11 @@ export function MomTresiba() {
   // Tresiba is once a day: given in the last 20 hours stops here, and going on needs a second, deliberate tap
   const again = sp.get('again') === '1';
   const recent = last && Date.now() - Date.parse(last.occurred_at) < 20 * 3600000;
+  const [cid] = useSubmitId();
   const save = async () => {
     setBusy(true);
     try {
-      await saveEvent({ client_id: crypto.randomUUID(), kind: 'insulin', occurred_at: new Date().toISOString(), insulin_units: u, insulin_type: 'long', bolus_purpose: null,
+      await saveEvent({ client_id: cid, kind: 'insulin', occurred_at: new Date().toISOString(), insulin_units: u, insulin_type: 'long', bolus_purpose: null,
         carbs_g: null, treatment: null, note: null, activity_min: null, activity_level: null, ends_at: null, dose_calc: null, bg_mgdl: null, injection_site: site });
       await reload();
       toast(t('تم تسجيل الإبرة ✓'));
@@ -151,6 +159,63 @@ export function MomTresiba() {
       </div>
       <p className="text-center text-[18px]">{t('وحدة')}</p>
       <SiteRow type="long" site={site} suggest={suggest} />
+    </MomPage>
+  );
+}
+
+/** A dose that was already given, recorded as it happened: which pen, how many units, when. It is a record, not
+ *  advice: nothing is calculated, and the doctor's rules for a new dose are unchanged (they now count this one). */
+export function MomRecordDose() {
+  const nav = useNavigate();
+  const [sp] = useSearchParams();
+  const { settings, reload } = useData();
+  const [type, setType] = useState<'rapid' | 'long'>(sp.get('type') === 'long' ? 'long' : 'rapid');
+  const [units, setUnits] = useState(0);
+  const [at, setAt] = useState(() => Date.now());
+  const [busy, setBusy] = useState(false);
+  const [cid] = useSubmitId();
+  const [clash, setClash] = useState<EventRow | null>(null);
+  const step = type === 'rapid' ? settings.pen_step ?? 1 : 1;
+  const save = async (separate = false) => {
+    if (units <= 0) return;
+    setBusy(true);
+    try {
+      // the same dose already recorded (the other parent, a moment ago)? Shown first, never dropped or merged by itself
+      if (!separate) {
+        const near = (await insulinNear(type, at, type === 'long' ? 20 * 60 : 15)).filter((e) => e.client_id !== cid); // not this submission's own retry
+        if (near.length) { setClash(near[0]); setBusy(false); return; }
+      }
+      await saveEvent({ client_id: cid, kind: 'insulin', occurred_at: new Date(at).toISOString(), insulin_units: units, insulin_type: type, bolus_purpose: null,
+        carbs_g: null, treatment: null, note: null, activity_min: null, activity_level: null, ends_at: null, dose_calc: null, bg_mgdl: null });
+      await reload();
+      toast(t('تم تسجيل الإبرة ✓'));
+      nav('/mom', { replace: true });
+    } catch (e) { toast((e as Error).message); setBusy(false); }
+  };
+  if (clash) return (
+    <MomPage title={t('سجّلي إبرة انعطت')} back="/mom/shot">
+      <SameDose big dose={{ units: clash.insulin_units ?? 0, at: clash.occurred_at, by: clash.created_by, type }} busy={busy}
+        onSame={() => { toast(t('ما تسجّلت: الإبرة مسجّلة من قبل')); nav('/mom', { replace: true }); }} onSeparate={() => { setClash(null); void save(true); }} />
+    </MomPage>
+  );
+  return (
+    <MomPage title={t('سجّلي إبرة انعطت')} back="/mom/shot" foot={<Big disabled={busy || units <= 0} onClick={() => save()}>📝 {t('سجّلي')}</Big>}>
+      <p className="text-center text-[16px] text-slate-500">{t('تسجيل فقط · ما يحسب جرعة')}</p>
+      <div className="grid grid-cols-2 gap-2">
+        {(['rapid', 'long'] as const).map((k) => (
+          <button key={k} onClick={() => { setType(k); setUnits(0); }} className={cx('flex min-h-[64px] items-center justify-center gap-2 rounded-3xl border-[3px] text-[20px] font-bold', type === k ? 'bg-white' : 'border-transparent bg-white/60 opacity-70')} style={{ borderColor: type === k ? PEN[k] : undefined }}>
+            <span className="h-8 w-2.5 rounded-full" style={{ background: PEN[k] }} />{t(PEN_NAME[k])}
+          </button>
+        ))}
+      </div>
+      <div className="text-center text-[17px] font-bold">{t('كم وحدة انعطت؟')}</div>
+      <div className="flex items-center justify-center gap-6">
+        <button aria-label="+" className="grid h-16 w-16 place-items-center rounded-full bg-brand-soft text-4xl font-bold text-brand" onClick={() => setUnits(Math.round((units + step) * 10) / 10)}>+</button>
+        <span className="num w-20 text-center text-[56px] font-extrabold">{units ? fmt(units) : '—'}</span>
+        <button aria-label="−" className="grid h-16 w-16 place-items-center rounded-full bg-brand-soft text-4xl font-bold text-brand" onClick={() => setUnits(Math.max(0, Math.round((units - step) * 10) / 10))}>−</button>
+      </div>
+      <div className="text-center text-[17px] font-bold">{t('متى انعطت؟')}</div>
+      <TimePicker value={at} onChange={setAt} />
     </MomPage>
   );
 }

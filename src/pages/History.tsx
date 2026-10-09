@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { isFatty } from '../engine/iob';
 import { fmt, stateText, unitText } from '../lib/carbs';
-import { deleteEvent, deleteHistory, restoreEvent } from '../lib/api';
+import { deleteEvent, deleteHistory, restoreEvent, restoreHistory } from '../lib/api';
 import { EVENT_ICON, describeEvent } from '../lib/events';
 import type { EventRow, HistoryEntry } from '../lib/types';
 import type { IconName } from '../icons/defs';
@@ -101,7 +101,11 @@ export default function History() {
     if (it.e) {
       await deleteEvent(it.e.id, me); await reload();
       toast(t('حُذف التسجيل'), { label: t('تراجع'), run: async () => { await restoreEvent(it.e!.id); await reload(); } });
-    } else if (it.h && confirm(t('حذف هذا التسجيل من السجل؟'))) { await deleteHistory(it.h.id); await reload(); toast(t('تم الحذف')); }
+    } else if (it.h && confirm(t('حذف هذا التسجيل من السجل؟'))) {
+      // kept and marked, not erased: Undo here, or later from More › Recently deleted
+      await deleteHistory(it.h.id, me); await reload();
+      toast(t('حُذف التسجيل'), { label: t('تراجع'), run: async () => { await restoreHistory(it.h!.id); await reload(); } });
+    }
   };
 
   // how many less-used filters are away from their default (shown on the Filter button)

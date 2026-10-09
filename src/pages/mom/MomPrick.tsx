@@ -9,6 +9,7 @@ import { effectiveRange, formatGlucose, toMgdl, unitLabel } from '../../lib/gluc
 import { inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import { Big, MomPage } from './MomUI';
+import { useSubmitId } from '../../lib/useSubmitId';
 
 export function MomPrick() {
   const nav = useNavigate();
@@ -16,6 +17,7 @@ export function MomPrick() {
   const unit = settings.glucose_unit;
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [cid] = useSubmitId(); // a retry on a weak connection saves the reading once
   const v = Number(text.replace(',', '.'));
   const mg = Number.isFinite(v) && text.trim() !== '' ? toMgdl(v, unit) : null;
   const ok = mg !== null && mg >= 20 && mg <= 600;
@@ -25,7 +27,7 @@ export function MomPrick() {
     setBusy(true);
     try {
       const at = new Date().toISOString();
-      const id = await saveEvent({ client_id: crypto.randomUUID(), kind: 'bg_check', occurred_at: at, bg_mgdl: mg, insulin_units: null, insulin_type: null, bolus_purpose: null,
+      const id = await saveEvent({ client_id: cid, kind: 'bg_check', occurred_at: at, bg_mgdl: mg, insulin_units: null, insulin_type: null, bolus_purpose: null,
         carbs_g: null, treatment: null, note: null, activity_min: null, activity_level: null, ends_at: null, dose_calc: null });
       if (id) await startComparison(id, Date.parse(at), mg, 0, true);
       await reload();

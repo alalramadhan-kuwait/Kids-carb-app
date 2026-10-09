@@ -6,8 +6,10 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { useLiveDose } from '../../lib/useLiveDose';
 import { draftOps, useDraft } from '../../lib/mom';
-import { approveDose, ate, fetchPlan, planMeal, planNow, startEating, usePlans } from '../../lib/plans';
-import { logMeal, saveEvent, setInjectionSite } from '../../lib/api';
+import { adoptDose, approveDose, ate, planMeal, planNow, startEating, usePlans, type DoseConflict } from '../../lib/plans';
+import { insulinNear, logMeal, saveEvent } from '../../lib/api';
+import { useSubmitId } from '../../lib/useSubmitId';
+import { SameDose } from '../../components/SameDose';
 import { SiteRow, useSite } from './MomShots';
 import { planItems } from '../../engine/mom';
 import { fmt } from '../../lib/carbs';
@@ -55,7 +57,15 @@ export function MomDose() {
   const [reason, setReason] = useState<string | null>(null);
   const [why, setWhy] = useState(false);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (given === null && live.ready && !r.block) setGiven(r.dose); }, [live.ready, r.block, r.dose]); // eslint-disable-line react-hooks/exhaustive-deps
+  // one submission: the same ids on a retry, so a weak connection cannot record the dose (or the plan) twice
+  const [cid] = useSubmitId();
+  const [planId] = useState(() => crypto.randomUUID());
+  const [mealId] = useState(() => crypto.randomUUID());
+  // a dose already recorded (the other parent's, or a moment ago): shown, and she says which it is
+  const [conflict, setConflict] = useState<{ dose: DoseConflict; planId: string | null; mine?: boolean } | null>(null);
+  // the number starts at the plan's dose, once the meal is known (a plan opened from a link arrives a moment later)
+  const mealKnown = correction || (sp.get('plan') ? !!plan : true);
+  useEffect(() => { if (given === null && live.ready && !r.block && mealKnown) setGiven(r.dose); }, [live.ready, r.block, r.dose, mealKnown]); // eslint-disable-line react-hooks/exhaustive-deps
   const step = s.pen_step ?? 1;
   const unit = s.glucose_unit;
   const lastRapid = events.filter((e) => e.kind === 'insulin' && e.insulin_type !== 'long' && !e.deleted_at).sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))[0] ?? null;
@@ -68,35 +78,51 @@ export function MomDose() {
   }; // i18n: translated where shown
 
   const snapshot = (): DoseSnapshot | null => { const x = live.calc(); return x ? { ...x, at: new Date().toISOString(), level, reading_at: latest?.taken_at ?? null, dia_min: s.iob_dia_min, peak_min: s.iob_peak_min, pen_step: step } : null; };
-  const save = async () => {
+  const save = async (separate = false) => {
     if (!given || given <= 0) return;
     setBusy(true);
     try {
       if (correction) {
-        await saveEvent({ client_id: crypto.randomUUID(), kind: 'insulin', occurred_at: new Date().toISOString(), insulin_units: given, insulin_type: 'rapid', bolus_purpose: 'correction',
+        if (!separate) {
+          // this same submission already reached the server (its answer was lost): not a question, it is saved
+          const near = (await insulinNear('rapid', Date.now(), 15)).filter((e) => e.client_id !== cid);
+          if (near.length) { const e = near[0]; setConflict({ dose: { id: e.id, units: e.insulin_units ?? 0, at: e.occurred_at, by: e.created_by }, planId: null }); setBusy(false); return; }
+        }
+        await saveEvent({ client_id: cid, kind: 'insulin', occurred_at: new Date().toISOString(), insulin_units: given, insulin_type: 'rapid', bolus_purpose: 'correction',
           carbs_g: null, treatment: null, note: given !== r.dose ? reason : null, activity_min: null, activity_level: null, ends_at: null, dose_calc: snapshot(), bg_mgdl: null, injection_site: site });
         await reload();
         toast(t('تم تسجيل الإبرة ✓'));
         nav('/mom', { replace: true });
         return;
       }
-      if (plan) {
-        await approveDose(plan, { given, calc: r.dose, reason: given !== r.dose ? reason : null, purpose: live.purpose, snapshot: snapshot(), carbs: carbs! });
-        const fresh = await fetchPlan(plan.id);
-        if (fresh?.dose_event_id && site) await setInjectionSite(fresh.dose_event_id, site);
-        await reload();
-        nav(`/mom/given/${plan.id}`, { replace: true });
-        return;
+      const dose = { given, calc: r.dose, reason: given !== r.dose ? reason : null, purpose: live.purpose, snapshot: snapshot(), carbs: carbs!, site };
+      let target = plan;
+      if (!target) {
+        const items = planItems(d.items, c)!;
+        const note = [d.left.length ? `${d.left.join(' · ')} ${t('ما ينحسب بالإبرة · كلّمي بابا')}` : null, weighedNote(d.items)].filter(Boolean).join(' · ') || null;
+        target = await planNow({ id: planId, name: d.name ?? SLOT[slotNow()], slot: slotNow(), items, eat_after_min: s.dose_to_meal_min ?? 10, note });
       }
-      const items = planItems(d.items, c)!;
-      const note = [d.left.length ? `${d.left.join(' · ')} ${t('ما ينحسب بالإبرة · كلّمي بابا')}` : null, weighedNote(d.items)].filter(Boolean).join(' · ') || null;
-      const plan2 = await planNow({ name: d.name ?? SLOT[slotNow()], slot: slotNow(), items, eat_after_min: s.dose_to_meal_min ?? 10, note });
-      await approveDose(plan2, { given, calc: r.dose, reason: given !== r.dose ? reason : null, purpose: live.purpose, snapshot: snapshot(), carbs: carbs! });
-      const fresh = await fetchPlan(plan2.id);
-      if (fresh?.dose_event_id && site) await setInjectionSite(fresh.dose_event_id, site);
-      draftOps.clear();
+      const res = await approveDose(target, dose, cid, separate);
+      if (res.status === 'already_dosed' || res.status === 'recent_dose') { setConflict({ dose: res.event, planId: target.id, mine: res.status === 'already_dosed' }); setBusy(false); return; }
+      if (res.status !== 'ok') throw new Error(t('الوجبة ما عادت موجودة'));
+      if (!plan) draftOps.clear();
       await reload();
-      nav(`/mom/given/${plan2.id}`, { replace: true });
+      nav(`/mom/given/${target.id}`, { replace: true });
+    } catch (e) { toast((e as Error).message); setBusy(false); }
+  };
+  /** «نفس الإبرة»: nothing new is saved. A meal takes the dose already recorded (unless it is another meal's). */
+  const same = async () => {
+    if (!conflict) return;
+    setBusy(true);
+    try {
+      if (!conflict.planId) { toast(t('ما تسجّلت: الإبرة مسجّلة من قبل')); nav('/mom', { replace: true }); return; }
+      // this meal's own dose (the other parent gave it from their phone): nothing to link, just carry on
+      if (conflict.mine) { await reload(); nav(`/mom/given/${conflict.planId}`, { replace: true }); return; }
+      const how = await adoptDose(conflict.planId, conflict.dose);
+      if (!plan) draftOps.clear();
+      await reload();
+      if (how === 'linked') nav(`/mom/given/${conflict.planId}`, { replace: true });
+      else { toast(t('ما تسجّلت: الإبرة والوجبة مسجّلة من قبل')); nav('/mom', { replace: true }); }
     } catch (e) { toast((e as Error).message); setBusy(false); }
   };
   const eatWithout = async () => {
@@ -106,11 +132,17 @@ export function MomDose() {
       if (plan) { await ate(plan, 1, Date.now(), products, s); await reload(); toast(t('تم: الأكل بدون إبرة ✓')); nav('/mom', { replace: true }); return; }
       const items = planItems(d.items, c)!;
       const meal = planMeal(items, products, s);
-      await logMeal({ kind: 'meal', recipe_id: null, name: d.name ?? SLOT[slotNow()], category: null, meal, modified: true, notes: weighedNote(d.items) ?? undefined });
+      await logMeal({ kind: 'meal', recipe_id: null, name: d.name ?? SLOT[slotNow()], category: null, meal, modified: true, notes: weighedNote(d.items) ?? undefined, client_id: mealId });
       draftOps.clear(); await reload(); toast(t('تم: الأكل بدون إبرة ✓')); nav('/mom', { replace: true });
     } catch (e) { toast((e as Error).message); setBusy(false); }
   };
 
+  // before the doctor's-rules stop: once the other dose is on this phone the stop would hide the question
+  if (conflict) return (
+    <MomPage title={correction ? t('إبرة تصحيح') : t('قبل الأكل')} back={backTo}>
+      <SameDose big dose={{ ...conflict.dose, type: 'rapid' }} busy={busy} onSame={same} onSeparate={() => { setConflict(null); void save(true); }} />
+    </MomPage>
+  );
   if (!live.ready) return <MomPage title={t('الإبرة')}><p className="text-center text-slate-500">…</p></MomPage>;
   if (stop) return (
     <MomPage title={t('الإبرة')} back={correction ? '/mom' : backTo}>
@@ -132,7 +164,7 @@ export function MomDose() {
   const leftNote = leftOut.length > 0 && !correction && <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ <bdi>{leftOut.join(' · ')}</bdi> {t('ما ينحسب بالإبرة · كلّمي بابا')}</p>;
   return (
     <MomPage title={correction ? t('إبرة تصحيح') : t('قبل الأكل')} back={backTo}
-      foot={<>{differs && !reason && <p className="text-center text-[16px] font-bold text-near">{t('اختاري السبب')}</p>}<Big disabled={busy || !given || given <= 0 || (differs && !reason)} onClick={save}>💉 {t('سجّلي الإبرة')}</Big></>}>
+      foot={<>{differs && !reason && <p className="text-center text-[16px] font-bold text-near">{t('اختاري السبب')}</p>}<Big disabled={busy || !given || given <= 0 || (differs && !reason)} onClick={() => save()}>💉 {t('سجّلي الإبرة')}</Big></>}>
       {leftNote}
       <div className="space-y-1.5 rounded-3xl border border-slate-100 bg-white px-4 py-3 text-[17px]">
         {!correction && <div className="text-[16px] text-slate-600"><bdi>{names.join(' · ')}</bdi></div>}

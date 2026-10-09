@@ -166,6 +166,7 @@ export function MomMore() {
         sub={sensor ? `${sensor.site ? t(SITE_NAME[sensor.site]) : t('وين؟')} · ${t('ينتهي بعد {x}', { x: sensorLeft(sensor.life.left) })}` : t('ما في حساس')} />
       <Choice icon="📅" label={t('مخططة')} sub={n ? t('{n} معلّقة', { n }) : undefined} onClick={() => nav('/mom/plans')} />
       <Choice icon="💉" label={t('أماكن الإبر')} onClick={() => nav('/mom/sites')} />
+      <Choice icon="🗑️" label={t('المحذوفة مؤخرًا')} onClick={() => nav('/mom/deleted')} />
       <PhonePushChoice />
       <Choice icon="📣" label={t('أخبرني لما يسجّل غيري')} onClick={() => nav('/mom/activity')} />
       <Choice icon="🔓" label={t('الوضع الكامل')} onClick={() => { if (window.confirm(t('تفتحين الوضع الكامل؟'))) { setFullModeNow(true); nav('/'); } }} />

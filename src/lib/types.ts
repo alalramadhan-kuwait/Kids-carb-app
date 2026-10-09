@@ -200,6 +200,8 @@ export interface HistoryEntry {
   /** a photo of the food kept for reference, to re-estimate the carbs later (carb-photos path) */
   photo_path?: string | null;
   edited_at?: string | null; edited_by?: string | null;
+  /** who logged it; a deleted meal is kept (deleted_at) so it can be brought back */
+  created_by?: string | null; created_at?: string | null; deleted_at?: string | null; deleted_by?: string | null;
 }
 
 export interface PlanRow {
@@ -284,6 +286,7 @@ export interface EventRow {
   ends_at?: string | null;
   created_by: string;
   deleted_at: string | null;
+  deleted_by?: string | null;
 }
 export interface Member { user_id: string; display_name: string | null; alert_role?: 'primary' | 'backup' | 'off'; simple_mode?: boolean; activity_push?: Partial<Record<'meal' | 'rapid' | 'long' | 'treatment' | 'finger', boolean>> | null }
 /** A household measure for a product (grams/ml) or a recipe (how many of its plates), set once by a parent with a scale. */

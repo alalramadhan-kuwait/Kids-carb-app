@@ -1,5 +1,23 @@
 [
   {
+    "date": "2026-10-09",
+    "version": "2.58.0",
+    "notes": [
+      "الإبرة تنحفظ مرة وحدة: لو ضعف النت وضغطتي مرة ثانية، ما تتكرر.",
+      "لو الطرف الثاني سجّل إبرة قبل شوي، يطلع لج تسجيله وتختارين: نفس الإبرة، أو إبرة ثانية انعطت.",
+      "جديد في «إبرة»: «إبرة انعطت؟ سجّليها» لتسجيل إبرة انعطت فعلًا، حتى قبل موعد الإبرة الجاية. تسجيل فقط، ما يحسب جرعة.",
+      "الوجبة الممسوحة ما تضيع: «تراجع» بعد المسح، أو «المحذوفة مؤخرًا» في المزيد لإرجاعها، مع مين مسحها ومتى.",
+      "الوجبات توصل لتلفون الطرف الثاني بنفس اللحظة."
+    ],
+    "notes_en": [
+      "A dose is saved once: on a weak connection, tapping again doesn't record it twice.",
+      "If the other parent recorded a dose a moment ago, you see their record and choose: the same dose, or a second dose that was given.",
+      "New under Injection: \"Already given? Record it\" for a dose that was actually given, even before the next dose is due. Record only, no dose is calculated.",
+      "A deleted meal isn't lost: Undo right after, or More › Recently deleted to bring it back, with who deleted it and when.",
+      "Meals reach the other parent's phone right away."
+    ]
+  },
+  {
     "date": "2026-10-08",
     "version": "2.57.1",
     "notes": [

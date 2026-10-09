@@ -38,15 +38,16 @@ export function sinceText(iso: string, now = Date.now()): string {
 }
 
 /**
- * Two caregivers logging the same thing: same kind within 10 minutes and
- * (insulin) the same units and type, or (carbs / treatment) grams within 10%.
+ * Two caregivers logging the same thing: (insulin) the same pen within 15 minutes, whatever the units (the second
+ * parent may have dialled a different number for the same injection), or (carbs / treatment) within 10 minutes and
+ * grams within 10%. Only ever a question: the parent says whether it is the same; nothing is merged or dropped.
  */
 export function findDuplicate(events: EventRow[], c: Pick<EventRow, 'kind' | 'occurred_at' | 'insulin_units' | 'insulin_type' | 'carbs_g'>): EventRow | null {
   const t = new Date(c.occurred_at).getTime();
   return events.find((e) => {
     if (e.deleted_at || e.kind !== c.kind || c.kind === 'note') return false;
-    if (Math.abs(new Date(e.occurred_at).getTime() - t) > 10 * 60000) return false;
-    if (c.kind === 'insulin') return e.insulin_units === c.insulin_units && e.insulin_type === c.insulin_type;
+    if (Math.abs(new Date(e.occurred_at).getTime() - t) > (c.kind === 'insulin' ? 15 : 10) * 60000) return false;
+    if (c.kind === 'insulin') return e.insulin_type === c.insulin_type;
     const a = e.carbs_g ?? 0, b = c.carbs_g ?? 0;
     return Math.abs(a - b) <= Math.max(1, 0.1 * Math.max(a, b));
   }) ?? null;

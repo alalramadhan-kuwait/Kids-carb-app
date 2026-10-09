@@ -74,9 +74,9 @@ export async function setDoseTime(p: PlannedMeal, at: number, me: string | null)
 }
 /** More food after the dose: the extra dose is logged as a second meal dose; the plan adds it to what was given and
  *  calculated, and keeps the new carbs it now covers. */
-export async function topUpDose(p: PlannedMeal, d: { given: number; calc: number; carbs: number }) {
+export async function topUpDose(p: PlannedMeal, d: { given: number; calc: number; carbs: number }, clientId: string = uuid()) {
   const id = await saveEvent({
-    client_id: uuid(), kind: 'insulin', occurred_at: new Date().toISOString(), insulin_units: d.given, insulin_type: 'rapid', bolus_purpose: 'meal',
+    client_id: clientId, kind: 'insulin', occurred_at: new Date().toISOString(), insulin_units: d.given, insulin_type: 'rapid', bolus_purpose: 'meal',
     carbs_g: null, treatment: null, note: 'إضافة للوجبة بعد تعديلها', /* i18n-ok: stored, shown with tMaybe */ activity_min: null, activity_level: null, ends_at: null, dose_calc: null, bg_mgdl: null,
   });
   if (!id) throw new Error('save');
@@ -89,25 +89,46 @@ export async function deletePlan(id: string) {
 }
 export const skipPlan = (id: string) => patch(id, { status: 'skipped' });
 
+/** What recording a plan's dose came to: saved, or not saved because a dose is already there (shown to the parent,
+ *  who decides; nothing is merged or dropped silently). */
+export type DoseConflict = { id: string; units: number; at: string; by: string | null };
+export type DoseResult = { status: 'ok'; event_id: string } | { status: 'already_dosed' | 'recent_dose'; event: DoseConflict } | { status: 'no_plan' };
+
 /** The parent approved the dose: it is logged now with what the calculator showed. The plan keeps the calculated dose,
- *  the dose given, why they differ (if said) and everything the calculation used; the meal waits for its eat time. */
-export async function approveDose(p: PlannedMeal, d: { given: number; calc: number | null; reason: string | null; purpose: 'meal' | 'correction' | 'both'; snapshot: DoseSnapshot | null; carbs: number }) {
-  const now = new Date();
-  const id = await saveEvent({
-    client_id: uuid(), kind: 'insulin', occurred_at: now.toISOString(), insulin_units: d.given, insulin_type: 'rapid', bolus_purpose: d.purpose,
-    carbs_g: null, treatment: null, note: d.reason, activity_min: null, activity_level: null, ends_at: null, dose_calc: d.snapshot, bg_mgdl: null,
+ *  the dose given, why they differ (if said) and everything the calculation used; the meal waits for its eat time.
+ *  One step in the database (carb.record_plan_dose): the plan and the insulin entry change together. The same
+ *  `clientId` sent again (a retry) saves once. A plan the other parent already dosed, or a rapid dose in the last
+ *  15 minutes, comes back as a conflict; `separate` records it anyway as a second dose that was really given. */
+export async function approveDose(p: Pick<PlannedMeal, 'id'>, d: { given: number; calc: number | null; reason: string | null; purpose: 'meal' | 'correction' | 'both'; snapshot: DoseSnapshot | null; carbs: number; site?: string | null },
+  clientId: string, separate = false): Promise<DoseResult> {
+  const { data, error } = await supabase.rpc('record_plan_dose', {
+    p_plan: p.id, p_client: clientId, p_units: d.given, p_purpose: d.purpose, p_reason: d.reason?.trim() || null, p_snapshot: d.snapshot,
+    p_calc: d.calc, p_carbs: Math.round(d.carbs * 10) / 10, p_site: d.site ?? null, p_separate: separate,
   });
-  // the meal is eaten eat_after_min after the dose actually given, not after the planned time
-  await patch(p.id, { status: 'dosed', dose_event_id: id, dosed_at: now.toISOString(), dose_at: now.toISOString(), recheck_at: null,
-    calc_units: d.calc, given_units: d.given, dose_reason: d.reason?.trim() || null, dose_snapshot: d.snapshot, carbs_planned: Math.round(d.carbs * 10) / 10 });
+  if (error) throw new Error(error.message);
+  const r = data as DoseResult;
+  if (r.status === 'already_dosed' || r.status === 'recent_dose') r.event.units = Number(r.event.units);
+  reloadAll();
+  return r;
+}
+
+/** The parent said the dose already recorded is this meal's: the plan takes it (nothing new is saved). If that dose
+ *  already belongs to another plan (the other parent planned the same meal), this plan is set aside instead, so the
+ *  meal is not logged twice. */
+export async function adoptDose(planId: string, ev: DoseConflict): Promise<'linked' | 'other_plan'> {
+  const { data, error } = await supabase.from('planned_meals').select('id').eq('dose_event_id', ev.id).neq('id', planId).limit(1);
+  if (error) throw new Error(error.message);
+  if (data?.length) { await patch(planId, { status: 'skipped' }); return 'other_plan'; }
+  await patch(planId, { status: 'dosed', dose_event_id: ev.id, dosed_at: ev.at, dose_at: ev.at, given_units: ev.units });
+  return 'linked';
 }
 
 /** A low before the meal: treated now (with one of the plan's items, e.g. its juice, or another treatment). The item
  *  leaves the plan; a recheck is due in `recheckMin` minutes. Nothing is dosed. */
-export async function treatFromPlan(p: PlannedMeal, t: { grams: number; name: string; itemIndex?: number }, recheckMin = 15) {
+export async function treatFromPlan(p: PlannedMeal, t: { grams: number; name: string; itemIndex?: number }, recheckMin = 15, clientId: string = uuid()) {
   const now = new Date();
   const id = await saveEvent({
-    client_id: uuid(), kind: 'treatment', occurred_at: now.toISOString(), carbs_g: Math.round(t.grams * 10) / 10, treatment: t.name,
+    client_id: clientId, kind: 'treatment', occurred_at: now.toISOString(), carbs_g: Math.round(t.grams * 10) / 10, treatment: t.name,
     insulin_units: null, insulin_type: null, bolus_purpose: null, note: null, activity_min: null, activity_level: null, ends_at: null, dose_calc: null, bg_mgdl: null,
   });
   const items = t.itemIndex === undefined ? p.items : p.items.filter((_, i) => i !== t.itemIndex);
@@ -124,7 +145,8 @@ export async function ate(p: PlannedMeal, part: number, eatingAt: number, produc
   const meal = computeMeal(items, products, settings);
   if (!meal.complete) throw new Error('incomplete');
   const full = planMeal(p.items, products, settings).total.carbs;
-  const r = await logMeal({ kind: p.slot === 'snack' ? 'snack' : 'meal', recipe_id: p.recipe_id, name: p.name, category: null, meal, modified: part !== 1 || !p.recipe_id, eatenAt: new Date(eatingAt).toISOString(), notes: p.note ?? undefined });  // the plan's note (a weighed plate, an item left out) stays with the meal
+  // one meal per plan: the plan's id is the meal's client id, so a retry or the other phone cannot log it twice
+  const r = await logMeal({ kind: p.slot === 'snack' ? 'snack' : 'meal', recipe_id: p.recipe_id, name: p.name, category: null, meal, modified: part !== 1 || !p.recipe_id, eatenAt: new Date(eatingAt).toISOString(), notes: p.note ?? undefined, client_id: p.id });  // the plan's note (a weighed plate, an item left out) stays with the meal
   await patch(p.id, { status: 'eaten', history_id: r.id, eaten_at: new Date().toISOString(), eating_at: new Date(eatingAt).toISOString(), part_eaten: part,
     carbs_planned: p.carbs_planned ?? Math.round(full * 10) / 10, carbs_eaten: Math.round(meal.total.carbs * 10) / 10 });
 }
@@ -141,14 +163,17 @@ export const planMeal = (items: PlanItem[], products: Product[], settings: Setti
   computeMeal(items.map((i, k) => ({ ...i, id: String(k), qty_confirmed: true, note: null, sort: k })), products, settings);
 
 /** Mom mode: a meal planned and dosed now, in one go. Returns the new plan (then approveDose records the dose). */
-export async function planNow(p: { name: string; slot: PlannedMeal['slot']; items: PlanItem[]; eat_after_min: number; note?: string | null }): Promise<PlannedMeal> {
+/** `id` is chosen by the screen and kept across retries: sent twice, the plan is made once. */
+export async function planNow(p: { id: string; name: string; slot: PlannedMeal['slot']; items: PlanItem[]; eat_after_min: number; note?: string | null }): Promise<PlannedMeal> {
   const now = new Date();
   const kw = new Date(now.getTime() + 3 * 3600000).toISOString().slice(0, 10);
-  const { data, error } = await supabase.from('planned_meals').insert({ for_date: kw, slot: p.slot, name: p.name, recipe_id: null, items: p.items, dose_at: now.toISOString(),
-    eat_after_min: p.eat_after_min, remind_min: 0, note: p.note ?? null, notified: { check: now.toISOString() } }).select('*').single();
-  if (error) throw new Error(error.message);
+  const ins = await supabase.from('planned_meals').upsert({ id: p.id, for_date: kw, slot: p.slot, name: p.name, recipe_id: null, items: p.items, dose_at: now.toISOString(),
+    eat_after_min: p.eat_after_min, remind_min: 0, note: p.note ?? null, notified: { check: now.toISOString() } }, { onConflict: 'id', ignoreDuplicates: true });
+  if (ins.error) throw new Error(ins.error.message);
+  const plan = await fetchPlan(p.id);
+  if (!plan) throw new Error('save');
   await load();
-  return { ...(data as PlannedMeal), items: p.items };
+  return plan;
 }
 /** She started eating (mom mode's «بدأت تاكل»): the start is kept; "how much she ate" comes later. */
 export const startEating = (id: string, at = Date.now()) => patch(id, { eating_at: new Date(at).toISOString() });

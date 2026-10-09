@@ -44,7 +44,8 @@ import { MomHome } from './pages/mom/MomHome';
 import { MomAdd, MomFoodItem, MomGroup, MomMeal, MomNew, MomPortion, MomRestaurant } from './pages/mom/MomMeal';
 import { MomCompare } from './pages/mom/MomCompare';
 import { MomAte, MomDose, MomGiven } from './pages/mom/MomDose';
-import { MomJuice, MomShot, MomSite, MomSites, MomTresiba } from './pages/mom/MomShots';
+import { DeletedPage, MomDeleted } from './pages/Deleted';
+import { MomJuice, MomRecordDose, MomShot, MomSite, MomSites, MomTresiba } from './pages/mom/MomShots';
 import { MomEntry } from './pages/mom/MomEntry';
 import { Alarm } from './components/Alarm';
 import { useKeepAwake } from './lib/keepAwake';
@@ -242,6 +243,7 @@ function Shell() {
         <Route path="/mom/ate/:id" element={<MomAte />} />
         <Route path="/mom/juice" element={<MomJuice />} />
         <Route path="/mom/shot" element={<MomShot />} />
+        <Route path="/mom/record" element={<MomRecordDose />} />
         <Route path="/mom/prick" element={<MomPrick />} />
         <Route path="/mom/tresiba" element={<MomTresiba />} />
         <Route path="/mom/site" element={<MomSite />} />
@@ -250,6 +252,8 @@ function Shell() {
         <Route path="/mom/meal-entry/:id" element={<MomMealEntry />} />
         <Route path="/mom/log" element={<MomLog />} />
         <Route path="/mom/more" element={<MomMore />} />
+        <Route path="/mom/deleted" element={<MomDeleted />} />
+        <Route path="/deleted" element={<DeletedPage />} />
         <Route path="/mom/food" element={<MomAdd browse />} />
         <Route path="/mom/food/g/:key" element={<MomGroup browse />} />
         <Route path="/mom/food/g/:key/:sub" element={<MomGroup browse />} />

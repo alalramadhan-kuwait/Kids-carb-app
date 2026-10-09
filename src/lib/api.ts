@@ -65,6 +65,8 @@ export async function logMeal(input: {
   modified: boolean;
   notes?: string;
   eatenAt?: string; // when she started eating, if not now
+  /** the same submission sent again (a retry, the other phone) saves once: the first one's id comes back */
+  client_id?: string;
 }) {
   const { meal } = input;
   const lines: HistoryLine[] = meal.lines.map((l) => ({
@@ -76,7 +78,8 @@ export async function logMeal(input: {
   const r = (n: number) => Math.round(n * 10) / 10;
   // the glucose reading when she started eating (within 10 minutes), not when it was saved
   const g = await glucoseAt(input.eatenAt ? Date.parse(input.eatenAt) : Date.now());
-  return ok(await supabase.from('meal_history').insert({
+  const r0 = await supabase.from('meal_history').insert({
+    ...(input.client_id ? { client_id: input.client_id } : {}),
     ...glucoseCols(g),
     kind: input.kind, recipe_id: input.recipe_id, name: input.name, category: input.category,
     total_carbs: r(meal.total.carbs),
@@ -91,10 +94,21 @@ export async function logMeal(input: {
     total_iron: meal.micro.iron === null ? null : r(meal.micro.iron), total_potassium: meal.micro.potassium === null ? null : Math.round(meal.micro.potassium),
     total_vit_d: meal.micro.vit_d === null ? null : r(meal.micro.vit_d),
     modified: input.modified, lines, notes: input.notes ?? null, ...(input.eatenAt ? { eaten_at: input.eatenAt } : {}),
-  }).select('id').single()) as { id: string };
+  }).select('id').single();
+  if (r0.error?.code === '23505' && input.client_id) return await savedMeal(input.client_id);
+  return ok(r0) as { id: string };
+}
+/** The meal a submission already saved (by its client id). */
+export async function savedMeal(clientId: string): Promise<{ id: string }> {
+  const r = await supabase.from('meal_history').select('id').eq('client_id', clientId).single();
+  return ok(r) as { id: string };
 }
 
-export const deleteHistory = async (id: string) => ok(await supabase.from('meal_history').delete().eq('id', id));
+/** A meal is deleted the way an entry is: kept, marked, and can be brought back (the database records who). */
+export const deleteHistory = async (id: string, by: string | null = null) =>
+  ok(await supabase.from('meal_history').update({ deleted_at: new Date().toISOString(), deleted_by: by }).eq('id', id));
+export const restoreHistory = async (id: string) =>
+  ok(await supabase.from('meal_history').update({ deleted_at: null, deleted_by: null }).eq('id', id));
 
 export async function saveSettings(s: Settings) {
   return ok(await supabase.from('settings').upsert({ id: true, ...s, updated_at: new Date().toISOString() }));
@@ -115,14 +129,27 @@ export async function callGlucose(body: Record<string, unknown>): Promise<Glucos
 // ── events (insulin, carbs, treatment, note) ──────────────────────────────────
 export type NewEvent = Pick<EventRow, 'client_id' | 'kind' | 'occurred_at' | 'insulin_units' | 'insulin_type' | 'bolus_purpose' | 'carbs_g' | 'treatment' | 'note' | 'activity_min' | 'activity_level' | 'ends_at' | 'dose_calc' | 'bg_mgdl'> & { injection_site?: EventRow['injection_site'] };
 
-/** Returns the new id, or null if this exact submission was already saved (double tap). */
+/** Returns the new id. The same submission sent again (a double tap, a retry after a weak connection: the same
+ *  client_id) is saved once, and its id comes back. */
 export async function saveEvent(e: NewEvent): Promise<string | null> {
   const r = await supabase.from('events').insert(e).select('id').single();
   if (r.error) {
-    if (r.error.code === '23505') return null;
+    if (r.error.code === '23505') {
+      const x = await supabase.from('events').select('id').eq('client_id', e.client_id).maybeSingle();
+      return (x.data as { id: string } | null)?.id ?? null;
+    }
     throw new Error(r.error.message);
   }
   return (r.data as { id: string }).id;
+}
+/** Insulin of this type given within `min` minutes of `at`, fresh from the database (not the phone's copy, which
+ *  can be a minute behind the other parent's). */
+export async function insulinNear(type: 'rapid' | 'long', at: number, min = 15): Promise<EventRow[]> {
+  const r = await supabase.from('events').select('*').eq('kind', 'insulin').eq('insulin_type', type).is('deleted_at', null)
+    .gte('occurred_at', new Date(at - min * 60000).toISOString()).lte('occurred_at', new Date(at + min * 60000).toISOString())
+    .order('occurred_at', { ascending: false });
+  if (r.error) throw new Error(r.error.message);
+  return (r.data ?? []).map((e: any) => ({ ...e, insulin_units: e.insulin_units === null ? null : Number(e.insulin_units), carbs_g: e.carbs_g === null ? null : Number(e.carbs_g) }));
 }
 export const deleteEvent = async (id: string, by: string | null) =>
   ok(await supabase.from('events').update({ deleted_at: new Date().toISOString(), deleted_by: by }).eq('id', id));

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
-import { deleteHistory } from '../../lib/api';
+import { deleteHistory, restoreHistory } from '../../lib/api';
 import { setEntryTime, setMealName } from '../../lib/entrySave';
 import { fmt, unitText } from '../../lib/carbs';
 import { photoUrl } from '../../lib/supabase';
@@ -29,9 +29,9 @@ export function MomMealEntry() {
   const was = Date.parse(h.eaten_at);
   const nameNow = name ?? h.name;
   const changed = (name !== null && name !== h.name) || (at !== null && at !== was);
-  const run = async (f: () => Promise<unknown>, done: string) => {
+  const run = async (f: () => Promise<unknown>, done: string, undo?: () => Promise<unknown>) => {
     setBusy(true);
-    try { await f(); await reload(); toast(done); nav('/mom/log', { replace: true }); }
+    try { await f(); await reload(); toast(done, undo && { label: t('تراجع'), run: async () => { await undo(); await reload(); } }); nav('/mom/log', { replace: true }); }
     catch (x) { toast((x as Error).message); setBusy(false); }
   };
   const save = () => run(async () => {
@@ -40,7 +40,7 @@ export function MomMealEntry() {
   }, t('تم ✓'));
   const remove = () => {
     if (!window.confirm(t('تمسحينها؟'))) return;
-    void run(() => deleteHistory(h.id), t('انمسحت'));
+    void run(() => deleteHistory(h.id, me), t('انمسحت'), () => restoreHistory(h.id));
   };
   return (
     <MomPage title={t('الأكل')} back="/mom/log" foot={<>

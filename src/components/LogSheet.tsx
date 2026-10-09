@@ -21,7 +21,7 @@ import { ProductPicker } from './ProductPicker';
 import { ProductSheet } from './ProductSheet';
 import type { Product } from '../lib/types';
 import type { QuickItem } from '../lib/quick';
-import { deleteHistory } from '../lib/api';
+import { deleteHistory, insulinNear } from '../lib/api';
 import { startComparison, syncComparisons } from '../lib/fingerprick';
 import { toMgdl, unitLabel } from '../lib/glucose';
 import { fmt } from '../lib/carbs';
@@ -117,7 +117,8 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
     (kind === 'bg_check' && !!draft.bg_mgdl && draft.bg_mgdl >= 20 && draft.bg_mgdl <= 600) ||
     (kind === 'exercise' && !!mins && mins > 0 && mins <= 600) ||
     (kind === 'sleep' && !!draft.ends_at && sleepWindow(sleepFrom, sleepTo).minutes <= 16 * 60));
-  const dup = draft && valid ? findDuplicate(events, draft) : null;
+  // this submission's own earlier attempt (saved, its answer lost) is not a duplicate of itself
+  const dup = draft && valid ? findDuplicate(events.filter((e) => e.client_id !== draft.client_id), draft) : null;
 
   useEffect(() => { if (saveSoon) { setSaveSoon(false); void save(); } }); // eslint-disable-line react-hooks/exhaustive-deps
   const save = async () => {
@@ -125,6 +126,11 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
     if (dup && !dupAck) return; // the question is on screen
     setBusy(true);
     try {
+      // the other parent's dose may not be on this phone yet: ask the database before saving insulin
+      if (draft.kind === 'insulin' && !dupAck) {
+        const near = await insulinNear(draft.insulin_type === 'long' ? 'long' : 'rapid', Date.parse(draft.occurred_at), 15);
+        if (near.some((e) => e.client_id !== draft.client_id && !events.some((x) => x.id === e.id))) { await reload(); return; } // now on the phone: the question shows
+      }
       const id = await saveEvent(draft);
       // a finger-prick starts its comparison with Libre now; the +5 and +10 min readings complete it later
       if (id && draft.kind === 'bg_check' && draft.bg_mgdl) { await startComparison(id, Date.parse(draft.occurred_at), draft.bg_mgdl, ago, clean); void syncComparisons(events, history); }

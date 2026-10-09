@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
-import { deleteEvent, setEventUnits } from '../../lib/api';
+import { deleteEvent, restoreEvent, setEventUnits } from '../../lib/api';
 import { setEntryTime } from '../../lib/entrySave';
 import { updateEvent } from '../../lib/editSave';
 import { useComparisons } from '../../lib/fingerprick';
@@ -37,9 +37,9 @@ export function MomEntry() {
   const bgOk = bgMg !== null && bgMg >= 20 && bgMg <= 600;
   const timeChanged = when !== null && when !== at;
   const changed = (shot && u !== null && u !== e.insulin_units && units > 0) || (prick && bgText !== null && bgOk && bgMg !== e.bg_mgdl) || timeChanged;
-  const run = async (f: () => Promise<unknown>, done: string) => {
+  const run = async (f: () => Promise<unknown>, done: string, undo?: () => Promise<unknown>) => {
     setBusy(true);
-    try { await f(); await reload(); toast(done); nav('/mom', { replace: true }); }
+    try { await f(); await reload(); toast(done, undo && { label: t('تراجع'), run: async () => { await undo(); await reload(); } }); nav('/mom', { replace: true }); }
     catch (x) { toast((x as Error).message); setBusy(false); }
   };
   const saveAll = () => run(async () => {
@@ -50,7 +50,8 @@ export function MomEntry() {
   }, t('تم ✓'));
   const remove = () => {
     if (!window.confirm(t('تمسحينها؟'))) return;
-    void run(async () => { await deleteEvent(e.id, me); if (plan && plan.status === 'dosed') await skipPlan(plan.id); }, t('انمسحت'));
+    // Undo brings the entry back (the plan it belonged to stays set aside: Dad re-links it if needed)
+    void run(async () => { await deleteEvent(e.id, me); if (plan && plan.status === 'dosed') await skipPlan(plan.id); }, t('انمسحت'), () => restoreEvent(e.id));
   };
   return (
     <MomPage title={shot ? t(PEN_NAME[type]) : prick ? t('فحص بالإصبع') : t('عصير')} back="/mom" foot={<>

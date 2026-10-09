@@ -1,0 +1,21 @@
+// English for logging, corrections and recovery (2026 log releases). Key: the exact Arabic text passed to t(); value: English.
+export const log: Record<string, string> = {
+  "آخر 30 يوم: من حذفها ومتى، وإرجاعها": "Last 30 days: who deleted what and when, and bring it back",
+  "إبرة انعطت؟ سجّليها": "Already given? Record it",
+  "المحذوفة مؤخرًا": "Recently deleted",
+  "الوجبة ما عادت موجودة": "This meal no longer exists",
+  "انحذفت {when}": "Deleted {when}",
+  "تسجيل فقط · ما يحسب جرعة": "Record only · no dose is calculated",
+  "رجعت ✓": "Restored ✓",
+  "سجّلي": "Record",
+  "سجّلي إبرة انعطت": "Record a dose given",
+  "في إبرة مسجّلة": "A dose is already recorded",
+  "كم وحدة انعطت؟": "How many units were given?",
+  "لا، إبرة ثانية انعطت · سجّلها": "No, a second dose was given · record it",
+  "ما تسجّلت: الإبرة مسجّلة من قبل": "Not recorded: that dose is already in the log",
+  "ما تسجّلت: الإبرة والوجبة مسجّلة من قبل": "Not recorded: the dose and the meal are already in the log",
+  "ما في شي محذوف في آخر 30 يوم.": "Nothing deleted in the last 30 days.",
+  "متى انعطت؟": "When was it given?",
+  "نعم، نفس الإبرة · لا تسجّل": "Yes, the same dose · don't record",
+  "هذي نفس الإبرة؟": "Is this the same dose?",
+};

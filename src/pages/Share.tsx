@@ -51,7 +51,7 @@ export default function SharePage() {
       const [g, e, h] = await Promise.all([
         supabase.rpc('glucose_series', { p_from: from.toISOString(), p_to: to.toISOString() }),
         supabase.from('events').select('*').gte('occurred_at', from.toISOString()).order('occurred_at').limit(5000),
-        supabase.from('meal_history').select('*').gte('eaten_at', from.toISOString()).order('eaten_at').limit(5000),
+        supabase.from('meal_history').select('*').is('deleted_at', null).gte('eaten_at', from.toISOString()).order('eaten_at').limit(5000),
       ]);
       const ser = g.data as { t: number[]; v: number[] };
       const csv = buildCsv(ser.t.map((t, k) => ({ t: t * 1000, v: ser.v[k] })), (e.data ?? []) as EventRow[], (h.data ?? []) as HistoryEntry[], nameOf);

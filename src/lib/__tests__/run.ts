@@ -381,12 +381,15 @@ test('time since, Kuwait day start, hours per day, GMI', () => {
   assert.equal(gmi(154), 7); // 3.31 + 0.02392*154 = 6.99
 });
 
-test('duplicate guard: same dose within 10 minutes is flagged, different dose or later time is not', () => {
+test('duplicate guard: the same pen within 15 minutes is asked about (any units); another pen or a later time is not', () => {
   const ev = (o: any) => ({ id: 'x', client_id: 'c', kind: 'insulin', occurred_at: '2026-10-01T12:00:00Z', insulin_units: 4, insulin_type: 'rapid',
     bolus_purpose: null, carbs_g: null, treatment: null, note: null, created_by: 'u', deleted_at: null, ...o });
   const list = [ev({}), ev({ id: 'c1', kind: 'carbs', insulin_units: null, insulin_type: null, carbs_g: 30 })];
   assert.equal(findDuplicate(list, { kind: 'insulin', occurred_at: '2026-10-01T12:06:00Z', insulin_units: 4, insulin_type: 'rapid', carbs_g: null })?.id, 'x');
-  assert.equal(findDuplicate(list, { kind: 'insulin', occurred_at: '2026-10-01T12:06:00Z', insulin_units: 3, insulin_type: 'rapid', carbs_g: null }), null);
+  // the same pen within 15 minutes is asked about whatever the units (4 and 3.5 can be the same injection)
+  assert.equal(findDuplicate(list, { kind: 'insulin', occurred_at: '2026-10-01T12:06:00Z', insulin_units: 3, insulin_type: 'rapid', carbs_g: null })?.id, 'x');
+  assert.equal(findDuplicate(list, { kind: 'insulin', occurred_at: '2026-10-01T12:14:00Z', insulin_units: 4.5, insulin_type: 'rapid', carbs_g: null })?.id, 'x');
+  assert.equal(findDuplicate(list, { kind: 'insulin', occurred_at: '2026-10-01T12:06:00Z', insulin_units: 4, insulin_type: 'long', carbs_g: null }), null, 'another pen is another dose');
   assert.equal(findDuplicate(list, { kind: 'insulin', occurred_at: '2026-10-01T12:20:00Z', insulin_units: 4, insulin_type: 'rapid', carbs_g: null }), null);
   assert.equal(findDuplicate(list, { kind: 'carbs', occurred_at: '2026-10-01T12:05:00Z', insulin_units: null, insulin_type: null, carbs_g: 32 })?.id, 'c1');
   assert.equal(findDuplicate([ev({ deleted_at: '2026-10-01T12:01:00Z' })], { kind: 'insulin', occurred_at: '2026-10-01T12:02:00Z', insulin_units: 4, insulin_type: 'rapid', carbs_g: null }), null);
