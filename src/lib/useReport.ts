@@ -16,8 +16,9 @@ export function usePatient(): PatientInfo {
   return { name: s.report_patient_name ?? null, birthDate: s.child_birth_date ?? null, birthApprox: !!s.child_birth_approx, diagnosisDate: s.diagnosis_date ?? null, clinic: s.clinic_name ?? null };
 }
 
-export async function savePatient(p: PatientInfo, birthChanged: boolean) {
-  const { error } = await supabase.from('settings').update({ report_patient_name: p.name, child_birth_date: p.birthDate, ...(birthChanged ? { child_birth_approx: false } : {}), diagnosis_date: p.diagnosisDate, clinic_name: p.clinic }).eq('id', true);
+/** The date of birth stays marked approximate until someone ticks that it has been verified; editing it alone does not confirm it. */
+export async function savePatient(p: PatientInfo, birthVerified: boolean) {
+  const { error } = await supabase.from('settings').update({ report_patient_name: p.name, child_birth_date: p.birthDate, child_birth_approx: !birthVerified, diagnosis_date: p.diagnosisDate, clinic_name: p.clinic }).eq('id', true);
   if (error) throw new Error(error.message);
 }
 

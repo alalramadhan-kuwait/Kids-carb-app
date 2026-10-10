@@ -56,7 +56,8 @@ export function AgpChart({ r, compact = false }: { r: AgpReport; compact?: boole
   );
 }
 
-/** One day, midnight to midnight, 0–22 mmol/L; gaps stay gaps; readings under 3.9 marked red. */
+/** One day, midnight to midnight, on the same 0–22 mmol/L scale as every other day; gaps stay gaps; a day without
+ *  data says so; readings under 3.9 marked red. */
 export function DayProfile({ d }: { d: DailyProfile }) {
   const W = 100, H = 46, y = (v: number) => 2 + (1 - Math.min(v, 22) / 22) * (H - 4), x = (k: number) => (k / 95) * W;
   const segs: string[] = []; let cur = '';
@@ -64,9 +65,9 @@ export function DayProfile({ d }: { d: DailyProfile }) {
   if (cur) segs.push(cur);
   return (
     <div className="min-w-0">
-      <div className="flex items-baseline justify-between text-[11px]"><b>{d.weekday} {d.date}</b>{d.pctActive < 70 && <span className="text-red-700">{Math.round(d.pctActive)}% data</span>}</div>
+      <div className="flex items-baseline justify-between text-[11px]"><b>{d.weekday} {d.date}</b>{d.pctActive > 0 && d.pctActive < 70 && <span className="text-red-700">{Math.round(d.pctActive)}% data</span>}</div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="block h-12 w-full rounded border border-slate-200" style={{ background: '#ffffff' }} role="img" aria-label={`${d.weekday} ${d.date} glucose`}>
-        <rect x={0} y={y(10)} width={W} height={y(3.9) - y(10)} fill={TARGET} />
+        {d.pctActive === 0 ? <><rect x={0} y={0} width={W} height={H} fill="#eef1f4" /><text x={W / 2} y={H / 2 + 2} fontSize={7} textAnchor="middle" fill="#64748b">No sensor data</text></> : <rect x={0} y={y(10)} width={W} height={y(3.9) - y(10)} fill={TARGET} />}
         {segs.map((s, i) => <path key={i} d={s} fill="none" stroke={MEDIAN} strokeWidth={1.2} vectorEffect="non-scaling-stroke" />)}
         {d.mmol.map((v, k) => v !== null && v < 3.9 && <circle key={k} cx={x(k)} cy={y(v)} r={1.6} fill={RANGE_COLOR.low} />)}
       </svg>

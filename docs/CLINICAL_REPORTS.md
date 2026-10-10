@@ -83,6 +83,17 @@ calculator do not use this code, and this code does not use theirs.
 - **AGP:** a time of day with no measured slot on any day is empty. The ±15-minute pooling only smooths times that
   have real data. Test: "no interpolation anywhere".
 
+## Daily profiles
+
+- Every day is drawn on the **same scale, 0–22 mmol/L**, so days can be compared at a glance. The same holds on the screen and in the PDF.
+- A day without sensor data is drawn as a grey box saying "No sensor data". A partly measured day shows its % of sensor data.
+- Gaps stay gaps: nothing is filled in.
+
+## Patient details
+
+- The date of birth stays labelled "approx." until someone ticks "Date of birth verified" in the patient details.
+- Editing the date does not confirm it.
+
 ## Report periods
 
 - A report covers whole Kuwait days ending at the last midnight. Today, still running, is left out. This gives fixed

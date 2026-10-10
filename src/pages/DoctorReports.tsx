@@ -89,6 +89,7 @@ function PatientSheet({ open, onClose }: { open: boolean; onClose: () => void })
   const { reload } = useData();
   const [f, setF] = useState(p);
   const [busy, setBusy] = useState(false);
+  const [verified, setVerified] = useState(!p.birthApprox && !!p.birthDate);
   const field = (label: string, key: 'name' | 'birthDate' | 'diagnosisDate' | 'clinic', type = 'text', hint?: string) => (
     <label className="block space-y-1"><span className="text-sm font-medium text-slate-600">{label}</span>
       <input id={`patient-${key}`} className={inputCls} type={type} dir="ltr" value={f[key] ?? ''} onChange={(e) => setF({ ...f, [key]: e.target.value || null })} />
@@ -96,13 +97,15 @@ function PatientSheet({ open, onClose }: { open: boolean; onClose: () => void })
   );
   const save = async () => {
     setBusy(true);
-    try { await savePatient(f, f.birthDate !== p.birthDate); await reload(); toast('Saved ✓'); onClose(); } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
+    try { await savePatient(f, verified && !!f.birthDate); await reload(); toast('Saved ✓'); onClose(); } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
   };
   return (
     <Sheet open={open} onClose={onClose} title="Patient details on the reports">
       <div dir="ltr" lang="en" className="space-y-3">
         {field('Name (English letters, as on the report)', 'name')}
         {field('Date of birth', 'birthDate', 'date', p.birthApprox ? 'Saved as approximate; also used for growth charts' : 'Also used for growth charts')}
+        <label className="flex min-h-[44px] items-center gap-3 text-sm"><input id="patient-dob-verified" type="checkbox" className="h-5 w-5" checked={verified} disabled={!f.birthDate} onChange={(e) => setVerified(e.target.checked)} />
+          <span>Date of birth verified (from an official document). Until then the reports say "approx.".</span></label>
         {field('Date of diagnosis', 'diagnosisDate', 'date')}
         {field('Clinic (optional)', 'clinic')}
         <Btn kind="primary" block disabled={busy} onClick={save}>Save</Btn>

@@ -27,9 +27,11 @@ export function drawAgpPdf(doc: JsPdf, r: AgpReport, p: PatientInfo, appVersion 
   const fill = (hex: string) => doc.setFillColor(...rgb(hex));
   const stroke = (hex: string) => doc.setDrawColor(...rgb(hex));
   const color = (hex: string) => doc.setTextColor(...rgb(hex));
-  const text = (s: string, x: number, y: number, o: { size?: number; bold?: boolean; c?: string; align?: 'left' | 'right' | 'center' } = {}) => {
+  const text = (s: string, x: number, y: number, o: { size?: number; bold?: boolean; c?: string; align?: 'left' | 'right' | 'center'; maxW?: number } = {}) => {
     doc.setFont('helvetica', o.bold ? 'bold' : 'normal'); doc.setFontSize(o.size ?? 8.5); color(o.c ?? C.ink);
-    doc.text(s, x, y, { align: o.align ?? 'left', baseline: 'alphabetic' });
+    const lines: string[] = o.maxW ? doc.splitTextToSize(s, o.maxW) : [s];
+    doc.text(lines, x, y, { align: o.align ?? 'left', baseline: 'alphabetic', lineHeightFactor: 1.25 });
+    return lines.length;
   };
   const box = (x: number, y: number, w: number, h: number, title: string) => {
     fill(C.blue); doc.rect(x, y, w, 6, 'F');
@@ -101,16 +103,17 @@ export function drawAgpPdf(doc: JsPdf, r: AgpReport, p: PatientInfo, appVersion 
   });
   y += 82;
 
-  // ── AGP ──
-  box(M, y, W - 2 * M, 88, 'Ambulatory glucose profile (AGP)');
+  // ── AGP (the largest part of page 1) ──
+  const agpH = 116;
+  box(M, y, W - 2 * M, agpH, 'Ambulatory glucose profile (AGP)');
   text('Median (line), 25–75% and 5–95% of readings at each time of day, all days laid over 24 hours.', M + 2, y + 10, { size: 7, c: C.muted });
-  const cx = M + 12, cy = y + 13, cw = W - 2 * M - 26, ch = 64, ymax = 22;
+  const cx = M + 12, cy = y + 13, cw = W - 2 * M - 26, ch = agpH - 25, ymax = 22;
   const X = (min: number) => cx + (min / 1440) * cw, Y = (v: number) => cy + (1 - Math.min(Math.max(v, 0), ymax) / ymax) * ch;
   fill(C.target); doc.rect(cx, Y(10), cw, Y(3.9) - Y(10), 'F');
   stroke(C.line); doc.setLineWidth(0.15);
-  for (let h = 0; h <= 24; h += 3) { doc.line(X(h * 60), cy, X(h * 60), cy + ch); text(h === 24 ? '12am' : h === 0 ? '12am' : h === 12 ? '12pm' : h < 12 ? `${h}am` : `${h - 12}pm`, X(h * 60), cy + ch + 4, { size: 6.8, c: C.muted, align: 'center' }); }
-  for (const v of [0, 3.9, 10, 13.9, 22]) text(v === 0 ? '0' : String(v), cx - 1.5, Y(v) + 1, { size: 6.8, c: v === 3.9 || v === 10 ? C.targetLine : C.muted, align: 'right' });
-  // bands as polygons over runs without gaps
+  for (let h = 0; h <= 24; h += 3) { doc.line(X(h * 60), cy, X(h * 60), cy + ch); text(h % 24 === 0 ? '12am' : h === 12 ? '12pm' : h < 12 ? `${h}am` : `${h - 12}pm`, X(h * 60), cy + ch + 4, { size: 7, c: C.muted, align: 'center' }); }
+  for (const v of [0, 3.9, 10, 13.9, 22]) text(v === 0 ? '0' : String(v), cx - 1.5, Y(v) + 1, { size: 7, c: v === 3.9 || v === 10 ? C.targetLine : C.muted, align: 'right' });
+  // bands as polygons over runs without gaps (a time of day with no data stays empty)
   const runs: AgpReport['agp'][] = [];
   for (const pt of r.agp) { const last = runs[runs.length - 1]; if (last && pt.minute - last[last.length - 1].minute <= 5) last.push(pt); else runs.push([pt]); }
   const band = (lo: 'p5' | 'p25', hi: 'p95' | 'p75', col: string) => {
@@ -123,45 +126,62 @@ export function drawAgpPdf(doc: JsPdf, r: AgpReport, p: PatientInfo, appVersion 
   };
   band('p5', 'p95', C.band95); band('p25', 'p75', C.band50);
   stroke(C.targetLine); doc.setLineWidth(0.3); doc.setLineDashPattern([1, 0.8], 0); doc.line(cx, Y(3.9), cx + cw, Y(3.9)); doc.line(cx, Y(10), cx + cw, Y(10)); doc.setLineDashPattern([], 0);
-  stroke(C.median); doc.setLineWidth(0.6);
+  stroke(C.median); doc.setLineWidth(0.7);
   for (const run of runs) for (let i = 1; i < run.length; i++) doc.line(X(run[i - 1].minute), Y(run[i - 1].p50), X(run[i].minute), Y(run[i].p50));
   const lx = cx + cw + 1.5;
   const last = r.agp[r.agp.length - 1];
-  if (last) for (const [k, lab] of [['p95', '95%'], ['p75', '75%'], ['p50', '50%'], ['p25', '25%'], ['p5', '5%']] as const) text(lab, lx, Y(last[k]) + 1, { size: 6, c: k === 'p50' ? C.median : C.muted });
-  if (r.agp.some((q) => q.thin)) text('Fewer than 5 days of data at some times of day: read those parts with care.', M + 2, y + 86, { size: 6.5, c: C.notMet });
-  y += 92;
+  if (last) {
+    // percentile labels at the right edge, spread so they never overlap
+    const labs = (['p95', 'p75', 'p50', 'p25', 'p5'] as const).map((k) => ({ k, y: Y(last[k]) + 1 }));
+    for (let i = 1; i < labs.length; i++) labs[i].y = Math.max(labs[i].y, labs[i - 1].y + 2.8);
+    for (const l of labs) text(l.k === 'p50' ? '50%' : `${l.k.slice(1)}%`, lx, l.y, { size: 6, c: l.k === 'p50' ? C.median : C.muted });
+  }
+  if (r.agp.some((q) => q.thin)) text('Fewer than 5 days of data at some times of day: read those parts with care.', M + 2, y + agpH - 2, { size: 6.5, c: C.notMet });
+  y += agpH + 4;
 
-  // ── events ──
-  box(M, y, W - 2 * M, 30, 'Glucose events (for this report; separate from the live alerts)');
-  const e = r.events;
-  const evs: [string, string][] = [
-    ['Low events, below 3.9 for 15 min or more', `${e.lows}  (${fmt1(e.lowsPerWeek)} per week)`], ['High events, above 10.0 for 15 min or more', String(e.highs)],
-    ['of which below 3.0 for 15 min or more', String(e.veryLows)], ['of which above 13.9 for 15 min or more', String(e.veryHighs)],
-    ['Low events lasting over 2 hours', String(e.extendedLows)], ['LibreView-style lows (below 3.9 longer than 15 min)', String(e.libreViewLows)],
+  // ── events: the key numbers first, definitions in small print ──
+  const e = r.events, evH = H - 17 - y;
+  box(M, y, W - 2 * M, evH, 'Glucose events');
+  const big: [string, string, string][] = [
+    [String(e.lows), 'Low events', `below 3.9 · ${fmt1(e.lowsPerWeek)} per week`],
+    [String(e.veryLows), 'Very low events', 'below 3.0'],
+    [String(e.highs), 'High events', 'above 10.0'],
+    [String(e.veryHighs), 'Very high events', 'above 13.9'],
   ];
-  evs.forEach(([k, v], i) => { const x = M + 2 + (i % 2) * 93, yy2 = y + 11 + Math.floor(i / 2) * 5; text(k, x, yy2, { size: 7.6 }); text(v, x + 89, yy2, { size: 8, bold: true, align: 'right' }); });
-  text('An event starts after 15 minutes beyond the limit and ends after 15 minutes back on the other side; no data for over 16 minutes ends it (Battelino 2023).', M + 2, y + 27.5, { size: 6.4, c: C.muted });
+  const bw = (W - 2 * M) / 4;
+  big.forEach(([v, l, sub], i) => {
+    const bx = M + i * bw + 3;
+    text(v, bx, y + 16, { size: 16, bold: true, c: i === 0 || i === 1 ? C.low : C.ink });
+    text(l, bx, y + 21, { size: 8, bold: true }); text(sub, bx, y + 24.5, { size: 6.8, c: C.muted });
+  });
+  text(`Each event lasts at least 15 minutes beyond the limit and ends after 15 minutes back on the other side; no sensor data for over 16 minutes ends it (international consensus, Battelino 2023). Lows over 2 hours: ${e.extendedLows}. LibreView's rule (below 3.9 for longer than 15 minutes) gives ${e.libreViewLows} lows. These counts are for this report only and are separate from the live alerts.`,
+    M + 3, y + 29.5, { size: 6.4, c: C.muted, maxW: W - 2 * M - 6 });
   footer();
 
-  // ── daily profiles: 7 per row, 5 rows per page ──
-  const days = r.daily;
-  for (let start = 0; start < days.length; start += 35) {
+  // ── daily profiles: 2 per row, 7 rows per page, all on the same 0–22 mmol/L scale ──
+  const days = r.daily, PER = 14, cols = 2, gap = 6;
+  const top = M + 17, rowH = (H - 18 - top) / 7, gw = (W - 2 * M - gap) / cols;
+  for (let start = 0; start < days.length; start += PER) {
     doc.addPage(); page++;
     text('AGP Report · Daily glucose profiles', M, M + 6, { size: 13, bold: true, c: C.blue });
     text(`${p.name || ''}  ·  ${r.label}`, W - M, M + 6, { size: 8, c: C.muted, align: 'right' });
-    text('Each box is one day (midnight to midnight, Kuwait time), 0–22 mmol/L; the green band is 3.9–10.0. Gaps are missing sensor data and are not filled in.', M, M + 11, { size: 7, c: C.muted });
-    const cols = 7, gw = (W - 2 * M) / cols, gh = 44, top = M + 15;
-    days.slice(start, start + 35).forEach((d, i) => {
-      const gx = M + (i % cols) * gw, gy = top + Math.floor(i / cols) * (gh + 6);
-      text(`${d.weekday} ${d.date}`, gx + 1, gy + 3, { size: 7, bold: true });
-      text(d.pctActive < 70 ? `${Math.round(d.pctActive)}% data` : '', gx + gw - 1, gy + 3, { size: 6, c: C.notMet, align: 'right' });
-      const px = gx + 1, py = gy + 5, pw = gw - 2, ph = gh - 6, dy = (v: number) => py + (1 - Math.min(v, 22) / 22) * ph;
-      fill(C.target); doc.rect(px, dy(10), pw, dy(3.9) - dy(10), 'F');
-      stroke(C.line); doc.setLineWidth(0.15); doc.rect(px, py, pw, ph, 'S'); doc.line(px + pw / 2, py, px + pw / 2, py + ph);
-      stroke(C.median); doc.setLineWidth(0.35);
-      for (let k = 1; k < d.mmol.length; k++) { const a = d.mmol[k - 1], b = d.mmol[k]; if (a !== null && b !== null) doc.line(px + ((k - 1) / 95) * pw, dy(a), px + (k / 95) * pw, dy(b)); }
-      for (let k = 0; k < d.mmol.length; k++) { const v = d.mmol[k]; if (v !== null && v < 3.9) { fill(C.low); doc.circle(px + (k / 95) * pw, dy(v), 0.45, 'F'); } }
-      text('12am', px, py + ph + 3, { size: 5.5, c: C.muted }); text('12pm', px + pw / 2, py + ph + 3, { size: 5.5, c: C.muted, align: 'center' });
+    text('One chart per day, midnight to midnight (Kuwait time). Every chart uses the same scale, 0–22 mmol/L; green is the target range 3.9–10.0; red dots are readings below 3.9. Gaps are missing sensor data and are never filled in.', M, M + 10.5, { size: 6.8, c: C.muted, maxW: W - 2 * M });
+    days.slice(start, start + PER).forEach((d, i) => {
+      const gx = M + (i % cols) * (gw + gap), gy = top + Math.floor(i / cols) * rowH;
+      const px = gx + 7, py = gy + 5, pw = gw - 8, ph = rowH - 11, dy = (v: number) => py + (1 - Math.min(Math.max(v, 0), 22) / 22) * ph, dx = (k: number) => px + (k / 96) * pw;
+      const none = d.pctActive === 0;
+      text(`${d.weekday} ${d.date}`, gx, gy + 3, { size: 8, bold: true });
+      text(none ? 'No sensor data' : d.pctActive < 70 ? `Sensor data ${Math.round(d.pctActive)}% of the day` : `Sensor data ${Math.round(d.pctActive)}%`, gx + gw, gy + 3, { size: 6.5, c: d.pctActive < 70 ? C.notMet : C.muted, align: 'right' });
+      if (none) { fill('#eef1f4'); doc.rect(px, py, pw, ph, 'F'); }
+      else { fill(C.target); doc.rect(px, dy(10), pw, dy(3.9) - dy(10), 'F'); }
+      stroke(C.line); doc.setLineWidth(0.15); doc.rect(px, py, pw, ph, 'S');
+      for (let h = 3; h < 24; h += 3) doc.line(px + (h / 24) * pw, py, px + (h / 24) * pw, py + ph);
+      for (const v of [3.9, 10, 22]) text(String(v), px - 1, dy(v) + 1, { size: 5.8, c: v === 22 ? C.muted : C.targetLine, align: 'right' });
+      for (const h of [0, 6, 12, 18, 24]) text(h % 24 === 0 ? '12am' : h === 12 ? '12pm' : h < 12 ? `${h}am` : `${h - 12}pm`, px + (h / 24) * pw, py + ph + 3.2, { size: 5.8, c: C.muted, align: h === 0 ? 'left' : h === 24 ? 'right' : 'center' });
+      if (none) { text('No sensor data for this day (not filled in)', px + pw / 2, py + ph / 2 + 1, { size: 7.5, c: C.muted, align: 'center' }); return; }
+      stroke(C.median); doc.setLineWidth(0.45);
+      for (let k = 1; k < d.mmol.length; k++) { const a = d.mmol[k - 1], b = d.mmol[k]; if (a !== null && b !== null) doc.line(dx(k - 0.5), dy(a), dx(k + 0.5), dy(b)); }
+      for (let k = 0; k < d.mmol.length; k++) { const v = d.mmol[k]; if (v !== null && v < 3.9) { fill(C.low); doc.circle(dx(k + 0.5), dy(v), 0.55, 'F'); } }
     });
     footer();
   }

@@ -240,4 +240,11 @@ test('the report model: ranges add to 100%, targets follow ISPAD, percent displa
   assert.equal(r.sufficiency.ok, true); assert.ok(r.metrics.gmi !== null);
 });
 
+test('a day without sensor data is marked as such and drawn empty, never filled', () => {
+  const rs = series(T0 + DAY, 24 * 60, 5, 120); // nothing on the first day
+  const r = buildAgpReport({ readings: rs, from: T0, to: T0 + 2 * DAY, now: T0 + 3 * DAY });
+  assert.equal(r.daily.length, 2); assert.equal(r.daily[0].pctActive, 0); assert.ok(r.daily[0].mmol.every((v) => v === null));
+  near(r.daily[1].pctActive, 100, 1e-9);
+});
+
 console.log(`\n${n} report engine tests passed`);
