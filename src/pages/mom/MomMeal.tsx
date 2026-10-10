@@ -95,6 +95,7 @@ export function MomMeal() {
       {d.mode === 'now' && fromLog.slice(0, 4).map((h) => <Choice key={h.id} icon="🍽️" label={<><bdi>{tMaybe(h.name)}</bdi> · <span className="num">{fmt(h.total_carbs)}</span> {t('غ كارب')}</>} sub={h.lines.map((l) => tMaybe(l.name)).join(' · ')}
         onClick={() => { const r = plateFromLog(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.left); }} />)}
       <Big tone={meals.length ? 'soft' : 'primary'} onClick={() => nav(meals.length ? '/mom/add?tab=recipes' : '/mom/add')}>+ {t('شي ثاني')}</Big>
+      {d.mode === 'now' && <Big tone="ghost" onClick={() => nav('/mom/out')}>🍽️ {t('أكل برّا · ما أعرف الكارب')}</Big>}
     </MomPage>
   );
   return (
@@ -443,6 +444,7 @@ export function MomNew() {
       <p className="text-center text-[18px] text-slate-600">{t('وبالحين؟')}</p>
       <Big onClick={() => { draftOps.leaveOut(name.trim()); nav('/mom/meal', { replace: true }); }}>{t('كمّلي الوجبة بدونه')}</Big>
       <Big tone="ghost" onClick={() => nav('/mom', { replace: true })}>{t('انتظري بابا')}</Big>
+      <Big tone="ghost" onClick={() => nav('/mom/out', { replace: true })}>🍽️ {t('أكل برّا · ما أعرف الكارب')}</Big>
       <p className="mt-auto text-center text-sm text-slate-500">{t('ما نحسب إبرة لشي مو مؤكد')}</p>
     </MomPage>
   );

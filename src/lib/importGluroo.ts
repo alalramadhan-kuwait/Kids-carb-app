@@ -27,7 +27,7 @@ export function existingFrom(events: EventRow[], history: HistoryEntry[]): Exist
   return [
     ...events.filter((e) => own(e) && !e.deleted_at && e.kind === 'insulin' && e.insulin_units).map((e) => ({ kind: 'insulin' as const, amount: e.insulin_units!, t: Date.parse(e.occurred_at) })),
     ...events.filter((e) => own(e) && !e.deleted_at && (e.kind === 'carbs' || e.kind === 'treatment') && e.carbs_g !== null).map((e) => ({ kind: e.kind as 'carbs' | 'treatment', amount: e.carbs_g!, t: Date.parse(e.occurred_at) })),
-    ...history.filter((h) => own(h as { source?: string | null })).map((h) => ({ kind: 'carbs' as const, amount: h.total_carbs, t: Date.parse(h.eaten_at) })),
+    ...history.filter((h) => own(h as { source?: string | null }) && h.total_carbs !== null).map((h) => ({ kind: 'carbs' as const, amount: h.total_carbs!, t: Date.parse(h.eaten_at) })),
   ];
 }
 

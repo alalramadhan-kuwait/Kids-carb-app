@@ -40,7 +40,8 @@ export async function findDoseLink(h: HistoryEntry & { client_id?: string | null
  */
 export async function recordRecalc(h: HistoryEntry & { client_id?: string | null }, carbsAfter: number, reason: 'items' | 'carbs' | 'part'): Promise<boolean> {
   try {
-    if (Math.abs(carbsAfter - h.total_carbs) < 0.05) return false;
+    // carbs that were not known had no dose worked out for them: nothing to review
+    if (h.total_carbs === null || Math.abs(carbsAfter - h.total_carbs) < 0.05) return false;
     // the same correction sent again (a retry after a lost answer): already recorded once
     const { data: last } = await supabase.from('dose_recalcs').select('carbs_after').eq('history_id', h.id).order('at', { ascending: false }).limit(1).maybeSingle();
     if (last && Math.abs(Number((last as { carbs_after: number }).carbs_after) - carbsAfter) < 0.05) return false;

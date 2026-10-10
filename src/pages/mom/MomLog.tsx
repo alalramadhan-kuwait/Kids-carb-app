@@ -2,6 +2,7 @@
 // day. Every entry either parent logs is here (shots in pen colours, juice, food, finger pricks, carbs, notes,
 // activity), with who logged it. A meal whose "how much did she eat?" is not answered yet says so. A shot, juice, prick
 // or meal opens to change or delete it.
+import { mealTitle } from '../../lib/unknownMeal';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../lib/data';
@@ -34,9 +35,9 @@ export function MomLog() {
         return { ...base, to: null, icon: '📝', label: <bdi>{e.note}</bdi>, sub: '', text: e.note ?? '' };
       }),
       ...[...history, ...pendingMeals].map((h): Row => ({
-        key: h.id, at: Date.parse(h.eaten_at), to: `/mom/meal-entry/${h.id}`, icon: '🍽️', label: <bdi>{tMaybe(h.name)}</bdi>,
-        sub: h.intake === 'pending' ? `⏳ ${t('كم أكلت؟')}` : g(h.total_carbs), who: h.source ? '' : nameOf(h.created_by), pending: h.intake === 'pending',
-        text: [h.name, tMaybe(h.name), ...h.lines.map((l) => `${l.name} ${tMaybe(l.name)}`)].join(' '),
+        key: h.id, at: Date.parse(h.eaten_at), to: `/mom/meal-entry/${h.id}`, icon: '🍽️', label: <bdi>{mealTitle(h)}</bdi>,
+        sub: h.intake === 'pending' ? `⏳ ${t('كم أكلت؟')}` : h.total_carbs === null ? `❓ ${t('الكارب غير معروف')}` : g(h.total_carbs), who: h.source ? '' : nameOf(h.created_by), pending: h.intake === 'pending',
+        text: [h.name, mealTitle(h), h.place ?? '', ...h.lines.map((l) => `${l.name} ${tMaybe(l.name)}`)].join(' '),
       })),
     ].sort((a, b) => b.at - a.at);
   }, [events, history, pendingMeals, settings.glucose_unit, nameOf]);

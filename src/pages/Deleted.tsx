@@ -27,7 +27,7 @@ function useDeleted() {
       supabase.from('events').select('*').gte('deleted_at', since).order('deleted_at', { ascending: false }).limit(50),
     ]);
     if (h.error || e.error) { toast((h.error ?? e.error)!.message); setRows([]); return; }
-    const meals: Row[] = (h.data as HistoryEntry[]).map((x) => ({ id: x.id, meal: true, title: `${tMaybe(x.name)} · ${fmt(Number(x.total_carbs))} ${t('غ كارب')}`, at: x.eaten_at, deletedAt: x.deleted_at!, by: x.deleted_by ?? null }));
+    const meals: Row[] = (h.data as HistoryEntry[]).map((x) => ({ id: x.id, meal: true, title: `${tMaybe(x.name)} · ${x.carbs_unknown ? t('الكارب غير معروف') : `${fmt(Number(x.total_carbs))} ${t('غ كارب')}`}`, at: x.eaten_at, deletedAt: x.deleted_at!, by: x.deleted_by ?? null }));
     const evs: Row[] = (e.data as EventRow[]).map((x) => ({ id: x.id, meal: false, title: describeEvent({ ...x, insulin_units: x.insulin_units === null ? null : Number(x.insulin_units), carbs_g: x.carbs_g === null ? null : Number(x.carbs_g) }), at: x.occurred_at, deletedAt: x.deleted_at!, by: x.deleted_by ?? null }));
     setRows([...meals, ...evs].sort((a, b) => Date.parse(b.deletedAt) - Date.parse(a.deletedAt)));
   }, []);

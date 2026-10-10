@@ -166,7 +166,8 @@ export interface HistoryEntry {
   name: string;
   category: string | null;
   eaten_at: string;
-  total_carbs: number;
+  /** null: carbs not known (she ate out and nobody knows the grams). Never 0: an unknown meal is not a meal with no carbs */
+  total_carbs: number | null;
   total_fat: number | null;
   total_fiber: number | null;
   total_protein: number | null;
@@ -195,7 +196,13 @@ export interface HistoryEntry {
   intake?: 'confirmed' | 'pending';
   /** the submission (or, for a planned meal, the plan) it was saved from */
   client_id?: string | null;
+  /** ate out, carbs not known: what kinds of food, where, how big a plate, how much of it she ate, and the parent's
+   *  own guess (kept apart, marked as a guess, never used in any calculation) */
+  carbs_unknown?: boolean; foods?: string[] | null; place?: string | null; plate_size?: PlateSize | null; ate?: AtePart | null;
+  carbs_guess?: number | null;
 }
+export type PlateSize = 'small' | 'medium' | 'large';
+export type AtePart = 'all' | 'half' | 'little';
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 export const DEFAULT_SETTINGS: Settings = {

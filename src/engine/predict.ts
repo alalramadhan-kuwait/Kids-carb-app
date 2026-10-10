@@ -11,12 +11,12 @@ const KW = 3 * 3600000;
 export const PLAN_AFTER = 15 * MIN;      // entries up to 15 min after the start belong to the same plan
 const NEAR = 10 * MIN;                   // a reading this close to a moment stands for it
 
-export interface Entry { key: string; t: number; kind: 'meal' | 'carbs' | 'dose' | 'treatment' | 'exercise'; grams: number; units: number; name: string | null; recipe_id: string | null }
+export interface Entry { key: string; t: number; kind: 'meal' | 'carbs' | 'dose' | 'treatment' | 'exercise'; grams: number; units: number; name: string | null; recipe_id: string | null; unknown?: boolean }
 
 /** Everything that can start or disturb a prediction, oldest first. */
 export function entriesFrom(history: HistoryEntry[], events: EventRow[]): Entry[] {
   const out: Entry[] = [];
-  for (const h of history) out.push({ key: 'h:' + h.id, t: Date.parse(h.eaten_at), kind: 'meal', grams: h.total_carbs, units: 0, name: h.name, recipe_id: h.recipe_id });
+  for (const h of history) out.push({ key: 'h:' + h.id, t: Date.parse(h.eaten_at), kind: 'meal', grams: h.total_carbs ?? 0, unknown: h.total_carbs === null, units: 0, name: h.name, recipe_id: h.recipe_id });
   for (const e of events) {
     if (e.deleted_at) continue;
     const t = Date.parse(e.occurred_at), base = { key: 'e:' + e.id, t, grams: 0, units: 0, name: null, recipe_id: null };
@@ -54,6 +54,8 @@ export function predict(trigger: Entry, entries: Entry[], startMg: number, m: Mo
   const ratio = ratioAt(m.ratios, Math.floor(((t0 + KW) % 86400000) / MIN));
   if (!ratio) return null;
   const inPlan = (e: Entry, life: number) => e.t <= t0 + PLAN_AFTER && t0 - e.t < life * MIN;
+  // food whose carbs are not known: no curve can be drawn through it
+  if (entries.some((e) => e.unknown && inPlan(e, m.absorb))) return null;
   const doses = entries.filter((e) => e.kind === 'dose' && inPlan(e, m.iob.dia));
   const carbs = entries.filter((e) => (e.kind === 'meal' || e.kind === 'carbs' || e.kind === 'treatment') && e.grams > 0 && inPlan(e, m.absorb));
   const I = (t: number) => doses.reduce((s, d) => s + d.units * remIns(t - d.t, m.iob), 0);

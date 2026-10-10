@@ -29,11 +29,12 @@ export function scaleLines<L extends { quantity?: number | null; carbs?: number 
 }
 export type EditProblem = 'time' | 'future' | 'units' | 'carbs' | 'bg' | 'minutes' | 'name' | 'nutrition';
 /** What is wrong with the draft, if anything (a typo must not reach the log or the dose calculator). */
-export function editProblem(kind: string, d: EditDraft, now: number): EditProblem | null {
+/** `carbsUnknown`: a meal eaten out whose carbs are not known may be saved (its time, name…) without carbs. */
+export function editProblem(kind: string, d: EditDraft, now: number, carbsUnknown = false): EditProblem | null {
   if (d.t === null) return 'time';
   if (d.t > now + 5 * 60000) return 'future';
   if (kind === 'insulin' && !(d.units != null && d.units > 0 && d.units <= 100)) return 'units';
-  if ((kind === 'carbs' || kind === 'treatment' || kind === 'meal') && !(d.carbs != null && d.carbs >= 0 && d.carbs <= 300)) return 'carbs';
+  if ((kind === 'carbs' || kind === 'treatment' || kind === 'meal') && !(carbsUnknown && d.carbs == null) && !(d.carbs != null && d.carbs >= 0 && d.carbs <= 300)) return 'carbs';
   if (kind === 'bg_check' && !(d.bg != null && d.bg >= 20 && d.bg <= 600)) return 'bg';
   if (kind === 'exercise' && d.minutes != null && !(d.minutes > 0 && d.minutes <= 600)) return 'minutes';
   if (kind === 'meal' && !d.name?.trim()) return 'name';

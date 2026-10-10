@@ -84,11 +84,13 @@ export function useGrowthNutrition(): GrowthNutrition {
     // low treatments are kept apart
     const groupOf = groupResolver(products);
     const food = [
-      ...history.filter((h) => !h.needs_review).map((h) => foodEntry(h, groupOf)),
+      ...history.filter((h) => !h.needs_review && h.total_carbs !== null).map((h) => foodEntry({ ...h, total_carbs: h.total_carbs! }, groupOf)),
       ...events.filter((x) => x.kind === 'carbs' && x.carbs_g).map((x) => carbsOnly(Date.parse(x.occurred_at), x.carbs_g!)),
     ];
     const treatments = events.filter((x) => x.kind === 'treatment' && x.carbs_g).map((x) => ({ at: Date.parse(x.occurred_at), carbs: x.carbs_g! }));
-    const ds = days(food, treatments, today);
+    // a day with a meal whose carbs are not known (ate out) is not a complete day: it is left out of the averages
+    const unknownDays = new Set(history.filter((h) => h.total_carbs === null).map((h) => dayKey(Date.parse(h.eaten_at))));
+    const ds = days(food, treatments, today).map((d) => (unknownDays.has(d.key) ? { ...d, complete: false } : d));
     const periods: Period[] = ['today', 'd3', 'd7', 'd30'];
     const avg = Object.fromEntries(periods.map((p) => [p, average(ds, p, today)])) as Record<Period, Avg>;
     const bal = Object.fromEntries(periods.map((p) => [p, balance(avg[p], refs, NUTRITION_RULES, coverageMin)])) as Record<Period, Balance>;

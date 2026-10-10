@@ -41,7 +41,7 @@ export function MealResponse() {
       if (h.kind !== 'meal') continue;
       if (tab === 'recipes') { if (h.recipe_id) add(h.recipe_id, h.name, h, 'meal'); continue; }
       for (const l of h.lines ?? []) {
-        if (l.product && h.total_carbs > 0 && (l.carbs ?? 0) / h.total_carbs >= MAIN_SHARE) add(keyOf(l), keyOf(l), h, l.role === 'drink' || l.unit === 'ml' ? 'quick' : 'meal');
+        if (l.product && h.total_carbs != null && h.total_carbs > 0 && (l.carbs ?? 0) / h.total_carbs >= MAIN_SHARE) add(keyOf(l), keyOf(l), h, l.role === 'drink' || l.unit === 'ml' ? 'quick' : 'meal');
       }
     }
     // a low treatment that names a product counts for it, even when that product is only ever given for lows

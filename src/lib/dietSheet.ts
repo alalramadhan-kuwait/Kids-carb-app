@@ -19,7 +19,8 @@ export const BUMP = { fromMin: 120, toMin: 300, riseMg: 36 } as const; // a late
 
 /** One ingredient of a logged entry, as logged (the page formats the amount). */
 export interface Line { name: string; quantity: number | null; unit: string | null; carbs: number | null; productKey: string | null; /** the name came from the catalogue in the page's language */ named?: boolean }
-export type Flag = 'estimate' | 'imported' | 'review' | 'recipe' | 'unnamed' | 'duplicate';
+/** unknown: ate out, carbs not known (its carbs count as nothing in the sums; the chip says so) */
+export type Flag = 'estimate' | 'imported' | 'review' | 'recipe' | 'unnamed' | 'duplicate' | 'unknown';
 export interface Food {
   t: number; name: string; detail: string | null; carbs: number; fat: number | null; protein: number | null; kcal: number | null; fiber: number | null;
   id?: string;

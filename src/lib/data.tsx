@@ -44,7 +44,7 @@ const fixProduct = (p: any): Product => ({
 });
 const fixIng = (i: any): Ingredient => ({ ...i, quantity: Number(i.quantity) });
 const fixHist = (h: any): HistoryEntry => ({
-  ...h, total_carbs: Number(h.total_carbs), total_fat: num(h.total_fat), total_fiber: num(h.total_fiber),
+  ...h, total_carbs: h.carbs_unknown ? null : Number(h.total_carbs), total_fat: num(h.total_fat), total_fiber: num(h.total_fiber),
   total_protein: num(h.total_protein), total_kcal: num(h.total_kcal),
   total_sat_fat: num(h.total_sat_fat), total_sugar_added: num(h.total_sugar_added), total_sodium: num(h.total_sodium), total_calcium: num(h.total_calcium),
   total_iron: num(h.total_iron), total_potassium: num(h.total_potassium), total_vit_d: num(h.total_vit_d),

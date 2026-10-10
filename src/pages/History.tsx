@@ -1,3 +1,4 @@
+import { mealTitle } from '../lib/unknownMeal';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
@@ -279,7 +280,7 @@ function EpisodeDetail({ ep, unit, who }: { ep: Episode; unit: 'mmol' | 'mgdl'; 
 
 function Row({ it, who, onOpen }: { it: Item; who: string; onOpen: () => void }) {
   const icon: IconName = it.h ? 'meals' : EVENT_ICON[it.e!.kind];
-  const main = it.h ? <bdi>{it.h.name}</bdi> : it.e!.kind === 'note' ? <bdi>{it.e!.note}</bdi> : describeEvent(it.e!);
+  const main = it.h ? <bdi>{it.h.foods?.length ? mealTitle(it.h) : it.h.name}</bdi> : it.e!.kind === 'note' ? <bdi>{it.e!.note}</bdi> : describeEvent(it.e!);
   const sub = it.h ? [it.h.intake === 'pending' ? `⏳ ${t('كم أكلت؟ لم يُحدَّد بعد')}` : '', it.h.recipe_id ? t('وصفة') : '', it.h.kind === 'snack' ? t('سناك') : '', isFatty(it.h.total_fat, it.h.total_protein) ? t('دسمة') : '', it.h.brand ?? '', it.h.needs_review ? t('خارج البحث') : '', it.h.source === 'gluroo' ? it.h.notes ?? 'Gluroo' : ''].filter(Boolean).join(' · ') : it.e!.kind !== 'note' && it.e!.note ? it.e!.note : '';
   return (
     <li>
@@ -291,7 +292,8 @@ function Row({ it, who, onOpen }: { it: Item; who: string; onOpen: () => void })
           {(sub || who) && <span className="block truncate text-xs text-slate-500"><bdi>{[sub, who].filter(Boolean).join(' · ')}</bdi></span>}
         </span>
         {it.h?.photo_path && <span className="shrink-0" aria-label={t('مع صورة')}>📷</span>}
-        {it.h && <span className={cx('num shrink-0 text-lg font-bold', it.h.intake === 'pending' ? 'text-slate-400' : 'text-brand-num')}>{fmt(it.h.total_carbs)}<span className="text-xs font-medium"> {t('غ')}</span></span>}
+        {it.h && it.h.total_carbs === null && <span className="shrink-0 rounded-full bg-near-soft px-2 py-0.5 text-xs font-bold text-near">{t('كارب مطلوب')}</span>}
+        {it.h && it.h.total_carbs !== null && <span className={cx('num shrink-0 text-lg font-bold', it.h.intake === 'pending' ? 'text-slate-400' : 'text-brand-num')}>{fmt(it.h.total_carbs)}<span className="text-xs font-medium"> {t('غ')}</span></span>}
         <span className="text-slate-300">{isEn() ? '›' : '‹'}</span>
       </button>
     </li>

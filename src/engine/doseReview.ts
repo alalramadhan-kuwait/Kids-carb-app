@@ -32,7 +32,7 @@ export function matchDose(h: Pick<HistoryEntry, 'id' | 'eaten_at' | 'total_carbs
   if (p) return { plan_id: p.id, event_id: p.dose_event_id, snapshot: p.dose_snapshot! };
   const t = Date.parse(h.eaten_at);
   const e = events.filter((x) => !x.deleted_at && x.kind === 'insulin' && x.insulin_type !== 'long' && x.bolus_purpose !== 'correction' && usable(x.dose_calc)
-    && Date.parse(x.occurred_at) >= t - 45 * 60000 && Date.parse(x.occurred_at) <= t + 20 * 60000 && Math.abs(x.dose_calc!.carbs - h.total_carbs) <= 1);
+    && Date.parse(x.occurred_at) >= t - 45 * 60000 && Date.parse(x.occurred_at) <= t + 20 * 60000 && h.total_carbs !== null && Math.abs(x.dose_calc!.carbs - h.total_carbs) <= 1);
   return e.length === 1 ? { plan_id: null, event_id: e[0].id, snapshot: e[0].dose_calc! } : null; // two candidates: not certain
 }
 

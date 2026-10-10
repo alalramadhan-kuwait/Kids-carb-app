@@ -54,7 +54,8 @@ export const dosesFrom = (events: EventRow[]): Dose[] =>
     .map((e) => ({ t: Date.parse(e.occurred_at), units: e.insulin_units! }));
 
 export const carbsFrom = (history: HistoryEntry[], events: EventRow[]): CarbEntry[] => [
-  ...history.map((h) => ({ t: Date.parse(h.eaten_at), grams: h.total_carbs })),
+  // a meal whose carbs are not known adds nothing it can count; the screens say so instead
+  ...history.filter((h) => h.total_carbs !== null).map((h) => ({ t: Date.parse(h.eaten_at), grams: h.total_carbs! })),
   ...events.filter((e) => !e.deleted_at && (e.kind === 'carbs' || e.kind === 'treatment') && e.carbs_g).map((e) => ({ t: Date.parse(e.occurred_at), grams: e.carbs_g! })),
 ];
 

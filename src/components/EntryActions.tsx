@@ -1,3 +1,4 @@
+import { carbsOrUnknown } from '../lib/unknownMeal';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { SameMealLink, useSameMeal } from './SameMeal';
@@ -39,11 +40,11 @@ export function EntryActions({ e, h, onEdit, onRemove, onOpenOther, onClose }: {
   const again = () => run(async () => {
     const id = h ? await mealAgain(h) : await eventAgain(e!);
     await reload(); onClose();
-    toast(t('سُجّل مرة ثانية الآن: {x}', { x: h ? `${tMaybe(h.name)} · ${t('{g} غ', { g: fmt(h.total_carbs) })}` : describeEvent(e!) }),
+    toast(t('سُجّل مرة ثانية الآن: {x}', { x: h ? `${tMaybe(h.name)} · ${carbsOrUnknown(h.total_carbs)}` : describeEvent(e!) }),
       { label: t('تراجع'), run: async () => { if (h) await deleteHistory(id); else await deleteEvent(id, me); await reload(); } });
   });
   const copy = async () => {
-    const text = h ? `${h.name}${h.brand ? ` (${h.brand})` : ''} · ${t('{g} غ كارب', { g: fmt(h.total_carbs) })} · ${fmtTime(new Date(at))}` : `${describeEvent(e!)} · ${fmtTime(new Date(at))}`;
+    const text = h ? `${h.name}${h.brand ? ` (${h.brand})` : ''} · ${carbsOrUnknown(h.total_carbs)} · ${fmtTime(new Date(at))}` : `${describeEvent(e!)} · ${fmtTime(new Date(at))}`;
     try { await navigator.clipboard.writeText(text); toast(t('نُسخ ✓')); } catch { toast(text); }
   };
 

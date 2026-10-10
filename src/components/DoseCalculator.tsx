@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveDose } from '../lib/useLiveDose';
+import { UnknownMealNote } from './UnknownMealNote';
 import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { formatGlucose, unitLabel } from '../lib/glucose';
@@ -23,7 +24,7 @@ const clock = (ms: number) => new Date(ms).toLocaleTimeString(locale(), { hour: 
 export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'meal' | 'correction' | 'both', calc: DoseCalc, save: boolean) => void }) {
   const { settings: s, history, events } = useData();
   const [carbs, setCarbs] = useState<number | null>(null);
-  const { g, now, latest, iob, ratio, target, r } = useLiveDose(carbs ?? 0);
+  const { g, now, latest, iob, ratio, target, r, unknownMeal } = useLiveDose(carbs ?? 0);
   const lastRapidAt = useMemo(() => dosesFrom(events).reduce<number | null>((m, d) => (d.t <= now && (m === null || d.t > m) ? d.t : m), null), [events, now]);
   // carbs logged in the last 30 minutes and not yet covered by a rapid dose
   const recentCarbs = useMemo(() => carbsFrom(history, events)
@@ -53,6 +54,7 @@ export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'mea
         <h3 className="font-bold">{t('حاسبة الجرعة')}</h3>
         {ratio && target && <span className="text-xs text-slate-500">{t('كارب {cr} غ/وحدة · تصحيح {isf} · هدف {lo}–{hi}', { cr: fmt(ratio.cr), isf: gl(ratio.isf), lo: '\u2066' + gl(target.low), hi: gl(target.high) + '\u2069' /* keep the range left to right in Arabic */ })}</span>}
       </div>
+      <UnknownMealNote meal={unknownMeal} />
       <label className="flex items-center gap-3">
         <span className="flex-1 text-sm text-slate-600">{t('كارب الوجبة (غ)')}</span>
         <NumInput value={carbs} onChange={setCarbs} onFocus={lift} enterKeyHint="done" className="!w-24 !text-center" aria-label={t('كارب الوجبة (غ)')} />

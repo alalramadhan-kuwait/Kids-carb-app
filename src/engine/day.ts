@@ -30,13 +30,14 @@ export function lowEpisodes(s: Series, start: number, end: number, low: number, 
   return out;
 }
 
-export interface DayTotals { carbs: number; treatment: number; rapid: number; long: number; meals: number }
+/** unknown: meals whose carbs are not known (ate out); their carbs are not in `carbs` */
+export interface DayTotals { carbs: number; treatment: number; rapid: number; long: number; meals: number; unknown: number }
 
 /** What was logged in [start, end): meal/snack/carb grams, hypo-treatment grams, rapid and long insulin units. */
 export function dayTotals(history: HistoryEntry[], events: EventRow[], start: number, end: number): DayTotals {
   const inDay = (iso: string) => { const t = Date.parse(iso); return t >= start && t < end; };
-  const t: DayTotals = { carbs: 0, treatment: 0, rapid: 0, long: 0, meals: 0 };
-  for (const h of history) if (inDay(h.eaten_at)) { t.carbs += h.total_carbs; if (h.kind === 'meal') t.meals++; }
+  const t: DayTotals = { carbs: 0, treatment: 0, rapid: 0, long: 0, meals: 0, unknown: 0 };
+  for (const h of history) if (inDay(h.eaten_at)) { if (h.total_carbs === null) t.unknown++; else t.carbs += h.total_carbs; if (h.kind === 'meal') t.meals++; }
   for (const e of events) {
     if (e.deleted_at || !inDay(e.occurred_at)) continue;
     if (e.kind === 'carbs') t.carbs += e.carbs_g ?? 0;
@@ -44,7 +45,7 @@ export function dayTotals(history: HistoryEntry[], events: EventRow[], start: nu
     if (e.kind === 'insulin') { if (e.insulin_type === 'long') t.long += e.insulin_units ?? 0; else t.rapid += e.insulin_units ?? 0; }
   }
   const r1 = (n: number) => Math.round(n * 10) / 10;
-  return { carbs: r1(t.carbs), treatment: r1(t.treatment), rapid: r1(t.rapid), long: r1(t.long), meals: t.meals };
+  return { carbs: r1(t.carbs), treatment: r1(t.treatment), rapid: r1(t.rapid), long: r1(t.long), meals: t.meals, unknown: t.unknown };
 }
 
 /** Weekday and date for a day start: «الخميس 1 أكتوبر» / "Thursday 1 October". */

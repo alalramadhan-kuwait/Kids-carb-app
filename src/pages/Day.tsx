@@ -165,7 +165,7 @@ export function DayView() {
                   ) : (
                     <>
                       <span className={cx('grid h-8 w-8 shrink-0 place-items-center rounded-full', KIND_STYLE[r.mark!.kind].icon)}><Icon name={ICON[r.mark!.kind]} size={17} /></span>
-                      <span className="min-w-0 flex-1 truncate font-medium">{r.mark!.meal ? r.mark!.meal.name + ' · ' + t('{v} غ', { v: fmt(r.mark!.meal.total_carbs) }) : r.mark!.event!.kind === 'note' ? r.mark!.event!.note : describeEvent(r.mark!.event!)}</span>
+                      <span className="min-w-0 flex-1 truncate font-medium">{r.mark!.meal ? r.mark!.meal.name + ' · ' + (r.mark!.meal.total_carbs === null ? t('الكارب غير معروف') : t('{v} غ', { v: fmt(r.mark!.meal.total_carbs) })) : r.mark!.event!.kind === 'note' ? r.mark!.event!.note : describeEvent(r.mark!.event!)}</span>
                     </>
                   )}
                   <span className="text-slate-400">{isEn() ? '›' : '‹'}</span>

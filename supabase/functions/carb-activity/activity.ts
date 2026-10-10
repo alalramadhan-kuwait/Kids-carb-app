@@ -20,13 +20,14 @@ const kw12 = (ms: number, en: boolean) => {
 };
 const ACT_ICON: Record<ActivityKind, string> = { meal: '🍽️', rapid: '💉', long: '💉', treatment: '🧃', finger: '🩸' };
 
-/** "Rawan added NovoRapid 4 U" / "8:05 PM". Facts only, like every other push. */
+/** "Rawan added NovoRapid 4 U" / "8:05 PM". Facts only, like every other push. A meal with no carbs (null) was eaten out
+ *  with its carbs not known: it says so, never "0 g". */
 export function activityMessage(a: ActivityRow, who: string | null, lang: Lang = 'ar', unit: 'mgdl' | 'mmol' = 'mmol') {
   const en = lang === 'en', n = (v: number | null) => `${LRI}${Math.round((v ?? 0) * 10) / 10}${PDI}`;
   const g = a.mgdl != null ? `${LRI}${num(a.mgdl, unit)} ${unit === 'mmol' ? 'mmol/L' : 'mg/dL'}${PDI}` : '';
   const what = en
-    ? { meal: `meal · ${n(a.carbs)} g carbs`, rapid: `NovoRapid ${n(a.units)} U`, long: `Tresiba ${n(a.units)} U`, treatment: `low treatment · ${n(a.carbs)} g carbs`, finger: `finger-prick ${g}` }[a.kind]
-    : { meal: `وجبة · ${n(a.carbs)} غ كارب`, rapid: `نوفورابيد ${n(a.units)} وحدة`, long: `تريسيبا ${n(a.units)} وحدة`, treatment: `علاج انخفاض · ${n(a.carbs)} غ كارب`, finger: `قياس وخز ${g}` }[a.kind];
+    ? { meal: a.carbs === null ? 'meal · carbs unknown' : `meal · ${n(a.carbs)} g carbs`, rapid: `NovoRapid ${n(a.units)} U`, long: `Tresiba ${n(a.units)} U`, treatment: `low treatment · ${n(a.carbs)} g carbs`, finger: `finger-prick ${g}` }[a.kind]
+    : { meal: a.carbs === null ? 'وجبة · الكارب غير معروف' : `وجبة · ${n(a.carbs)} غ كارب`, rapid: `نوفورابيد ${n(a.units)} وحدة`, long: `تريسيبا ${n(a.units)} وحدة`, treatment: `علاج انخفاض · ${n(a.carbs)} غ كارب`, finger: `قياس وخز ${g}` }[a.kind];
   const pen = a.kind === 'rapid' || a.kind === 'long';
   const title = en
     ? (who ? `${who} added ${pen ? '' : 'a '}${what}` : ((h: string, ...r: string[]) => [`${h[0].toUpperCase()}${h.slice(1)} added`, ...r].join(' · '))(...(what.split(' · ') as [string])))

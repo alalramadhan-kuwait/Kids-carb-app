@@ -185,7 +185,7 @@ export function MomRecordDose() {
         const near = (await insulinNear(type, at, type === 'long' ? 20 * 60 : 15)).filter((e) => e.client_id !== cid); // not this submission's own retry
         if (near.length) { setClash(near[0]); setBusy(false); return; }
       }
-      await saveEvent({ client_id: cid, kind: 'insulin', occurred_at: new Date(at).toISOString(), insulin_units: units, insulin_type: type, bolus_purpose: null,
+      await saveEvent({ client_id: cid, kind: 'insulin', occurred_at: new Date(at).toISOString(), insulin_units: units, insulin_type: type, bolus_purpose: type === 'rapid' && sp.get('purpose') === 'meal' ? 'meal' : null,
         carbs_g: null, treatment: null, note: null, activity_min: null, activity_level: null, ends_at: null, dose_calc: null, bg_mgdl: null });
       await reload();
       toast(t('تم تسجيل الإبرة ✓'));

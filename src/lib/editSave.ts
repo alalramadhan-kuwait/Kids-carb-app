@@ -28,10 +28,13 @@ export async function updateMeal(h: HistoryEntry, d: EditDraft, me: string | nul
     total_fat: d.fat ?? null, total_protein: d.protein ?? null, total_fiber: d.fiber ?? null, total_kcal: d.kcal ?? null,
     modified: true, edited_by: me, edited_at: new Date().toISOString(),
   };
+  // carbs typed in for a meal whose carbs were not known: it now counts like any other meal; left empty, they stay unknown
+  if (h.total_carbs === null && d.carbs != null) patch.carbs_unknown = false;
+  if (h.total_carbs === null && d.carbs == null) delete patch.total_carbs;
   if (d.note !== undefined) patch.notes = d.note.trim() || null;
   // a part portion (½, ¾…) scales every item with the total, against what was saved; otherwise a one-item meal keeps
   // its line in step with the total, and a mixed meal keeps its lines and is marked as changed
-  const f = d.part && d.part !== 1 && h.total_carbs > 0 && d.carbs != null ? d.carbs / h.total_carbs : null;
+  const f = d.part && d.part !== 1 && h.total_carbs != null && h.total_carbs > 0 && d.carbs != null ? d.carbs / h.total_carbs : null;
   if (f !== null && h.lines?.length) patch.lines = scaleLines(h.lines, f);
   else if (h.lines?.length === 1) patch.lines = [{ ...h.lines[0], carbs: d.carbs }];
   // the other label nutrients follow a part portion; a hand-changed total makes them unknown (never wrong)
@@ -73,7 +76,7 @@ export async function carbsToMeal(e: EventRow, d: EditDraft, me: string | null):
 /** The items of a logged meal changed (amounts, removed or added): its lines and totals are replaced; the recipe is not touched. */
 export async function updateMealItems(h: HistoryEntry, r: { lines: HistoryLine[]; carbs: number; totals: Record<Nut, number | null> }, me: string | null) {
   const { error } = await supabase.from('meal_history').update({
-    lines: r.lines, total_carbs: r.carbs, ...totalsPatch(r.totals), modified: true, edited_by: me, edited_at: new Date().toISOString(),
+    lines: r.lines, total_carbs: r.carbs, carbs_unknown: false, ...totalsPatch(r.totals), modified: true, edited_by: me, edited_at: new Date().toISOString(),
   }).eq('id', h.id);
   if (error) throw new Error(error.message);
   await recordRecalc(h, r.carbs, 'items');
@@ -82,7 +85,7 @@ export async function updateMealItems(h: HistoryEntry, r: { lines: HistoryLine[]
 /** A meal logged as carbs only (no items): its carbs corrected. The other totals cannot follow a typed number, so
  *  they become unknown (never wrong); a part of it ("she ate half") scales them instead. */
 export async function setMealCarbs(h: HistoryEntry, carbs: number, part: number | null, me: string | null) {
-  const patch: Record<string, unknown> = { total_carbs: carbs, modified: true, edited_by: me, edited_at: new Date().toISOString() };
+  const patch: Record<string, unknown> = { total_carbs: carbs, carbs_unknown: false, modified: true, edited_by: me, edited_at: new Date().toISOString() };
   for (const k of ['total_fat', 'total_fiber', 'total_protein', 'total_kcal', 'total_sat_fat', 'total_sugar_added', 'total_sodium', 'total_calcium', 'total_iron', 'total_potassium', 'total_vit_d'] as const) {
     const v = h[k];
     if (v != null) patch[k] = part !== null ? Math.round(v * part * 10) / 10 : null;

@@ -48,13 +48,15 @@ async function gather({ settings: s, events, history }: RunInput, now: number) {
   const d = series.data as { t: number[]; v: number[]; a: (number | null)[] };
   if (!d.t.length) throw new Error('no_readings'); // an empty window is a failed run, never a run that scored nothing
   const live = events.filter((e) => !e.deleted_at);
-  const uncertain = ((unc.data ?? []) as { id: string; occurred_at: string }[]).map((u) => ({ id: u.id, t: Date.parse(u.occurred_at) }));
+  // a meal whose carbs are not known is set aside like an uncertain import: its hours are not scored
+  const uncertain = [...((unc.data ?? []) as { id: string; occurred_at: string }[]).map((u) => ({ id: u.id, t: Date.parse(u.occurred_at) })),
+    ...history.filter((h) => h.total_carbs === null).map((h) => ({ id: h.id, t: Date.parse(h.eaten_at) }))];
   return {
     readings: d.t.map((x, i) => ({ t: x * 1000, v: d.v[i], a: d.a[i] })),
     ctx: {
       doses: live.filter((e) => e.kind === 'insulin' && e.insulin_type !== 'long' && e.insulin_units).map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units! })),
       carbs: [
-        ...history.map((h) => ({ t: Date.parse(h.eaten_at), g: h.total_carbs, fpu: ((h.total_fat ?? 0) * 9 + (h.total_protein ?? 0) * 4) / 100, meal: true })),
+        ...history.filter((h) => h.total_carbs !== null).map((h) => ({ t: Date.parse(h.eaten_at), g: h.total_carbs!, fpu: ((h.total_fat ?? 0) * 9 + (h.total_protein ?? 0) * 4) / 100, meal: true })),
         ...live.filter((e) => (e.kind === 'carbs' || e.kind === 'treatment') && e.carbs_g).map((e) => ({ t: Date.parse(e.occurred_at), g: e.carbs_g! })),
       ],
       iob: { dia: s.iob_dia_min ?? 360, peak: s.iob_peak_min ?? 65 }, absorb: s.cob_absorb_min ?? 180, cr: ratio.cr, isf: ratio.isf,

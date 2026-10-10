@@ -783,7 +783,7 @@ test('day totals separate meal carbs, hypo treatment, rapid and long insulin, an
   const evs = [evr({ insulin_units: 3, insulin_type: 'rapid', occurred_at: '2026-10-01T04:05:00Z' }), evr({ id: 'b', insulin_units: 12, insulin_type: 'long', occurred_at: '2026-10-01T17:00:00Z' }),
     evr({ id: 't', kind: 'treatment', carbs_g: 15, occurred_at: '2026-10-01T07:36:00Z' }), evr({ id: 'c', kind: 'carbs', carbs_g: 10, occurred_at: '2026-10-01T12:00:00Z' }),
     evr({ id: 'd', insulin_units: 2, insulin_type: 'rapid', occurred_at: '2026-10-01T12:00:00Z', deleted_at: '2026-10-01T12:01:00Z' })];
-  assert.deepEqual(dayTotals(hist as any, evs as any, start, end), { carbs: 100, treatment: 15, rapid: 3, long: 12, meals: 2 });
+  assert.deepEqual(dayTotals(hist as any, evs as any, start, end), { carbs: 100, treatment: 15, rapid: 3, long: 12, meals: 2, unknown: 0 });
 });
 
 test('night and school windows on the phone match the server (Kuwait time, overnight wrap)', () => {

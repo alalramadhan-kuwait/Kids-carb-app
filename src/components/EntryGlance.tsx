@@ -1,3 +1,4 @@
+import { carbsOrUnknown } from '../lib/unknownMeal';
 import { useEffect, useState } from 'react';
 import { useData } from '../lib/data';
 import { fmt } from '../lib/carbs';
@@ -41,7 +42,7 @@ export function EntryGlance({ e, h }: { e?: EventRow; h?: HistoryEntry }) {
     const t0 = Date.parse(h.eaten_at);
     const dose = events.find((x) => x.kind === 'insulin' && x.insulin_type === 'rapid' && !x.deleted_at && (x.insulin_units ?? 0) > 0
       && Date.parse(x.occurred_at) >= t0 - 30 * MIN && Date.parse(x.occurred_at) <= t0 + 15 * MIN);
-    return <Line><bdi>{fmt(h.total_carbs)} {t('غ كارب')}{dose ? ` · ${t('{u} وحدة', { u: fmt(dose.insulin_units) })}` : ''}</bdi></Line>;
+    return <Line><bdi>{carbsOrUnknown(h.total_carbs)}{dose ? ` · ${t('{u} وحدة', { u: fmt(dose.insulin_units) })}` : ''}</bdi></Line>;
   }
   if (!e) return null;
 

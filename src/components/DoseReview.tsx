@@ -32,11 +32,13 @@ export function DoseReview({ h, simple }: { h: HistoryEntry; simple?: boolean })
   const { nameOf } = useData();
   const r = useReview(h);
   const [open, setOpen] = useState(false);
-  if (!r) return null;
+  // a meal whose carbs are not known has nothing to recalculate
+  if (!r || h.total_carbs === null) return null;
+  const carbs = h.total_carbs;
   const s = r.link.snapshot;
   const atDose = s.suggested ?? reviewDose(s, s.carbs);
-  const changed = Math.abs((s.carbs ?? h.total_carbs) - h.total_carbs) >= 0.05;
-  const now = reviewDose(s, h.total_carbs);
+  const changed = Math.abs((s.carbs ?? carbs) - carbs) >= 0.05;
+  const now = reviewDose(s, carbs);
   const u = (x: number) => t('{u} وحدة', { u: fmt(x) });
   const body = (
     <div className="divide-y divide-slate-100">

@@ -1,7 +1,8 @@
 // The same meal again: what she ate in one sitting (entries less than 30 minutes apart, however they were logged)
 // compared with earlier sittings by food, not by exact product or size: "Fries (Small)" and "World Famous Fries
 // (Regular)" are the same food, "Chicken McNuggets 6 pcs" and "9 pcs" too. Two sittings are the same meal when most
-// of the carbs of each are foods the other also had. Pure, so it is tested.
+// of the carbs of each are foods the other also had. A meal eaten out with its carbs not known is compared only with
+// other such meals: the same place, or mostly the same kinds of food. Pure, so it is tested.
 import type { HistoryEntry } from '../lib/types';
 
 const MIN = 60000;
@@ -10,7 +11,8 @@ export const SAME_SCORE = 0.6;      // share of each sitting's carbs that must b
 const SMALL_G = 5;                  // a sitting below this is not a meal to compare
 
 export interface SittingItem { key: string[]; label: string; carbs: number }
-export interface Sitting { id: string; ids: string[]; t0: number; carbs: number; items: SittingItem[]; entries: HistoryEntry[] }
+/** unknown: some of it was eaten out with carbs not known (`carbs` then holds only the known part); place: where */
+export interface Sitting { id: string; ids: string[]; t0: number; carbs: number; items: SittingItem[]; entries: HistoryEntry[]; unknown?: boolean; place?: string | null }
 
 // sizes, counts and marketing words that do not change what the food is
 const NOISE = new Set(['small', 'regular', 'medium', 'large', 'kids', 'kid', 'world', 'famous', 'original', 'mini', 'big', 'pcs', 'pc', 'pieces', 'piece',
@@ -40,6 +42,7 @@ export function sameFood(a: string[], b: string[]) {
 }
 
 const itemsOf = (h: HistoryEntry): SittingItem[] => {
+  if (h.total_carbs === null) return (h.foods?.length ? h.foods : [h.name]).map((f) => ({ key: foodKey(f), label: f, carbs: 0 }));
   const lines = (h.lines ?? []).filter((l) => (l.carbs ?? 0) > 0 || l.role === 'main');
   if (!lines.length) return [{ key: foodKey(h.name), label: h.name, carbs: Number(h.total_carbs) || 0 }];
   return lines.map((l) => ({ key: foodKey(l.product ?? l.name), label: l.name, carbs: Number(l.carbs) || 0 }));
@@ -52,10 +55,11 @@ export function sittings(history: HistoryEntry[]): Sitting[] {
   for (const h of hs) {
     const t = Date.parse(h.eaten_at), last = out[out.length - 1];
     const lastT = last ? Date.parse(last.entries[last.entries.length - 1].eaten_at) : -Infinity;
-    const s = last && t - lastT <= SITTING_GAP_MIN * MIN ? last : (out.push({ id: h.id, ids: [], t0: t, carbs: 0, items: [], entries: [] }), out[out.length - 1]);
-    s.ids.push(h.id); s.entries.push(h); s.items.push(...itemsOf(h)); s.carbs += Number(h.total_carbs) || 0;
+    const s = last && t - lastT <= SITTING_GAP_MIN * MIN ? last : (out.push({ id: h.id, ids: [], t0: t, carbs: 0, items: [], entries: [], unknown: false, place: null }), out[out.length - 1]);
+    s.ids.push(h.id); s.entries.push(h); s.items.push(...itemsOf(h)); s.carbs += h.total_carbs ?? 0;
+    if (h.total_carbs === null) { s.unknown = true; s.place = s.place || h.place?.trim() || null; }
   }
-  return out.filter((s) => s.carbs >= SMALL_G);
+  return out.filter((s) => s.unknown || s.carbs >= SMALL_G);
 }
 
 const shareMatched = (a: Sitting, b: Sitting) => {
@@ -66,9 +70,22 @@ const shareMatched = (a: Sitting, b: Sitting) => {
 
 /** 0–1: the smaller of "how much of A was in B" and "how much of B was in A", by carbs. The same recipe is 1. */
 export function similarity(a: Sitting, b: Sitting) {
+  if (a.unknown || b.unknown) return unknownSimilarity(a, b);
   const ra = a.entries.map((h) => h.recipe_id).filter(Boolean);
   if (ra.length && b.entries.some((h) => h.recipe_id && ra.includes(h.recipe_id))) return 1;
   return Math.min(shareMatched(a, b), shareMatched(b, a));
+}
+
+/** Two meals eaten out (carbs not known): the same place counts as the same meal; otherwise the share of food kinds
+ *  both had (by count, since there are no carbs to weigh them by). Never matched with a meal whose carbs are known. */
+export function unknownSimilarity(a: Sitting, b: Sitting) {
+  if (!a.unknown || !b.unknown) return 0;
+  const norm = (p?: string | null) => (p ? foodKey(p).join(' ') : '');
+  const kinds = (s: Sitting) => s.items.map((i) => i.key);
+  const A = kinds(a), B = kinds(b);
+  const both = A.filter((k) => B.some((j) => sameFood(k, j))).length, all = new Set([...A, ...B].map((k) => k.join(' '))).size;
+  const share = all ? both / all : 0;
+  return norm(a.place) && norm(a.place) === norm(b.place) ? Math.max(SAME_SCORE, share) : share;
 }
 
 /** Earlier sittings that were the same meal, most alike first, then the most recent. */

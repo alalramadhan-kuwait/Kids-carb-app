@@ -113,11 +113,12 @@ export default function DietSheetPage() {
       const slotKey = (x: string | undefined): Food['slot'] => (x === 'breakfast' || x === 'lunch' || x === 'dinner' || x === 'snack' ? x : null);
       const foods: Food[] = [], treatments: Treat[] = [];
       for (const x of hist) {
-        const t0 = Date.parse(x.eaten_at), carbs = Number(x.total_carbs);
+        const t0 = Date.parse(x.eaten_at), carbs = x.carbs_unknown ? 0 : Number(x.total_carbs);
         const plan = planOf.get(x.id);
         const imported = x.source === 'gluroo';
         const flags: Flag[] = [];
         if (imported) flags.push('imported');
+        if (x.carbs_unknown) flags.push('unknown');
         if (x.needs_review) flags.push('review');
         if (x.recipe_id && unsure.has(x.recipe_id)) flags.push('recipe');
         const lines: Line[] = (x.lines ?? []).map((l) => {
@@ -225,7 +226,7 @@ const niceDay = (ms: number) => Number.isFinite(ms) ? new Date(ms + 3 * 3600000)
 
 // ── shared words for both views ──────────────────────────────────────────────────────────────────────────────
 type Ctx = { g: (mg: number) => string; low: number; high: number; products: Product[]; portions: Portion[] };
-const FLAG_TEXT: Record<Flag, string> = { estimate: 'تقديري', imported: 'مستورد', review: 'يحتاج مراجعة', recipe: 'وصفة غير مؤكدة', unnamed: 'غير مسمّى', duplicate: 'مكرر؟' }; // i18n-ok: shown through t()
+const FLAG_TEXT: Record<Flag, string> = { estimate: 'تقديري', imported: 'مستورد', review: 'يحتاج مراجعة', recipe: 'وصفة غير مؤكدة', unnamed: 'غير مسمّى', duplicate: 'مكرر؟', unknown: 'الكارب غير معروف' }; // i18n-ok: shown through t()
 const AFF_TEXT = { food: 'أكل', treatment: 'علاج', correction: 'تصحيح' } as const; // i18n-ok: shown through t()
 const r1 = (x: number) => Math.round(x * 10) / 10;
 /** A name in the page's language when the dictionary has it, without pack sizes; † when shown as typed. */

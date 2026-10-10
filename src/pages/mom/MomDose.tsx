@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { useLiveDose } from '../../lib/useLiveDose';
+import { UnknownMealNote } from '../../components/UnknownMealNote';
 import { draftOps, useDraft } from '../../lib/mom';
 import { adoptDose, approveDose, ate, fetchPlan, logPendingMeal, planMeal, planNow, startEating, usePlans, type DoseConflict } from '../../lib/plans';
 import { insulinNear, logMeal, saveEvent } from '../../lib/api';
@@ -168,6 +169,7 @@ export function MomDose() {
     <MomPage title={correction ? t('إبرة تصحيح') : t('قبل الأكل')} back={backTo}
       foot={<>{differs && !reason && <p className="text-center text-[16px] font-bold text-near">{t('اختاري السبب')}</p>}<Big disabled={busy || !given || given <= 0 || (differs && !reason)} onClick={() => save()}>💉 {t('سجّلي الإبرة')}</Big></>}>
       {leftNote}
+      <UnknownMealNote meal={live.unknownMeal} big />
       <div className="space-y-1.5 rounded-3xl border border-slate-100 bg-white px-4 py-3 text-[17px]">
         {!correction && <div className="text-[16px] text-slate-600"><bdi>{names.join(' · ')}</bdi></div>}
         {!correction && <div className="flex justify-between"><span>🍽️ {t('الكارب')}</span><b className="num">{fmt(carbs ?? 0)} {t('غرام')}</b></div>}

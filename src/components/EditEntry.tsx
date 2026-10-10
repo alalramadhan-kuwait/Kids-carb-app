@@ -52,8 +52,10 @@ export function EditEntry({ e, h, onDone, onCancel, onItems }: { e?: EventRow; h
   const [busy, setBusy] = useState(false);
   const draft: EditDraft = { t: whenMs, units, carbs, bg: bg === null ? null : toMgdl(bg, unit), minutes, name, note, ...(food ? { carbs: tot.carbs, brand, fat: tot.fat, protein: tot.protein, fiber: tot.fiber, kcal: tot.kcal, toQuick: keep, part: part !== 1 ? part : undefined,
     label: n.mode === 'per100' ? { per100: n.per100, amount: n.amount, unit: n.unit } : null } : {}) };
-  const np = food ? nutrProblem(n) : null;
-  const problem: EditProblem | null = np ? (np === 'carbs' ? 'carbs' : 'nutrition') : editProblem(kind, draft, Date.now());
+  // a meal eaten out with its carbs not known can keep them unknown (its time or name can still change)
+  const unknownOk = !!h && h.total_carbs === null && tot.carbs === null;
+  const np = food && !unknownOk ? nutrProblem(n) : null;
+  const problem: EditProblem | null = np ? (np === 'carbs' ? 'carbs' : 'nutrition') : editProblem(kind, draft, Date.now(), unknownOk);
 
   const save = async () => {
     if (problem) return;

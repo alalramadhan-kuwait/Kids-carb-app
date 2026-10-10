@@ -27,12 +27,14 @@ export type MarkKind = 'meal' | 'carbs' | 'insulin' | 'basal' | 'treatment' | 'e
 export interface Mark {
   key: string; t: number; end?: number; kind: MarkKind; layer: Layer;
   carbs?: number; units?: number; name?: string;
+  /** a meal whose carbs are not known (ate out) */
+  unknown?: boolean;
   event?: EventRow; meal?: HistoryEntry;
 }
 
 export function buildMarks(history: HistoryEntry[], events: EventRow[]): Mark[] {
   const out: Mark[] = [];
-  for (const h of history) out.push({ key: 'h' + h.id, t: Date.parse(h.eaten_at), kind: 'meal', layer: 'meals', carbs: h.total_carbs, name: h.name, meal: h });
+  for (const h of history) out.push({ key: 'h' + h.id, t: Date.parse(h.eaten_at), kind: 'meal', layer: 'meals', carbs: h.total_carbs ?? undefined, unknown: h.total_carbs === null, name: h.name, meal: h });
   for (const e of events) {
     if (e.deleted_at) continue;
     const t = Date.parse(e.occurred_at), base = { key: 'e' + e.id, t, event: e };
@@ -67,14 +69,15 @@ export function groupMarks(marks: Mark[], layers: Set<Layer>, start: number, end
 
 /** Short rail label: "45 غ + 3 و", with a hypo treatment kept apart ("علاج 15 غ") so it is never read as meal carbs. */
 export function groupLabel(g: Group): string {
-  let carbs = 0, units = 0, treat = 0;
+  let carbs = 0, units = 0, treat = 0, unknown = false;
   for (const m of g.marks) {
+    if (m.unknown) unknown = true;
     if (m.kind === 'meal' || m.kind === 'carbs') carbs += m.carbs ?? 0;
     if (m.kind === 'treatment') treat += m.carbs ?? 0;
     if (m.kind === 'insulin') units += m.units ?? 0;
   }
   const r = (n: number) => String(Math.round(n * 10) / 10);
-  return [carbs ? t('{v} غ', { v: r(carbs) }) : '', units ? t('{v} و', { v: r(units) }) : '', treat ? t('علاج {v} غ', { v: r(treat) }) : ''].filter(Boolean).join(' + ');
+  return [carbs ? t('{v} غ', { v: r(carbs) }) + (unknown ? ' + ?' : '') : unknown ? t('كارب ؟') : '', units ? t('{v} و', { v: r(units) }) : '', treat ? t('علاج {v} غ', { v: r(treat) }) : ''].filter(Boolean).join(' + ');
 }
 
 /**

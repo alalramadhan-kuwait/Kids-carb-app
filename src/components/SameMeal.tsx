@@ -42,7 +42,7 @@ export function useRecentSame() {
   const { history, events } = useData();
   return useMemo(() => {
     const all = sittings(eaten(history, events)), now = Date.now();
-    const last = [...all].reverse().find((s) => s.t0 <= now && now - s.t0 <= 4 * 3600000 && s.carbs >= 10);
+    const last = [...all].reverse().find((s) => s.t0 <= now && now - s.t0 <= 4 * 3600000 && (s.carbs >= 10 || !!s.unknown));
     if (!last) return null;
     const matches = sameMeals(last, all, { max: MAX_TIMES }).map((x) => x.s);
     return matches.length ? { target: last, matches } : null;
@@ -132,7 +132,7 @@ export function SameMealView({ target, matches, big }: { target: Sitting; matche
       {err && <p className="text-center text-sm text-over">{err}</p>}
       {now && (
         <ul className="space-y-2">
-          <Row color={NOW_COLOR} title={t('هذه المرة')} carbs={now.s.carbs} units={unitsOf(now)} what={now.s.items.map((i) => tMaybe(i.label)).join(' + ')}
+          <Row color={NOW_COLOR} title={t('هذه المرة')} carbs={now.s.unknown ? null : now.s.carbs} units={unitsOf(now)} what={now.s.items.map((i) => tMaybe(i.label)).join(' + ')}
             start={g(at(now, 0))} peak={peakOf(pts(now))} after2={g(at(now, 120))} g={g}
             dose={(() => { const d = dosesOf(now.s, events); return d.length ? Math.round((Date.parse(d[0].occurred_at) - now.s.t0) / MIN) : null; })()} />
           {usual.length > 1 && <Row color={USUAL_COLOR} title={t('المعتاد · {n} مرات', { n: past.length })} start={g(usualAt(0))} peak={peakOf(usual)} after2={g(usualAt(120))} g={g} />}
@@ -148,7 +148,7 @@ export function SameMealView({ target, matches, big }: { target: Sitting; matche
                 <li key={l.s.id} className="py-1.5">
                   <div className="flex flex-wrap items-baseline gap-x-2">
                     <span className="font-medium">{whenText(l.s.t0)}</span>
-                    <span className="num text-slate-500">{t('{g} غ', { g: fmt(l.s.carbs) })}{u ? ` · ${t('{u} و', { u: fmt(u) })}` : ''}</span>
+                    <span className="num text-slate-500">{l.s.unknown ? t('كارب ؟') : t('{g} غ', { g: fmt(l.s.carbs) })}{u ? ` · ${t('{u} و', { u: fmt(u) })}` : ''}</span>
                     <span className="ms-auto num" dir="ltr">{g(at(l, 0))} → <b>{p ? g(p.v) : '—'}</b>{p ? <span className="text-slate-500"> ({t('{m} د', { m: Math.round(p.m) })})</span> : null} · {t('{h} س', { h: 2 })} {g(at(l, 120))}</span>
                   </div>
                   {l.why.length > 0 && <div className="text-xs text-near">{t('الخط يقف عند: {w}', { w: l.why.join(' · ') })}</div>}
@@ -164,14 +164,14 @@ export function SameMealView({ target, matches, big }: { target: Sitting; matche
 }
 
 function Row({ color, title, carbs, units, what, start, peak, after2, dose, g }: {
-  color: string; title: string; carbs?: number; units?: number; what?: string; start: string; peak: { m: number; v: number } | null; after2: string; dose?: number | null; g: (v: number | null) => string;
+  color: string; title: string; carbs?: number | null; units?: number; what?: string; start: string; peak: { m: number; v: number } | null; after2: string; dose?: number | null; g: (v: number | null) => string;
 }) {
   return (
     <li className="rounded-2xl border border-slate-100 bg-white px-3 py-2">
       <div className="flex items-center gap-2">
         <span aria-hidden className="h-1.5 w-6 shrink-0 rounded-full" style={{ background: color }} />
         <span className="font-bold">{title}</span>
-        {carbs != null && <span className="ms-auto num text-sm text-slate-600">{t('{g} غ', { g: fmt(carbs) })}{units ? ` · ${t('{u} و', { u: fmt(units) })}` : ''}</span>}
+        {carbs !== undefined && <span className="ms-auto num text-sm text-slate-600">{carbs === null ? t('كارب ؟') : t('{g} غ', { g: fmt(carbs) })}{units ? ` · ${t('{u} و', { u: fmt(units) })}` : ''}</span>}
       </div>
       {what && <div className="mt-0.5 text-sm text-slate-600"><bdi>{what}</bdi></div>}
       <div className="mt-1 flex flex-wrap gap-x-3 text-sm">

@@ -34,7 +34,7 @@ export function OvernightBasal({ from, pattern }: { from: number; pattern: numbe
       ...events.filter((e) => e.kind === 'insulin' && e.insulin_type !== 'long').map((e) => ({ t: Date.parse(e.occurred_at), kind: 'rapid' as const })),
       ...events.filter((e) => e.kind === 'treatment').map((e) => ({ t: Date.parse(e.occurred_at), kind: 'treatment' as const })),
       ...events.filter((e) => e.kind === 'carbs' && (e.carbs_g ?? 0) >= 5).map((e) => ({ t: Date.parse(e.occurred_at), kind: 'food' as const })),
-      ...history.filter((h) => h.total_carbs >= 5).map((h) => ({ t: Date.parse(h.eaten_at), kind: 'food' as const })),
+      ...history.filter((h) => (h.total_carbs ?? 99) >= 5).map((h) => ({ t: Date.parse(h.eaten_at), kind: 'food' as const })),
     ];
     const long = events.filter((e) => e.kind === 'insulin' && e.insulin_type === 'long').map((e) => ({ t: Date.parse(e.occurred_at), units: e.insulin_units }));
     return basalStretches(series, marks, long, low, from, Date.now(), rules).filter((x) => atNight(x, clockMin, night.start, night.end)).reverse();

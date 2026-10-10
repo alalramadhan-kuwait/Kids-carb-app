@@ -50,6 +50,7 @@ import { Alarm } from './components/Alarm';
 import { useKeepAwake } from './lib/keepAwake';
 import { MomLog } from './pages/mom/MomLog';
 import { MomMealEntry } from './pages/mom/MomMealEntry';
+import { MomOut } from './pages/mom/MomOut';
 import { MomPrick } from './pages/mom/MomPrick';
 import { SameMealPage, MomSame } from './pages/SameMeal';
 import { MomActivity, MomMore, MomPlanView, MomPlans, MomSensor, MomWhen } from './pages/mom/MomPlan';
@@ -237,6 +238,7 @@ function Shell() {
         <Route path="/mom/add/g/:key/:sub" element={<MomGroup />} />
         <Route path="/mom/item/:kind/:id" element={<MomPortion />} />
         <Route path="/mom/new" element={<MomNew />} />
+        <Route path="/mom/out" element={<MomOut />} />
         <Route path="/mom/dose" element={<MomDose />} />
         <Route path="/mom/given/:id" element={<MomGiven />} />
         <Route path="/mom/ate/:id" element={<MomAte />} />

@@ -11,6 +11,7 @@ import { ProductPicker } from '../../components/ProductPicker';
 import { toast, cx } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import { Big, MomPage } from './MomUI';
+import { mealTitle } from '../../lib/unknownMeal';
 
 const PARTS: [number, string][] = [[1, 'كلها'], [0.75, '¾'], [0.5, 'نصها'], [0.25, 'ربعها']]; // i18n-ok: shown via t()
 const stepOf = (unit: string) => (unit === 'g' || unit === 'ml' ? 10 : 0.5);
@@ -26,12 +27,15 @@ export function MomMealEdit() {
   const [carbs, setCarbs] = useState<number>(() => h?.total_carbs ?? 0);
   const [part, setPart] = useState(1);
   const [picking, setPicking] = useState(false);
+  const unknown = !!h && h.total_carbs === null;
+  const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
   const items = !!h && h.lines.length > 0;
   const r = useMemo(() => (h && items ? recompute(h, scaledRows(rows, part), settings) : null), [h, items, rows, part, settings]);
   if (!h) return <MomPage title="…" back="/mom/log"><span /></MomPage>;
   const total = items ? r!.carbs : r1(carbs * part);
-  const changed = items ? part !== 1 || rows.some((x) => x.added || x.line.quantity !== x.q0) : carbs !== h.total_carbs || part !== 1;
+  // a meal whose carbs were not known: saved only once a number is typed (0 can be typed on purpose)
+  const changed = items ? part !== 1 || rows.some((x) => x.added || x.line.quantity !== x.q0) : unknown ? typed !== '' : carbs !== h.total_carbs || part !== 1;
   const back = `/mom/meal-entry/${h.id}`;
   // grams and millilitres move in whole steps of 10 (113.8 − 10 → 100, not 103.8)
   const setQty = (i: number, q: number) => setRows((xs) => xs.map((x, k) => (k === i ? { ...x, line: { ...x.line, quantity: Math.max(0, x.line.unit === 'g' || x.line.unit === 'ml' ? Math.round(q / 10) * 10 : r1(q)) } } : x)));
@@ -52,7 +56,8 @@ export function MomMealEdit() {
   );
   return (
     <MomPage title={t('عدّلي الأكل')} back={back} foot={<Big disabled={busy || !changed} onClick={save}>✓ {t('احفظي')}</Big>}>
-      <div className="text-center text-[18px] text-slate-600"><bdi>{tMaybe(h.name)}</bdi></div>
+      <div className="text-center text-[18px] text-slate-600"><bdi>{mealTitle(h)}</bdi></div>
+      {h.total_carbs === null && <p className="rounded-2xl bg-near-soft px-4 py-3 text-center text-[16px] text-near">{t('اكتبي الكارب بس لو تعرفينه من المنيو أو الملصق. ما نخمّن.')}</p>}
       {items ? (
         <ul className="space-y-2">
           {rows.map((x, i) => {
@@ -81,9 +86,12 @@ export function MomMealEdit() {
         <div className="rounded-3xl bg-white p-4 text-center">
           <div className="text-[16px] text-slate-500">{t('الكارب')}</div>
           <div className="mt-1 flex items-center justify-center gap-5">
-            <button aria-label="−" className="grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => setCarbs(Math.max(0, carbs - 1))}>−</button>
-            <span className="num w-24 text-[44px] font-extrabold">{fmt(carbs)}</span>
-            <button aria-label="+" className="grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => setCarbs(carbs + 1)}>+</button>
+            <button aria-label="−" className="grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => { const v = Math.max(0, carbs - 1); setCarbs(v); setTyped(String(v)); }}>−</button>
+            {unknown
+              ? <input aria-label={t('الكارب')} className="num w-28 rounded-2xl border border-slate-200 text-center text-[40px] font-extrabold" inputMode="decimal" value={typed}
+                  onChange={(e) => { const v = e.target.value.replace(/[^\d.]/g, ''); setTyped(v); setCarbs(v === '' ? 0 : Math.min(300, Number(v) || 0)); }} placeholder="?" />
+              : <span className="num w-24 text-[44px] font-extrabold">{fmt(carbs)}</span>}
+            <button aria-label="+" className="grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => { const v = Math.min(300, carbs + 1); setCarbs(v); setTyped(String(v)); }}>+</button>
           </div>
           <div className="text-[15px] text-slate-500">{t('غ كارب')}</div>
         </div>
@@ -97,7 +105,7 @@ export function MomMealEdit() {
       </div>
       <div className="flex items-baseline justify-between rounded-3xl bg-white px-4 py-3">
         <span className="text-[17px]">{t('المجموع')}</span>
-        <span><b className="num text-[24px]">{fmt(total)}</b> <span className="text-[15px] text-slate-500">{t('غ كارب')}</span>{changed && <span className="block text-end text-[14px] text-slate-500">{t('كان {g}', { g: fmt(h.total_carbs) })}</span>}</span>
+        <span><b className="num text-[24px]">{fmt(total)}</b> <span className="text-[15px] text-slate-500">{t('غ كارب')}</span>{changed && <span className="block text-end text-[14px] text-slate-500">{t('كان {g}', { g: unknown ? t('غير معروف') : fmt(h.total_carbs) })}</span>}</span>
       </div>
       <p className="text-center text-[14px] text-slate-500">{t('الإبرة المسجّلة ما تتغير.')}</p>
     </MomPage>

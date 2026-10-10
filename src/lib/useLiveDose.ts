@@ -11,13 +11,14 @@ import { ratioAt } from '../engine/status';
 import { suggestDose } from '../engine/dose';
 import { levelFromLibre, trendFrom } from '../engine/trend';
 import type { DoseCalc } from './types';
+import { recentUnknownMeal } from './unknownMeal';
 
 const MIN = 60000;
 /** Of the app's arrow and Libre's, the one pointing lower: no dose if either says falling fast. */
 const cautious = (a: number | null, b: number | null) => (a === null ? b : b === null ? a : Math.min(a, b));
 
 export function useLiveDose(carbs: number) {
-  const { settings: s, events } = useData();
+  const { settings: s, events, history } = useData();
   const [g, setG] = useState<GlucoseState | null>(null);
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -46,5 +47,7 @@ export function useLiveDose(carbs: number) {
     target: [target.low, target.high], food: Math.round(r.food * 100) / 100, correction: Math.round(r.correction * 100) / 100,
   });
   const purpose: 'meal' | 'correction' | 'both' = r.food > 0 && r.correction > 0 ? 'both' : r.food > 0 ? 'meal' : 'correction';
-  return { ready: g !== null, g, now, latest, level, iob, ratio, target, r, calc, purpose };
+  // food eaten lately whose carbs are not known: the screens warn that this number leaves it out
+  const unknownMeal = recentUnknownMeal(history, now);
+  return { ready: g !== null, g, now, latest, level, iob, ratio, target, r, calc, purpose, unknownMeal };
 }

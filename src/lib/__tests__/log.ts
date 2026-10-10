@@ -2,7 +2,15 @@
 import assert from 'node:assert/strict';
 import { matchDose, recalcRow, reviewDose, type Recalc } from '../../engine/doseReview';
 import { recompute, rowsOf, scaledRows } from '../mealItems';
-import { DEFAULT_SETTINGS, type DoseSnapshot, type HistoryEntry, type Product } from '../types';
+import { DEFAULT_SETTINGS, type DoseSnapshot, type EventRow, type HistoryEntry, type Product } from '../types';
+import { recentUnknownMeal } from '../unknownMeal';
+import { dayTotals } from '../../engine/day';
+import { entriesFrom, predict, triggers } from '../../engine/predict';
+import { carbsFrom } from '../../engine/iob';
+import { sameMeals, sittings } from '../../engine/sameMeal';
+import { editProblem } from '../edit';
+import { usualLowTreatments } from '../lowUsual';
+import { activityMessage } from '../../../supabase/functions/carb-activity/activity';
 
 let n = 0;
 const test = (name: string, fn: () => void) => { fn(); n++; console.log('  ok', name); };
@@ -70,6 +78,63 @@ test('how much she ate scales every food; the saved meal is the same entry with 
   const noApple = recompute(h, rows.map((x) => (x.line.name === 'Apple' ? { ...x, line: { ...x.line, quantity: 0 } } : x)), DEFAULT_SETTINGS);
   assert.equal(noApple.carbs, 28); assert.equal(noApple.lines.length, 1, 'a removed food is dropped');
   assert.equal(scaledRows(rows, 1), rows, 'all of it: unchanged');
+});
+
+console.log('ate out, carbs not known');
+const H = 3600000, T0 = Date.parse('2026-10-09T15:00:00Z');
+const out = (o: Partial<HistoryEntry> = {}) => meal({ id: 'out1', name: 'دجاج + رز + نودلز', eaten_at: new Date(T0).toISOString(), total_carbs: null, carbs_unknown: true,
+  foods: ['دجاج', 'رز', 'نودلز'], place: 'Noodle House', ...o });
+test('a meal with unknown carbs is counted as unknown, never as 0 g', () => {
+  const day = dayTotals([out(), meal({ id: 'k', eaten_at: new Date(T0 - 3 * H).toISOString(), total_carbs: 30 })], [], T0 - 10 * H, T0 + 10 * H);
+  assert.equal(day.carbs, 30, 'only the known meal is in the total');
+  assert.equal(day.unknown, 1, 'the unknown one is counted apart');
+  assert.equal(day.meals, 2);
+  assert.deepEqual(carbsFrom([out()], []), [], 'nothing it can count as carbs on board');
+  assert.deepEqual(usualLowTreatments([{ name: 'x', total_carbs: null, glucose_mgdl: 60 }], []), [], 'never a usual low treatment');
+});
+test('every dose screen is told about it for 4 hours', () => {
+  assert.equal(recentUnknownMeal([out()], T0 + 30 * 60000)?.name, 'دجاج + رز + نودلز');
+  assert.equal(recentUnknownMeal([out()], T0 + 3.9 * H) !== null, true);
+  assert.equal(recentUnknownMeal([out()], T0 + 4.1 * H), null, 'after 4 hours it is no longer news');
+  assert.equal(recentUnknownMeal([out({ total_carbs: 50, carbs_unknown: false })], T0 + H), null, 'once its carbs are known, no warning');
+});
+test('no prediction starts from it or runs through it', () => {
+  const dose = (min: number) => ({ id: 'd' + min, kind: 'insulin', occurred_at: new Date(T0 + min * 60000).toISOString(), insulin_units: 2, insulin_type: 'rapid', deleted_at: null }) as unknown as EventRow;
+  const m = { iob: { dia: 240, peak: 65 }, absorb: 180, ratios: [{ from: '00:00', cr: 15, isf: 72 }] };
+  const after = entriesFrom([out()], [dose(60)]);
+  assert.equal(triggers(after).some((e) => e.kind === 'meal'), false, 'the unknown meal never starts a prediction');
+  assert.equal(predict(after.find((e) => e.kind === 'dose')!, after, 120, m as never), null, 'a dose an hour after it: its carbs are still on board, unknown');
+  const before = entriesFrom([out()], [dose(-60)]);
+  assert.notEqual(predict(before.find((e) => e.kind === 'dose')!, before, 120, m as never), null, 'a dose an hour before it is predicted as usual (the meal then ends its checks)');
+});
+test('the same restaurant is the same meal; never compared with a meal whose carbs are known', () => {
+  const before = out({ id: 'out0', eaten_at: new Date(T0 - 7 * 86400000).toISOString(), foods: ['دجاج', 'بطاط'] });
+  const known = meal({ id: 'k', name: 'دجاج + رز + نودلز', eaten_at: new Date(T0 - 3 * 86400000).toISOString(), total_carbs: 60,
+    lines: [{ name: 'دجاج + رز + نودلز', product: null, quantity: 1, unit: 'serving', state: 'as_is', role: 'main', carbs: 60 }] });
+  const all = sittings([before, known, out()]);
+  const now = all.find((s) => s.ids.includes('out1'))!;
+  assert.equal(now.unknown, true);
+  const same = sameMeals(now, all).map((x) => x.s.id);
+  assert.deepEqual(same, ['out0'], 'same place counts; the known-carbs meal with the same name does not');
+  const elsewhere = sittings([out({ id: 'out0', eaten_at: before.eaten_at, place: 'Other', foods: ['سمك'] }), out()]);
+  assert.deepEqual(sameMeals(elsewhere.find((s) => s.ids.includes('out1'))!, elsewhere), [], 'another place with other food: not the same');
+});
+test('the dose review never matches a calculator dose to unknown carbs', () => {
+  const ev = { id: 'e9', kind: 'insulin', insulin_type: 'rapid', bolus_purpose: 'meal', occurred_at: new Date(T0 - 5 * 60000).toISOString(), deleted_at: null, dose_calc: { ...snap, carbs: 0 } };
+  assert.equal(matchDose(out(), [], [], [ev as never]), null);
+});
+test('editing it: the time can change without carbs; carbs typed in must be real numbers', () => {
+  const d = { t: T0, carbs: null, name: 'x' };
+  assert.equal(editProblem('meal', d, T0 + H, true), null, 'carbs may stay unknown');
+  assert.equal(editProblem('meal', d, T0 + H, false), 'carbs', 'any other meal still needs its carbs');
+  assert.equal(editProblem('meal', { ...d, carbs: 900 }, T0 + H, true), 'carbs', 'a typo is still caught');
+});
+test('the other parent is told "carbs unknown", not "0 g"', () => {
+  const row = { kind: 'meal' as const, by_user: 'u', occurred_at: new Date(T0).toISOString(), carbs: null, units: null, mgdl: null, name: 'دجاج + رز + نودلز' };
+  const strip = (x: string) => x.replace(/[⁦-⁩]/g, '');
+  assert.equal(strip(activityMessage(row, 'Rawan', 'en').title), '🍽️ Rawan added a meal · carbs unknown');
+  assert.match(strip(activityMessage(row, 'Rawan', 'ar').title), /الكارب غير معروف/);
+  assert.match(strip(activityMessage({ ...row, carbs: 30 }, 'Rawan', 'en').title), /30 g carbs/);
 });
 
 console.log(`\n${n} log tests passed`);

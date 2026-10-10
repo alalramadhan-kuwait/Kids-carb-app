@@ -44,7 +44,7 @@ function Item({ m, series, unit, events, who }: { m: Mark; series: Series; unit:
     return (
       <section>
         {head(m.meal.name)}
-        <Row label={t('الكارب')} value={t('{g} غ', { g: Math.round(m.meal.total_carbs) })} />
+        <Row label={t('الكارب')} value={m.meal.total_carbs === null ? t('غير معروف') : t('{g} غ', { g: Math.round(m.meal.total_carbs) })} />
         <Row label={t('إنسولين الوجبة')} value={r.bolus ? `${r.bolus.insulin_units} ${unitsWord(r.bolus.insulin_units ?? 0)}` : '—'} />
         {r.prebolus !== null && <Row label={r.prebolus >= 0 ? t('قبل الأكل بـ') : t('بعد الأكل بـ')} value={t('{m} د', { m: Math.abs(r.prebolus) })} />}
         <Row label={t('السكر عند الأكل')} value={g(r.g0)} />

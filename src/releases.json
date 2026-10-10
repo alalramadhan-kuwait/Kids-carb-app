@@ -1,5 +1,25 @@
 [
   {
+    "date": "2026-10-10",
+    "version": "2.62.0",
+    "notes": [
+      "«أكل برّا · ما أعرف الكارب»: لو أكلت برّا وما تعرفين الكارب، سجّلي شنو أكلت (دجاج، رز، نودلز…)، صورة، وين، حجم الصحن، كم أكلت منه، ومتى. الكارب ينحفظ «غير معروف»، مو صفر ومو تخمين.",
+      "بعد الحفظ: لو عطيتيها إبرة، تسجّلينها بضغطة. ما ينحسب لها إبرة.",
+      "شاشات الإبرة تنبّه: «أكلت شي كاربه غير معروف قبل شوي، والحساب ما يشمله».",
+      "بابا يشوف «كارب مطلوب» بالسجل، ويقدر يكتب الكارب بعدين من منيو المطعم.",
+      "المرة الجاية بنفس المطعم: «نفس الأكل» يوري كيف كان السكر المرة اللي فاتت.",
+      "التحاليل والمعدلات ما تحسب هالأكل كأنه صفر: تتركه على جنب وتقول إنه غير معروف."
+    ],
+    "notes_en": [
+      "“Ate out · carbs unknown”: when she ate out and nobody knows the carbs, record what she ate (chicken, rice, noodles…), a photo, where, the plate size, how much she ate and when. The carbs are saved as “unknown”: not 0, and never guessed.",
+      "After saving, a dose that was given is recorded in one tap. No dose is worked out for it.",
+      "Dose screens warn: “she ate food with unknown carbs recently, and this calculation doesn’t include it”.",
+      "Dad sees “carbs needed” in the Log and can enter the carbs later from the restaurant’s menu.",
+      "Next time at the same restaurant, Same meal shows how her glucose went last time.",
+      "Reports and averages never count this food as 0 g: they leave it aside and say it is unknown."
+    ]
+  },
+  {
     "date": "2026-10-09",
     "version": "2.61.0",
     "notes": [

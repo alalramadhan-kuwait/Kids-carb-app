@@ -10,6 +10,7 @@ import { adoptDose, approveDose, ate, logPendingMeal, deletePlan, planMeal, save
 import { useSubmitId } from '../lib/useSubmitId';
 import { SameDose } from './SameDose';
 import { useLiveDose } from '../lib/useLiveDose';
+import { UnknownMealNote } from './UnknownMealNote';
 import { eatAt, expectedDose, isFastDrink, phase, planAlerts, remindAt, upcoming, type PlanAlert, type Phase, type Slot } from '../engine/mealPlan';
 import { fmt } from '../lib/carbs';
 import { formatGlucose, unitLabel } from '../lib/glucose';
@@ -294,6 +295,7 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
 
   return (
     <div className="space-y-3">
+      <UnknownMealNote meal={live.unknownMeal} />
       {/* where it stands */}
       <p className={cx('rounded-xl px-3 py-2 text-sm font-bold', dosed ? (ph === 'eat_now' ? 'bg-ok-soft text-ok' : 'bg-brand-soft text-brand') : ph === 'later' ? 'bg-slate-100 text-slate-600' : 'bg-near-soft text-near')}>
         {dosed ? (ph === 'eat_now' ? t('وقت الأكل الآن') : t('الأكل {time} · بعد {left}', { time: clock(eatTime), left: until(eatTime, now) }))

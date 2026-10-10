@@ -1,6 +1,7 @@
 // Simple mode: something she ate, opened from the Log. What she ate (each food, its weight, its carbs), who logged it
 // and who changed it. «عدّلي» changes this same meal (foods, amounts, carbs, how much she ate); the kind of meal and
 // the time change here; a mistake is removed (and can be brought back). The dose is behind one tap, for review only.
+import { mealTitle } from '../../lib/unknownMeal';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
@@ -18,6 +19,8 @@ import { Big, Choice, MomPage, clock, ago } from './MomUI';
 import { plateFromLog, useCatalog } from './MomMeal';
 import { draftOps } from '../../lib/mom';
 
+const PLATE_WORD = { small: 'صغير', medium: 'وسط', large: 'كبير' } as const; // i18n-ok: shown via t()
+const ATE_WORD = { all: 'كله', half: 'نصه', little: 'شوي' } as const; // i18n-ok: shown via t()
 export const SLOT_CHOICES: [MealSlot, string, string][] = [['breakfast', 'فطور', '🍳'], ['lunch', 'غدا', '🍛'], ['dinner', 'عشا', '🍽️'], ['snack', 'سناك', '🍎']]; // i18n-ok: shown via t()
 /** Who logged it, and who changed it last (and when): short, in her words. */
 export function whoLine(h: { created_by?: string | null; edited_by?: string | null; edited_at?: string | null }, nameOf: (id: string | null | undefined) => string) {
@@ -38,6 +41,7 @@ export function MomMealEntry() {
   const was = Date.parse(h.eaten_at);
   const changed = at !== null && at !== was;
   const pending = h.intake === 'pending';
+  const unknown = h.total_carbs === null;
   const run = async (f: () => Promise<unknown>, done: string, undo?: () => Promise<unknown>, to = '/mom/log') => {
     setBusy(true);
     try { await f(); await reload(); toast(done, undo && { label: t('تراجع'), run: async () => { await undo(); await reload(); } }); nav(to, { replace: true }); }
@@ -58,13 +62,24 @@ export function MomMealEntry() {
         <div className="flex items-start gap-3">
           <span className="text-3xl">🍽️</span>
           <span className="min-w-0 flex-1">
-            <b className="block text-[20px] leading-snug"><bdi>{tMaybe(h.name)}</bdi></b>
+            <b className="block text-[20px] leading-snug"><bdi>{mealTitle(h)}</bdi></b>
             <span className="text-[15px] text-slate-500">{clock(was)} · {ago(was)}</span>
           </span>
-          <span className="shrink-0 text-center"><b className="num block text-[26px] leading-none">{fmt(h.total_carbs)}</b><span className="block text-[14px] text-slate-500">{t('غ كارب')}</span></span>
+          {unknown
+            ? <span className="shrink-0 rounded-2xl bg-near-soft px-3 py-1 text-center text-[15px] font-bold leading-tight text-near">❓<br />{t('الكارب غير معروف')}</span>
+            : <span className="shrink-0 text-center"><b className="num block text-[26px] leading-none">{fmt(h.total_carbs)}</b><span className="block text-[14px] text-slate-500">{t('غ كارب')}</span></span>}
         </div>
         {who && <div className="mt-2 text-[15px] text-slate-500">{who}</div>}
       </div>
+      {unknown && (
+        <div className="space-y-1 rounded-3xl bg-white px-4 py-3 text-[17px]">
+          {h.place && <div className="flex justify-between gap-3"><span className="text-slate-500">{t('وين؟')}</span><b><bdi>{h.place}</bdi></b></div>}
+          {h.plate_size && <div className="flex justify-between gap-3"><span className="text-slate-500">{t('حجم الصحن')}</span><b>{t(PLATE_WORD[h.plate_size])}</b></div>}
+          {h.ate && <div className="flex justify-between gap-3"><span className="text-slate-500">{t('كم أكلت منه؟')}</span><b>{t(ATE_WORD[h.ate])}</b></div>}
+          {h.carbs_guess != null && <div className="flex justify-between gap-3"><span className="text-slate-500">{t('تخمين')}</span><b className="num">{t('{g} غ كارب', { g: fmt(h.carbs_guess) })}</b></div>}
+          <p className="pt-1 text-[14px] text-slate-500">{t('ما انحسبت لها إبرة. لو عرفتي الكارب من المنيو، اكتبيه.')}</p>
+        </div>
+      )}
       {pending && (
         <button onClick={() => nav(`/mom/ate/${h.client_id}`)} className="flex min-h-[60px] w-full items-center justify-between rounded-3xl bg-near-soft px-4 text-[18px] font-bold text-near">
           <span>⏳ {t('كم أكلت؟')}</span><span className="text-[15px] font-normal">{t('ما انحسبت بعد')} ›</span>
@@ -87,7 +102,7 @@ export function MomMealEntry() {
           {h.photo_path && <img src={photoUrl(h.photo_path)!} alt={t('صورة الأكل')} className="max-h-48 w-full rounded-2xl object-cover" />}
         </div>
       )}
-      <Big disabled={busy} onClick={() => nav(`/mom/meal-edit/${h.id}`)}>✏️ {t('عدّلي الأكل')}</Big>
+      <Big disabled={busy} onClick={() => nav(`/mom/meal-edit/${h.id}`)}>✏️ {unknown ? t('عرفتي الكارب؟ اكتبيه') : t('عدّلي الأكل')}</Big>
       <DoseReview h={h} simple />
       <div className="text-[17px] font-bold">{t('شنو هذي؟')}</div>
       <div className="grid grid-cols-2 gap-2">

@@ -117,7 +117,7 @@ export function MomHome() {
         <div ref={box} className="min-h-0 flex-1">
           {merged && <BigGraph key={focusAt ?? 0} at={focusAt} aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} alarmHigh={s.alert_high_mgdl ?? 240}
             shots={shots.map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
-            meals={history.filter((h) => h.total_carbs >= 5).map((h) => Date.parse(h.eaten_at))}
+            meals={history.filter((h) => (h.total_carbs ?? 99) >= 5).map((h) => Date.parse(h.eaten_at))}
             treats={events.filter((e) => e.kind === 'treatment' && !e.deleted_at).map((e) => Date.parse(e.occurred_at))}
             pricks={events.filter((e) => e.kind === 'bg_check' && !e.deleted_at).map((e) => Date.parse(e.occurred_at))} />}
         </div>

@@ -103,7 +103,7 @@ export function summary(clean: Occurrence[]) {
     ttp: median(clean.map((o) => o.response.ttp)),
     at180: median(clean.map((o) => o.response.at[180])),
     // the rise for every 10 g of carbs: compares different amounts of the same food, and foods with each other
-    per10: median(clean.map((o) => (o.response.rise !== null && o.meal.total_carbs > 0 ? (o.response.rise / o.meal.total_carbs) * 10 : null))),
+    per10: median(clean.map((o) => (o.response.rise !== null && o.meal.total_carbs !== null && o.meal.total_carbs > 0 ? (o.response.rise / o.meal.total_carbs) * 10 : null))),
     lowStarts: clean.filter((o) => (o.response.g0 ?? 999) < 70).length,
   };
 }
