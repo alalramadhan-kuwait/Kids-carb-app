@@ -22,6 +22,8 @@ import { EditEntry } from '../components/EditEntry';
 import { EditItems } from '../components/EditItems';
 import { EntryActions } from '../components/EntryActions';
 import { EntryGlance } from '../components/EntryGlance';
+import { DoseSite } from '../components/SitePicker';
+import { SITE_NAME } from './mom/MomUI';
 import { DoseReview } from '../components/DoseReview';
 import { ate, fetchPlan } from '../lib/plans';
 import { useQuickItems } from '../lib/quick';
@@ -281,7 +283,7 @@ function EpisodeDetail({ ep, unit, who }: { ep: Episode; unit: 'mmol' | 'mgdl'; 
 function Row({ it, who, onOpen }: { it: Item; who: string; onOpen: () => void }) {
   const icon: IconName = it.h ? 'meals' : EVENT_ICON[it.e!.kind];
   const main = it.h ? <bdi>{it.h.foods?.length ? mealTitle(it.h) : it.h.name}</bdi> : it.e!.kind === 'note' ? <bdi>{it.e!.note}</bdi> : describeEvent(it.e!);
-  const sub = it.h ? [it.h.intake === 'pending' ? `⏳ ${t('كم أكلت؟ لم يُحدَّد بعد')}` : '', it.h.recipe_id ? t('وصفة') : '', it.h.kind === 'snack' ? t('سناك') : '', isFatty(it.h.total_fat, it.h.total_protein) ? t('دسمة') : '', it.h.brand ?? '', it.h.needs_review ? t('خارج البحث') : '', it.h.source === 'gluroo' ? it.h.notes ?? 'Gluroo' : ''].filter(Boolean).join(' · ') : it.e!.kind !== 'note' && it.e!.note ? it.e!.note : '';
+  const sub = it.h ? [it.h.intake === 'pending' ? `⏳ ${t('كم أكلت؟ لم يُحدَّد بعد')}` : '', it.h.recipe_id ? t('وصفة') : '', it.h.kind === 'snack' ? t('سناك') : '', isFatty(it.h.total_fat, it.h.total_protein) ? t('دسمة') : '', it.h.brand ?? '', it.h.needs_review ? t('خارج البحث') : '', it.h.source === 'gluroo' ? it.h.notes ?? 'Gluroo' : ''].filter(Boolean).join(' · ') : [it.e!.kind === 'insulin' ? `💉 ${it.e!.injection_site ? t(SITE_NAME[it.e!.injection_site]) : t('بلا مكان')}` : '', it.e!.kind !== 'note' && it.e!.note ? it.e!.note : ''].filter(Boolean).join(' · ');
   return (
     <li>
       <button onClick={onOpen} className="flex min-h-[56px] w-full items-center gap-3 px-4 py-2 text-start active:bg-slate-50">
@@ -306,6 +308,7 @@ function EventSummary({ e, who }: { e: EventRow; who: string }) {
   return (
     <div className="space-y-2 text-sm text-slate-600">
       <EntryGlance e={e} />
+      {e.kind === 'insulin' && <DoseSite e={e} />}
       {e.note && <p dir="auto" className="text-base text-slate-800">{e.note}</p>}
       <button onClick={() => setMore(!more)} aria-expanded={more} className="min-h-[44px] text-sm font-bold text-brand">{more ? t('أقل') : t('تفاصيل')}</button>
       {more && <p>{fmtTime(new Date(e.occurred_at))}{who ? <> · <bdi>{who}</bdi></> : null}</p>}

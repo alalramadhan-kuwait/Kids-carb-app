@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-10",
+    "version": "2.63.1",
+    "notes": [
+      "السجل: كل إبرة يبين تحتها مكانها، ولما تفتحها تقدر تحدّد المكان أو تغيّره من خريطة جسمها"
+    ],
+    "notes_en": [
+      "Log: every insulin dose shows its injection site, and opening it lets you set or change the site on her body map"
+    ]
+  },
+  {
+    "date": "2026-10-10",
     "version": "2.63.0",
     "notes": [
       "الوضع الكامل: عند تسجيل الإنسولين أو إعطاء جرعة وجبة مخطّطة يظهر مكان الإبرة الأنسب الآن، وتقدر تغيّره من خريطة جسمها",
