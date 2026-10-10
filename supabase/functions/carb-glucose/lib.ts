@@ -91,13 +91,29 @@ export function loginProblem(http: number, json: any): LluErrorCode | null {
   return null;
 }
 
-/** The active sensor from a graph or connections reply: activation time (LibreLinkUp's "a", Unix seconds) and an
- *  identity for reminders, the serial when Abbott sends one (Libre 2 often does not), else the start time. */
-export function sensorFrom(data: any): { sn: string; started_at: string } | null {
-  const s = data?.activeSensors?.[0]?.sensor ?? data?.connection?.sensor ?? data?.[0]?.sensor;
-  const a = Number(s?.a);
-  if (!s || !Number.isFinite(a) || a < 1.5e9 || a > 4e9) return null;
-  return { sn: s.sn ? String(s.sn) : `a${a}`, started_at: new Date(a * 1000).toISOString() };
+/** The sensor she wears now, from a graph or connections reply: activation time (LibreLinkUp's "a", Unix seconds) and
+ *  an identity for reminders, the serial when Abbott sends one (Libre 2 may not), else the start time.
+ *  After a change, the reply's activeSensors can still list only the old sensor while connection.sensor already has the
+ *  new one (seen 10 Oct 2026), so every place is read. A candidate counts only with a real activation time (not before
+ *  2017, not in the future); the most recently activated one is the sensor she wears. */
+export function sensorFrom(data: any, now = Date.now()): { sn: string; started_at: string } | null {
+  const list = [data?.connection?.sensor, ...(Array.isArray(data?.activeSensors) ? data.activeSensors.map((x: any) => x?.sensor) : []), data?.[0]?.sensor];
+  let best: { sn: string; a: number } | null = null;
+  for (const s of list) {
+    const a = Number(s?.a);
+    if (!s || !Number.isFinite(a) || a < 1.5e9 || a * 1000 > now + 10 * 60000) continue;
+    const sn = s.sn != null && String(s.sn).trim() ? String(s.sn).trim() : `a${a}`;
+    if (!best || a > best.a) best = { sn, a };
+  }
+  return best && { sn: best.sn, started_at: new Date(best.a * 1000).toISOString() };
+}
+
+/** The sensor to store: never step back to one activated before the sensor already recorded (a reply that lags
+ *  behind a change must not bring the old sensor back). */
+export function sensorToStore(found: { sn: string; started_at: string } | null, storedStartedAt: string | null | undefined) {
+  if (!found) return null;
+  const stored = storedStartedAt ? Date.parse(storedStartedAt) : NaN;
+  return Number.isFinite(stored) && Date.parse(found.started_at) < stored ? null : found;
 }
 
 /** Which expiry reminder is due now, if one has not gone out for this sensor: 24 hours, then 2 hours before. */

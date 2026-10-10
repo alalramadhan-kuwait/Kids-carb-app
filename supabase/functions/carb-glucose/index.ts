@@ -2,7 +2,7 @@
 // service, the same route Gluroo uses) with a follower account, stores the readings, and returns
 // them. The login is kept in Supabase Vault; the browser can save it but never read it back.
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { hostFor, LLU_PRODUCT, LLU_VERSION, LluError, loginProblem, maskEmail, readingsFromGraph, redirectRegion, sensorFrom, sensorReminderDue, sha256Hex, tooSoon } from './lib.ts';
+import { hostFor, LLU_PRODUCT, LLU_VERSION, LluError, loginProblem, maskEmail, readingsFromGraph, redirectRegion, sensorFrom, sensorReminderDue, sensorToStore, sha256Hex, tooSoon } from './lib.ts';
 import { ackMessage, alertMessage, evaluate, lowNow, planMessage, planPushDue, rate15, recipients, sensorMessage, testMessage, treatRecheckMessage, treatRechecksDue, type TreatRow, type AlertCfg, type AlertKind, type Lang, type OpenAlert, type PlanRow } from './alerts.ts';
 import { newVapid, sendPush, type Vapid } from './push.ts';
 
@@ -359,7 +359,8 @@ Deno.serve(async (req) => {
         // a 200 with nothing in it is not success: say so instead of pretending all is well
         if (!readings.length) throw new LluError('no_data', 'graph returned no readings');
         if (readings.length) await db.from('glucose_readings').upsert(readings, { onConflict: 'taken_at' });
-        const sensor = sensorFrom(r.json?.data);
+        // the sensor she wears now; never back to an older one if LibreLinkUp's reply lags behind a change
+        const sensor = sensorToStore(sensorFrom(r.json?.data, now), st.sensor_started_at);
         await db.from('cgm_state').update({ last_ok_at: new Date().toISOString(), last_error: null, updated_at: new Date().toISOString(),
           ...(sensor ? { sensor_sn: sensor.sn, sensor_started_at: sensor.started_at } : {}) }).eq('id', true);
         return await reply();

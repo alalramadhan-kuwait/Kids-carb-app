@@ -1,14 +1,14 @@
 {
   "name": "kids-carb-app",
   "private": true,
-  "version": "2.63.1",
+  "version": "2.63.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "npm test && tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "tsx src/lib/__tests__/run.ts && tsx src/lib/__tests__/log.ts",
+    "test": "tsx src/lib/__tests__/run.ts && tsx src/lib/__tests__/log.ts && tsx src/lib/__tests__/server.ts",
     "icons": "tsx scripts/export-icons.ts"
   },
   "dependencies": {

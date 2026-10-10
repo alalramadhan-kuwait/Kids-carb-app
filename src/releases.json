@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-10",
+    "version": "2.63.2",
+    "notes": [
+      "الحساس الجديد يتعرّف عليه التطبيق مباشرة بعد التركيب، وتذكير انتهاء الحساس صار للحساس الجديد"
+    ],
+    "notes_en": [
+      "A newly fitted sensor is recognised right away, and the sensor-ends reminder follows the new sensor"
+    ]
+  },
+  {
+    "date": "2026-10-10",
     "version": "2.63.1",
     "notes": [
       "السجل: كل إبرة يبين تحتها مكانها، ولما تفتحها تقدر تحدّد المكان أو تغيّره من خريطة جسمها"
