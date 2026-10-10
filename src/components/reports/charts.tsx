@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import type { AgpReport, DailyProfile } from '../../engine/report/agpReport';
 import { fmt1, fmtPct } from '../../engine/report/agpReport';
+import type { WeeklyDay } from '../../engine/report/weekly';
+import { placeLabels } from '../../lib/labelLayout';
 
 export const RANGE_COLOR = { veryHigh: '#e8833a', high: '#f2c744', inRange: '#3aa66a', low: '#e04848', veryLow: '#9b1c1c' } as const;
 const BAND95 = '#cfe0f1', BAND50 = '#8fb8e0', MEDIAN = '#1f5f91', TARGET = '#e6f2ea', TARGET_LINE = '#3a8a5c';
@@ -71,6 +73,54 @@ export function DayProfile({ d }: { d: DailyProfile }) {
         {segs.map((s, i) => <path key={i} d={s} fill="none" stroke={MEDIAN} strokeWidth={1.2} vectorEffect="non-scaling-stroke" />)}
         {d.mmol.map((v, k) => v !== null && v < 3.9 && <circle key={k} cx={x(k)} cy={y(v)} r={1.6} fill={RANGE_COLOR.low} />)}
       </svg>
+    </div>
+  );
+}
+
+const CARB = '#c26a12', TREAT = '#c0392b', RAPID = '#1f6fa8', LONG = '#6b4fa0';
+
+/** One Weekly Summary day: the 24-hour curve (same 0–22 mmol/L scale every day), food and low treatments above,
+ *  insulin given below. Gaps stay gaps; a day without data says so. */
+export function WeekDayChart({ d }: { d: WeeklyDay }) {
+  // markers sit on their own row at the chart edge; labels on two rows beyond them, so a marker never covers text
+  const W = 360, strip = 26, top = strip, ph = 64, H = top + ph + 24;
+  const x = (min: number) => (min / 1440) * W, y = (v: number) => top + (1 - Math.min(Math.max(v, 0), 22) / 22) * ph;
+  const none = d.row.cgm.pctActive === 0;
+  const segs: string[] = []; let cur = '';
+  d.mmol.forEach((v, k) => { if (v === null) { if (cur) segs.push(cur); cur = ''; } else cur += `${cur ? 'L' : 'M'}${x(k * 5 + 2.5)},${y(v)}`; });
+  if (cur) segs.push(cur);
+  const charW = 4.6; // 8px text, digits
+  const food = [...d.carbs.map((c) => ({ minute: c.minute, label: c.grams === null ? '?' : String(Math.round(c.grams)), col: CARB })),
+    ...d.treatments.map((t) => ({ minute: t.minute, label: t.grams === null ? 'T' : String(Math.round(t.grams)), col: TREAT }))].sort((a, b) => a.minute - b.minute);
+  const ins = [...d.insulin].sort((a, b) => a.minute - b.minute);
+  const fp = placeLabels(food.map((f) => ({ x: x(f.minute) - 2, w: f.label.length * charW + 3 })));
+  const ip = placeLabels(ins.map((u) => ({ x: x(u.minute) - 2, w: String(u.units).length * charW + 3 })));
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full rounded-lg" style={{ background: '#ffffff' }} role="img"
+      aria-label={`${d.weekday} ${d.date}: ${d.carbs.length} carb entries, ${d.insulin.length} insulin doses, ${d.treatments.length} low treatments`}>
+      {none ? <><rect x={0} y={top} width={W} height={ph} fill="#eef1f4" /><text x={W / 2} y={top + ph / 2 + 3} fontSize={10} textAnchor="middle" fill="#64748b">No sensor data for this day</text></>
+        : <rect x={0} y={y(10)} width={W} height={y(3.9) - y(10)} fill={TARGET} />}
+      {[6, 12, 18].map((h) => <line key={h} x1={x(h * 60)} x2={x(h * 60)} y1={top} y2={top + ph} stroke="#e2e8f0" strokeWidth={0.6} />)}
+      {segs.map((s, i) => <path key={i} d={s} fill="none" stroke={MEDIAN} strokeWidth={1.4} />)}
+      {d.mmol.map((v, k) => v !== null && v < 3.9 && k % 2 === 0 && <circle key={k} cx={x(k * 5 + 2.5)} cy={y(v)} r={1.6} fill={RANGE_COLOR.low} />)}
+      {d.fingerPricks.map((f, i) => <rect key={i} x={x(f.minute) - 2.5} y={y(f.mmol) - 2.5} width={5} height={5} transform={`rotate(45 ${x(f.minute)} ${y(f.mmol)})`} fill="#15212b" />)}
+      {food.map((f, i) => <g key={`f${i}`}><circle cx={x(f.minute)} cy={top - 3.5} r={2.4} fill={f.col} /><text x={fp[i].lx} y={8 + fp[i].line * 8.5} fontSize={8} fill={f.col}>{f.label}</text></g>)}
+      {ins.map((u, i) => { const by = top + ph + 1.5; return <g key={`u${i}`}>{u.type === 'long' ? <rect x={x(u.minute) - 2.2} y={by} width={4.4} height={4.4} fill={LONG} /> : <path d={`M${x(u.minute) - 2.8},${by}h5.6l-2.8,4.6z`} fill={RAPID} />}
+        <text x={ip[i].lx} y={by + 13 + ip[i].line * 8.5} fontSize={8} fill={u.type === 'long' ? LONG : RAPID}>{u.units}</text></g>; })}
+      {[0, 6, 12, 18, 24].map((h) => <text key={h} x={x(h * 60) + (h === 0 ? 2 : h === 24 ? -2 : 0)} y={top + ph - 3} fontSize={7} fill="#94a3b8" textAnchor={h === 0 ? 'start' : h === 24 ? 'end' : 'middle'}>{h % 24 === 0 ? '12am' : h === 12 ? '12pm' : h < 12 ? `${h}am` : `${h - 12}pm`}</text>)}
+    </svg>
+  );
+}
+
+export function WeeklyLegend() {
+  const item = (mark: JSX.Element, label: string) => <span className="inline-flex items-center gap-1">{mark}{label}</span>;
+  return (
+    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-600">
+      {item(<i className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: CARB }} />, 'carbs (g)')}
+      {item(<i className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: TREAT }} />, 'low treatment')}
+      {item(<i className="inline-block h-0 w-0 border-x-[5px] border-t-[7px] border-x-transparent" style={{ borderTopColor: RAPID }} />, 'rapid insulin (U)')}
+      {item(<i className="inline-block h-2.5 w-2.5" style={{ background: LONG }} />, 'long-acting (U)')}
+      {item(<i className="inline-block h-2 w-2 rotate-45" style={{ background: '#15212b' }} />, 'finger-prick')}
     </div>
   );
 }

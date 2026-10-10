@@ -89,6 +89,23 @@ calculator do not use this code, and this code does not use theirs.
 - A day without sensor data is drawn as a grey box saying "No sensor data". A partly measured day shows its % of sensor data.
 - Gaps stay gaps: nothing is filled in.
 
+## Weekly Summary (`weekly.ts`, `lib/weeklyPdf.ts`)
+
+- **Layout:** one row per Kuwait day, 7 days per A4 page (LibreView's layout). It covers at most 14 days; a longer
+  chosen period shows its last 14.
+- **Chart:** the 24-hour glucose curve on 5-minute slots, on the same 0–22 mmol/L scale every day. Gaps stay gaps, and
+  a day without data says so.
+- **Above the curve:**
+  - Carbs eaten, from meals confirmed as eaten. Meals within 20 minutes share one marker with their grams added.
+  - A meal with unknown carbs makes its marker "?", never 0.
+  - Low treatments, in red.
+- **Below the curve:** insulin **given**, rapid and long-acting with units. The calculator's suggestions are never
+  shown.
+- **Finger-pricks:** marked at their values and kept out of every CGM number.
+- **Day totals** come from the shared day rows (`days.ts`): average glucose, carbs (with the count of unknown-carb
+  meals), insulin (rapid and long), and low events by the definition above, with the number of treatments. On
+  28 Sep – 9 Oct 2026 these matched the independent SQL sums day by day.
+
 ## Patient details
 
 - The date of birth stays labelled "approx." until someone ticks "Date of birth verified" in the patient details.

@@ -5,12 +5,12 @@
 import type { jsPDF as JsPdf } from 'jspdf';
 import { VALIDATION_NOTE, fmt1, fmtPct, kwDate, type AgpReport, type PatientInfo } from '../engine/report/agpReport';
 
-const C = {
+export const C = {
   ink: '#15212b', muted: '#5a6976', line: '#d5dde4', soft: '#f1f5f8', blue: '#1f6fa8',
   band95: '#cfe0f1', band50: '#8fb8e0', median: '#1f5f91', target: '#e6f2ea', targetLine: '#3a8a5c',
   veryHigh: '#e8833a', high: '#f2c744', inRange: '#3aa66a', low: '#e04848', veryLow: '#9b1c1c', met: '#1d7a4c', notMet: '#b3261e',
 };
-const W = 210, H = 297, M = 12;
+export const W = 210, H = 297, M = 12;
 const rgb = (hex: string): [number, number, number] => [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
 
 export function ageText(birth: string | null, at: number) {
@@ -21,9 +21,10 @@ export function ageText(birth: string | null, at: number) {
   if (mo < 0) { y--; mo += 12; }
   return `${y} y ${mo} m`;
 }
-const isoDate = (s: string | null) => (s ? kwDate(Date.parse(s + 'T00:00:00+03:00')) : '–');
+export const isoDate = (s: string | null) => (s ? kwDate(Date.parse(s + 'T00:00:00+03:00')) : '–');
 
-export function drawAgpPdf(doc: JsPdf, r: AgpReport, p: PatientInfo, appVersion = '') {
+/** Drawing helpers shared by every doctor-report PDF: colours, text, titled boxes and the footer. */
+export function pdfKit(doc: JsPdf, generatedAt: number, appVersion = '') {
   const fill = (hex: string) => doc.setFillColor(...rgb(hex));
   const stroke = (hex: string) => doc.setDrawColor(...rgb(hex));
   const color = (hex: string) => doc.setTextColor(...rgb(hex));
@@ -38,13 +39,19 @@ export function drawAgpPdf(doc: JsPdf, r: AgpReport, p: PatientInfo, appVersion 
     text(title.toUpperCase(), x + 2, y + 4.2, { size: 7.5, bold: true, c: '#ffffff' });
     stroke(C.line); doc.setLineWidth(0.25); doc.rect(x, y, w, h, 'S');
   };
-  let page = 1;
-  const footer = () => {
+  const footer = (page: number) => {
     stroke(C.line); doc.setLineWidth(0.25); doc.line(M, H - 14, W - M, H - 14);
     text('Ranges and targets: international consensus on time in range (2019) and ISPAD 2024 targets for children. GMI = 3.31 + 0.02392 × mean (mg/dL).', M, H - 10.5, { size: 6.2, c: C.muted });
     text(VALIDATION_NOTE, M, H - 7.5, { size: 6.2, c: C.notMet });
-    text(`Generated ${kwDate(r.generatedAt)} by Layan's carb & insulin app${appVersion ? ` v${appVersion}` : ''} · Page ${page}`, W - M, H - 4.5, { size: 6.2, c: C.muted, align: 'right' });
+    text(`Generated ${kwDate(generatedAt)} by Layan's carb & insulin app${appVersion ? ` v${appVersion}` : ''} · Page ${page}`, W - M, H - 4.5, { size: 6.2, c: C.muted, align: 'right' });
   };
+  return { fill, stroke, color, text, box, footer };
+}
+
+export function drawAgpPdf(doc: JsPdf, r: AgpReport, p: PatientInfo, appVersion = '') {
+  const { fill, stroke, text, box, footer: foot } = pdfKit(doc, r.generatedAt, appVersion);
+  let page = 1;
+  const footer = () => foot(page);
 
   // ── header ──
   text('AGP Report', M, M + 6, { size: 18, bold: true, c: C.blue });

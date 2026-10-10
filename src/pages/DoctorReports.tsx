@@ -6,9 +6,10 @@ import { useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { backTo } from '../lib/nav';
 import { REPORT_PERIODS, VALIDATION_NOTE, fmt1, fmtPct, type AgpReport, type ReportDays } from '../engine/report/agpReport';
-import { savePatient, useAgpReport, usePatient } from '../lib/useReport';
+import { WEEKLY_MAX_DAYS, savePatient, useAgpReport, usePatient, useWeeklySummary } from '../lib/useReport';
+import { WEEKLY_NOTE, weeklyPdf } from '../lib/weeklyPdf';
 import { agpPdf, ageText } from '../lib/reportPdf';
-import { AgpChart, DayProfile, RANGE_COLOR, TirBar } from '../components/reports/charts';
+import { AgpChart, DayProfile, RANGE_COLOR, TirBar, WeekDayChart, WeeklyLegend } from '../components/reports/charts';
 import { SharePdf } from '../components/SharePdf';
 import { useData } from '../lib/data';
 import { Btn, Page, Sheet, cx, inputCls, toast } from '../components/ui';
@@ -66,10 +67,10 @@ export function DoctorReports() {
               <AgpChart r={r} compact />
             </Link>
           )}
-          <div className="space-y-1 rounded-2xl bg-white p-4 text-slate-400 shadow-sm">
-            <div className="flex items-baseline justify-between"><h2 className="text-lg font-bold">Weekly Summary</h2><span className="text-xs">Next update</span></div>
-            <p className="text-sm">Each day's glucose with carbs, insulin given and low events</p>
-          </div>
+          <Link to={`/reports/weekly?days=${days}`} className="block space-y-1 rounded-2xl bg-white p-4 shadow-sm active:bg-slate-50">
+            <div className="flex items-baseline justify-between"><h2 className="text-lg font-bold">Weekly Summary</h2><span className="text-slate-300">›</span></div>
+            <p className="text-sm text-slate-500">Each day's glucose with carbs, insulin given, low treatments and low events{days > 14 ? ' (last 14 days)' : ''}</p>
+          </Link>
           <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-sm">
             {soon('Daily Log', 'Glucose, meals, insulin and treatments by time')}
             {soon('Snapshot', 'One page of key numbers')}
@@ -189,6 +190,56 @@ export function AgpReportPage() {
               <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-4">{r.daily.slice(-14).map((d) => <DayProfile key={d.key} d={d} />)}</div>
               {r.daily.length > 14 && <p className="mt-1 text-xs text-slate-500">The last 14 days are shown here; the PDF has every day.</p>}
             </details>
+            <Note />
+          </div>
+        )}
+      </Page>
+    </div>
+  );
+}
+
+/** The Weekly Summary: a row per day (glucose with food, low treatments and insulin given marked at their times) and
+ *  the day's average, carbs, insulin and low events; one Export PDF / Share button. */
+export function WeeklySummaryPage() {
+  const nav = useNavigate();
+  const [sp] = useSearchParams();
+  const days = daysFrom(sp);
+  const { summary: s, loading, error, now, shown, cut } = useWeeklySummary(days);
+  const patient = usePatient();
+  return (
+    <div dir="ltr" lang="en">
+      <Page ltr title="Weekly Summary" back={() => backTo(nav, `/reports?days=${days}`)}>
+        {error && <p className="rounded-xl bg-near-soft px-3 py-2 text-sm text-near">Could not load the report: {error}</p>}
+        {loading && <p className="py-6 text-center text-slate-500">Loading {shown} days…</p>}
+        {s && (
+          <div className="space-y-3">
+            <p className="rounded-xl bg-white px-3 py-2 text-sm font-semibold shadow-sm">{s.label}{cut && <span className="block text-xs font-normal text-slate-500">The Weekly Summary shows up to {WEEKLY_MAX_DAYS} days: the last {WEEKLY_MAX_DAYS} of the {days} chosen.</span>}</p>
+            <SharePdf className="w-full" filename={`Weekly-summary-${s.label.replace(/[^0-9A-Za-z]+/g, '-')}.pdf`} title={`Weekly Summary ${s.label}`}
+              make={() => weeklyPdf(s, patient, now, __APP_VERSION__)} labels={{ idle: 'Export PDF / Share', making: 'Preparing the PDF…', ready: 'PDF ready · tap to share' }} />
+            <WeeklyLegend />
+            {s.weeks.map((w) => (
+              <section key={w.label} className="space-y-2">
+                <h2 className="px-1 text-sm font-bold text-slate-500">{w.label}</h2>
+                {w.days.map((d) => (
+                  <div key={d.key} className="space-y-1.5 rounded-2xl bg-white p-3 shadow-sm">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <b>{d.weekday} {d.date}</b>
+                      {d.row.cgm.pctActive > 0 && d.row.cgm.pctActive < 70 && <span className="text-xs text-red-700">sensor data {Math.round(d.row.cgm.pctActive)}%</span>}
+                    </div>
+                    <WeekDayChart d={d} />
+                    <div className="grid grid-cols-4 gap-1 text-center">
+                      {[['Average', d.avgMmol === null ? '–' : fmt1(d.avgMmol), 'mmol/L'],
+                        ['Carbs', d.row.meals ? String(Math.round(d.row.carbs)) : '–', d.row.mealsUnknownCarbs ? `g + ${d.row.mealsUnknownCarbs} unknown` : 'g'],
+                        ['Insulin', d.row.total === null ? '–' : String(d.row.total), d.row.total === null ? 'none logged' : `U · R ${d.row.rapid} L ${d.row.long}`],
+                        ['Lows', String(d.row.lows), d.row.treatments ? `${d.row.treatments} treated` : '']].map(([l, v, sub]) => (
+                        <div key={l}><div className={cx('num text-lg font-bold', l === 'Lows' && d.row.lows > 0 && 'text-over')}>{v}</div><div className="text-[11px] font-semibold">{l}</div><div className="text-[10px] text-slate-500">{sub}</div></div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </section>
+            ))}
+            <p className="text-xs leading-relaxed text-slate-500">{WEEKLY_NOTE}</p>
             <Note />
           </div>
         )}

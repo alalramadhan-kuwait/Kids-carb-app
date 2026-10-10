@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { loadReportData, type ReportData } from './reportData';
 import { buildAgpReport, reportPeriod, type PatientInfo, type ReportDays } from '../engine/report/agpReport';
+import { buildWeeklySummary } from '../engine/report/weekly';
 import { useData } from './data';
 import { supabase } from './supabase';
 import type { Settings } from './types';
@@ -22,9 +23,8 @@ export async function savePatient(p: PatientInfo, birthVerified: boolean) {
   if (error) throw new Error(error.message);
 }
 
-export function useAgpReport(days: ReportDays) {
-  const [now] = useState(() => Date.now());
-  const { from, to } = useMemo(() => reportPeriod(days, now), [days, now]);
+/** One report period's data, loaded once (exactly that period, from the database). */
+export function useReportData(from: number, to: number) {
   const [data, setData] = useState<ReportData | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -33,6 +33,24 @@ export function useAgpReport(days: ReportDays) {
     loadReportData(from, to).then((d) => { if (live) setData(d); }).catch((e) => { if (live) setError((e as Error).message); });
     return () => { live = false; };
   }, [from, to]);
+  return { data, error, loading: !data && !error };
+}
+
+export function useAgpReport(days: ReportDays) {
+  const [now] = useState(() => Date.now());
+  const { from, to } = useMemo(() => reportPeriod(days, now), [days, now]);
+  const { data, error, loading } = useReportData(from, to);
   const report = useMemo(() => (data ? buildAgpReport({ readings: data.readings, from, to, now, fingerPricks: data.fingerPricks.length }) : null), [data, from, to, now]);
-  return { report, error, loading: !data && !error };
+  return { report, error, loading };
+}
+
+/** The Weekly Summary covers at most 14 days (two pages); a longer chosen period shows its last 14 days. */
+export const WEEKLY_MAX_DAYS = 14;
+export function useWeeklySummary(days: ReportDays) {
+  const [now] = useState(() => Date.now());
+  const shown = Math.min(days, WEEKLY_MAX_DAYS);
+  const { from, to } = useMemo(() => reportPeriod(shown, now), [shown, now]);
+  const { data, error, loading } = useReportData(from, to);
+  const summary = useMemo(() => (data ? buildWeeklySummary({ ...data, from, to, now }) : null), [data, from, to, now]);
+  return { summary, error, loading, now, shown, cut: days > WEEKLY_MAX_DAYS };
 }

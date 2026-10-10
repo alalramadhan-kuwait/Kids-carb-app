@@ -9,6 +9,8 @@ import { dayRows, periodTotals } from '../../engine/report/days';
 import { BAND_LABEL, showGlucose } from '../../engine/report/labels';
 import { mapReportData } from '../reportMap';
 import { buildAgpReport, fmtPct, periodLabel, reportPeriod } from '../../engine/report/agpReport';
+import { buildWeeklySummary, carbMarks } from '../../engine/report/weekly';
+import { placeLabels } from '../labelLayout';
 
 let n = 0;
 const test = (name: string, fn: () => void) => { fn(); n++; console.log('  ok', name); };
@@ -245,6 +247,35 @@ test('a day without sensor data is marked as such and drawn empty, never filled'
   const r = buildAgpReport({ readings: rs, from: T0, to: T0 + 2 * DAY, now: T0 + 3 * DAY });
   assert.equal(r.daily.length, 2); assert.equal(r.daily[0].pctActive, 0); assert.ok(r.daily[0].mmol.every((v) => v === null));
   near(r.daily[1].pctActive, 100, 1e-9);
+});
+
+
+// ── Weekly Summary ──
+test('weekly: one row per day, weeks of 7, totals from the shared day rows', () => {
+  const r = buildWeeklySummary({ readings: series(T0, 14 * 24 * 60, 5, 126), from: T0, to: T0 + 14 * DAY, now: T0 + 15 * DAY,
+    insulin: [{ at: T0 + 3600000, units: 3, type: 'rapid' }, { at: T0 + 2 * 3600000, units: 10, type: 'long' }], meals: [{ at: T0 + 3600000, carbs: 40, unknown: false, pending: false }], treatments: [] });
+  assert.equal(r.weeks.length, 2); assert.equal(r.weeks[0].days.length, 7); assert.equal(r.weeks[0].label, '1 Oct – 7 Oct 2026');
+  const d = r.weeks[0].days[0];
+  assert.equal(d.row.total, 13); assert.equal(d.row.carbs, 40); near(d.avgMmol, 126 / 18.016, 1e-9);
+  assert.deepEqual(d.insulin.map((i) => [i.minute, i.units, i.type]), [[60, 3, 'rapid'], [120, 10, 'long']]);
+  assert.equal(d.mmol.length, 288);
+});
+test('weekly: meals close together share one marker; an unknown meal makes the marker unknown, never 0; unconfirmed meals are left out', () => {
+  const m = (min: number, carbs: number | null, o: { unknown?: boolean; pending?: boolean } = {}) => ({ at: T0 + min * MIN, carbs, unknown: !!o.unknown, pending: !!o.pending });
+  const marks = carbMarks([m(60, 30), m(75, 12), m(200, 20), m(210, null, { unknown: true }), m(400, 50, { pending: true })], T0);
+  assert.deepEqual(marks, [{ minute: 60, grams: 42, meals: 2 }, { minute: 200, grams: null, meals: 2 }]);
+});
+test('weekly: low treatments and finger-pricks are marked apart; a day without sensor data stays empty', () => {
+  const r = buildWeeklySummary({ readings: series(T0 + DAY, 24 * 60, 5, 120), from: T0, to: T0 + 2 * DAY, now: T0 + 3 * DAY,
+    insulin: [], meals: [], treatments: [{ at: T0 + 5 * 3600000, carbs: 15 }], fingerPricks: [{ at: T0 + DAY + 3600000, mg: 101 }] });
+  const [d0, d1] = r.weeks[0].days;
+  assert.ok(d0.mmol.every((v) => v === null)); assert.equal(d0.avgMmol, null); assert.deepEqual(d0.treatments, [{ minute: 300, grams: 15 }]);
+  assert.equal(d1.fingerPricks.length, 1); near(d1.avgMmol, 120 / 18.016, 1e-9, 'the finger-prick is not in the average');
+});
+
+test('labels never overlap: second line first, then moved right; the order stays the time order', () => {
+  const p = placeLabels([{ x: 0, w: 10 }, { x: 4, w: 10 }, { x: 6, w: 10 }, { x: 30, w: 5 }]);
+  assert.deepEqual(p, [{ line: 0, lx: 0 }, { line: 1, lx: 4 }, { line: 0, lx: 10 }, { line: 0, lx: 30 }]);
 });
 
 console.log(`\n${n} report engine tests passed`);
