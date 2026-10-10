@@ -106,6 +106,19 @@ calculator do not use this code, and this code does not use theirs.
   meals), insulin (rapid and long), and low events by the definition above, with the number of treatments. On
   28 Sep – 9 Oct 2026 these matched the independent SQL sums day by day.
 
+## Full-screen chart viewer (`components/reports/ChartViewer.tsx`)
+
+Tapping the AGP, a daily profile or a Weekly Summary day opens it full screen (landscape where the phone allows).
+It only displays what the report already holds; it computes nothing new:
+
+- **AGP:** the same percentiles from `agp()`. Tapping shows the 5/25/50/75/95% values and how many days are behind them.
+- **Day:** the stored sensor readings, drawn as they are. The line breaks where readings are more than 16 minutes apart.
+  - Tapping shows the nearest stored reading within 8 minutes with its time, or says there is a gap.
+  - It also lists meals, low treatments, insulin given and finger-pricks within 10 minutes.
+  - Low events (from `glucoseEvents`, the report definition) are shaded.
+- **Gestures:** pinch or +/− to zoom (down to 30 minutes), drag the strip at the bottom to move along the day, and ‹ › to switch days.
+- **Closing:** Close or the phone's back button returns to the report at the same scroll position.
+
 ## Patient details
 
 - The date of birth stays labelled "approx." until someone ticks "Date of birth verified" in the patient details.

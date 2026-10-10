@@ -41,7 +41,7 @@ export function useAgpReport(days: ReportDays) {
   const { from, to } = useMemo(() => reportPeriod(days, now), [days, now]);
   const { data, error, loading } = useReportData(from, to);
   const report = useMemo(() => (data ? buildAgpReport({ readings: data.readings, from, to, now, fingerPricks: data.fingerPricks.length }) : null), [data, from, to, now]);
-  return { report, error, loading };
+  return { report, data, error, loading, now };
 }
 
 /** The Weekly Summary covers at most 14 days (two pages); a longer chosen period shows its last 14 days. */
@@ -52,5 +52,5 @@ export function useWeeklySummary(days: ReportDays) {
   const { from, to } = useMemo(() => reportPeriod(shown, now), [shown, now]);
   const { data, error, loading } = useReportData(from, to);
   const summary = useMemo(() => (data ? buildWeeklySummary({ ...data, from, to, now }) : null), [data, from, to, now]);
-  return { summary, error, loading, now, shown, cut: days > WEEKLY_MAX_DAYS };
+  return { summary, data, error, loading, now, shown, cut: days > WEEKLY_MAX_DAYS };
 }

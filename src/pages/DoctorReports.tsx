@@ -2,7 +2,7 @@
 // all of them (14 days by default), a data check, then report cards; each report opens in a clean view with one
 // "Export PDF / Share" button. Every number comes from the clinical report engine (src/engine/report); nothing on
 // the live screens, the alerts or the dose calculator is used or changed here.
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { backTo } from '../lib/nav';
 import { REPORT_PERIODS, VALIDATION_NOTE, fmt1, fmtPct, type AgpReport, type ReportDays } from '../engine/report/agpReport';
@@ -11,6 +11,9 @@ import { WEEKLY_NOTE, weeklyPdf } from '../lib/weeklyPdf';
 import { agpPdf, ageText } from '../lib/reportPdf';
 import { AgpChart, DayProfile, RANGE_COLOR, TirBar, WeekDayChart, WeeklyLegend } from '../components/reports/charts';
 import { SharePdf } from '../components/SharePdf';
+import { Expandable, useChartViewer } from '../components/reports/ChartViewer';
+import { buildWeeklySummary } from '../engine/report/weekly';
+import { glucoseEvents } from '../engine/report/events';
 import { useData } from '../lib/data';
 import { Btn, Page, Sheet, cx, inputCls, toast } from '../components/ui';
 
@@ -124,9 +127,14 @@ export function AgpReportPage() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
   const days = daysFrom(sp);
-  const { report: r, loading, error } = useAgpReport(days);
+  const { report: r, data, loading, error, now } = useAgpReport(days);
   const patient = usePatient();
   const m = r?.metrics;
+  // for the full-screen viewer: the same days and low events the report already holds (shared engine, read only)
+  const { open, viewer } = useChartViewer();
+  const allDays = useMemo(() => (data && r ? buildWeeklySummary({ ...data, from: r.from, to: r.to, now }).weeks.flatMap((w) => w.days) : []), [data, r, now]);
+  const lows = useMemo(() => (data && r ? glucoseEvents(data.readings, r.from, Math.min(r.to, now)).hypo1 : []), [data, r, now]);
+  const openDay = (key: string) => data && open({ kind: 'day', days: allDays, index: Math.max(0, allDays.findIndex((d) => d.key === key)), readings: data.readings, lows });
   return (
     <div dir="ltr" lang="en">
       <Page ltr title="AGP Report" back={() => backTo(nav, `/reports?days=${days}`)}>
@@ -154,8 +162,8 @@ export function AgpReportPage() {
               ))}
             </div>
             <Section title="Daily pattern (AGP)">
-              <AgpChart r={r} />
-              <p className="text-xs text-slate-500">Line: median. Dark band: 25–75%. Light band: 5–95%. Green: target 3.9–10.0. Tap the chart for values.</p>
+              <Expandable label="Daily pattern (AGP)" onOpen={() => open({ kind: 'agp', report: r })}><AgpChart r={r} still /></Expandable>
+              <p className="text-xs text-slate-500">Line: median. Dark band: 25–75%. Light band: 5–95%. Green: target 3.9–10.0. Tap the chart to open it full screen and read exact values.</p>
             </Section>
             <Section title="Targets for children (ISPAD 2024)">
               <ul className="space-y-1 text-sm">
@@ -187,13 +195,14 @@ export function AgpReportPage() {
             </details>
             <details className="rounded-2xl bg-white p-4 shadow-sm">
               <summary className="cursor-pointer font-bold">Daily profiles ({r.daily.length} days)</summary>
-              <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-4">{r.daily.slice(-14).map((d) => <DayProfile key={d.key} d={d} />)}</div>
-              {r.daily.length > 14 && <p className="mt-1 text-xs text-slate-500">The last 14 days are shown here; the PDF has every day.</p>}
+              <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-4">{r.daily.slice(-14).map((d) => <Expandable key={d.key} label={`${d.weekday} ${d.date}`} onOpen={() => openDay(d.key)}><DayProfile d={d} /></Expandable>)}</div>
+              {r.daily.length > 14 && <p className="mt-1 text-xs text-slate-500">The last 14 days are shown here; the PDF and the full-screen view have every day.</p>}
             </details>
             <Note />
           </div>
         )}
       </Page>
+      {viewer}
     </div>
   );
 }
@@ -204,8 +213,11 @@ export function WeeklySummaryPage() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
   const days = daysFrom(sp);
-  const { summary: s, loading, error, now, shown, cut } = useWeeklySummary(days);
+  const { summary: s, data, loading, error, now, shown, cut } = useWeeklySummary(days);
   const patient = usePatient();
+  const { open, viewer } = useChartViewer();
+  const allDays = useMemo(() => (s ? s.weeks.flatMap((w) => w.days) : []), [s]);
+  const lows = useMemo(() => (data && s ? glucoseEvents(data.readings, s.from, Math.min(s.to, now)).hypo1 : []), [data, s, now]);
   return (
     <div dir="ltr" lang="en">
       <Page ltr title="Weekly Summary" back={() => backTo(nav, `/reports?days=${days}`)}>
@@ -226,7 +238,7 @@ export function WeeklySummaryPage() {
                       <b>{d.weekday} {d.date}</b>
                       {d.row.cgm.pctActive > 0 && d.row.cgm.pctActive < 70 && <span className="text-xs text-red-700">sensor data {Math.round(d.row.cgm.pctActive)}%</span>}
                     </div>
-                    <WeekDayChart d={d} />
+                    <Expandable label={`${d.weekday} ${d.date}`} onOpen={() => data && open({ kind: 'day', days: allDays, index: allDays.indexOf(d), readings: data.readings, lows })}><WeekDayChart d={d} /></Expandable>
                     <div className="grid grid-cols-4 gap-1 text-center">
                       {[['Average', d.avgMmol === null ? '–' : fmt1(d.avgMmol), 'mmol/L'],
                         ['Carbs', d.row.meals ? String(Math.round(d.row.carbs)) : '–', d.row.mealsUnknownCarbs ? `g + ${d.row.mealsUnknownCarbs} unknown` : 'g'],
@@ -244,6 +256,7 @@ export function WeeklySummaryPage() {
           </div>
         )}
       </Page>
+      {viewer}
     </div>
   );
 }

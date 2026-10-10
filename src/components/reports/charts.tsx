@@ -22,7 +22,7 @@ export function TirBar({ r, height = 14 }: { r: AgpReport; height?: number }) {
 const hourLabel = (h: number) => (h % 24 === 0 ? '12am' : h === 12 ? '12pm' : h < 12 ? `${h}am` : `${h - 12}pm`);
 
 /** The AGP: 5–95% and 25–75% bands with the median, target 3.9–10.0 shaded; tap or hover for the values. */
-export function AgpChart({ r, compact = false }: { r: AgpReport; compact?: boolean }) {
+export function AgpChart({ r, compact = false, still = false }: { r: AgpReport; compact?: boolean; /** no tap read-out (the chart opens full screen instead) */ still?: boolean }) {
   const W = 360, H = compact ? 90 : 220, L = compact ? 2 : 26, R = compact ? 2 : 8, T = compact ? 2 : 8, B = compact ? 2 : 20, ymax = 22;
   const x = (m: number) => L + (m / 1440) * (W - L - R), y = (v: number) => T + (1 - Math.min(Math.max(v, 0), ymax) / ymax) * (H - T - B);
   const runs: AgpReport['agp'][] = [];
@@ -38,7 +38,7 @@ export function AgpChart({ r, compact = false }: { r: AgpReport; compact?: boole
   return (
     <div className="relative rounded-xl p-1" style={{ background: '#ffffff' }}>
       <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full touch-pan-y" role="img" aria-label="Ambulatory glucose profile: median and percentile bands over 24 hours, mmol/L"
-        onPointerMove={compact ? undefined : (e) => pick(e.clientX, e.currentTarget)} onPointerDown={compact ? undefined : (e) => pick(e.clientX, e.currentTarget)} onPointerLeave={() => setHover(null)}>
+        onPointerMove={compact || still ? undefined : (e) => pick(e.clientX, e.currentTarget)} onPointerDown={compact || still ? undefined : (e) => pick(e.clientX, e.currentTarget)} onPointerLeave={() => setHover(null)}>
         <rect x={L} y={y(10)} width={W - L - R} height={y(3.9) - y(10)} fill={TARGET} />
         {!compact && [0, 6, 12, 18, 24].map((h) => <g key={h}><line x1={x(h * 60)} x2={x(h * 60)} y1={T} y2={H - B} stroke="#e2e8f0" strokeWidth={0.6} /><text x={x(h * 60)} y={H - 6} fontSize={9} textAnchor={h === 0 ? 'start' : h === 24 ? 'end' : 'middle'} fill="#64748b">{hourLabel(h)}</text></g>)}
         {runs.map((run, i) => run.length > 1 && <path key={`a${i}`} d={area(run, 'p5', 'p95')} fill={BAND95} />)}
