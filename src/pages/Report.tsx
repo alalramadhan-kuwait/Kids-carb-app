@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BAND_LABEL } from '../engine/report/labels'; // fixed band labels: 181 mg/dL is not "10.0" in mmol/L
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useData } from '../lib/data';
@@ -44,7 +45,7 @@ export default function Report() {
   const cv = st?.mean && st.sd !== null ? (st.sd / st.mean) * 100 : null;
   const g = (mg: number) => formatGlucose(mg, unit);
   const bands: [string, number | undefined, string][] = [
-    [t('مرتفع جدًا · فوق {x}', { x: g(250) }), st?.pct_vhigh, 'bg-near'], [t('مرتفع · {a} إلى {b}', { a: g(181), b: g(250) }), st?.pct_high, 'bg-near-fill'],
+    [t('مرتفع جدًا · فوق {x}', { x: g(250) }), st?.pct_vhigh, 'bg-near'], [t('مرتفع · {a} إلى {b}', { a: BAND_LABEL[unit === 'mmol' ? 'mmol' : 'mgdl'].high.split('–')[0], b: g(250) }), st?.pct_high, 'bg-near-fill'],
     [t('ضمن النطاق · {a} إلى {b}', { a: g(70), b: g(180) }), st?.pct_in, 'bg-ok-fill'],
     [t('منخفض · {a} إلى {b}', { a: g(54), b: g(69) }), st?.pct_low, 'bg-over-fill'], [t('منخفض جدًا · تحت {x}', { x: g(54) }), st?.pct_vlow, 'bg-over'],
   ];
