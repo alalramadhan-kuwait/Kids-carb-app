@@ -2,7 +2,7 @@
 // glucose helpers every mom page shares. Big text, few words.
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { cx } from '../../components/ui';
+import { asset, cx } from '../../components/ui';
 import { formatGlucose } from '../../lib/glucose';
 import { relDay } from '../../lib/constants';
 import { isEn, locale, t } from '../../i18n';
@@ -75,13 +75,13 @@ export const SITE_NAME: Record<InjectionSite, string> = {
  *  back of the upper arms, belly around the navel, outer thighs, buttocks. As you face her front, her right is on
  *  your left; from the back it is on your right. Tap a site to choose it; the sensor's site is grey and locked. */
 export function BodyMap({ allowed, last, suggest, sel, onPick, now, sensor = null }: { allowed: InjectionSite[]; last: Map<InjectionSite, number>; suggest: InjectionSite | null; sel: InjectionSite | null; onPick: (s: InjectionSite) => void; now: number; sensor?: InjectionSite | null }) {
-  const SKIN = '#f7e1d3', HAIR = '#6b3b2a', TOP = '#f9a8d4', SHORTS = '#c4b5fd', BOW = '#ec4899';
   const when = (s: InjectionSite) => { const t0 = last.get(s); if (t0 === undefined) return ''; const d = Math.floor((now - t0) / 86400000); return d <= 0 ? t('اليوم') : d === 1 ? t('أمس') : t('{n} أيام', { n: d }); };
-  // one zone: an ellipse (cx, cy, rx, ry) in the figure's own coordinates
-  const zone = (s: InjectionSite, cx: number, cy: number, rx: number, ry: number, label = true) => {
+  // one zone: an ellipse (cx, cy, rx, ry), turned by rot degrees, in the figure's own coordinates
+  const zone = (s: InjectionSite, cx: number, cy: number, rx: number, ry: number, label = true, rot = 0) => {
+    const turn = rot ? `rotate(${rot} ${cx} ${cy})` : undefined;
     if (s === sensor) return (
       <g key={s + cx} aria-label={t('الحساس')}>
-        <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill="#d9d4e2" stroke="#8a84a0" strokeWidth={1.5} strokeDasharray="4 3" />
+        <ellipse cx={cx} cy={cy} rx={rx} ry={ry} transform={turn} fill="#d9d4e2" stroke="#8a84a0" strokeWidth={1.5} strokeDasharray="4 3" />
         <text x={cx} y={cy + 5} fontSize="13" textAnchor="middle">📡</text>
       </g>
     );
@@ -92,53 +92,29 @@ export function BodyMap({ allowed, last, suggest, sel, onPick, now, sensor = nul
     const mark = s === sel ? '✓' : s === suggest ? '⭐' : label ? when(s) : '';
     return (
       <g key={s + cx} onClick={() => onPick(s)} style={{ cursor: 'pointer' }}>
-        <ellipse cx={cx} cy={cy} rx={rx + 6} ry={ry + 6} fill="transparent" />
-        <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill={fill} stroke={stroke} strokeWidth={s === sel || s === suggest ? 3 : 1.8} />
+        <ellipse cx={cx} cy={cy} rx={rx + 6} ry={ry + 6} transform={turn} fill="transparent" />
+        <ellipse cx={cx} cy={cy} rx={rx} ry={ry} transform={turn} fill={fill} stroke={stroke} strokeWidth={s === sel || s === suggest ? 3 : 1.8} />
         {mark && <text x={cx} y={cy + 4} fontSize={mark.length > 2 ? 8.5 : 12} fontWeight="700" textAnchor="middle" fill={s === sel ? '#fff' : '#3b1a2e'}>{mark}</text>}
       </g>
     );
   };
-  // a girl, centred on x = c; back = seen from behind (no face, hair covers the head)
+  // the girl, drawn for us (public/assets/girl-*.webp): each view is a 180 x 318 canvas centred on x = c
   const girl = (c: number, back: boolean) => {
     const side = (her: 'r' | 'l') => (her === 'r' ? (back ? 1 : -1) : back ? -1 : 1); // where her right/left falls on screen
     return (
       <g key={back ? 'back' : 'front'}>
-        {/* long hair behind */}
-        <path d={`M${c - 27},44 C${c - 34},80 ${c - 30},104 ${c - 22},112 L${c + 22},112 C${c + 30},104 ${c + 34},80 ${c + 27},44 Z`} fill={HAIR} />
-        {/* arms */}
-        <path d={`M${c - 33},80 C${c - 46},86 ${c - 50},130 ${c - 48},172 L${c - 36},174 C${c - 36},140 ${c - 34},110 ${c - 26},92 Z`} fill={SKIN} />
-        <path d={`M${c + 33},80 C${c + 46},86 ${c + 50},130 ${c + 48},172 L${c + 36},174 C${c + 36},140 ${c + 34},110 ${c + 26},92 Z`} fill={SKIN} />
-        {/* legs */}
-        <path d={`M${c - 27},176 C${c - 30},220 ${c - 26},262 ${c - 20},292 L${c - 6},292 C${c - 4},250 ${c - 3},210 ${c - 2},180 Z`} fill={SKIN} />
-        <path d={`M${c + 27},176 C${c + 30},220 ${c + 26},262 ${c + 20},292 L${c + 6},292 C${c + 4},250 ${c + 3},210 ${c + 2},180 Z`} fill={SKIN} />
-        {/* body */}
-        <path d={`M${c - 30},82 C${c - 26},120 ${c - 28},150 ${c - 30},180 L${c + 30},180 C${c + 28},150 ${c + 26},120 ${c + 30},82 C${c + 14},74 ${c - 14},74 ${c - 30},82 Z`} fill={SKIN} />
-        <rect x={c - 6} y={60} width={12} height={18} fill={SKIN} />
-        {/* pink top and lilac shorts */}
-        <path d={`M${c - 31},82 C${c - 14},74 ${c + 14},74 ${c + 31},82 L${c + 29},122 C${c + 10},126 ${c - 10},126 ${c - 29},122 Z`} fill={TOP} />
-        <path d={`M${c - 30},164 L${c + 30},164 L${c + 31},200 L${c + 3},200 L${c},188 L${c - 3},200 L${c - 31},200 Z`} fill={SHORTS} />
-        {/* head */}
-        <circle cx={c} cy={40} r={24} fill={back ? HAIR : SKIN} />
-        {!back && <>
-          <path d={`M${c - 25},40 C${c - 24},16 ${c + 24},12 ${c + 25},38 C${c + 12},26 ${c - 6},24 ${c - 25},40 Z`} fill={HAIR} />
-          <circle cx={c - 8} cy={42} r={2.2} fill="#3b1a2e" /><circle cx={c + 8} cy={42} r={2.2} fill="#3b1a2e" />
-          <path d={`M${c - 6},51 Q${c},56 ${c + 6},51`} stroke="#d9467a" strokeWidth={2} fill="none" strokeLinecap="round" />
-          <circle cx={c - 14} cy={49} r={3.5} fill="#f9a8d4" opacity={0.7} /><circle cx={c + 14} cy={49} r={3.5} fill="#f9a8d4" opacity={0.7} />
-          <circle cx={c} cy={142} r={2.4} fill="#e8b9a6" />
-        </>}
-        {/* bow */}
-        <g transform={`translate(${c + 18},${back ? 20 : 18})`}><path d="M0,0 L-9,-6 L-9,6 Z M0,0 L9,-6 L9,6 Z" fill={BOW} /><circle r={2.6} fill="#be185d" /></g>
-        {/* the sites */}
-        {zone('arm_r', c + side('r') * 41, 112, 7.5, 18, false)}
-        {zone('arm_l', c + side('l') * 41, 112, 7.5, 18, false)}
+        <image href={asset(back ? 'girl-back.webp' : 'girl-front.webp')} x={c - 90} y={0} width={180} height={318} />
+        {/* the sites, placed on this drawing; the upper arms lean out like hers */}
+        {zone('arm_r', c + side('r') * 40, 134, 7, 16, false, side('r') * -20)}
+        {zone('arm_l', c + side('l') * 40, 134, 7, 16, false, side('l') * -20)}
         {back ? <>
-          {zone('buttock_r', c + side('r') * 15, 180, 13, 12)}
-          {zone('buttock_l', c + side('l') * 15, 180, 13, 12)}
+          {zone('buttock_r', c + side('r') * 16, 178, 13, 12)}
+          {zone('buttock_l', c + side('l') * 16, 178, 13, 12)}
         </> : <>
-          {zone('belly_r', c + side('r') * 15, 142, 12, 13)}
-          {zone('belly_l', c + side('l') * 15, 142, 12, 13)}
-          {zone('thigh_r', c + side('r') * 19, 232, 9, 24)}
-          {zone('thigh_l', c + side('l') * 19, 232, 9, 24)}
+          {zone('belly_r', c + side('r') * 15, 163, 12, 11)}
+          {zone('belly_l', c + side('l') * 15, 163, 12, 11)}
+          {zone('thigh_r', c + side('r') * 18, 222, 9, 16)}
+          {zone('thigh_l', c + side('l') * 18, 222, 9, 16)}
         </>}
       </g>
     );
