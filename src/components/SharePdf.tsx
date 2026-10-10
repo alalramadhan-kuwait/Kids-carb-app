@@ -7,7 +7,7 @@ import { t } from '../i18n';
  * "مشاركة PDF": makes the file, then opens the share sheet. The phone allows the share sheet only right after a tap,
  * so when making the file takes too long the button turns into "the PDF is ready, tap to share".
  */
-export function SharePdf({ make, filename, title, disabled, className }: { make: () => Promise<Blob>; filename: string; title: string; disabled?: boolean; className?: string }) {
+export function SharePdf({ make, filename, title, disabled, className, labels }: { make: () => Promise<Blob>; filename: string; title: string; disabled?: boolean; className?: string; /** own wording (the English doctor reports) */ labels?: { idle: string; making: string; ready: string } }) {
   const [state, setState] = useState<'idle' | 'making' | 'ready'>('idle');
   const [blob, setBlob] = useState<Blob | null>(null);
   const share = async (b: Blob) => {
@@ -26,7 +26,7 @@ export function SharePdf({ make, filename, title, disabled, className }: { make:
   };
   return (
     <Btn kind="primary" className={className} disabled={disabled || state === 'making'} onClick={go}>
-      {state === 'making' ? t('جارٍ تجهيز PDF…') : state === 'ready' ? t('PDF جاهز · اضغطوا للمشاركة') : t('مشاركة PDF')}
+      {state === 'making' ? labels?.making ?? t('جارٍ تجهيز PDF…') : state === 'ready' ? labels?.ready ?? t('PDF جاهز · اضغطوا للمشاركة') : labels?.idle ?? t('مشاركة PDF')}
     </Btn>
   );
 }

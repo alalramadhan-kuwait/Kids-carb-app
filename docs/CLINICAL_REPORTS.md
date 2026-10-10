@@ -52,29 +52,44 @@ Gluroo imports. Every number is therefore weighted by time, not by count:
 - Light smoothing: each point pools the slots within ±15 minutes.
 - A point resting on fewer than 5 different days is marked thin.
 
-## Events (`events.ts`): report counts only
+## Low and high events (`events.ts`): exact definition (report counts only)
 
-These follow the 2023 consensus (Battelino et al., Lancet Diabetes Endocrinol 11:42).
+The definition follows the 2023 consensus (Battelino et al., Lancet Diabetes Endocrinol 11:42). Each rule is pinned
+by a test in `src/lib/__tests__/report.ts`.
 
-**Rules:**
-- An event starts after ≥15 consecutive minutes beyond the threshold.
-- It ends only after ≥15 consecutive minutes back. A shorter bounce does not split it.
-- Missing data (no reading for over 16 minutes, which allows for the few seconds' lateness of history points) ends an
-  event at its last reading.
+| # | Rule | Exactly | Test |
+|---|---|---|---|
+| 1 | Minimum duration | An event starts after **15 consecutive minutes** beyond the limit. 14 minutes is not an event; 15 minutes is. | definition 1 |
+| 2 | Recovery | An event ends only after **15 consecutive minutes** back on the other side. A bounce of up to 14 minutes stays inside the same event. | definition 2 |
+| 3 | Missing data and sensor gaps | Two readings more than **16 minutes** apart are a gap. A gap ends an event at its last reading beyond the limit, and stops a run from becoming one. Events are never merged across a gap. | definition 3 |
+| 4 | 16-minute tolerance | 15 minutes is the history-point interval. 1 extra minute allows for late arrivals: Gluroo's imported points are 15.1 minutes apart. The tolerance only decides what counts as continuous; it adds no values. | definition 4 |
+| 5 | Last reading before a gap | Lasts only its own reading interval: 1 minute for live readings, 15 for history points. One low reading followed by a sensor drop-out is not counted as 15 minutes low. | "a gap breaks a run" |
+| 6 | Levels | Low below 3.9 (70 mg/dL); very low below 3.0 (54); extended low below 3.9 for over 2 hours; high above 10.0 (180); very high above 13.9 (250). | level tests |
+| 7 | Lowest or highest value | Always a real reading, never an average. | "a gap breaks a run" |
 
-**Levels:**
-- Level 1 low: <70 mg/dL.
-- Level 2 low: <54 mg/dL.
-- Extended low: <70 for over 120 minutes.
-- Level 1 high: >180 mg/dL.
-- Level 2 high: >250 mg/dL.
+**Precision:** events are measured on the stored readings to the minute, not on 5-minute averages. Averaging
+stretched a 12-minute dip to 15 minutes in her data.
 
-**Precision:** events are measured on the readings to the minute, not on 5-minute averages. The lowest value shown is
-a real reading. Before missing data, the last reading counts only for its own reading interval, so a single low
-followed by a sensor drop-out is not 15 minutes low.
+**Independent of alerts and doses:** the live alerts (`supabase/functions/carb-glucose/alerts.ts`) and the dose
+calculator do not use this code, and this code does not use theirs.
 
-**Independent of alerts:** the live alerts on the phones (`supabase/functions/carb-glucose/alerts.ts`) are a separate
-safety system. Their rules and timings are unchanged and are not used here.
+## No interpolation
+
+- No glucose value is ever invented between readings.
+- A stored reading stands for the time until the next reading, at most 15 minutes, which is the CGM's own history
+  interval. Beyond that, time is missing and stays missing.
+- **Grid:** a 5-minute slot needs half its time measured, or it is empty.
+- **Daily profiles:** gaps are drawn as gaps.
+- **AGP:** a time of day with no measured slot on any day is empty. The ±15-minute pooling only smooths times that
+  have real data. Test: "no interpolation anywhere".
+
+## Report periods
+
+- A report covers whole Kuwait days ending at the last midnight. Today, still running, is left out. This gives fixed
+  dates that can be matched with LibreView's report for the same dates.
+- The periods offered are 7, 14 (default), 30 and 90 days.
+- A standard AGP needs 14 days with ≥70% sensor data. Otherwise the report says why, and still shows the numbers,
+  marked incomplete.
 
 ## Differences from LibreView
 

@@ -100,11 +100,11 @@ export function Sheet({ open, onClose, title, hideTitle, children }: { open: boo
 }
 
 // ── basics ──────────────────────────────────────────────────────────────────
-export function Page({ title, back, action, children, wide }: { title: string; back?: () => void; action?: ReactNode; children: ReactNode; wide?: boolean }) {
+export function Page({ title, back, action, children, wide, ltr }: { title: string; back?: () => void; action?: ReactNode; children: ReactNode; wide?: boolean; /** an English, left-to-right page inside the Arabic app */ ltr?: boolean }) {
   return (
     <main className={cx('mx-auto px-4 pb-28 pt-[max(12px,env(safe-area-inset-top))] lg:px-8 lg:pb-12 lg:pt-6', wide ? 'max-w-6xl lg:max-w-none' : 'max-w-2xl lg:max-w-5xl')}>
       <header className="mb-3 flex items-center gap-3">
-        {back && <button onClick={back} aria-label={t('رجوع')} className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl shadow-sm">{isEn() ? '←' : '→'}</button>}
+        {back && <button onClick={back} aria-label={ltr ? 'Back' : t('رجوع')} className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl shadow-sm">{ltr || isEn() ? '←' : '→'}</button>}
         <h1 className="flex-1 text-[22px] font-bold tracking-tight">{title}</h1>
         {action}
       </header>

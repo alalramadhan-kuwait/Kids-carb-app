@@ -44,6 +44,7 @@ import { MomCompare } from './pages/mom/MomCompare';
 import { MomAte, MomDose, MomGiven } from './pages/mom/MomDose';
 import { MomMealEdit } from './pages/mom/MomMealEdit';
 import { DeletedPage, MomDeleted } from './pages/Deleted';
+import { AgpReportPage, DoctorReports } from './pages/DoctorReports';
 import { SitesPage } from './pages/Sites';
 import { MomJuice, MomRecordDose, MomShot, MomSite, MomSites, MomTresiba } from './pages/mom/MomShots';
 import { MomEntry } from './pages/mom/MomEntry';
@@ -302,6 +303,8 @@ function Shell() {
         <Route path="/growth" element={<GrowthPage />} />
         <Route path="/sites" element={<SitesPage />} />
         <Route path="/report" element={<Report />} />
+        <Route path="/reports" element={<DoctorReports />} />
+        <Route path="/reports/agp" element={<AgpReportPage />} />
         <Route path="/settings" element={<SettingsPage part="food" />} />
         <Route path="/settings/advanced" element={<SettingsPage part="advanced" />} />
         <Route path="/doctor" element={<SettingsPage part="doctor" />} />

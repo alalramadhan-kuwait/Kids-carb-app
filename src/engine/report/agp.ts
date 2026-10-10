@@ -3,7 +3,8 @@
 // taken, as in the standard AGP (International Diabetes Center; Battelino 2019).
 // Each measured 5-minute slot is one value (so a period of minute readings and a period of 15-minute points weigh
 // the same per hour). Light smoothing: each point pools the slots within ±15 minutes of it (7 slots, wrapping round
-// midnight). A point resting on fewer than 5 different days is marked thin.
+// midnight); a time of day with no measured slot on any day is left empty, never filled from its neighbours.
+// A point resting on fewer than 5 different days is marked thin.
 import { DAY, KW, MIN, SLOT_MIN, grid, kwDayKey, type Reading } from './cgm';
 
 export const AGP_PCTS = [5, 25, 50, 75, 95] as const;
@@ -29,6 +30,7 @@ export function agp(rs: Reading[], from: number, to: number): (AgpPoint | null)[
   }
   const out: (AgpPoint | null)[] = [];
   for (let k = 0; k < PER_DAY; k++) {
+    if (!bins[k].length) { out.push(null); continue; } // no day measured at this time: nothing is drawn (pooling only smooths real data)
     const pool: number[] = [], days = new Set<string>();
     for (let j = -AGP_POOL; j <= AGP_POOL; j++) for (const x of bins[(k + j + PER_DAY) % PER_DAY]) { pool.push(x.v); days.add(x.day); }
     if (!pool.length) { out.push(null); continue; }

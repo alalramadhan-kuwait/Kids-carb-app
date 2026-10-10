@@ -107,4 +107,6 @@ export const log: Record<string, string> = {
   "لا جرعات": "No doses",
   "أين أُعطيت؟": "Where was it given?",
   "اضغط المكان الذي أُعطيت فيه": "Tap where it was given",
+  "تقارير الطبيب": "Doctor reports",
+  "تقرير AGP بصيغة PDF للعيادة، بالإنجليزي": "AGP report as a PDF for the clinic, in English",
 };

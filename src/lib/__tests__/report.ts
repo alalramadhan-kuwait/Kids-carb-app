@@ -8,6 +8,7 @@ import { eventsOnSegments, glucoseEvents, libreViewLows } from '../../engine/rep
 import { dayRows, periodTotals } from '../../engine/report/days';
 import { BAND_LABEL, showGlucose } from '../../engine/report/labels';
 import { mapReportData } from '../reportMap';
+import { buildAgpReport, fmtPct, periodLabel, reportPeriod } from '../../engine/report/agpReport';
 
 let n = 0;
 const test = (name: string, fn: () => void) => { fn(); n++; console.log('  ok', name); };
@@ -181,6 +182,62 @@ test('report data: unknown carbs stay unknown, finger-pricks stay out of the CGM
   assert.deepEqual(d.readings, [{ t: 1790000000000, mg: 100 }, { t: 1790000060000, mg: 104 }]); assert.deepEqual(d.sources, ['gluroo', null]);
   assert.equal(d.fingerPricks.length, 1); assert.equal(d.insulin[0].units, 3);
   assert.equal(d.meals[0].carbs, null, 'the stored 0 of an unknown meal is not carbs'); assert.equal(d.meals[1].carbs, 12);
+});
+
+
+// ── the exact low-event definition (docs/CLINICAL_REPORTS.md § Events), one test per rule ──
+const lowFor = (mins: number, step = 1) => [...series(T0, 30, 1, 120), ...series(T0 + 30 * MIN, mins, step, 60), ...series(T0 + (30 + mins) * MIN, 60, 1, 120)];
+test('definition 1 · minimum duration: 14 minutes below 3.9 is no event, 15 minutes is one', () => {
+  assert.equal(glucoseEvents(lowFor(14), T0, T0 + DAY).hypo1.length, 0);
+  assert.equal(glucoseEvents(lowFor(15), T0, T0 + DAY).hypo1.length, 1);
+});
+test('definition 2 · recovery: the event ends only after 15 minutes back at 3.9 or above (14 minutes back does not end it)', () => {
+  const two = (back: number) => [...series(T0, 20, 1, 60), ...series(T0 + 20 * MIN, back, 1, 100), ...series(T0 + (20 + back) * MIN, 20, 1, 60), ...series(T0 + (40 + back) * MIN, 30, 1, 120)];
+  const e14 = glucoseEvents(two(14), T0, T0 + DAY).hypo1, e15 = glucoseEvents(two(15), T0, T0 + DAY).hypo1;
+  assert.equal(e14.length, 1); assert.equal(e14[0].minutes, 54, 'one event from the first low to the last');
+  assert.equal(e15.length, 2);
+});
+test('definition 3 · missing data: no reading for over 16 minutes ends an event and is never bridged, even inside a low', () => {
+  const gap = (mins: number) => [...series(T0, 20, 1, 60), ...series(T0 + (19 + mins) * MIN, 20, 1, 60)]; // last low at 0:19, next reading `mins` later
+  assert.equal(glucoseEvents(gap(16), T0, T0 + DAY).hypo1.length, 1, '16 minutes apart: continuous');
+  assert.equal(glucoseEvents(gap(17), T0, T0 + DAY).hypo1.length, 2, '17 minutes apart: a gap; two separate events, not merged');
+});
+test('definition 4 · the 16-minute allowance only absorbs late history points; it adds no glucose values', () => {
+  const rs = [{ t: T0, mg: 60 }, { t: T0 + 15.1 * MIN, mg: 60 }, { t: T0 + 30.2 * MIN, mg: 120 }];
+  const segsE = eventSegments(rs, T0, T0 + 3600000);
+  assert.deepEqual(segsE.map((s) => s.mg), [60, 60, 120], 'only the stored values, in order');
+  assert.ok(segsE.every((s, i) => i === 0 || s.a === segsE[i - 1].b), 'the 15.1-minute steps are continuous');
+});
+test('definition 5 · LibreView difference: exactly 15 minutes counts for the consensus, not for "longer than 15"', () => {
+  assert.equal(glucoseEvents(lowFor(15), T0, T0 + DAY).hypo1.length, 1);
+  assert.equal(libreViewLows(lowFor(15), T0, T0 + DAY).length, 0);
+  assert.equal(libreViewLows(lowFor(16), T0, T0 + DAY).length, 1);
+});
+test('no interpolation anywhere: a 40-minute gap stays empty in the grid, the AGP and the daily profile', () => {
+  const rs = [...series(T0, 60, 1, 100), ...series(T0 + 100 * MIN, 60, 1, 200)]; // nothing from 1:00 to 1:40 (held to 1:14)
+  const g = grid(rs, T0, T0 + 3 * 3600000);
+  assert.ok(g.slice(16, 20).every((s) => s.mg === null), 'slots 1:20–1:40 are empty');
+  const r = buildAgpReport({ readings: rs, from: T0, to: T0 + DAY, now: T0 + 2 * DAY });
+  assert.equal(r.daily[0].mmol[5], null, 'the 1:15–1:30 point of the day is empty');
+  near(r.daily[0].mmol[6], 200 / 18.016, 1e-9, '1:30–1:45 holds only the real readings from 1:40');
+  assert.ok(!r.agp.some((p) => p.minute >= 75 && p.minute <= 95), 'no AGP point at 1:15–1:35, where no day has data');
+  assert.ok(r.agp.some((p) => p.minute === 70) && r.agp.some((p) => p.minute === 100), 'points on both sides remain');
+});
+
+// ── the AGP report model ──
+test('a report period is whole Kuwait days ending at the last midnight; labels show the first and last day', () => {
+  const now = Date.UTC(2026, 9, 10, 19); // 10 Oct 22:00 Kuwait
+  const p = reportPeriod(14, now);
+  assert.equal(p.to, Date.UTC(2026, 9, 9, 21)); assert.equal(p.from, p.to - 14 * DAY);
+  assert.equal(periodLabel(p.from, p.to), '26 Sep – 9 Oct 2026');
+});
+test('the report model: ranges add to 100%, targets follow ISPAD, percent display never rounds a small time to 0%', () => {
+  const rs = [...series(T0, 13 * 60, 5, 120), ...series(T0 + 13 * 60 * MIN, 30, 5, 60), ...series(T0 + (13 * 60 + 30) * MIN, 14 * 24 * 60, 5, 130)];
+  const r = buildAgpReport({ readings: rs, from: T0, to: T0 + 14 * DAY, now: T0 + 15 * DAY });
+  near(r.ranges.reduce((s, x) => s + x.pct, 0), 100, 1e-9);
+  assert.equal(r.targets[1].label, 'Below 3.9'); assert.equal(r.targets[1].met, true);
+  assert.equal(fmtPct(0.15), '0.2%'); assert.equal(fmtPct(72.4), '72%'); assert.equal(r.events.lows, 1);
+  assert.equal(r.sufficiency.ok, true); assert.ok(r.metrics.gmi !== null);
 });
 
 console.log(`\n${n} report engine tests passed`);
