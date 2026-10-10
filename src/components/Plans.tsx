@@ -15,12 +15,14 @@ import { eatAt, expectedDose, isFastDrink, phase, planAlerts, remindAt, upcoming
 import { fmt } from '../lib/carbs';
 import { formatGlucose, unitLabel } from '../lib/glucose';
 import { fmtTime, isoDate, relDay } from '../lib/constants';
-import type { DoseSnapshot, PlanItem, PlannedMeal, Product, Recipe } from '../lib/types';
+import type { DoseSnapshot, InjectionSite, PlanItem, PlannedMeal, Product, Recipe } from '../lib/types';
 import { ProductPicker } from './ProductPicker';
 import { LastSimilar, gOf } from './PlanCompare';
 import { factsOf, planKey } from '../lib/planFacts';
 import { lastSimilar, type PlanFacts } from '../engine/planCompare';
 import { rulesOf } from '../engine/planReview';
+import { useSiteRotation } from '../lib/sites';
+import { SitePicker } from './SitePicker';
 import { Btn, NumInput, Sheet, cx, inputCls, toast } from './ui';
 import { ratioAt } from '../engine/status';
 import { Icon } from './Icon';
@@ -256,6 +258,8 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
   const [units, setUnits] = useState<number | null>(null);
   useEffect(() => { if (!r.block) setUnits((u) => (u === null ? r.dose : u)); }, [r.block, r.dose]);
   const [reason, setReason] = useState('');
+  const [site, setSite] = useState<InjectionSite | null>(null); // null: the rotation's suggestion
+  const rot = useSiteRotation('rapid');
   // when she started eating: the eat time if "She ate" is tapped within the hour after it, else now (changeable)
   const eatDefault = (() => { const e = eatAt(plan); return now < e ? now : now - e <= 60 * MIN ? e : now; })();
   const [eatHm, setEatHm] = useState<string | null>(null);
@@ -282,7 +286,7 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
   const [conflict, setConflict] = useState<(DoseConflict & { mine?: boolean }) | null>(null);
   const give = (separate: boolean) => {
     return run(async () => {
-      const res = await approveDose(plan, { given: units ?? r.dose, calc: r.dose, reason: (units ?? r.dose) !== r.dose ? reason : null, purpose: live.purpose, snapshot: snapshot(), carbs: meal.total.carbs }, cid, separate);
+      const res = await approveDose(plan, { given: units ?? r.dose, calc: r.dose, reason: (units ?? r.dose) !== r.dose ? reason : null, purpose: live.purpose, snapshot: snapshot(), carbs: meal.total.carbs, site: site ?? rot.suggest }, cid, separate);
       if (res.status === 'already_dosed' || res.status === 'recent_dose') { setConflict({ ...res.event, mine: res.status === 'already_dosed' }); throw new Error(t('في إبرة مسجّلة')); }
       if (res.status !== 'ok') throw new Error(t('الوجبة ما عادت موجودة'));
       await logPendingMeal(plan.id, products, settings); // in the Log now; "she ate" confirms it
@@ -357,6 +361,7 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
           {(units ?? r.dose) !== r.dose && (
             <input className={inputCls} dir="auto" maxLength={200} placeholder={t('لماذا تختلف؟ (اختياري)')} value={reason} onChange={(e) => setReason(e.target.value)} aria-label={t('لماذا تختلف؟ (اختياري)')} />
           )}
+          {(units ?? r.dose) > 0 && <SitePicker rot={rot} value={site} onChange={setSite} />}
           {conflict && <SameDose dose={{ ...conflict, type: 'rapid' }} busy={busy} onSame={() => void sameDose()} onSeparate={() => void give(true)} />}
           {(units ?? r.dose) > 0 && !conflict && (
             <Btn kind="primary" block disabled={busy} onClick={() => void give(false)}>

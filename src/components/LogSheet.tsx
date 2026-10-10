@@ -5,7 +5,7 @@ import { useData } from '../lib/data';
 import { deleteEvent, restoreEvent, saveEvent, type NewEvent } from '../lib/api';
 import { findDuplicate, sinceText } from '../lib/now';
 import { LEVEL_TEXT, describeEvent, sleepWindow } from '../lib/events';
-import type { EventKind } from '../lib/types';
+import type { EventKind, InjectionSite } from '../lib/types';
 import { Icon } from './Icon';
 import type { IconName } from '../icons/defs';
 import { Alert, Btn, Chip, Field, NumInput, Sheet, cx, inputCls, toast } from './ui';
@@ -21,6 +21,8 @@ import { ProductPicker } from './ProductPicker';
 import { ProductSheet } from './ProductSheet';
 import type { Product } from '../lib/types';
 import type { QuickItem } from '../lib/quick';
+import { useSiteRotation } from '../lib/sites';
+import { SitePicker } from './SitePicker';
 import { deleteHistory, insulinNear } from '../lib/api';
 import { startComparison, syncComparisons } from '../lib/fingerprick';
 import { toMgdl, unitLabel } from '../lib/glucose';
@@ -56,6 +58,8 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
   const [units, setUnits] = useState<number | null>(null);
   const [type, setType] = useState<'rapid' | 'long'>('rapid');
   const [purpose, setPurpose] = useState<'meal' | 'correction' | 'both' | null>(null);
+  const [site, setSite] = useState<InjectionSite | null>(null); // null: the rotation's suggestion
+  const rot = useSiteRotation(type);
   const [grams, setGrams] = useState<number | null>(null);
   const [treat, setTreat] = useState('عصير'); // i18n-ok: stored value
   const [note, setNote] = useState('');
@@ -88,7 +92,7 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
   }, [open, startKind]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const reset = () => {
-    setKind(null); setClientId(crypto.randomUUID()); setUnits(null); setType('rapid'); setPurpose(null);
+    setKind(null); setClientId(crypto.randomUUID()); setUnits(null); setType('rapid'); setPurpose(null); setSite(null);
     setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault()); setCalc(null); setBg(null); setClean(true);
   };
   const close = () => { reset(); setBrandPick(null); setNewProduct(false); setFood(false); setMore(false); onClose(); };
@@ -107,8 +111,9 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
       treatment: kind === 'treatment' ? treat : null, note: note.trim() || null,
       dose_calc: kind === 'insulin' && type === 'rapid' ? calc : null,
       bg_mgdl: kind === 'bg_check' && bg !== null ? toMgdl(bg, settings.glucose_unit) : null,
+      ...(kind === 'insulin' ? { injection_site: site ?? rot.suggest } : {}),
     };
-  }, [kind, clientId, units, type, purpose, grams, treat, note, ago, mins, level, sleepFrom, sleepTo, calc, bg, settings.glucose_unit]);
+  }, [kind, clientId, units, type, purpose, grams, treat, note, ago, mins, level, sleepFrom, sleepTo, calc, bg, settings.glucose_unit, site, rot.suggest]);
 
   const valid = !!draft && (
     (kind === 'insulin' && !!units && units > 0 && units < 100) ||
@@ -259,9 +264,10 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
               value={kind === 'insulin' ? units : kind === 'exercise' ? mins : grams} onChange={kind === 'insulin' ? setUnits : kind === 'exercise' ? setMins : setGrams} />
           )}
           {kind === 'insulin' && <>
-            <Seg on={KIND_STYLE[kind!].solid} value={type} onChange={(v) => setType(v as 'rapid' | 'long')} options={[['rapid', t('سريع المفعول')], ['long', t('طويل المفعول')]]} />
+            <Seg on={KIND_STYLE[kind!].solid} value={type} onChange={(v) => { setType(v as 'rapid' | 'long'); setSite(null); }} options={[['rapid', t('سريع المفعول')], ['long', t('طويل المفعول')]]} />
             {type === 'rapid' && <Seg on={KIND_STYLE[kind!].solid} value={purpose ?? ''} onChange={(v) => setPurpose((v || null) as typeof purpose)} options={[['meal', t('لوجبة')], ['correction', t('تصحيح')], ['both', t('الاثنين')]]} allowNone />}
             {type === 'rapid' && ago === 0 && <DoseCalculator onUse={(u, p, c, now) => { setUnits(u); setPurpose(p); setCalc(c); if (now) setSaveSoon(true); }} />}
+            <SitePicker rot={rot} value={site} onChange={setSite} />
             {units !== null && units > 20 && <Alert tone="near">{t('رقم كبير. تأكد أنه صحيح قبل الحفظ.')}</Alert>}
           </>}
           {kind === 'treatment' && <Seg on={KIND_STYLE[kind!].solid} value={treat} onChange={setTreat} options={[['عصير', t('عصير')], ['أقراص جلوكوز', t('أقراص')], ['أخرى', t('أخرى')]]} /* i18n-ok: stored values */ />}

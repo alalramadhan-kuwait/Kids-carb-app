@@ -11,26 +11,20 @@ import { SameDose } from '../../components/SameDose';
 import { TimePicker } from '../../components/TimePicker';
 import type { EventRow } from '../../lib/types';
 import { usualLowTreatments } from '../../lib/lowUsual';
-import { SITES, nextRapidAllowed, siteCounts, siteSuggestion, type Shot } from '../../engine/mom';
+import { nextRapidAllowed, siteCounts } from '../../engine/mom';
+import { ALL6, useSiteRotation } from '../../lib/sites';
 import { fmt } from '../../lib/carbs';
 import { cx, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import type { InjectionSite } from '../../lib/types';
 import { Big, BodyMap, Choice, MomPage, PEN, PEN_NAME, PenBar, SITE_NAME, ago, clock, left } from './MomUI';
 
-const ALL6: InjectionSite[] = ['arm_r', 'arm_l', 'belly_r', 'belly_l', 'thigh_r', 'thigh_l'];
-
 /** Where this injection goes: the site chosen on the body page (?site=), else the rotation's suggestion. */
 export function useSite(type: 'rapid' | 'long', exclude: string | null = null) {
   const [sp] = useSearchParams();
-  const { events, settings } = useData();
-  // the arm with the sensor gets no injections while the sensor is on
-  const sensor = useSensor()?.site ?? null;
-  const allowed = (settings.injection_sites?.[type] ?? ALL6).filter((x) => SITES.includes(x) && x !== sensor);
-  const shots: Shot[] = events.filter((e) => e.kind === 'insulin' && !e.deleted_at && e.id !== exclude).map((e) => ({ t: Date.parse(e.occurred_at), site: e.injection_site ?? null, type: e.insulin_type === 'long' ? 'long' : 'rapid' }));
-  const r = siteSuggestion(shots, allowed);
+  const r = useSiteRotation(type, exclude); // the arm with the sensor gets no injections while the sensor is on
   const asked = sp.get('site') as InjectionSite | null;
-  return { ...r, allowed, sensor, site: asked && allowed.includes(asked) ? asked : r.suggest };
+  return { ...r, site: asked && r.allowed.includes(asked) ? asked : r.suggest };
 }
 
 /** The site on a dose page: tap to change it on the body. */

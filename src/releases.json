@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-10",
+    "version": "2.63.0",
+    "notes": [
+      "الوضع الكامل: عند تسجيل الإنسولين أو إعطاء جرعة وجبة مخطّطة يظهر مكان الإبرة الأنسب الآن، وتقدر تغيّره من خريطة جسمها",
+      "صفحة جديدة «أماكن الإبر» في المزيد: الأنسب الآن لكل قلم، متى استُخدم كل مكان، عدد آخر 14 يوم، وكل جرعة ومكانها",
+      "الجرعات المسجّلة بلا مكان تقدر تحدّد مكانها من الصفحة نفسها"
+    ],
+    "notes_en": [
+      "Full mode: logging insulin or giving a planned meal dose now shows the best injection site, and you can change it on her body map",
+      "New “Injection sites” page under More: the best site for each pen, when each site was last used, the last 14 days, and every dose with its site",
+      "Doses saved without a site can be given one from the same page"
+    ]
+  },
+  {
+    "date": "2026-10-10",
     "version": "2.62.1",
     "notes": [
       "رسمة ليان الجديدة في صفحة «وين الإبرة؟» من ورا ومن قدّام، والأماكن على ذراعها وبطنها وفخذها ومقعدتها بالضبط"

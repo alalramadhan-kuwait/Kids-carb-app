@@ -44,6 +44,7 @@ import { MomCompare } from './pages/mom/MomCompare';
 import { MomAte, MomDose, MomGiven } from './pages/mom/MomDose';
 import { MomMealEdit } from './pages/mom/MomMealEdit';
 import { DeletedPage, MomDeleted } from './pages/Deleted';
+import { SitesPage } from './pages/Sites';
 import { MomJuice, MomRecordDose, MomShot, MomSite, MomSites, MomTresiba } from './pages/mom/MomShots';
 import { MomEntry } from './pages/mom/MomEntry';
 import { Alarm } from './components/Alarm';
@@ -299,6 +300,7 @@ function Shell() {
         <Route path="/widget" element={<WidgetPage />} />
         <Route path="/diet-sheet" element={<DietSheetPage />} />
         <Route path="/growth" element={<GrowthPage />} />
+        <Route path="/sites" element={<SitesPage />} />
         <Route path="/report" element={<Report />} />
         <Route path="/settings" element={<SettingsPage part="food" />} />
         <Route path="/settings/advanced" element={<SettingsPage part="advanced" />} />
