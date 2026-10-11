@@ -47,6 +47,8 @@ import { DeletedPage, MomDeleted } from './pages/Deleted';
 import { AgpReportPage, DoctorReports, WeeklySummaryPage } from './pages/DoctorReports';
 import { DailyLogPage } from './pages/DailyLogReport';
 import { SnapshotPage } from './pages/SnapshotReport';
+import { MealtimePage } from './pages/MealtimeReport';
+import { MonthlyPage } from './pages/MonthlyReport';
 import { SitesPage } from './pages/Sites';
 import { MomJuice, MomRecordDose, MomShot, MomSite, MomSites, MomTresiba } from './pages/mom/MomShots';
 import { MomEntry } from './pages/mom/MomEntry';
@@ -310,6 +312,8 @@ function Shell() {
         <Route path="/reports/weekly" element={<WeeklySummaryPage />} />
         <Route path="/reports/daily" element={<DailyLogPage />} />
         <Route path="/reports/snapshot" element={<SnapshotPage />} />
+        <Route path="/reports/mealtime" element={<MealtimePage />} />
+        <Route path="/reports/monthly" element={<MonthlyPage />} />
         <Route path="/settings" element={<SettingsPage part="food" />} />
         <Route path="/settings/advanced" element={<SettingsPage part="advanced" />} />
         <Route path="/doctor" element={<SettingsPage part="doctor" />} />

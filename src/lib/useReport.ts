@@ -6,6 +6,8 @@ import { buildAgpReport, reportPeriod, type PatientInfo, type ReportDays } from 
 import { buildWeeklySummary } from '../engine/report/weekly';
 import { buildDailyLog } from '../engine/report/dailyLog';
 import { buildSnapshot } from '../engine/report/snapshot';
+import { buildMealtime } from '../engine/report/mealtime';
+import { buildMonthly } from '../engine/report/monthly';
 import { useData } from './data';
 import { supabase } from './supabase';
 import type { Settings } from './types';
@@ -73,4 +75,20 @@ export function useSnapshot(days: ReportDays) {
   const { data, error, loading } = useReportData(from, to);
   const snap = useMemo(() => (data ? buildSnapshot({ ...data, from, to, now }) : null), [data, from, to, now]);
   return { snap, data, error, loading, now };
+}
+
+export function useMealtime(days: ReportDays) {
+  const [now] = useState(() => Date.now());
+  const { from, to } = useMemo(() => reportPeriod(days, now), [days, now]);
+  const { data, error, loading } = useReportData(from, to);
+  const mt = useMemo(() => (data ? buildMealtime({ ...data, from, to, now }) : null), [data, from, to, now]);
+  return { mt, error, loading, now, from, to };
+}
+
+export function useMonthly(days: ReportDays) {
+  const [now] = useState(() => Date.now());
+  const { from, to } = useMemo(() => reportPeriod(days, now), [days, now]);
+  const { data, error, loading } = useReportData(from, to);
+  const monthly = useMemo(() => (data ? buildMonthly({ ...data, from, to, now }) : null), [data, from, to, now]);
+  return { monthly, data, error, loading, now };
 }

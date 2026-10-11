@@ -14,6 +14,8 @@ import { placeLabels } from '../labelLayout';
 import { nearestReading } from '../../engine/report/cgm';
 import { buildDailyLog } from '../../engine/report/dailyLog';
 import { buildSnapshot } from '../../engine/report/snapshot';
+import { buildMealtime, slotOf } from '../../engine/report/mealtime';
+import { buildMonthly } from '../../engine/report/monthly';
 
 let n = 0;
 const test = (name: string, fn: () => void) => { fn(); n++; console.log('  ok', name); };
@@ -320,6 +322,44 @@ test('snapshot: insulin and carbs averaged over the days that have them (and tha
   assert.deepEqual([s.carbs.daysWith, s.carbs.perDay, s.carbs.mealsPerDay, s.carbs.unknownMeals], [2, 50, 1.5, 1]);
   assert.deepEqual(s.lows.byBlock, [1, 0, 0, 0, 0, 0]); assert.equal(s.lows.count, 1); assert.equal(s.lows.avgMinutes, 30); assert.equal(s.lows.treatments, 1);
   assert.equal(s.report.events.lows, s.lows.count, 'the same events as the AGP report');
+});
+
+// ── Mealtime Patterns ──
+test('mealtime: meals within 30 min are one sitting; its slot is its tag, else the hour; under 15 g is a snack', () => {
+  const h = 3600000, day = T0 + 2 * DAY;
+  assert.equal(slotOf(day + 7 * h, 30, null), 'breakfast'); assert.equal(slotOf(day + 13 * h, 30, null), 'lunch');
+  assert.equal(slotOf(day + 19 * h, 30, null), 'dinner'); assert.equal(slotOf(day + 13 * h, 10, null), 'snack'); assert.equal(slotOf(day + 23 * h, 40, null), 'snack');
+  assert.equal(slotOf(day + 23 * h, 40, 'dinner'), 'dinner', 'the stored slot wins');
+});
+test('mealtime: one sitting per meal, the curve stops at the next sitting, a gap stays empty, a meal eaten while low is a treatment', () => {
+  const h = 3600000, days = 4;
+  const rs: Reading[] = [];
+  for (let d = 0; d < days; d++) {
+    const b = T0 + d * DAY + 7 * h; // breakfast at 7: 110 before, rises to 200 at +60, back to 120 at +180
+    rs.push(...series(b - 2 * h, 120, 5, 110), ...series(b, 60, 5, (m) => 110 + (90 * m) / 60), ...series(b + 60 * MIN, 120, 5, (m) => 200 - (80 * m) / 120), ...series(b + 180 * MIN, 120, 5, 120));
+  }
+  const meals = [] as any[];
+  for (let d = 0; d < days; d++) meals.push({ at: T0 + d * DAY + 7 * h, carbs: 30, unknown: false, pending: false }, { at: T0 + d * DAY + 7 * h + 10 * MIN, carbs: 10, unknown: false, pending: false });
+  meals.push({ at: T0 + 9 * h + 30 * MIN, carbs: 10, unknown: false, pending: false }); // day 0 at 9:30, a snack: cuts that breakfast's curve
+  const m = buildMealtime({ readings: rs, from: T0, to: T0 + days * DAY, now: T0 + 10 * DAY, meals, insulin: [{ at: T0 + 7 * h, units: 2, type: 'rapid' }] });
+  const b = m.slots.find((s) => s.slot === 'breakfast')!;
+  assert.equal(b.sittings, days, 'the 10 g at +10 min joins the sitting'); assert.equal(b.carbs, 40);
+  near(b.pre, 110 / 18.016, 0.05); near(b.peakMin, 60, 0.1);
+  const at150 = b.curve.find((c) => c.min === 150)!; assert.equal(at150.n, days - 1, 'day 0 stops at its next sitting (9:30)');
+  assert.ok(!b.curve.some((c) => c.min === 240), 'no readings at +4 h: missing, not filled');
+  assert.equal(b.withInsulin, 1);
+  const low = buildMealtime({ readings: series(T0, 600, 5, 60), from: T0, to: T0 + DAY, now: T0 + 2 * DAY, meals: [{ at: T0 + 3 * h, carbs: 15, unknown: false, pending: false }], insulin: [] });
+  assert.equal(low.treatmentsLeftOut, 1); assert.equal(low.sittings.length, 0);
+});
+
+// ── Monthly Summary ──
+test('monthly: calendar weeks from Sunday; days outside the period are empty; the month\'s numbers are the shared metrics', () => {
+  const r = buildMonthly({ readings: series(T0, 2 * DAY / MIN - 30, 5, 120), from: T0, to: T0 + 3 * DAY, now: T0 + 5 * DAY, insulin: [], meals: [], treatments: [] });
+  assert.equal(r.months.length, 1); const oct = r.months[0];
+  assert.equal(oct.label, 'October 2026'); assert.equal(oct.weeks[0].filter((c) => c === null).length, 4, '1 Oct 2026 is a Thursday');
+  assert.equal(oct.days.length, 3); assert.equal(oct.daysWithData, 2, 'the third day has no sensor data');
+  near(oct.avg, 120 / 18.016, 1e-6); near(oct.tir, 100, 1e-9);
+  assert.ok(oct.weeks.flat().filter((c) => c && !c.inPeriod).every((c) => c!.d === null));
 });
 
 console.log(`\n${n} report engine tests passed`);

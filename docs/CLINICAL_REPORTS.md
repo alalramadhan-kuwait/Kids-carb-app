@@ -148,6 +148,32 @@ Validation on stored data (26 Sep – 9 Oct):
 - Daily insulin given equals the SQL sums on every day.
 - Daily carbs equal the meal sums except on 1 Oct (+35 g). That day has two carbs-only entries (15 g and 20 g), which the reports count as food by the rule above; the SQL check summed `meal_history` only.
 
+## Mealtime Patterns (`mealtime.ts`, `lib/mealtimePdf.ts`)
+
+- **Sitting:** everything eaten within 30 minutes of the first item.
+- **Meal period:** the meal's own tag, otherwise the Kuwait time it was eaten:
+  - breakfast 05–11, lunch 11–16, dinner 16–22;
+  - snack: under 15 g, or any other hour.
+- **Left out:** food eaten while glucose was below 3.9 (70 mg/dL) counts as a low treatment, not a meal.
+- **Curve:** from 1 h before to 4 h after, on the shared 5-minute grid, median with the middle half of sittings, every 15 minutes.
+  - It stops where the next sitting starts.
+  - A time with no sensor data is missing for that sitting.
+  - A point is shown only when at least 3 sittings have a value there.
+- **Numbers per period** (medians):
+  - glucose before (the 5-minute slot before the meal);
+  - rise to the peak, and when the peak came;
+  - glucose 2 h after;
+  - known carbs per sitting (unknown carbs are counted, never 0);
+  - rapid insulin given from 30 min before to 30 min after;
+  - how many sittings were followed by a low event (report definition) before the next sitting or 4 h.
+
+## Monthly Summary (`monthly.ts`, `lib/monthlyPdf.ts`)
+
+- **Layout:** calendar months touching the period, weeks starting on Sunday.
+- **Each day in the period:** the Weekly Summary's day model (curve, average, low events).
+- **Days outside the period:** blank. A day without sensor data says so.
+- **Month numbers:** average, time in range and sensor data come from `cgmMetrics` over the part of the month inside the report, so they match the other reports.
+
 ## Patient details
 
 - The date of birth stays labelled "approx." until someone ticks "Date of birth verified" in the patient details.

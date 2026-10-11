@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { AgpReport, DailyProfile } from '../../engine/report/agpReport';
 import { fmt1, fmtPct } from '../../engine/report/agpReport';
 import type { WeeklyDay } from '../../engine/report/weekly';
+import type { MealtimeSlot } from '../../engine/report/mealtime';
 import { placeLabels } from '../../lib/labelLayout';
 
 export const RANGE_COLOR = { veryHigh: '#e8833a', high: '#f2c744', inRange: '#3aa66a', low: '#e04848', veryLow: '#9b1c1c' } as const;
@@ -122,5 +123,38 @@ export function WeeklyLegend() {
       {item(<i className="inline-block h-2.5 w-2.5" style={{ background: LONG }} />, 'long-acting (U)')}
       {item(<i className="inline-block h-2 w-2 rotate-45" style={{ background: '#15212b' }} />, 'finger-prick')}
     </div>
+  );
+}
+
+/** Mealtime Patterns: glucose from 1 h before to 4 h after a meal (minute 0), median line with the middle half of
+ *  sittings shaded, on the fixed 0–22 mmol/L scale. Points with too few sittings are left out (a gap, not a guess). */
+export function MealCurve({ c }: { c: MealtimeSlot['curve'] }) {
+  const W = 320, H = 150, L = 22, R = 6, T = 6, B = 18, x = (m: number) => L + ((m + 60) / 300) * (W - L - R), y = (v: number) => T + (1 - Math.min(Math.max(v, 0), 22) / 22) * (H - T - B);
+  const runs: MealtimeSlot['curve'][] = [];
+  for (const p of c) { const last = runs[runs.length - 1]; if (last && p.min - last[last.length - 1].min <= 15) last.push(p); else runs.push([p]); }
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-label="Glucose around the meal, mmol/L" style={{ background: '#ffffff' }}>
+      <rect x={L} y={y(10)} width={W - L - R} height={y(3.9) - y(10)} fill={TARGET} />
+      {[-60, 0, 60, 120, 180, 240].map((m) => <g key={m}><line x1={x(m)} x2={x(m)} y1={T} y2={H - B} stroke={m === 0 ? '#94a3b8' : '#e2e8f0'} strokeWidth={m === 0 ? 1.2 : 0.6} strokeDasharray={m === 0 ? '3 2' : undefined} />
+        <text x={x(m)} y={H - 5} fontSize={9} textAnchor={m === 240 ? 'end' : m === -60 ? 'start' : 'middle'} fill="#64748b">{m === 0 ? 'meal' : `${m > 0 ? '+' : ''}${m / 60} h`}</text></g>)}
+      {[3.9, 10, 22].map((v) => <text key={v} x={L - 3} y={y(v) + 3} fontSize={8.5} textAnchor="end" fill={v === 22 ? '#64748b' : TARGET_LINE}>{v}</text>)}
+      {runs.map((r, i) => r.length > 1 && <path key={`b${i}`} d={`M${r.map((p) => `${x(p.min)},${y(p.p75)}`).join('L')}L${r.slice().reverse().map((p) => `${x(p.min)},${y(p.p25)}`).join('L')}Z`} fill={BAND50} opacity={0.75} />)}
+      {runs.map((r, i) => <path key={`m${i}`} d={`M${r.map((p) => `${x(p.min)},${y(p.p50)}`).join('L')}`} fill="none" stroke={MEDIAN} strokeWidth={2.2} />)}
+      {!c.length && <text x={W / 2} y={H / 2} fontSize={11} textAnchor="middle" fill="#64748b">Not enough meals in this period</text>}
+    </svg>
+  );
+}
+
+/** One calendar day for the Monthly Summary: its curve, small, on the fixed scale. */
+export function MiniDay({ d }: { d: WeeklyDay }) {
+  const W = 100, H = 40, y = (v: number) => 1 + (1 - Math.min(v, 22) / 22) * (H - 2), x = (k: number) => (k / 287) * W;
+  const segs: string[] = []; let cur = '';
+  d.mmol.forEach((v, k) => { if (v === null) { if (cur) segs.push(cur); cur = ''; } else cur += `${cur ? 'L' : 'M'}${x(k).toFixed(1)},${y(v).toFixed(1)}`; });
+  if (cur) segs.push(cur);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="block h-9 w-full" role="img" aria-label={`${d.weekday} ${d.date} glucose`}>
+      {d.row.cgm.pctActive === 0 ? <text x={W / 2} y={H / 2 + 4} fontSize={13} textAnchor="middle" fill="#94a3b8">no data</text> : <rect x={0} y={y(10)} width={W} height={y(3.9) - y(10)} fill={TARGET} />}
+      {segs.map((s, i) => <path key={i} d={s} fill="none" stroke={MEDIAN} strokeWidth={1.1} vectorEffect="non-scaling-stroke" />)}
+    </svg>
   );
 }

@@ -45,9 +45,6 @@ export function DoctorReports() {
   const { report: r, loading, error } = useAgpReport(days);
   const patient = usePatient();
   const [edit, setEdit] = useState(false);
-  const soon = (title: string, sub: string) => (
-    <li className="flex min-h-[56px] items-center justify-between gap-3 px-4 py-2 text-slate-400"><span><span className="block font-semibold">{title}</span><span className="block text-sm">{sub}</span></span><span className="text-xs">Coming later</span></li>
-  );
   return (
     <div dir="ltr" lang="en">
       <Page ltr title="Doctor reports" back={() => backTo(nav, '/more')}>
@@ -82,10 +79,14 @@ export function DoctorReports() {
             <div className="flex items-baseline justify-between"><h2 className="text-lg font-bold">Daily Log</h2><span className="text-slate-300">›</span></div>
             <p className="text-sm text-slate-500">One day at a time: the curve and every record with the glucose at that moment{days > 14 ? ' (last 14 days)' : ''}</p>
           </Link>
-          <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-sm">
-            {soon('Mealtime Patterns', 'Glucose before and after meals')}
-            {soon('Monthly Summary', 'Month by month')}
-          </ul>
+          <Link to={`/reports/mealtime?days=${days}`} className="block space-y-1 rounded-2xl bg-white p-4 shadow-sm active:bg-slate-50">
+            <div className="flex items-baseline justify-between"><h2 className="text-lg font-bold">Mealtime Patterns</h2><span className="text-slate-300">›</span></div>
+            <p className="text-sm text-slate-500">Glucose before and after breakfast, lunch, dinner and snacks</p>
+          </Link>
+          <Link to={`/reports/monthly?days=${days}`} className="block space-y-1 rounded-2xl bg-white p-4 shadow-sm active:bg-slate-50">
+            <div className="flex items-baseline justify-between"><h2 className="text-lg font-bold">Monthly Summary</h2><span className="text-slate-300">›</span></div>
+            <p className="text-sm text-slate-500">Each month as a calendar: every day’s curve, average and lows</p>
+          </Link>
           <Note />
         </div>
       </Page>
