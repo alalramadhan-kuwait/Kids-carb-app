@@ -114,35 +114,7 @@ export function drawAgpPdf(doc: JsPdf, r: AgpReport, p: PatientInfo, appVersion 
   const agpH = 116;
   box(M, y, W - 2 * M, agpH, 'Ambulatory glucose profile (AGP)');
   text('Median (line), 25–75% and 5–95% of readings at each time of day, all days laid over 24 hours.', M + 2, y + 10, { size: 7, c: C.muted });
-  const cx = M + 12, cy = y + 13, cw = W - 2 * M - 26, ch = agpH - 25, ymax = 22;
-  const X = (min: number) => cx + (min / 1440) * cw, Y = (v: number) => cy + (1 - Math.min(Math.max(v, 0), ymax) / ymax) * ch;
-  fill(C.target); doc.rect(cx, Y(10), cw, Y(3.9) - Y(10), 'F');
-  stroke(C.line); doc.setLineWidth(0.15);
-  for (let h = 0; h <= 24; h += 3) { doc.line(X(h * 60), cy, X(h * 60), cy + ch); text(h % 24 === 0 ? '12am' : h === 12 ? '12pm' : h < 12 ? `${h}am` : `${h - 12}pm`, X(h * 60), cy + ch + 4, { size: 7, c: C.muted, align: 'center' }); }
-  for (const v of [0, 3.9, 10, 13.9, 22]) text(v === 0 ? '0' : String(v), cx - 1.5, Y(v) + 1, { size: 7, c: v === 3.9 || v === 10 ? C.targetLine : C.muted, align: 'right' });
-  // bands as polygons over runs without gaps (a time of day with no data stays empty)
-  const runs: AgpReport['agp'][] = [];
-  for (const pt of r.agp) { const last = runs[runs.length - 1]; if (last && pt.minute - last[last.length - 1].minute <= 5) last.push(pt); else runs.push([pt]); }
-  const band = (lo: 'p5' | 'p25', hi: 'p95' | 'p75', col: string) => {
-    fill(col);
-    for (const run of runs) {
-      if (run.length < 2) continue;
-      const pts = [...run.map((q) => [X(q.minute), Y(q[hi])]), ...run.slice().reverse().map((q) => [X(q.minute), Y(q[lo])])];
-      doc.lines(pts.slice(1).map((q, i) => [q[0] - pts[i][0], q[1] - pts[i][1]]), pts[0][0], pts[0][1], [1, 1], 'F', true);
-    }
-  };
-  band('p5', 'p95', C.band95); band('p25', 'p75', C.band50);
-  stroke(C.targetLine); doc.setLineWidth(0.3); doc.setLineDashPattern([1, 0.8], 0); doc.line(cx, Y(3.9), cx + cw, Y(3.9)); doc.line(cx, Y(10), cx + cw, Y(10)); doc.setLineDashPattern([], 0);
-  stroke(C.median); doc.setLineWidth(0.7);
-  for (const run of runs) for (let i = 1; i < run.length; i++) doc.line(X(run[i - 1].minute), Y(run[i - 1].p50), X(run[i].minute), Y(run[i].p50));
-  const lx = cx + cw + 1.5;
-  const last = r.agp[r.agp.length - 1];
-  if (last) {
-    // percentile labels at the right edge, spread so they never overlap
-    const labs = (['p95', 'p75', 'p50', 'p25', 'p5'] as const).map((k) => ({ k, y: Y(last[k]) + 1 }));
-    for (let i = 1; i < labs.length; i++) labs[i].y = Math.max(labs[i].y, labs[i - 1].y + 2.8);
-    for (const l of labs) text(l.k === 'p50' ? '50%' : `${l.k.slice(1)}%`, lx, l.y, { size: 6, c: l.k === 'p50' ? C.median : C.muted });
-  }
+  drawAgpPlot(doc, r, M + 12, y + 13, W - 2 * M - 26, agpH - 25);
   if (r.agp.some((q) => q.thin)) text('Fewer than 5 days of data at some times of day: read those parts with care.', M + 2, y + agpH - 2, { size: 6.5, c: C.notMet });
   y += agpH + 4;
 
@@ -191,6 +163,41 @@ export function drawAgpPdf(doc: JsPdf, r: AgpReport, p: PatientInfo, appVersion 
       for (let k = 0; k < d.mmol.length; k++) { const v = d.mmol[k]; if (v !== null && v < 3.9) { fill(C.low); doc.circle(dx(k + 0.5), dy(v), 0.55, 'F'); } }
     });
     footer();
+  }
+}
+
+/** The AGP chart itself (bands, median, target, axes and percentile labels) in the box x, y, w, h; also used by the
+ *  Snapshot, so both show the same picture. */
+export function drawAgpPlot(doc: JsPdf, r: AgpReport, cx: number, cy: number, cw: number, ch: number, o: { font?: number } = {}) {
+  const { fill, stroke, text } = pdfKit(doc, r.generatedAt);
+  const ymax = 22, fs = o.font ?? 7;
+  const X = (min: number) => cx + (min / 1440) * cw, Y = (v: number) => cy + (1 - Math.min(Math.max(v, 0), ymax) / ymax) * ch;
+  fill(C.target); doc.rect(cx, Y(10), cw, Y(3.9) - Y(10), 'F');
+  stroke(C.line); doc.setLineWidth(0.15);
+  for (let h = 0; h <= 24; h += 3) { doc.line(X(h * 60), cy, X(h * 60), cy + ch); text(h % 24 === 0 ? '12am' : h === 12 ? '12pm' : h < 12 ? `${h}am` : `${h - 12}pm`, X(h * 60), cy + ch + 4, { size: fs, c: C.muted, align: 'center' }); }
+  for (const v of [0, 3.9, 10, 13.9, 22]) text(v === 0 ? '0' : String(v), cx - 1.5, Y(v) + 1, { size: fs, c: v === 3.9 || v === 10 ? C.targetLine : C.muted, align: 'right' });
+  // bands as polygons over runs without gaps (a time of day with no data stays empty)
+  const runs: AgpReport['agp'][] = [];
+  for (const pt of r.agp) { const last = runs[runs.length - 1]; if (last && pt.minute - last[last.length - 1].minute <= 5) last.push(pt); else runs.push([pt]); }
+  const band = (lo: 'p5' | 'p25', hi: 'p95' | 'p75', col: string) => {
+    fill(col);
+    for (const run of runs) {
+      if (run.length < 2) continue;
+      const pts = [...run.map((q) => [X(q.minute), Y(q[hi])]), ...run.slice().reverse().map((q) => [X(q.minute), Y(q[lo])])];
+      doc.lines(pts.slice(1).map((q, i) => [q[0] - pts[i][0], q[1] - pts[i][1]]), pts[0][0], pts[0][1], [1, 1], 'F', true);
+    }
+  };
+  band('p5', 'p95', C.band95); band('p25', 'p75', C.band50);
+  stroke(C.targetLine); doc.setLineWidth(0.3); doc.setLineDashPattern([1, 0.8], 0); doc.line(cx, Y(3.9), cx + cw, Y(3.9)); doc.line(cx, Y(10), cx + cw, Y(10)); doc.setLineDashPattern([], 0);
+  stroke(C.median); doc.setLineWidth(0.7);
+  for (const run of runs) for (let i = 1; i < run.length; i++) doc.line(X(run[i - 1].minute), Y(run[i - 1].p50), X(run[i].minute), Y(run[i].p50));
+  const lx = cx + cw + 1.5;
+  const last = r.agp[r.agp.length - 1];
+  if (last) {
+    // percentile labels at the right edge, spread so they never overlap
+    const labs = (['p95', 'p75', 'p50', 'p25', 'p5'] as const).map((k) => ({ k, y: Y(last[k]) + 1 }));
+    for (let i = 1; i < labs.length; i++) labs[i].y = Math.max(labs[i].y, labs[i - 1].y + 2.8);
+    for (const l of labs) text(l.k === 'p50' ? '50%' : `${l.k.slice(1)}%`, lx, l.y, { size: 6, c: l.k === 'p50' ? C.median : C.muted });
   }
 }
 

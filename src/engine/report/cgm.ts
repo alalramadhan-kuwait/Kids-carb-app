@@ -77,3 +77,14 @@ export function grid(rs: Reading[], from: number, to: number): Slot[] {
   for (let k = 0; k < n; k++) out.push({ t: start + k * SLOT, mg: dur[k] >= SLOT / 2 ? sum[k] / dur[k] : null, cover: dur[k] / MIN });
   return out;
 }
+
+/** The stored reading nearest to t, if one lies within `withinMin` minutes; otherwise null (a gap: nothing is
+ *  estimated). `sorted` must be in time order (as `clean` returns). */
+export const NEAR_MIN = 8;
+export function nearestReading(sorted: Reading[], t: number, withinMin = NEAR_MIN): Reading | null {
+  let lo = 0, hi = sorted.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (sorted[mid].t < t) lo = mid + 1; else hi = mid; }
+  let best: Reading | null = null;
+  for (const r of [sorted[lo - 1], sorted[lo]]) if (r && (!best || Math.abs(r.t - t) < Math.abs(best.t - t))) best = r;
+  return best && Math.abs(best.t - t) <= withinMin * MIN ? best : null;
+}

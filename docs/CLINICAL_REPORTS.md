@@ -119,6 +119,35 @@ It only displays what the report already holds; it computes nothing new:
 - **Gestures:** pinch or +/− to zoom (down to 30 minutes), drag the strip at the bottom to move along the day, and ‹ › to switch days.
 - **Closing:** Close or the phone's back button returns to the report at the same scroll position.
 
+## Daily Log (`dailyLog.ts`, `lib/dailyLogPdf.ts`)
+
+The Daily Log shows one day per page, for up to 14 days.
+
+- **Day chart:** the Weekly Summary's day model and chart, drawn larger.
+- **Day numbers:** the shared day row: average, time in range, time below 3.9, carbs, insulin given and low events.
+- **Timed list:** every record of the day:
+  - meals (unknown carbs stay "not known");
+  - low treatments;
+  - insulin given;
+  - finger-pricks;
+  - low events (start, duration, lowest, until when);
+  - new sensors.
+- **Sensor column:** the stored reading nearest to the record if it lies within 8 minutes (`nearestReading`), otherwise "–". Nothing is estimated across a gap.
+- **Meal names in the PDF:** names written in Arabic are left out, because the built-in PDF font has no Arabic. The screen shows them.
+
+## Snapshot (`snapshot.ts`, `lib/snapshotPdf.ts`)
+
+The Snapshot is one page and calculates nothing new:
+
+- **Glucose:** the AGP report model.
+- **Low events:** `glucoseEvents`, with counts by the 4-hour block in which each event started.
+- **Insulin and carbs:** `periodTotals` over the day rows. Averages are over the days that have such records, and the page shows "N of M days".
+
+Validation on stored data (26 Sep – 9 Oct):
+
+- Daily insulin given equals the SQL sums on every day.
+- Daily carbs equal the meal sums except on 1 Oct (+35 g). That day has two carbs-only entries (15 g and 20 g), which the reports count as food by the rule above; the SQL check summed `meal_history` only.
+
 ## Patient details
 
 - The date of birth stays labelled "approx." until someone ticks "Date of birth verified" in the patient details.

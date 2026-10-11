@@ -17,7 +17,7 @@ import { glucoseEvents } from '../engine/report/events';
 import { useData } from '../lib/data';
 import { Btn, Page, Sheet, cx, inputCls, toast } from '../components/ui';
 
-const daysFrom = (sp: URLSearchParams): ReportDays => { const n = Number(sp.get('days')); return (REPORT_PERIODS as readonly number[]).includes(n) ? (n as ReportDays) : 14; };
+export const daysFrom = (sp: URLSearchParams): ReportDays => { const n = Number(sp.get('days')); return (REPORT_PERIODS as readonly number[]).includes(n) ? (n as ReportDays) : 14; };
 
 function PeriodPicker({ days, onChange }: { days: ReportDays; onChange: (d: ReportDays) => void }) {
   return (
@@ -29,13 +29,13 @@ function PeriodPicker({ days, onChange }: { days: ReportDays; onChange: (d: Repo
   );
 }
 
-function DataCheck({ r }: { r: AgpReport }) {
+export function DataCheck({ r }: { r: AgpReport }) {
   return r.sufficiency.ok
     ? <p className="rounded-xl bg-ok-soft px-3 py-2 text-sm font-semibold text-ok">✓ {r.label} · sensor data {fmtPct(r.metrics.pctActive)} of the time</p>
     : <p className="rounded-xl bg-near-soft px-3 py-2 text-sm font-semibold text-near">⚠ {r.label} · not enough for a standard AGP: {r.sufficiency.reason}. Numbers are shown, marked incomplete.</p>;
 }
 
-const Note = () => <p className="text-xs leading-relaxed text-slate-500">{VALIDATION_NOTE}</p>;
+export const Note = () => <p className="text-xs leading-relaxed text-slate-500">{VALIDATION_NOTE}</p>;
 
 /** Doctor reports: the list. */
 export function DoctorReports() {
@@ -74,9 +74,15 @@ export function DoctorReports() {
             <div className="flex items-baseline justify-between"><h2 className="text-lg font-bold">Weekly Summary</h2><span className="text-slate-300">›</span></div>
             <p className="text-sm text-slate-500">Each day's glucose with carbs, insulin given, low treatments and low events{days > 14 ? ' (last 14 days)' : ''}</p>
           </Link>
+          <Link to={`/reports/snapshot?days=${days}`} className="block space-y-1 rounded-2xl bg-white p-4 shadow-sm active:bg-slate-50">
+            <div className="flex items-baseline justify-between"><h2 className="text-lg font-bold">Snapshot</h2><span className="text-slate-300">›</span></div>
+            <p className="text-sm text-slate-500">One page: glucose, low events, insulin given and carbs</p>
+          </Link>
+          <Link to={`/reports/daily?days=${days}`} className="block space-y-1 rounded-2xl bg-white p-4 shadow-sm active:bg-slate-50">
+            <div className="flex items-baseline justify-between"><h2 className="text-lg font-bold">Daily Log</h2><span className="text-slate-300">›</span></div>
+            <p className="text-sm text-slate-500">One day at a time: the curve and every record with the glucose at that moment{days > 14 ? ' (last 14 days)' : ''}</p>
+          </Link>
           <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-sm">
-            {soon('Daily Log', 'Glucose, meals, insulin and treatments by time')}
-            {soon('Snapshot', 'One page of key numbers')}
             {soon('Mealtime Patterns', 'Glucose before and after meals')}
             {soon('Monthly Summary', 'Month by month')}
           </ul>
@@ -118,7 +124,7 @@ function PatientSheet({ open, onClose }: { open: boolean; onClose: () => void })
   );
 }
 
-const Section = ({ title, children, className }: { title: string; children: ReactNode; className?: string }) => (
+export const Section = ({ title, children, className }: { title: string; children: ReactNode; className?: string }) => (
   <section className={cx('space-y-2 rounded-2xl bg-white p-4 shadow-sm', className)}><h2 className="font-bold">{title}</h2>{children}</section>
 );
 

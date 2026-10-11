@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import type { AgpReport } from '../../engine/report/agpReport';
 import type { WeeklyDay } from '../../engine/report/weekly';
 import type { GlucoseEvent } from '../../engine/report/events';
-import type { Reading } from '../../engine/report/cgm';
+import { nearestReading, type Reading } from '../../engine/report/cgm';
 import { fmt1 } from '../../engine/report/agpReport';
 import { RANGE_COLOR } from './charts';
 
@@ -144,8 +144,7 @@ function ChartViewer({ content, onClose }: { content: ViewerContent; onClose: ()
       : <span><b>{clock(cursor)}</b> · no data at this time of day</span>;
   } else if (cursor !== null && day) {
     const t = dayStart + cursor * MIN;
-    let near: Reading | null = null; for (const r of dayReadings) if (!near || Math.abs(r.t - t) < Math.abs(near.t - t)) near = r;
-    const ok = near && Math.abs(near.t - t) <= 8 * MIN;
+    const near = nearestReading(dayReadings, t), ok = !!near;
     const within = (m: number) => Math.abs(m - cursor) <= 10;
     const ev: string[] = [
       ...day.carbs.filter((c) => within(c.minute)).map((c) => `${clock(c.minute)} ate ${c.grams === null ? 'carbs unknown' : `${Math.round(c.grams)} g carbs`}${c.meals > 1 ? ` (${c.meals} entries)` : ''}`),

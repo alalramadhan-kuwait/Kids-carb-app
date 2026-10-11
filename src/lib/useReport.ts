@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { loadReportData, type ReportData } from './reportData';
 import { buildAgpReport, reportPeriod, type PatientInfo, type ReportDays } from '../engine/report/agpReport';
 import { buildWeeklySummary } from '../engine/report/weekly';
+import { buildDailyLog } from '../engine/report/dailyLog';
+import { buildSnapshot } from '../engine/report/snapshot';
 import { useData } from './data';
 import { supabase } from './supabase';
 import type { Settings } from './types';
@@ -53,4 +55,22 @@ export function useWeeklySummary(days: ReportDays) {
   const { data, error, loading } = useReportData(from, to);
   const summary = useMemo(() => (data ? buildWeeklySummary({ ...data, from, to, now }) : null), [data, from, to, now]);
   return { summary, data, error, loading, now, shown, cut: days > WEEKLY_MAX_DAYS };
+}
+
+/** The Daily Log, one page per day, covers at most 14 days as well; a longer chosen period shows its last 14 days. */
+export function useDailyLog(days: ReportDays) {
+  const [now] = useState(() => Date.now());
+  const shown = Math.min(days, WEEKLY_MAX_DAYS);
+  const { from, to } = useMemo(() => reportPeriod(shown, now), [shown, now]);
+  const { data, error, loading } = useReportData(from, to);
+  const log = useMemo(() => (data ? buildDailyLog({ ...data, from, to, now }) : null), [data, from, to, now]);
+  return { log, data, error, loading, now, shown, cut: days > WEEKLY_MAX_DAYS };
+}
+
+export function useSnapshot(days: ReportDays) {
+  const [now] = useState(() => Date.now());
+  const { from, to } = useMemo(() => reportPeriod(days, now), [days, now]);
+  const { data, error, loading } = useReportData(from, to);
+  const snap = useMemo(() => (data ? buildSnapshot({ ...data, from, to, now }) : null), [data, from, to, now]);
+  return { snap, data, error, loading, now };
 }

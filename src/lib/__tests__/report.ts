@@ -11,6 +11,9 @@ import { mapReportData } from '../reportMap';
 import { buildAgpReport, fmtPct, periodLabel, reportPeriod } from '../../engine/report/agpReport';
 import { buildWeeklySummary, carbMarks } from '../../engine/report/weekly';
 import { placeLabels } from '../labelLayout';
+import { nearestReading } from '../../engine/report/cgm';
+import { buildDailyLog } from '../../engine/report/dailyLog';
+import { buildSnapshot } from '../../engine/report/snapshot';
 
 let n = 0;
 const test = (name: string, fn: () => void) => { fn(); n++; console.log('  ok', name); };
@@ -276,6 +279,47 @@ test('weekly: low treatments and finger-pricks are marked apart; a day without s
 test('labels never overlap: second line first, then moved right; the order stays the time order', () => {
   const p = placeLabels([{ x: 0, w: 10 }, { x: 4, w: 10 }, { x: 6, w: 10 }, { x: 30, w: 5 }]);
   assert.deepEqual(p, [{ line: 0, lx: 0 }, { line: 1, lx: 4 }, { line: 0, lx: 10 }, { line: 0, lx: 30 }]);
+});
+
+// ── Daily Log ──
+test('daily log: the sensor value at a record is the stored reading within 8 minutes, never an estimate across a gap', () => {
+  const rs = [{ t: T0, mg: 100 }, { t: T0 + 30 * MIN, mg: 200 }];
+  assert.equal(nearestReading(rs, T0 + 7 * MIN)?.mg, 100);
+  assert.equal(nearestReading(rs, T0 + 15 * MIN), null, 'halfway through the gap there is no value (not 150)');
+  assert.equal(nearestReading(rs, T0 + 24 * MIN)?.mg, 200);
+});
+test('daily log: records of a day in time order, each kind kept apart; unknown carbs stay unknown; unconfirmed meals left out', () => {
+  const h = 3600000;
+  const log = buildDailyLog({ readings: series(T0, 24 * 60, 5, 120), from: T0, to: T0 + DAY, now: T0 + 2 * DAY,
+    insulin: [{ at: T0 + 7 * h, units: 3, type: 'rapid' }, { at: T0 + 20 * h, units: 10, type: 'long' }],
+    meals: [{ at: T0 + 7 * h + 10 * MIN, carbs: 45, unknown: false, pending: false, name: 'Breakfast' }, { at: T0 + 13 * h, carbs: null, unknown: true, pending: false }, { at: T0 + 18 * h, carbs: 30, unknown: false, pending: true }],
+    treatments: [{ at: T0 + 3 * h, carbs: 15, name: 'Juice' }], fingerPricks: [{ at: T0 + 3 * h - 5 * MIN, mg: 70 }],
+    sensors: [{ sn: 'ABC', started_at: new Date(T0 + 9 * h).toISOString(), days: 14, source: 'llu' }] });
+  const d = log.days[0];
+  assert.deepEqual(d.entries.map((e) => e.kind), ['finger', 'treatment', 'insulin', 'meal', 'sensor', 'meal', 'insulin']);
+  const unknown = d.entries[5]; assert.ok(unknown.kind === 'meal' && unknown.carbs === null);
+  near(d.entries[2].sensor, 120 / 18.016, 1e-9);
+  assert.equal(d.row.carbs, 45); assert.equal(d.row.mealsUnknownCarbs, 1); assert.equal(d.row.total, 13);
+});
+test('daily log: a low event is listed at its start with duration and lowest reading; a day without sensor data has no sensor values', () => {
+  const rs = [...series(T0, 120, 5, 120), ...series(T0 + 120 * MIN, 30, 5, 60), ...series(T0 + 150 * MIN, 60, 5, 120)];
+  const log = buildDailyLog({ readings: rs, from: T0, to: T0 + 2 * DAY, now: T0 + 3 * DAY, insulin: [], meals: [{ at: T0 + DAY + 3600000, carbs: 20, unknown: false, pending: false }], treatments: [] });
+  const low = log.days[0].entries.find((e) => e.kind === 'low');
+  assert.ok(low && low.kind === 'low'); assert.equal(low.at, T0 + 120 * MIN); assert.equal(low.minutes, 30); near(low.lowest, 60 / 18.016, 1e-9); assert.equal(low.veryLow, false);
+  assert.equal(log.days[1].entries[0].sensor, null); assert.ok(log.days[1].mmol.every((v) => v === null));
+});
+
+// ── Snapshot ──
+test('snapshot: insulin and carbs averaged over the days that have them (and that count is shown); lows by time of day', () => {
+  const h = 3600000;
+  const s = buildSnapshot({ readings: [...series(T0, 120, 5, 120), ...series(T0 + 120 * MIN, 30, 5, 60), ...series(T0 + 150 * MIN, 2 * DAY / MIN - 150, 5, 120)], from: T0, to: T0 + 2 * DAY, now: T0 + 3 * DAY,
+    insulin: [{ at: T0 + 7 * h, units: 4, type: 'rapid' }, { at: T0 + 8 * h, units: 2, type: 'rapid' }, { at: T0 + 20 * h, units: 10, type: 'long' }],
+    meals: [{ at: T0 + 7 * h, carbs: 40, unknown: false, pending: false }, { at: T0 + DAY + 7 * h, carbs: 60, unknown: false, pending: false }, { at: T0 + DAY + 9 * h, carbs: null, unknown: true, pending: false }],
+    treatments: [{ at: T0 + 2 * h + 10 * MIN, carbs: 15 }] });
+  assert.deepEqual([s.insulin.daysWith, s.insulin.days, s.insulin.total, s.insulin.rapid, s.insulin.long, s.insulin.rapidDosesPerDay], [1, 2, 16, 6, 10, 2]);
+  assert.deepEqual([s.carbs.daysWith, s.carbs.perDay, s.carbs.mealsPerDay, s.carbs.unknownMeals], [2, 50, 1.5, 1]);
+  assert.deepEqual(s.lows.byBlock, [1, 0, 0, 0, 0, 0]); assert.equal(s.lows.count, 1); assert.equal(s.lows.avgMinutes, 30); assert.equal(s.lows.treatments, 1);
+  assert.equal(s.report.events.lows, s.lows.count, 'the same events as the AGP report');
 });
 
 console.log(`\n${n} report engine tests passed`);
