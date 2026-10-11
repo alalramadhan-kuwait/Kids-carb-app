@@ -1,6 +1,24 @@
 [
   {
     "date": "2026-10-11",
+    "version": "2.65.0",
+    "notes": [
+      "الرئيسية أرتب وأصغر: القراءة وحالتها جنب بعض، والرسم صار أكبر",
+      "زر ⤢ على الرسم يكبّره للشاشة كاملة: 3 أو 6 أو 12 أو 24 ساعة",
+      "النوفورابيد والتريسيبا جنب بعض، وتنبيه «لا نوفورابيد قبل…» صار سطر صغير يوضّح إنه فاصل الساعتين من خطة الدكتور",
+      "الأزرار أصغر وكلامها ما ينكسر",
+      "«المزيد» مرتّبة بمجموعات، والتشغيل والإطفاء بمفاتيح"
+    ],
+    "notes_en": [
+      "Home is tidier and more compact: the reading and its status side by side, and a larger graph",
+      "The ⤢ button on the graph opens it full screen: 3, 6, 12 or 24 hours",
+      "NovoRapid and Tresiba side by side; «No NovoRapid before…» is a small strip that says it is the 2-hour gap in the doctor's plan",
+      "Smaller buttons whose words never wrap",
+      "«More» is grouped, with switches for on/off settings"
+    ]
+  },
+  {
+    "date": "2026-10-11",
     "version": "2.64.1",
     "notes": [
       "لما ماما ترسل أكل مو موجود، يوصل إشعار لبابا فورًا، وفتحه يودّيه للأكل عشان يكمّل الملصق",
