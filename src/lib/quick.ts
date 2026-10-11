@@ -5,6 +5,8 @@ import { glucoseAt, glucoseCols } from './productLog';
 import { supabase } from './supabase';
 import type { HistoryLine } from './types';
 import { normBrand } from './brand';
+import { productFromQuick } from './quickProduct';
+export { productFromQuick };
 import type { Nutr } from './per100';
 
 export interface QuickItem {
@@ -13,6 +15,8 @@ export interface QuickItem {
   uses: number; last_used: string | null;
   /** the label as printed (per 100 ml or g) and the pack size, when entered that way */
   per100: Nutr | null; amount: number | null; amount_unit: 'ml' | 'g' | null;
+  /** the product in the catalogue this is a shortcut to (Products page, simple mode, weighing) */
+  product_id: string | null;
 }
 const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
 
@@ -31,7 +35,7 @@ export { rankQuick } from './quickRank';
 /** Logs one serving as a meal or snack entry (with the glucose at the time if it is recent). Returns the entry id. */
 export async function logQuick(q: QuickItem): Promise<string> {
   const g = await glucoseAt(Date.now());
-  const line: HistoryLine = { name: q.name, product: null, quantity: 1, unit: 'serving', state: 'as_is', role: 'main', carbs: q.carbs };
+  const line: HistoryLine = { name: q.name, product: q.product_id ? [q.name, q.brand].filter(Boolean).join(' — ') : null, quantity: 1, unit: 'serving', state: 'as_is', role: 'main', carbs: q.carbs };
   const { data, error } = await supabase.from('meal_history').insert({
     kind: q.kind === 'meal' ? 'meal' : 'snack', recipe_id: null, name: q.name, category: null, brand: q.brand,
     total_carbs: q.carbs, total_fat: q.fat, total_fiber: q.fiber, total_protein: q.protein, total_kcal: q.kcal, modified: false,
@@ -44,13 +48,15 @@ export async function logQuick(q: QuickItem): Promise<string> {
 }
 
 export type QuickFields = Pick<QuickItem, 'name' | 'brand' | 'carbs' | 'fat' | 'protein' | 'kcal' | 'fiber' | 'kind' | 'barcode' | 'per100' | 'amount' | 'amount_unit'>;
-export async function saveQuick(id: string, patch: Partial<QuickFields>) {
+export async function saveQuick(id: string, patch: QuickFields, productId: string | null = null) {
   const { error } = await supabase.from('quick_items').update(patch).eq('id', id);
   if (error) throw new Error(error.message);
-}
-export async function deleteQuick(id: string) {
-  const { error } = await supabase.from('quick_items').delete().eq('id', id);
-  if (error) throw new Error(error.message);
+  // its product follows (the label values only: an unchecked product stays unchecked)
+  if (productId) {
+    const { category: _c, approved: _a, available: _v, notes: _n, kind: _k, ...label } = productFromQuick(patch);
+    const r = await supabase.from('products').update(label).eq('id', productId);
+    if (r.error) throw new Error(r.error.message);
+  }
 }
 
 /**
@@ -67,9 +73,17 @@ export async function quickFromMeal(oldName: string, m: { name: string; brand: s
   if (r.error) throw new Error(r.error.message);
 }
 
-/** A new frequent food entered by hand (from the label in hand). */
-export async function createQuick(f: QuickFields): Promise<QuickItem> {
-  const { data, error } = await supabase.from('quick_items').insert({ ...f, source: 'app', uses: 0 }).select('*').single();
+export async function deleteQuick(id: string) {
+  const { error } = await supabase.from('quick_items').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+
+/** A new food entered by hand (from the label in hand): a product in the catalogue, and its one-tap shortcut. */
+export async function createQuick(f: QuickFields, category?: string | null): Promise<QuickItem> {
+  const prod = await supabase.from('products').insert(productFromQuick(f, category)).select('id').single();
+  if (prod.error) throw new Error(prod.error.message);
+  const { data, error } = await supabase.from('quick_items').insert({ ...f, source: 'app', uses: 0, product_id: (prod.data as { id: string }).id }).select('*').single();
   if (error) throw new Error(error.message);
   return { ...(data as QuickItem), carbs: Number(data.carbs) };
 }

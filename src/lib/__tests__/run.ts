@@ -2699,6 +2699,19 @@ test('Topi cheese is found by «توبي» and «جبن»', async () => {
 }
 
 {
+  const { productFromQuick } = await import('../quickProduct');
+  const base = { name: 'Breaded Shrimps', brand: 'Seara', kind: 'meal' as const, barcode: null, carbs: 13, fat: 7.8, protein: 9.1, fiber: 0.7, kcal: 150 };
+  test('a food added from the Log sheet becomes a catalogue product: the label per 100 g with the pack amount as the serving', () => {
+    const p = productFromQuick({ ...base, per100: { carbs: 20, fat: 12, protein: 14, fiber: 1, kcal: 230 }, amount: 65, amount_unit: 'g' }, 'سمك وروبيان');
+    assert.deepEqual([p.unit, p.per_item, p.carbs_per_100, p.kcal_per_100, p.serving_size, p.carbs_per_serving, p.category, p.approved], ['g', false, 20, 230, 65, 13, 'سمك وروبيان', true]);
+  });
+  test('given straight per serving, it is one item (values per item) in the snacks or other group', () => {
+    const p = productFromQuick({ ...base, kind: 'snack', per100: null, amount: null, amount_unit: null });
+    assert.deepEqual([p.per_item, p.carbs_per_100, p.carbs_per_serving, p.serving_size, p.category], [true, 13, 13, 100, 'سناكات']);
+  });
+}
+
+{
   const { activityMessage, activityRecipients } = await import('../../../supabase/functions/carb-activity/activity');
   const strip = (x: string) => x.replace(/[\u2066\u2069]/g, '');
   const at = new Date(Date.UTC(2026, 9, 5, 17, 5)).toISOString(); // 8:05 PM in Kuwait

@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-11",
+    "version": "2.65.1",
+    "notes": [
+      "«منتج جديد ليس في القائمة» في السجل صار يحفظ المنتج في «المنتجات» (يبين في البحث ويقدر ينوزن)، ويبقى في «أكل متكرر» كاختصار بضغطة",
+      "الأكل المتكرر القديم صار مربوط بمنتج؛ اللي ما كان موجود انضاف للمنتجات «غير معتمد» لين تراجعون ملصقه"
+    ],
+    "notes_en": [
+      "«New product not in the list» in the Log now saves it in «Products» (it shows in search and can be weighed), and keeps it in «Often eaten» as a one-tap shortcut",
+      "Existing often-eaten foods are now linked to a product; those that were missing were added to Products as «not approved» until you check their label"
+    ]
+  },
+  {
+    "date": "2026-10-11",
     "version": "2.65.0",
     "notes": [
       "الرئيسية أرتب وأصغر: القراءة وحالتها جنب بعض، والرسم صار أكبر",

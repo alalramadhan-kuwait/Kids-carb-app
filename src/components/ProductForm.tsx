@@ -4,7 +4,8 @@ import { normBrand } from '../lib/brand';
 import { nutrProblem, totalsOf, type NutrState } from '../lib/per100';
 import { NutritionFields, nutrStateFrom } from './NutritionFields';
 import { Alert, Btn, toast } from './ui';
-import { t, tr } from '../i18n';
+import { t, tMaybe, tr } from '../i18n';
+import { PRODUCT_CATEGORIES } from '../lib/constants';
 
 const PROBLEM: Record<string, string> = tr({ // i18n-ok: values translated when read
   name: 'اكتبوا اسم المنتج', carbs: 'اكتبوا الكارب', per100: 'لكل 100 لا يمكن أن يزيد عن 100 غ: هل كتبتم قيم الحصة؟', amount: 'اكتبوا الكمية (مل أو غ)', values: 'القيم الغذائية غير معقولة', // i18n-ok
@@ -23,6 +24,7 @@ export function ProductForm({ q, brands, onDone, onLog }: { q: QuickItem | null;
   const [brand, setBrand] = useState(q?.brand ?? '');
   const [barcode, setBarcode] = useState(q?.barcode ?? '');
   const [kind, setKind] = useState<'meal' | 'snack'>(q?.kind === 'meal' ? 'meal' : 'snack');
+  const [category, setCategory] = useState('');
   const [n, setN] = useState<NutrState>(() => nutrStateFrom(
     { carbs: q?.carbs ?? null, fat: q?.fat ?? null, protein: q?.protein ?? null, fiber: q?.fiber ?? null, kcal: q?.kcal ?? null }, q?.per100, q?.amount, q?.amount_unit));
   const [busy, setBusy] = useState(false);
@@ -41,8 +43,8 @@ export function ProductForm({ q, brands, onDone, onLog }: { q: QuickItem | null;
     if (problem) return;
     setBusy(true);
     try {
-      if (q) { await saveQuick(q.id, fields()); toast(t('تم الحفظ ✓')); }
-      else { const made = await createQuick(fields()); if (andLog && onLog) await onLog(made); else toast(t('أُضيف إلى «أكل متكرر» ✓')); }
+      if (q) { await saveQuick(q.id, fields(), q.product_id); toast(t('تم الحفظ ✓')); }
+      else { const made = await createQuick(fields(), category); if (andLog && onLog) await onLog(made); else toast(t('أُضيف إلى المنتجات و«أكل متكرر» ✓')); }
       onDone();
     } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
   };
@@ -70,6 +72,13 @@ export function ProductForm({ q, brands, onDone, onLog }: { q: QuickItem | null;
           </div>
         </L>
       </div>
+      {!q && (
+        <L label={t('المجموعة في المنتجات')}>
+          <input className={box} dir="auto" list="product-categories" value={category} maxLength={40} placeholder={kind === 'snack' ? tMaybe('سناكات') : tMaybe('أخرى')} onChange={(e) => setCategory(e.target.value)} />
+          <datalist id="product-categories">{PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{tMaybe(c)}</option>)}</datalist>
+        </L>
+      )}
+      {!q && <p className="text-xs text-slate-500">{t('يُحفظ في «المنتجات» ويظهر هنا كاختصار بضغطة واحدة.')}</p>}
       {q?.note && <p className="text-xs text-slate-500" dir="auto">{q.note}</p>}
       {problem && (name.trim() || problem !== 'name') && problem !== 'carbs' && <Alert tone="near">{PROBLEM[problem]}</Alert>}
       {q ? (

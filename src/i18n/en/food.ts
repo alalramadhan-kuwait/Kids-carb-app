@@ -1420,4 +1420,7 @@ export const food: Record<string, string> = {
   "كبّري الرسم": "Expand the graph",
   "{h} س": "{h} h",
   "المدة": "Time span",
+  "أُضيف إلى المنتجات و«أكل متكرر» ✓": "Added to Products and «Often eaten» ✓",
+  "المجموعة في المنتجات": "Group in Products",
+  "يُحفظ في «المنتجات» ويظهر هنا كاختصار بضغطة واحدة.": "Saved in «Products», and shown here as a one-tap shortcut.",
 };
