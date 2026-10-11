@@ -1,6 +1,9 @@
 // Alert state machine (GLUCOSE_PLAN section 6), pure so it can be tested. Runs on the server every minute.
-// Thresholds come from the parents; a threshold left empty switches that alert off (urgent low included —
-// the app has no built-in medical numbers). Messages state facts only: never a dose, never grams to give.
+// Thresholds come from the parents. Very low, Low and No reading are protected: they cannot be switched off, and if a
+// threshold is ever missing the standard one (54 / 70 mg/dL) applies. Every other alert has its own switch.
+// One glucose episode is ONE alert: "low expected", "low" and "very low" are levels of the same row, which moves up
+// (and is re-announced) when it gets worse and goes quiet when it recovers. Messages state facts only: never a dose,
+// never grams to give.
 
 export type AlertKind = 'urgent_low' | 'low' | 'predicted_low' | 'high' | 'no_data' | 'rapid_fall' | 'rapid_rise';
 export type AlertState = 'pending' | 'active' | 'acknowledged';
@@ -14,6 +17,7 @@ export interface AlertCfg {
   fallRate?: number | null;    // mg/dL per minute for falling fast; overrides rapidRate when set
   riseRate?: number | null;    // mg/dL per minute for rising fast; overrides rapidRate when set
   predictLowMin?: number | null; // "low expected": warn when the current fall would reach the low limit within this many minutes
+  highOn?: boolean; predictOn?: boolean; fallOn?: boolean; riseOn?: boolean; // the switches (high and low expected default on; the two fast alerts off)
   escalateMin?: number;        // minutes without "I'm on it" before the backup parent is told
   night?: { start: string; end: string; low: number | null; high: number | null; highSilent: boolean } | null;
   school?: { days: number[]; start: string; end: string; low: number | null; high: number | null } | null;
@@ -22,7 +26,16 @@ export interface OpenAlert {
   id: string; kind: AlertKind; state: AlertState; started_at: string; active_at: string | null;
   last_notified_at: string | null; snoozed_until: string | null; clear_since: string | null;
   value_mgdl: number | null; worst_mgdl: number | null; escalated_at?: string | null;
+  acknowledged_at?: string | null;
+  /** the level (kind) and glucose when someone said "I'm on it": later reminders are judged against these */
+  ack_kind?: AlertKind | null; ack_value?: number | null;
+  /** when the current level began (an episode that gets worse restarts the "no one answered" timer) */
+  level_at?: string | null;
+  progress?: { k: AlertKind; at: string }[] | null;
+  eta_min?: number | null;
 }
+/** Alerts that ended in the last hour: the cooldown looks at them. */
+export interface RecentAlert { id?: string; kind: AlertKind; started_at: string; resolved_at: string | null; progress?: { k: AlertKind; at: string }[] | null; worst_mgdl?: number | null }
 export interface Reading { taken_at: string; mg_dl: number; trend: number | null }
 export type Notify = 'alert' | 'repeat' | 'resolved' | 'escalate';
 export interface Step {
@@ -39,6 +52,9 @@ export const FRESH_MIN = 15;
 const GAP = 20 * MIN;
 const HOLD: Record<AlertKind, number> = { urgent_low: 10, low: 15, predicted_low: 5, high: 15, no_data: 0, rapid_fall: 5, rapid_rise: 5 }; // minutes clear before resolving
 const iso = (t: number) => new Date(t).toISOString();
+/** When anyone last touched an alert: answered it or it last sounded. */
+const lastTouch = (a: { acknowledged_at?: string | null; last_notified_at?: string | null; started_at: string }) =>
+  Math.max(Date.parse(a.acknowledged_at ?? '') || 0, Date.parse(a.last_notified_at ?? '') || 0, Date.parse(a.started_at) || 0);
 const ms = (s: string | null | undefined) => (s ? Date.parse(s) : NaN);
 
 // ── profiles ──────────────────────────────────────────────────────────────────
@@ -95,101 +111,244 @@ export function rate15(all: Reading[]): number | null {
   return den ? num / den : null;
 }
 
-export function evaluate(now: number, readings: Reading[], cfg: AlertCfg, open: OpenAlert[], cgmConnected: boolean): Step[] {
+// ── is she really about to go low? ─────────────────────────────────────────────────────────────────
+/**
+ * "Low expected" has to mean it: credible evidence that she will cross her LOW limit soon, from minute readings only
+ * (the 15-minute history points are skipped). All of these must hold, on the readings as they are now:
+ *  - enough clean points: at least `points` in the last `win` minutes, no gap over 3 minutes;
+ *  - the fall is steady (the 8-minute line fits: R² ≥ minR2) and steep enough, over the last `win` and the last
+ *    `short` minutes;
+ *  - it is still happening: the short slope is at least `flat` of the long one and the newest reading is no higher
+ *    than the one two minutes before (a flattening or a bounce cancels it at once);
+ *  - Libre's own arrow is not "steady" or up (so this never contradicts the glucose card next to it);
+ *  - the fading forecast from the LESS steep of the two slopes reaches the low limit within `look` minutes.
+ */
+export const FC = { win: 10, short: 4, points: 6, minSlope: 0.6, minShort: 0.3, flat: 0.4, minR2: 0.5, fade: 0.8, arrow: 'soft' as 'strict' | 'soft' | 'off', sparseWin: 15, sparseSlope: 0.6 };
+export interface Forecast { ok: boolean; eta: number | null; slope: number; short: number; r2: number; now: number }
+const fadeBy = (rate: number, minutes: number, fade: number) => rate * 5 * fade * (1 - fade ** (minutes / 5)) / (1 - fade);
+function lsq(pts: [number, number][]): { slope: number; r2: number } | null {
+  if (pts.length < 3) return null;
+  const mt = pts.reduce((a, p) => a + p[0], 0) / pts.length, mv = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+  let num = 0, den = 0, tot = 0;
+  for (const [t, v] of pts) { const dt = (t - mt) / MIN; num += dt * (v - mv); den += dt * dt; tot += (v - mv) ** 2; }
+  if (!den) return null;
+  const slope = num / den;
+  return { slope, r2: tot ? (slope * slope * den) / tot : 1 };
+}
+/** Minute readings (those with an arrow) ending at the newest one, going back `win` minutes without a gap over 3. */
+function recentMinutes(all: Reading[], win: number): [number, number][] {
+  const m = all.filter((r) => r.trend !== null);
+  if (!m.length) return [];
+  const last = Date.parse(m[m.length - 1].taken_at), pts: [number, number][] = [];
+  for (let i = m.length - 1; i >= 0; i--) {
+    const t = Date.parse(m[i].taken_at);
+    if (last - t > win * MIN) break;
+    if (pts.length && pts[pts.length - 1][0] - t > 3 * MIN) break;
+    pts.push([t, m[i].mg_dl]);
+  }
+  return pts.reverse();
+}
+/** Slope (mg/dL per minute) of the minute readings over the last `win` minutes; null without enough of them. */
+export function slopeOver(all: Reading[], win: number): number | null {
+  const pts = recentMinutes(all, win);
+  if (pts.length < 3 || pts[pts.length - 1][0] - pts[0][0] < win * 0.5 * MIN) return null;
+  return lsq(pts)?.slope ?? null;
+}
+/** Sparse data (a phone that lost the sensor for a while leaves only the 5–15 minute points): the same idea over
+ *  the last `sparseWin` minutes, from whatever points exist (history points beside minute readings left out). */
+function recentAny(all: Reading[], win: number): [number, number][] {
+  const marked = all.filter((r) => r.trend !== null).map((r) => Date.parse(r.taken_at));
+  const rs = all.filter((r) => r.trend !== null || !marked.some((m) => Math.abs(m - Date.parse(r.taken_at)) <= 2 * MIN));
+  if (!rs.length) return [];
+  const last = Date.parse(rs[rs.length - 1].taken_at), pts: [number, number][] = [];
+  for (let i = rs.length - 1; i >= 0; i--) {
+    const t = Date.parse(rs[i].taken_at);
+    if (last - t > win * MIN) break;
+    if (pts.length && pts[pts.length - 1][0] - t > 8 * MIN) break;
+    pts.push([t, rs[i].mg_dl]);
+  }
+  return pts.reverse();
+}
+export function lowForecast(all: Reading[], low: number, look: number): Forecast | null {
+  const newest = all[all.length - 1];
+  if (!newest) return null;
+  let pts = recentMinutes(all, FC.win), sparse = false;
+  if (pts.length < FC.points || pts[pts.length - 1][0] - pts[0][0] < (FC.win - 2) * MIN) {
+    pts = recentAny(all, FC.sparseWin); sparse = true;
+    if (pts.length < 3 || pts[pts.length - 1][0] - pts[0][0] < 8 * MIN) return null;
+  }
+  const long = lsq(pts);
+  const lastT = pts[pts.length - 1][0];
+  const sh = sparse ? long : lsq(pts.filter((p) => lastT - p[0] <= FC.short * MIN));
+  if (!long || !sh) return null;
+  const v = pts[pts.length - 1][1];
+  const before = sparse ? pts[pts.length - 2][1] : pts.find((p) => lastT - p[0] <= 2 * MIN + 1000)?.[1] ?? v;
+  const slope = Math.max(long.slope, sh.slope); // the less steep: the cautious one
+  // Libre's own arrow: "steady" or up while the glucose card says so can never be a warning, unless the short fall is
+  // already steep enough that the arrow is about to turn
+  const arrowOk = FC.arrow === 'off' || newest.trend === null || newest.trend <= 2 || (FC.arrow === 'soft' && sh.slope <= -1);
+  let eta: number | null = null;
+  for (let m = 1; m <= Math.max(look, 1); m++) if (v + fadeBy(slope, m, FC.fade) <= low) { eta = m; break; }
+  const steep = sparse ? long.slope <= -FC.sparseSlope : long.slope <= -FC.minSlope && sh.slope <= -FC.minShort && sh.slope <= long.slope * FC.flat;
+  const ok = arrowOk && steep && long.r2 >= FC.minR2 && v <= before && v > low && eta !== null;
+  return { ok, eta: ok ? eta : null, slope: long.slope, short: sh.slope, r2: long.r2, now: v };
+}
+
+// ── the engine ───────────────────────────────────────────────────────────────────────────────────────
+export const COOLDOWN_MIN = 30;   // after a non-critical alert ends, the same one stays quiet this long (unless it is imminent)
+export const IMMINENT_MIN = 10;   // …"imminent" = the low limit is this close in time
+const DEFAULT_URGENT = 54, DEFAULT_LOW = 70;
+const RANK: Partial<Record<AlertKind, number>> = { predicted_low: 1, low: 2, urgent_low: 3 };
+const LEVEL: AlertKind[] = ['predicted_low', 'predicted_low', 'low', 'urgent_low'];
+
+export function evaluate(now: number, readings: Reading[], cfg: AlertCfg, open: OpenAlert[], cgmConnected: boolean, recent: RecentAlert[] = []): Step[] {
   const steps: Step[] = [];
   const latest = readings.length ? readings[readings.length - 1] : null;
   const age = latest ? (now - Date.parse(latest.taken_at)) / MIN : Infinity;
   const fresh = age <= FRESH_MIN;
   const v = latest?.mg_dl ?? null;
   const profile = profileAt(now, cfg);
-  const low = profile === 'night' ? cfg.night?.low ?? cfg.low : profile === 'school' ? cfg.school?.low ?? cfg.low : cfg.low;
-  const high = profile === 'night' ? cfg.night?.high ?? cfg.high : profile === 'school' ? cfg.school?.high ?? cfg.high : cfg.high;
+  const lowCfg = profile === 'night' ? cfg.night?.low ?? cfg.low : profile === 'school' ? cfg.school?.low ?? cfg.low : cfg.low;
+  const highCfg = profile === 'night' ? cfg.night?.high ?? cfg.high : profile === 'school' ? cfg.school?.high ?? cfg.high : cfg.high;
+  const U = cfg.urgentLow ?? DEFAULT_URGENT, L = lowCfg ?? DEFAULT_LOW;       // protected: always on
   const highSilent = profile === 'night' && !!cfg.night?.highSilent;
   const rate = fresh ? rate15(readings) : null;
   const RF = cfg.fallRate ?? cfg.rapidRate ?? null, RR = cfg.riseRate ?? cfg.rapidRate ?? null;
-  const P = cfg.predictLowMin ?? null;
-  // where the last 15 minutes' fall leads in the next half hour, fading (the trend, not a forecast of food or insulin)
-  const ahead = fresh && v !== null && rate !== null && P !== null ? v + fadedChange(rate, Math.max(P, LOOK_MIN)) : null;
-  const byKind = new Map(open.map((a) => [a.kind, a]));
-  const urgentOpen = byKind.get('urgent_low');
-  const urgentSounding = !!urgentOpen && urgentOpen.state !== 'pending';
+  const P = cfg.predictLowMin ?? 20;
+  const predictOn = cfg.predictOn !== false;
+  const fc = fresh && v !== null && predictOn ? lowForecast(readings, L, Math.max(P, 1)) : null;
+  const r10 = fresh ? slopeOver(readings, 10) : null;
+  const iso0 = iso(now);
   const escalateAfter = cfg.escalateMin ?? 10;
+  const worstOf = (kind: AlertKind, w: number | null) => (v === null ? w : w === null ? v : kind === 'high' || kind === 'rapid_rise' ? Math.max(w, v) : Math.min(w, v));
+  const coolingFor = (kind: AlertKind) => recent.some((r) => r.kind === kind && r.resolved_at && now - ms(r.resolved_at) < COOLDOWN_MIN * MIN);
 
-  for (const kind of ALERT_KINDS) {
+  // ── the low episode: expected → low → very low is one row that moves up ──────────────────────────
+  const grp = open.filter((a) => RANK[a.kind]).sort((a, b) => RANK[b.kind]! - RANK[a.kind]! || ms(a.started_at) - ms(b.started_at));
+  const cur = grp[0] ?? null;
+  for (const extra of grp.slice(1)) steps.push({ kind: extra.kind, op: extra.state === 'pending' ? 'delete' : 'resolve', id: extra.id, patch: { resolved_at: iso0 } }); // an older engine left two open
+  const curRank = cur ? RANK[cur.kind]! : 0;
+  if (fresh && v !== null) {
+    const lowDelay = cfg.lowDelay;
+    const then = lowDelay > 0 ? readings.find((r) => Math.abs(now - lowDelay * MIN - Date.parse(r.taken_at)) <= 1.5 * MIN) : latest;
+    const cU = v <= U, cL = v <= L && (lowDelay === 0 || (!!then && then.mg_dl <= L));
+    const sustU = curRank === 3 && v < U + 10, sustL = curRank >= 2 && v < L + 10;
+    const cP = !!fc?.ok;
+    const target = cU || sustU ? 3 : cL || sustL ? 2 : cP ? 1 : 0;
+    const lvlKind = LEVEL[target];
+    const upd = (patch: Record<string, unknown>, notify: Notify | undefined, id: string, kind: AlertKind) => steps.push({ kind, op: 'update', id, patch, notify });
+    if (!cur) {
+      // the same episode: one that ended in the last 15 minutes is reopened, not duplicated
+      const back = recent.filter((r) => r.id && RANK[r.kind] && r.resolved_at && now - ms(r.resolved_at) <= 15 * MIN).sort((a, b) => ms(b.resolved_at) - ms(a.resolved_at))[0] ?? null;
+      const reopen = (k: AlertKind, eta: number | null) => steps.push({ kind: k, op: 'update', id: back!.id, notify: 'alert', patch: { kind: k, state: 'active', resolved_at: null, clear_since: null, snoozed_until: null, ack_kind: null, escalated_at: null,
+        level_at: iso0, last_notified_at: iso0, value_mgdl: v, worst_mgdl: worstOf(k, back!.worst_mgdl ?? null), eta_min: eta, progress: [...(back!.progress ?? [{ k: back!.kind, at: back!.started_at }]), { k, at: iso0 }] } });
+      if (target >= 2) {
+        if (back) reopen(lvlKind, null);
+        else steps.push({ kind: lvlKind, op: 'create', patch: { state: 'active', profile, started_at: iso0, active_at: iso0, level_at: iso0, last_notified_at: iso0, value_mgdl: v, worst_mgdl: v, progress: [{ k: lvlKind, at: iso0 }] }, notify: 'alert' });
+      } else if (target === 1 && !(coolingFor('predicted_low') && (fc!.eta ?? 99) > IMMINENT_MIN)) {
+        if (back) reopen('predicted_low', fc!.eta);
+        else steps.push({ kind: 'predicted_low', op: 'create', patch: { state: 'pending', profile, started_at: iso0, value_mgdl: v, worst_mgdl: v, eta_min: fc!.eta } });
+      }
+    } else if (cur.state === 'pending') {
+      if (target === 0) steps.push({ kind: cur.kind, op: 'delete', id: cur.id, patch: {} });
+      else if (target >= 2 || now - ms(cur.started_at) >= 1 * MIN)
+        upd({ kind: lvlKind, state: 'active', active_at: iso0, level_at: iso0, last_notified_at: iso0, value_mgdl: v, worst_mgdl: worstOf(lvlKind, cur.worst_mgdl), eta_min: target === 1 ? fc!.eta : null, progress: [{ k: lvlKind, at: iso0 }] }, 'alert', cur.id, lvlKind);
+      else upd({ value_mgdl: v, worst_mgdl: worstOf(cur.kind, cur.worst_mgdl), eta_min: fc?.eta ?? null }, undefined, cur.id, cur.kind);
+    } else if (target > curRank) {
+      // worse: the same alert moves up, is unanswered again, and is announced (the cooldown never applies to this)
+      upd({ kind: lvlKind, state: 'active', level_at: iso0, last_notified_at: iso0, clear_since: null, snoozed_until: null, ack_kind: null, escalated_at: null, eta_min: null,
+        value_mgdl: v, worst_mgdl: worstOf(lvlKind, cur.worst_mgdl), progress: [...(cur.progress ?? [{ k: cur.kind, at: cur.active_at ?? cur.started_at }]), { k: lvlKind, at: iso0 }] }, 'alert', cur.id, lvlKind);
+    } else if (target === 0 || (target < 2 && curRank >= 2)) {
+      if (curRank === 1) steps.push({ kind: cur.kind, op: 'resolve', id: cur.id, patch: { resolved_at: iso0, value_mgdl: v, eta_min: null } }); // the prediction no longer holds: gone at once
+      else {
+        const since = cur.clear_since ? ms(cur.clear_since) : now;
+        if (now - since >= (curRank === 3 ? 10 : 15) * MIN) steps.push({ kind: cur.kind, op: 'resolve', id: cur.id, patch: { resolved_at: iso0, value_mgdl: v }, notify: 'resolved' });
+        else upd({ clear_since: iso(since), value_mgdl: v, worst_mgdl: worstOf(cur.kind, cur.worst_mgdl) }, undefined, cur.id, cur.kind);
+      }
+    } else {
+      const down = target < curRank; // very low → low: calmer, same alert
+      const patch: Record<string, unknown> = { clear_since: null, value_mgdl: v, worst_mgdl: worstOf(cur.kind, cur.worst_mgdl), eta_min: target === 1 ? fc?.eta ?? null : null };
+      if (down) patch.kind = lvlKind;
+      let notify: Notify | undefined;
+      const kind = down ? lvlKind : cur.kind;
+      if (cur.state === 'acknowledged') {
+        // "I'm on it" is respected: quiet while she recovers, loud again if she gets worse, a reminder if it drags on
+        const el = (now - lastTouch(cur)) / MIN;
+        const rising = r10 !== null && r10 >= 0.3, falling = r10 !== null && r10 <= -0.5;
+        const inLevel = curRank === 3 ? v <= U : curRank === 2 ? v <= L : true; // recovered above the limit: nothing to remind about
+        const worse = curRank >= 2 && falling && v < (cur.ack_value ?? Infinity) && el >= 5;
+        const persist = curRank === 3 ? (rising ? 30 : 15) : curRank === 2 ? (rising ? 60 : 30) : 60;
+        if (inLevel && (worse || el >= persist)) { Object.assign(patch, { state: 'active', last_notified_at: iso0, snoozed_until: null, level_at: iso0 }); notify = 'repeat'; }
+      } else {
+        const escalates = curRank >= 2;
+        const after = curRank === 3 ? Math.min(escalateAfter, 5) : escalateAfter;
+        const renotify = curRank === 3 ? Math.min(cfg.renotify, 5) : cfg.renotify;
+        const inLevel = curRank === 3 ? v <= U : v <= L;
+        if (escalates && inLevel && !cur.escalated_at && now - ms(cur.level_at ?? cur.active_at ?? cur.started_at) >= after * MIN) { Object.assign(patch, { escalated_at: iso0, last_notified_at: iso0 }); notify = 'escalate'; }
+        else if (escalates && inLevel && now - ms(cur.last_notified_at ?? cur.active_at ?? cur.started_at) >= renotify * MIN) { patch.last_notified_at = iso0; notify = 'repeat'; }
+      }
+      steps.push({ kind, op: 'update', id: cur.id, patch, notify });
+    }
+  }
+
+  // ── high, no reading and the two fast alerts: each its own alert ─────────────────────────────────
+  const byKind = new Map(open.map((a) => [a.kind, a]));
+  for (const kind of ['high', 'no_data', 'rapid_fall', 'rapid_rise'] as AlertKind[]) {
     const a = byKind.get(kind) ?? null;
     let enabled: boolean, cond: boolean, clear: boolean, delay: number, renotify: number;
     switch (kind) {
-      case 'urgent_low':
-        enabled = cfg.urgentLow !== null; delay = 0; renotify = Math.min(cfg.renotify, 5);
-        cond = fresh && v! <= cfg.urgentLow!; clear = fresh && v! >= cfg.urgentLow! + 10; break;
-      case 'low':
-        enabled = low !== null; delay = cfg.lowDelay; renotify = cfg.renotify;
-        cond = fresh && v! <= low!; clear = fresh && v! >= low! + 10; break;
       case 'high':
-        enabled = high !== null; delay = cfg.highDelay; renotify = cfg.highRenotify;
-        cond = fresh && v! >= high!; clear = fresh && v! <= high! - 20; break;
-      case 'predicted_low':
-        // still above the low limit but heading below it within P minutes; once she is low, the low alert takes over
-        enabled = low !== null && P !== null; delay = 2; renotify = 24 * 60;
-        cond = ahead !== null && rate! < 0 && v! > low! && ahead <= low! + LOW_MARGIN;
-        clear = fresh && (v! <= low! || ahead === null || ahead > low! + LOW_MARGIN + 5); break;
+        enabled = highCfg !== null && cfg.highOn !== false; delay = cfg.highDelay; renotify = cfg.highRenotify;
+        cond = fresh && v! >= highCfg!; clear = fresh && v! <= highCfg! - 20; break;
       case 'rapid_fall':
-        enabled = RF !== null; delay = 2; renotify = 24 * 60;
+        enabled = cfg.fallOn === true && RF !== null && !cur; delay = 2; renotify = 24 * 60;
         cond = rate !== null && rate <= -RF!; clear = rate !== null && rate > -RF! * 0.6; break;
       case 'rapid_rise':
-        enabled = RR !== null; delay = 2; renotify = 24 * 60;
+        enabled = cfg.riseOn === true && RR !== null; delay = 2; renotify = 24 * 60;
         cond = rate !== null && rate >= RR!; clear = rate !== null && rate < RR! * 0.6; break;
       default:
         enabled = cgmConnected; delay = 0; renotify = Math.max(cfg.renotify, 15);
         cond = age > cfg.noDataMin; clear = !cond;
     }
     const silent = kind === 'high' && highSilent;
-    const worst = (w: number | null) => (v === null || kind === 'no_data' ? w : w === null ? v : kind === 'high' || kind === 'rapid_rise' ? Math.max(w, v) : Math.min(w, v));
     const value = kind === 'no_data' ? null : fresh ? v : a?.value_mgdl ?? null;
-    const lowSounding = ['low', 'urgent_low'].some((k) => { const o = byKind.get(k as AlertKind); return !!o && o.state !== 'pending'; });
-    const quietLow = (kind === 'low' && urgentSounding) || (kind === 'predicted_low' && lowSounding);
+    const hold = kind === 'high' ? 15 : kind === 'no_data' ? 0 : 5;
 
     if (!a) {
       if (!enabled || !cond) continue;
-      if (delay === 0) steps.push({ kind, op: 'create', patch: { state: 'active', profile, started_at: iso(now), active_at: iso(now), last_notified_at: iso(now), value_mgdl: value, worst_mgdl: value }, notify: quietLow ? undefined : 'alert', silent });
-      else steps.push({ kind, op: 'create', patch: { state: 'pending', profile, started_at: iso(now), value_mgdl: value, worst_mgdl: value } });
+      if (kind !== 'no_data' && kind !== 'high' && coolingFor(kind)) continue;
+      if (delay === 0) steps.push({ kind, op: 'create', patch: { state: 'active', profile, started_at: iso0, active_at: iso0, last_notified_at: iso0, level_at: iso0, value_mgdl: value, worst_mgdl: value }, notify: 'alert', silent });
+      else steps.push({ kind, op: 'create', patch: { state: 'pending', profile, started_at: iso0, value_mgdl: value, worst_mgdl: value } });
       continue;
     }
-    if (!enabled) { steps.push({ kind, op: a.state === 'pending' ? 'delete' : 'resolve', id: a.id, patch: { resolved_at: iso(now) } }); continue; }
-
+    if (!enabled) { steps.push({ kind, op: a.state === 'pending' ? 'delete' : 'resolve', id: a.id, patch: { resolved_at: iso0 } }); continue; }
     if (a.state === 'pending') {
       if (!cond) { steps.push({ kind, op: 'delete', id: a.id, patch: {} }); continue; }
-      if (now - ms(a.started_at) >= delay * MIN) {
-        steps.push({ kind, op: 'update', id: a.id, patch: { state: 'active', active_at: iso(now), last_notified_at: iso(now), value_mgdl: value, worst_mgdl: worst(a.worst_mgdl) }, notify: quietLow ? undefined : 'alert', silent });
-      } else steps.push({ kind, op: 'update', id: a.id, patch: { value_mgdl: value, worst_mgdl: worst(a.worst_mgdl) } });
+      if (now - ms(a.started_at) >= delay * MIN) steps.push({ kind, op: 'update', id: a.id, patch: { state: 'active', active_at: iso0, level_at: iso0, last_notified_at: iso0, value_mgdl: value, worst_mgdl: worstOf(kind, a.worst_mgdl) }, notify: 'alert', silent });
+      else steps.push({ kind, op: 'update', id: a.id, patch: { value_mgdl: value, worst_mgdl: worstOf(kind, a.worst_mgdl) } });
       continue;
     }
-
-    // active or acknowledged
     if (clear) {
       const since = a.clear_since ? ms(a.clear_since) : now;
-      if (now - since >= HOLD[kind] * MIN) {
-        const quietResolve = kind === 'high' || kind === 'rapid_fall' || kind === 'rapid_rise' || kind === 'predicted_low';
-        steps.push({ kind, op: 'resolve', id: a.id, patch: { resolved_at: iso(now), value_mgdl: value }, notify: quietResolve ? undefined : 'resolved' });
-      } else steps.push({ kind, op: 'update', id: a.id, patch: { clear_since: iso(since), value_mgdl: value, worst_mgdl: worst(a.worst_mgdl) } });
+      if (now - since >= hold * MIN) steps.push({ kind, op: 'resolve', id: a.id, patch: { resolved_at: iso0, value_mgdl: value }, notify: kind === 'no_data' ? 'resolved' : undefined });
+      else steps.push({ kind, op: 'update', id: a.id, patch: { clear_since: iso(since), value_mgdl: value, worst_mgdl: worstOf(kind, a.worst_mgdl) } });
       continue;
     }
-    const patch: Record<string, unknown> = { clear_since: null, value_mgdl: value, worst_mgdl: worst(a.worst_mgdl) };
+    const patch: Record<string, unknown> = { clear_since: null, value_mgdl: value, worst_mgdl: worstOf(kind, a.worst_mgdl) };
     let notify: Notify | undefined;
     if (a.state === 'acknowledged') {
-      if (cond && a.snoozed_until && now >= ms(a.snoozed_until)) {
-        Object.assign(patch, { state: 'active', snoozed_until: null, last_notified_at: iso(now) });
-        if (!quietLow) notify = 'repeat';
+      if (kind === 'high') {
+        // answered: quiet while she comes down, a reminder if it drags on, sooner if it is still climbing
+        const el = (now - lastTouch(a)) / MIN;
+        const falling = r10 !== null && r10 <= -0.3, climbing = r10 !== null && r10 >= 1 && v! > (a.ack_value ?? Infinity);
+        if ((climbing && el >= 20) || el >= renotify * (falling ? 2 : 1)) { Object.assign(patch, { state: 'active', last_notified_at: iso0, snoozed_until: null }); notify = 'repeat'; }
+      } else if (cond && a.snoozed_until && now >= ms(a.snoozed_until)) {
+        Object.assign(patch, { state: 'active', snoozed_until: null, last_notified_at: iso0 }); notify = 'repeat';
       }
     } else {
-      // nobody has said "I'm on it": tell the backup parent once, after the set minutes (urgent low sooner)
-      const escalates = kind === 'urgent_low' || kind === 'low' || kind === 'no_data';
-      const after = kind === 'urgent_low' ? Math.min(escalateAfter, 5) : escalateAfter;
-      if (escalates && !a.escalated_at && !quietLow && now - ms(a.active_at ?? a.started_at) >= after * MIN) {
-        Object.assign(patch, { escalated_at: iso(now), last_notified_at: iso(now) }); notify = 'escalate';
-      } else if (cond && !quietLow && now - ms(a.last_notified_at ?? a.active_at ?? a.started_at) >= renotify * MIN) {
-        patch.last_notified_at = iso(now); notify = 'repeat';
-      }
+      const escalates = kind === 'no_data';
+      if (escalates && !a.escalated_at && now - ms(a.active_at ?? a.started_at) >= escalateAfter * MIN) { Object.assign(patch, { escalated_at: iso0, last_notified_at: iso0 }); notify = 'escalate'; }
+      else if (cond && now - ms(a.last_notified_at ?? a.active_at ?? a.started_at) >= renotify * MIN) { patch.last_notified_at = iso0; notify = 'repeat'; }
     }
     steps.push({ kind, op: 'update', id: a.id, patch, notify, silent });
   }
@@ -237,7 +396,8 @@ export interface AlertFacts {
   value: number | null; trend: number | null; unit: 'mgdl' | 'mmol'; minutes: number;
   low?: number | null;  // the low limit in effect now (mg/dL)
   rate?: number | null; // mg/dL per minute over the last 15 minutes
-  ahead?: number | null; // the "low expected" look-ahead (minutes), when the rate cannot give a time
+  ahead?: number | null; // older: the "low expected" look-ahead (minutes), when the rate cannot give a time
+  eta?: number | null;   // minutes until the low limit at the current fall (only when the forecast is credible)
 }
 /** Minutes until the current fall, fading, reaches the low limit (within an hour); null if it levels off above it. */
 export function minutesToLow(f: AlertFacts): number | null {
@@ -269,8 +429,8 @@ export function alertMessage(kind: AlertKind, notify: Notify, f: AlertFacts, lan
     case 'low':
       return out(en ? (still ? 'Still low' : 'Low · needs treatment') : still ? 'ما زال منخفضًا' : 'منخفض · يحتاج علاجًا', now, since && (en ? `For ${since}` : `منذ ${since}`));
     case 'predicted_low': {
-      const m = Math.round(eta ?? f.ahead ?? LOOK_MIN);
-      return out(en ? `Low expected in ${dur(m, lang)}` : `انخفاض متوقع خلال ${dur(m, lang)}`, now, lowTxt && (en ? `May drop below ${lowTxt}` : `قد ينزل تحت ${lowTxt}`));
+      const m = Math.round(f.eta ?? eta ?? f.ahead ?? LOOK_MIN);
+      return out(en ? 'Low expected' : 'انخفاض متوقع', now, lowTxt && (en ? `May reach ${lowTxt} in ~${dur(m, lang)}` : `قد يصل ${lowTxt} خلال ~${dur(m, lang)}`));
     }
     case 'high':
       return out(en ? `${still ? 'Still high' : 'High'}${since ? ` for ${since}` : ''}` : `${still ? 'ما زال مرتفعًا' : 'مرتفع'}${since ? ` منذ ${since}` : ''}`, now);

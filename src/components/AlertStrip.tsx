@@ -7,6 +7,8 @@ import { sinceText } from '../lib/now';
 import type { AlertKind, AlertRow } from '../lib/types';
 import { Btn, cx, toast } from './ui';
 import { locale, t, tr } from '../i18n';
+import type { Reading } from '../lib/glucose';
+import { lowForecast } from '../../supabase/functions/carb-glucose/alerts';
 
 export const ALERT_NAME: Record<AlertKind, string> = tr({ urgent_low: 'منخفض جدًا', low: 'منخفض', predicted_low: 'منخفض متوقع', high: 'مرتفع', no_data: 'لا توجد قراءة', rapid_fall: 'نزول سريع', rapid_rise: 'صعود سريع' }); // i18n-ok
 const STYLE: Record<AlertKind, string> = {
@@ -18,13 +20,25 @@ const clock = (iso: string) => new Date(iso).toLocaleTimeString(locale() + '-u-n
 /** Active alerts above the graph: what, since when, who is on it. Compact, never a full-screen banner. */
 const LOWS: AlertKind[] = ['urgent_low', 'low', 'predicted_low'];
 /** «عالجتها» on a low also opens the low-treatment entry (her usual juice chosen), so the juice is recorded too. */
-export function AlertStrip({ alerts, onChange, onTreat }: { alerts: AlertRow[]; onChange: () => void; onTreat?: () => void }) {
+export function AlertStrip({ alerts, onChange, onTreat, readings }: { alerts: AlertRow[]; onChange: () => void; onTreat?: () => void; readings?: Reading[] }) {
   const { settings, nameOf } = useData();
   const [busy, setBusy] = useState('');
   // rising or falling fast is already told by the glucose card under it (arrow and "−1.5 in 15 min"), so neither gets
   // a box of its own (Dad: «disable fast falls from this page»; the push still comes). A high someone is already on
   // folds away. Lows stay, answered or not.
   alerts = alerts.filter((a) => a.kind !== 'rapid_rise' && a.kind !== 'rapid_fall' && !((a.kind === 'high') && a.state === 'acknowledged'));
+  // "Low expected" is shown only while the newest readings still say so (the server re-checks every minute; this does
+  // it the moment a reading arrives), and says when, from those readings. A reading too old to judge by hides it.
+  const lowLimit = settings.alert_low_mgdl ?? 70;
+  const etaOf = (a: AlertRow): number | null | 'hide' => {
+    if (a.kind !== 'predicted_low' || !readings?.length) return a.kind === 'predicted_low' ? a.eta_min ?? null : null;
+    const last = readings[readings.length - 1];
+    if (Date.now() - Date.parse(last.taken_at) > 6 * 60000) return 'hide';
+    const f = lowForecast(readings, lowLimit, Math.max(settings.alert_predict_low_min ?? 20, 1));
+    return f?.ok ? f.eta : 'hide';
+  };
+  const eta = new Map(alerts.map((a) => [a.id, etaOf(a)]));
+  alerts = alerts.filter((a) => eta.get(a.id) !== 'hide');
   if (!alerts.length) return null;
   const act = async (a: AlertRow, ack: 'on_it' | 'treated') => {
     setBusy(a.id);
@@ -40,6 +54,7 @@ export function AlertStrip({ alerts, onChange, onTreat }: { alerts: AlertRow[]; 
             {a.value_mgdl !== null && a.kind !== 'no_data' && <b className="num text-lg">{formatGlucose(a.value_mgdl, settings.glucose_unit)}</b>}
             <span className="ms-auto text-sm opacity-80">{sinceText(a.active_at ?? a.started_at)}</span>
           </div>
+          {a.kind === 'predicted_low' && typeof eta.get(a.id) === 'number' && <div className="mt-0.5 text-sm"><bdi>{t('قد يصل {v} خلال ~{m} د', { v: formatGlucose(lowLimit, settings.glucose_unit), m: eta.get(a.id) as number })}</bdi></div>}
           {a.state === 'acknowledged' && a.acknowledged_by ? (
             <div className="mt-1 text-sm">✓ <b>{nameOf(a.acknowledged_by)}</b> {a.ack_action === 'treated' ? t('عالجها') : t('عليها')}{a.snoozed_until ? ' · ' + t('حتى {t}', { t: clock(a.snoozed_until) }) : ''}</div>
           ) : null}

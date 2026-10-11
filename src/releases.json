@@ -1,5 +1,25 @@
 [
   {
+    "date": "2026-10-11",
+    "version": "2.64.0",
+    "notes": [
+      "تقارير الطبيب في «المزيد»: تقرير AGP، الملخص الأسبوعي، Snapshot وسجل يومي، كل واحد بملف PDF جاهز للمشاركة",
+      "اضغط على أي رسم في التقارير يفتح بالشاشة كاملة: تكبير بالأصبعين، وتشوف القراءة والوقت والأكل والإنسولين بالضبط",
+      "التنبيهات: كل تنبيه له مفتاح تشغيل، والمنخفض جدًا والمنخفض وبدون قراءة يبقون شغّالين دائمًا",
+      "الانخفاض المتوقع صار أدق: يظهر فقط إذا كانت تنزل فعلًا، ويختفي فورًا إذا وقف النزول، ويبيّن متى قد تصل للمنخفض",
+      "الانخفاض المتوقع ثم المنخفض ثم المنخفض جدًا صاروا تنبيهًا واحدًا يتحدّث بدل عدة تنبيهات",
+      "تنبيه النزول السريع والصعود السريع صاروا مقفولين، وتقدر تشغّلهم من صفحة التنبيهات"
+    ],
+    "notes_en": [
+      "Doctor reports in More: AGP report, Weekly Summary, Snapshot and Daily Log, each as a PDF ready to share",
+      "Tap any chart in the reports to open it full screen: pinch to zoom and see the exact reading, time, food and insulin",
+      "Alerts: each alert has its own switch; Very low, Low and No reading always stay on",
+      "Low expected is more accurate: it shows only when she is really falling, disappears as soon as the fall stops, and says when she may reach the low",
+      "Low expected, Low and Very low are now one alert that updates instead of several",
+      "Falling fast and Rising fast alerts are now off; you can turn them on in the Alerts page"
+    ]
+  },
+  {
     "date": "2026-10-10",
     "version": "2.63.2",
     "notes": [

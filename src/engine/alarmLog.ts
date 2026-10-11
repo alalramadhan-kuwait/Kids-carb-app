@@ -28,9 +28,17 @@ export interface Episode {
   ack: AlertRow | null;    // the first alarm someone acknowledged
 }
 
+/** An alert that moved up (expected → low → very low) is one row; the Log shows each level it reached, in order. */
+export function levels(a: AlertRow): AlertRow[] {
+  const p = a.progress;
+  if (!p || p.length < 2) return [a];
+  return p.map((x, i) => ({ ...a, id: i === p.length - 1 ? a.id : `${a.id}:${i}`, kind: x.k, started_at: x.at, active_at: x.at, resolved_at: i === p.length - 1 ? a.resolved_at : p[i + 1].at,
+    ...(i === p.length - 1 ? {} : { acknowledged_at: null, acknowledged_by: null, ack_action: null }) }));
+}
+
 export function episodes(alerts: AlertRow[], o: { all?: boolean; now?: number } = {}): Episode[] {
   const now = o.now ?? Date.now();
-  const list = alerts.filter((a) => alarmed(a) && (o.all || MAIN_KINDS.includes(a.kind))).sort((a, b) => startOf(a) - startOf(b));
+  const list = alerts.flatMap(levels).filter((a) => alarmed(a) && (o.all || MAIN_KINDS.includes(a.kind))).sort((a, b) => startOf(a) - startOf(b));
   const out: Episode[] = [];
   for (const a of list) {
     const dir = DIRECTION[a.kind];

@@ -105,6 +105,9 @@ export interface Settings {
   alert_fall_rate: number | null;    // mg/dL per minute
   alert_rise_rate: number | null;    // mg/dL per minute
   alert_predict_low_min: number | null;
+  /** one switch per optional alert (Very low, Low and No reading have none: they are always on) */
+  alert_high_on: boolean; alert_predict_on: boolean; alert_fall_on: boolean; alert_rise_on: boolean;
+  alert_sensor_on: boolean; alert_plan_on: boolean; alert_recheck_on: boolean;
   night_start: string | null; night_end: string | null;
   night_low_mgdl: number | null; night_high_mgdl: number | null;
   night_high_silent: boolean; night_theme: boolean;
@@ -227,6 +230,7 @@ export const DEFAULT_SETTINGS: Settings = {
   alert_fall_rate: null,
   alert_rise_rate: null,
   alert_predict_low_min: null,
+  alert_high_on: true, alert_predict_on: true, alert_fall_on: false, alert_rise_on: false, alert_sensor_on: true, alert_plan_on: true, alert_recheck_on: true,
   night_start: null, night_end: null, night_low_mgdl: null, night_high_mgdl: null, night_high_silent: false, night_theme: true,
   school_days: [0, 1, 2, 3, 4], school_start: null, school_end: null, school_low_mgdl: null, school_high_mgdl: null,
   escalate_min: 10,
@@ -250,6 +254,10 @@ export interface AlertRow {
   ack_action: 'on_it' | 'treated' | null;
   snoozed_until: string | null;
   resolved_at: string | null;
+  /** the levels one episode went through (expected → low → very low), when each began */
+  progress?: { k: AlertKind; at: string }[] | null;
+  eta_min?: number | null;
+  level_at?: string | null;
 }
 
 export interface CarePlan { hypo: string | null; hyper: string | null; sick_day: string | null; contacts: string | null; updated_by: string | null; updated_at: string }

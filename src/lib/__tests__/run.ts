@@ -19,7 +19,7 @@ import { findPatterns, visible } from '../../engine/patterns';
 import { ACT_DELAY_MIN, activityAt, activityFraction, activityPeaks, carbLane, cobAt, dosesFrom, insulinLane, iobAt, iobFraction, iobParamsOk } from '../../engine/iob';
 import { doseSteps, mealChangeDose, suggestDose } from '../../engine/dose';
 import { GRID, alignCurve, assess, buildOccurrence, coverage, medianCurve, summary, windowSeries } from '../../engine/meals';
-import { ackMessage, alertMessage, evaluate, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
+import { ackMessage, alertMessage, evaluate, lowForecast, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
 import { b64u, encryptPayload } from '../../../supabase/functions/carb-glucose/push';
 import { PERIODS, delta15, freshness, gapsIn, mergeSeries, emptySeries, nearest, rateAt, runsFor, timeTicks, tickLabel, yDomain, yGrid, zoomAt } from '../../engine/series';
 import { findDuplicate, gmi, hoursOfDay, kuwaitDayStart, sinceText, statusSentence } from '../now';
@@ -384,45 +384,76 @@ const open = (o: Partial<OpenAlert>): OpenAlert => ({ id: 'a', kind: 'low', stat
 
 test('low waits its delay, then notifies once; a brief dip that recovers never notifies', () => {
   let s = evaluate(at(0), [rd(0, 66)], CFG, [], true);
-  assert.deepEqual(s.map((x) => [x.kind, x.op, x.patch.state, x.notify]), [['low', 'create', 'pending', undefined]]);
-  s = evaluate(at(3), [rd(3, 64)], CFG, [open({ state: 'pending', active_at: null, last_notified_at: null })], true);
-  assert.equal(s[0].op, 'update'); assert.equal(s[0].notify, undefined); assert.equal(s[0].patch.worst_mgdl, 64);
-  s = evaluate(at(5), [rd(5, 64)], CFG, [open({ state: 'pending', active_at: null, last_notified_at: null })], true);
-  assert.equal(s[0].patch.state, 'active'); assert.equal(s[0].notify, 'alert');
-  s = evaluate(at(3), [rd(3, 75)], CFG, [open({ state: 'pending' })], true);
-  assert.equal(s[0].op, 'delete');
+  assert.deepEqual(s, [], 'first reading under the limit: not yet');
+  s = evaluate(at(5), [rd(0, 66), rd(5, 64)], CFG, [], true);
+  assert.deepEqual(s.map((x) => [x.kind, x.op, x.patch.state, x.notify]), [['low', 'create', 'active', 'alert']]);
+  assert.deepEqual(evaluate(at(5), [rd(0, 66), rd(5, 75)], CFG, [], true), [], 'recovered within the delay');
 });
 
-test('low expected: a steady fall heading below the low limit warns ahead of time; not once she is low', () => {
+// a clean minute-by-minute fall: `slope` mg/dL a minute from `from`, ending at minute `end`
+const fallMin = (end: number, from: number, slope: number, n = 11, trend = 2) => Array.from({ length: n }, (_, i) => ({ taken_at: new Date(at(end - (n - 1) + i)).toISOString(), mg_dl: Math.round(from + slope * i), trend }));
+
+test('low expected means it: a real, still-continuing fall that will reach the LOW limit; one episode, one alert', () => {
   const cfg: AlertCfg = { ...CFG, predictLowMin: 20 };
-  const fall = (end: number, from: number) => Array.from({ length: 15 }, (_, i) => rd(end - 14 + i, from - 2 * i)); // 2 mg/dL a minute down
-  let s = evaluate(at(14), fall(14, 128), cfg, [], true);                     // now 100, heading to ~60 in 20 min
+  const fall = fallMin(10, 108, -2);                                           // now 88, falling 2 a minute
+  let s = evaluate(at(10), fall, cfg, [], true);
   assert.deepEqual(s.map((x) => [x.kind, x.patch.state]), [['predicted_low', 'pending']]);
+  const f = lowForecast(fall, 70, 20)!; assert.ok(f.ok && f.eta! > 0 && f.eta! <= 20);
   const pend = { ...open({ state: 'pending', active_at: null, last_notified_at: null }), kind: 'predicted_low' as const, id: 'p' };
-  s = evaluate(at(16), fall(16, 128), cfg, [pend], true);                     // still heading low 2 min later: told once
+  s = evaluate(at(12), fallMin(12, 110, -2, 13), cfg, [pend], true);          // still falling a minute later: told once
   assert.equal(s.find((x) => x.kind === 'predicted_low')!.notify, 'alert');
-  s = evaluate(at(14), fall(14, 96), cfg, [], true);                          // already 68, below the limit: the low alert's job
-  assert.equal(s.find((x) => x.kind === 'predicted_low'), undefined);
-  assert.ok(s.find((x) => x.kind === 'low'));
-  s = evaluate(at(14), Array.from({ length: 15 }, (_, i) => rd(i, 140)), cfg, [], true);
-  assert.equal(s.length, 0, 'steady: nothing');
-  assert.equal(evaluate(at(14), fall(14, 128), CFG, [], true).length, 0, 'off unless set');
+  assert.equal(evaluate(at(10), fallMin(10, 140, 0), cfg, [], true).length, 0, 'steady: nothing');
+  assert.equal(evaluate(at(10), fall, { ...cfg, predictOn: false }, [], true).length, 0, 'switched off');
+});
+
+test('low expected: the screenshot case. Flat at 88 after a fall, steady arrow: no warning, and an open one is cancelled at once', () => {
+  const cfg: AlertCfg = { ...CFG, predictLowMin: 20 };
+  const flat = [...fallMin(6, 103, -2, 8), ...[7, 8, 9, 10].map((m) => rd(m, 89 - (m % 2) * 0))].map((r) => ({ ...r, trend: 3 })); // fell, then flat at 89 on a steady arrow
+  assert.equal(lowForecast(flat, 70, 20)?.ok ?? false, false);
+  const act = { ...open({ kind: 'predicted_low', value_mgdl: 89 }), id: 'p' };
+  const s = evaluate(at(10), flat, cfg, [act], true);
+  assert.deepEqual(s.map((x) => [x.op, x.notify]), [['resolve', undefined]], 'no 5-minute hold: gone now');
+  const bounce = [...fallMin(8, 108, -2, 9), rd(9, 96)]; // a bounce
+  assert.equal(lowForecast(bounce, 70, 20)?.ok ?? false, false);
+  assert.equal(lowForecast(fallMin(10, 108, -0.9, 11, 3), 70, 20)?.ok ?? false, false, 'a gentle fall on a steady arrow is not a warning');
+});
+
+test('one episode, one alert: expected → low → very low is the same row moving up, announced each time, never blocked by the cooldown', () => {
+  const cfg: AlertCfg = { ...CFG, predictLowMin: 20 };
+  const exp = { ...open({ kind: 'predicted_low', progress: [{ k: 'predicted_low', at: new Date(at(0)).toISOString() }], last_notified_at: new Date(at(0)).toISOString() }), id: 'e' };
+  const rs = (v: number) => [rd(5, v + 2), rd(10, v)];
+  let s = evaluate(at(10), rs(66), cfg, [exp], true);                          // fell through the limit (and the 5-minute delay is met)
+  const up = s.find((x) => x.id === 'e')!;
+  assert.equal(up.patch.kind, 'low'); assert.equal(up.patch.state, 'active'); assert.equal(up.notify, 'alert');
+  assert.equal(s.filter((x) => x.op === 'create').length, 0, 'no second alert');
+  assert.deepEqual((up.patch.progress as { k: string }[]).map((x) => x.k), ['predicted_low', 'low']);
+  const low = { ...open({ kind: 'low', progress: up.patch.progress as OpenAlert['progress'] }), id: 'e' };
+  s = evaluate(at(12), [rd(12, 50)], cfg, [low], true);
+  assert.equal(s[0].patch.kind, 'urgent_low'); assert.equal(s[0].notify, 'alert'); assert.equal(s.length, 1);
+  // a recently ended "expected" is in cooldown, but an episode that gets worse is never held back by it
+  const rec = [{ id: 'old', kind: 'predicted_low' as const, started_at: new Date(at(-20)).toISOString(), resolved_at: new Date(at(-8)).toISOString() }];
+  assert.deepEqual(evaluate(at(10), fallMin(10, 108, -2), cfg, [], true, rec), [], 'predicted again too soon, not imminent: quiet');
+  assert.equal(evaluate(at(10), rs(60), cfg, [], true, rec)[0].notify, 'alert', 'but an actual low is announced');
+});
+
+test('a cancelled warning that turns into a real low reopens the same alert (no duplicate)', () => {
+  const back = [{ id: 'old', kind: 'predicted_low' as const, started_at: new Date(at(-9)).toISOString(), resolved_at: new Date(at(-3)).toISOString(), progress: [{ k: 'predicted_low' as const, at: new Date(at(-9)).toISOString() }] }];
+  const s = evaluate(at(10), [rd(5, 68), rd(10, 66)], CFG, [], true, back);
+  assert.equal(s[0].op, 'update'); assert.equal(s[0].id, 'old'); assert.equal(s[0].patch.state, 'active'); assert.equal(s[0].patch.resolved_at, null); assert.equal(s[0].patch.kind, 'low');
 });
 
 test('fast fall and fast rise have their own thresholds', () => {
-  const cfg: AlertCfg = { ...CFG, fallRate: 1.8, riseRate: null };
+  const cfg: AlertCfg = { ...CFG, fallRate: 1.8, riseRate: null, fallOn: true, riseOn: true };
   const line = (slope: number) => Array.from({ length: 15 }, (_, i) => rd(i, 150 + slope * i));
   assert.deepEqual(evaluate(at(14), line(-2), cfg, [], true).filter((x) => x.kind.startsWith('rapid')).map((x) => x.kind), ['rapid_fall']);
   assert.deepEqual(evaluate(at(14), line(2), cfg, [], true).filter((x) => x.kind.startsWith('rapid')).map((x) => x.kind), [], 'rise off');
-  assert.deepEqual(evaluate(at(14), line(2), { ...CFG, rapidRate: 1.8 }, [], true).filter((x) => x.kind.startsWith('rapid')).map((x) => x.kind), ['rapid_rise'], 'the older shared setting still works');
+  assert.deepEqual(evaluate(at(14), line(2), { ...CFG, rapidRate: 1.8, riseOn: true }, [], true).filter((x) => x.kind.startsWith('rapid')).map((x) => x.kind), ['rapid_rise'], 'the older shared setting still works');
+  assert.deepEqual(evaluate(at(14), line(-2), { ...CFG, fallRate: 1.8 }, [], true).filter((x) => x.kind.startsWith('rapid')), [], 'both fast alerts are off unless switched on');
 });
 
-test('urgent low notifies at once; the plain low stays quiet while it sounds', () => {
+test('urgent low notifies at once, as the same alert when it started as low', () => {
   const s = evaluate(at(0), [rd(0, 50)], CFG, [], true);
-  assert.deepEqual(s.map((x) => [x.kind, x.patch.state, x.notify]), [['urgent_low', 'active', 'alert'], ['low', 'pending', undefined]]);
-  const s2 = evaluate(at(10), [rd(10, 50)], CFG, [open({ kind: 'urgent_low', id: 'u', last_notified_at: new Date(at(9)).toISOString() }), open({ id: 'l', last_notified_at: null, active_at: null, state: 'pending' })], true);
-  assert.equal(s2.find((x) => x.kind === 'low')!.patch.state, 'active');
-  assert.equal(s2.find((x) => x.kind === 'low')!.notify, undefined);
+  assert.deepEqual(s.map((x) => [x.kind, x.patch.state, x.notify]), [['urgent_low', 'active', 'alert']], 'one alert, not urgent plus low');
 });
 
 test('repeats only while the condition holds, and resolves only after holding clear (hysteresis)', () => {
@@ -436,29 +467,37 @@ test('repeats only while the condition holds, and resolves only after holding cl
   assert.equal(s[0].patch.clear_since, null); // dipped back: the clock restarts
 });
 
-test('"I am on it" silences until the snooze ends, then repeats if still low', () => {
-  const ack = open({ state: 'acknowledged', snoozed_until: new Date(at(15)).toISOString() });
-  assert.equal(evaluate(at(12), [rd(12, 62)], CFG, [ack], true)[0].notify, undefined);
-  const s = evaluate(at(15), [rd(15, 62)], CFG, [ack], true)[0];
-  assert.equal(s.notify, 'repeat'); assert.equal(s.patch.state, 'active');
+test('"I am on it": quiet while she recovers, loud again if she worsens, a reminder if it drags on', () => {
+  const ackAt = new Date(at(0)).toISOString();
+  const ack = open({ state: 'acknowledged', acknowledged_at: ackAt, last_notified_at: ackAt, ack_kind: 'low', ack_value: 64 });
+  const slow = (end: number, from: number, slope: number) => fallMin(end, from, slope, 11);
+  assert.equal(evaluate(at(12), slow(12, 62, 0.5), CFG, [ack], true)[0].notify, undefined, 'recovering and still low: quiet');
+  const worse = evaluate(at(12), slow(12, 68, -0.6), CFG, [ack], true)[0];       // keeps falling, below where she was
+  assert.equal(worse.notify, 'repeat'); assert.equal(worse.patch.state, 'active');
+  assert.equal(evaluate(at(31), slow(31, 66, 0), CFG, [ack], true)[0].notify, 'repeat', 'still low after half an hour');
+  assert.equal(evaluate(at(31), slow(31, 58, 0.5), CFG, [ack], true)[0].notify, undefined, 'still low but rising: not yet');
+  assert.equal(evaluate(at(61), slow(61, 58, 0.5), CFG, [ack], true)[0].notify, 'repeat', 'an hour is long enough');
+  assert.equal(evaluate(at(31), slow(31, 76, 0), CFG, [ack], true)[0].notify, undefined, 'back over the limit: nothing to remind');
 });
 
 test('a stale reading neither raises nor clears; no data alerts after the set minutes and only with a CGM', () => {
   assert.equal(evaluate(at(30), [rd(10, 60)], CFG, [], true).filter((x) => x.kind !== 'no_data').length, 0);
-  const held = evaluate(at(25), [rd(5, 90)], CFG, [open({})], true).find((x) => x.kind === 'low')!;
-  assert.equal(held.op, 'update'); assert.equal(held.patch.clear_since, null);
-  assert.equal(evaluate(at(25), [rd(4, 100)], CFG, [], true)[0].kind, 'no_data');
+  assert.equal(evaluate(at(25), [rd(5, 90)], CFG, [open({})], true).find((x) => x.kind === 'low'), undefined, 'an open low is left as it is');
+  const _x = 0;  assert.equal(evaluate(at(25), [rd(4, 100)], CFG, [], true)[0].kind, 'no_data');
   assert.equal(evaluate(at(19), [rd(0, 100)], CFG, [], true).length, 0);
   assert.equal(evaluate(at(25), [rd(4, 100)], CFG, [], false).length, 0);
   const back = evaluate(at(26), [rd(26, 100)], CFG, [open({ kind: 'no_data' })], true);
   assert.equal(back[0].op, 'resolve'); assert.equal(back[0].notify, 'resolved');
 });
 
-test('an alert with no threshold is off, and an open one closes silently', () => {
-  const off = { ...CFG, low: null, urgentLow: null };
-  assert.equal(evaluate(at(0), [rd(0, 40)], off, [], true).length, 0);
-  const s = evaluate(at(0), [rd(0, 40)], off, [open({})], true);
+test('very low and low cannot be switched off (a missing limit falls back to 54 / 70); the optional ones have switches', () => {
+  const none = { ...CFG, low: null, urgentLow: null };
+  assert.equal(evaluate(at(0), [rd(0, 40)], none, [], true)[0].kind, 'urgent_low');
+  assert.equal(evaluate(at(5), [rd(0, 66), rd(5, 66)], none, [], true)[0].kind, 'low');
+  const hi = open({ kind: 'high', value_mgdl: 260 });
+  const s = evaluate(at(0), [rd(0, 260)], { ...CFG, highOn: false }, [hi], true);
   assert.equal(s[0].op, 'resolve'); assert.equal(s[0].notify, undefined);
+  assert.deepEqual(evaluate(at(0), [rd(0, 260)], { ...CFG, highOn: false, highDelay: 0 }, [], true), []);
 });
 
 
@@ -470,7 +509,7 @@ test('profiles: night and school windows in Kuwait time change the thresholds; n
   assert.equal(profileAt(kt('2026-10-01T09:00:00Z'), cfg), 'school');  // Thursday is a school day
   assert.equal(profileAt(kt('2026-10-02T09:00:00Z'), cfg), 'day');     // Friday is not
   const n = kt('2026-10-01T23:30:00Z');
-  const lowAtNight = evaluate(n, [{ taken_at: new Date(n - 60000).toISOString(), mg_dl: 85, trend: 3 }], cfg, [], true);
+  const lowAtNight = evaluate(n, [{ taken_at: new Date(n - 6 * 60000).toISOString(), mg_dl: 86, trend: 3 }, { taken_at: new Date(n - 60000).toISOString(), mg_dl: 85, trend: 3 }], cfg, [], true);
   assert.equal(lowAtNight[0].kind, 'low'); assert.equal(lowAtNight[0].patch.profile, 'night'); // 85 is low under the night threshold of 90
   const highAtNight = evaluate(n, [{ taken_at: new Date(n - 60000).toISOString(), mg_dl: 320, trend: 3 }], { ...cfg, highDelay: 0 }, [], true);
   assert.equal(highAtNight[0].kind, 'high'); assert.equal(highAtNight[0].silent, true);
@@ -483,19 +522,17 @@ test('the server rate leaves out Libre history points beside minute readings, li
   assert.equal(Math.round(rate15([...minute.slice(0, 4), r(10, 150, null), minute[4]])! * 10) / 10, -2, 'the odd history point at 10 min is ignored');
 });
 
-test('low expected looks ahead with a fading trend: a slow fall far above the limit does not warn', () => {
+test('low expected: a slow fall that levels off far above the limit does not warn; a near one does', () => {
   const cfg: AlertCfg = { ...CFG, predictLowMin: 20 };
-  const slow = Array.from({ length: 15 }, (_, i) => rd(i, 112 - i)); // 1 mg/dL a minute down, now 98
-  assert.equal(evaluate(at(14), slow, cfg, [], true).find((x) => x.kind === 'predicted_low'), undefined, 'a straight line said 78 in 20 min; fading, she levels near 88');
-  const near = Array.from({ length: 15 }, (_, i) => rd(i, 102 - i)); // now 88
-  assert.ok(evaluate(at(14), near, cfg, [], true).find((x) => x.kind === 'predicted_low'), 'close to the limit and falling: warns');
+  assert.equal(evaluate(at(10), fallMin(10, 110, -0.7), cfg, [], true).find((x) => x.kind === 'predicted_low'), undefined, 'now ~103, levels near 96');
+  assert.ok(evaluate(at(10), fallMin(10, 95, -1.5), cfg, [], true).find((x) => x.kind === 'predicted_low'), 'near the limit and steadily falling: warns');
 });
 
 test('rapid fall: a sustained slope beyond the set rate, never from a single jump or across a gap', () => {
   const pts = (vals: number[], step = 5) => vals.map((v, k) => ({ taken_at: new Date(at(k * step)).toISOString(), mg_dl: v, trend: null }));
   assert.equal(Math.round(rate15(pts([180, 165, 150, 135])) ?? 0), -3);
   assert.equal(rate15(pts([180, 120])), null);                                 // two points are not a trend
-  const cfg = { ...CFG, rapidRate: 2.5 };
+  const cfg = { ...CFG, rapidRate: 2.5, fallOn: true };
   const s1 = evaluate(at(15), pts([180, 165, 150, 135]), cfg, [], true).filter((x) => x.kind === 'rapid_fall');
   assert.equal(s1[0].op, 'create'); assert.equal(s1[0].patch.state, 'pending');
   const gapped = [...pts([180, 165]), { taken_at: new Date(at(40)).toISOString(), mg_dl: 120, trend: null }, { taken_at: new Date(at(45)).toISOString(), mg_dl: 118, trend: null }];
@@ -507,7 +544,7 @@ test('escalation: nobody answers within the set minutes, the backup parent is to
   const s = evaluate(at(10), [rd(10, 64)], cfg, [open({})], true)[0];
   assert.equal(s.notify, 'escalate'); assert.ok(s.patch.escalated_at);
   assert.equal(evaluate(at(12), [rd(12, 64)], cfg, [open({ escalated_at: new Date(at(10)).toISOString(), last_notified_at: new Date(at(10)).toISOString() })], true)[0].notify, undefined);
-  assert.equal(evaluate(at(10), [rd(10, 64)], cfg, [open({ state: 'acknowledged', snoozed_until: new Date(at(25)).toISOString() })], true)[0].notify, undefined);
+  assert.equal(evaluate(at(10), [rd(10, 64)], cfg, [open({ state: 'acknowledged', acknowledged_at: new Date(at(5)).toISOString(), last_notified_at: new Date(at(5)).toISOString() })], true)[0].notify, undefined);
   const fam = [{ user_id: 'mum', alert_role: 'primary' }, { user_id: 'dad', alert_role: 'backup' }, { user_id: 'gran', alert_role: 'off' }];
   assert.deepEqual(recipients(fam, 'alert'), ['mum']); assert.deepEqual(recipients(fam, 'escalate'), ['mum', 'dad']);
   assert.deepEqual(recipients([{ user_id: 'dad', alert_role: 'backup' }], 'alert'), ['dad']); // no primary: nobody is left out
@@ -515,9 +552,9 @@ test('escalation: nobody answers within the set minutes, the backup parent is to
 
 test('push wording: what is happening first, then glucose now, then what it means; no names, source or doses', () => {
   const I = (x: string) => `\u2066${x}\u2069`;
-  const pl = alertMessage('predicted_low', 'alert', { value: 94, trend: 3, unit: 'mmol', minutes: 0, low: 70, rate: -1.2, ahead: 20 });
-  assert.equal(pl.title, '🟠 انخفاض متوقع خلال 20 دقيقة');
-  assert.equal(pl.body, `الآن ${I('5.2 →')} ملمول/ل\nقد ينزل تحت ${I('3.9')}`);
+  const pl = alertMessage('predicted_low', 'alert', { value: 94, trend: 3, unit: 'mmol', minutes: 0, low: 70, rate: -1.2, eta: 18 });
+  assert.equal(pl.title, '🟠 انخفاض متوقع');
+  assert.equal(pl.body, `الآن ${I('5.2 →')} ملمول/ل\nقد يصل ${I('3.9')} خلال ~18 دقيقة`);
   assert.equal(pl.urgency, 'high');
   const ul = alertMessage('urgent_low', 'alert', { value: 50, trend: 1, unit: 'mmol', minutes: 0 });
   assert.equal(ul.title, '🔴 منخفض جدًا · عالجوا الآن'); assert.equal(ul.body, `الآن ${I('2.8 ↓')} ملمول/ل`); assert.equal(ul.severity, 'urgent');
@@ -541,9 +578,9 @@ test('push wording: what is happening first, then glucose now, then what it mean
 });
 
 test('push wording in English: same layout, no Arabic, no doses', () => {
-  const m = alertMessage('predicted_low', 'alert', { value: 94, trend: null, unit: 'mmol', minutes: 0, low: 70, rate: -1.2 }, 'en');
-  assert.equal(m.title, '🟠 Low expected in 30 min'); // levels off near the limit: the look-ahead, not a made-up time
-  assert.equal(m.body, 'Now \u20665.2 ↘\u2069 mmol/L\nMay drop below \u20663.9\u2069');
+  const m = alertMessage('predicted_low', 'alert', { value: 94, trend: null, unit: 'mmol', minutes: 0, low: 70, rate: -1.2, eta: 18 }, 'en');
+  assert.equal(m.title, '🟠 Low expected');
+  assert.equal(m.body, 'Now \u20665.2 ↘\u2069 mmol/L\nMay reach \u20663.9\u2069 in ~18 min');
   assert.equal(alertMessage('no_data', 'escalate', { value: null, trend: null, unit: 'mgdl', minutes: 21 }, 'en').title, '🔴 No one answered · no reading for 21 min');
   assert.equal(ackMessage('urgent_low', null, 'treated', 'en').title, '✅ A parent treated it');
   for (const k of ['urgent_low', 'low', 'predicted_low', 'high', 'no_data', 'rapid_fall', 'rapid_rise'] as const) for (const n of ['alert', 'repeat', 'resolved', 'escalate'] as const) {
@@ -640,6 +677,7 @@ test('zoom keeps the time under the fingers fixed; ticks follow Kuwait time', ()
   assert.equal(tickLabel(Date.parse('2026-10-01T21:00:00Z'), 3600000), '2/10'); // midnight in Kuwait shows the date
 });
 
+
 test('Layan in simple mode follows the box status: never her own thresholds, low expected only turns happy into watching, hidden at very low', async () => {
   const { layanFace } = await import('../../engine/mom');
   assert.equal(layanFace('ok', 120, 54, false), 'ok');
@@ -651,6 +689,7 @@ test('Layan in simple mode follows the box status: never her own thresholds, low
   assert.equal(layanFace('stale', 50, 54, true), 'no-reading', 'no new reading wins over everything');
 });
 
+
 test('a new meal from the Log: meals with items, the last 30 days, the same meal once, newest first', async () => {
   const { reusable } = await import('../entryActions');
   const now = Date.parse('2026-10-08T12:00:00Z'), ago = (d: number) => new Date(now - d * 86400000).toISOString();
@@ -661,6 +700,7 @@ test('a new meal from the Log: meals with items, the last 30 days, the same meal
   ], now);
   assert.deepEqual(list.map((x) => `${x.name}:${x.lines[0].quantity}:${x.eaten_at === ago(0.5) ? 'n' : x.eaten_at === ago(1) ? '1' : '?'}`), ['lunch:150:n', 'lunch:100:1']);
 });
+
 
 test('simple-mode graph scale: the smallest of a few fixed steps that holds the highest reading, never cutting a low', async () => {
   const { bigGraphScale } = await import('../../engine/mom');

@@ -107,7 +107,10 @@ Phases are defined in section 7.
 - **Phase:** 1 (today on Home), 2 (Daily/Reports).
 
 ### 3.5 Low & high alerts (incl. urgent low)
-- **What:** alerts at parent-set thresholds; urgent low cannot be switched off.
+- **What:** alerts at parent-set thresholds. Very low, Low and No reading are always on (no switch; 54 / 70 mg/dL if a
+  threshold is ever missing); High, Low expected, fast fall, fast rise, sensor, meal-plan and recheck reminders each
+  have a switch (fast fall and fast rise off by default). One low episode is one alert: expected → low → very low
+  (alert engine v2, release 2.64.0).
 - **Why:** core safety, as a second line to Libre.
 - **Data:** readings, `alert_rules`, `alerts`, push subscriptions.
 - **Where:** pushed to phones; active strip on Home; Alerts screen.

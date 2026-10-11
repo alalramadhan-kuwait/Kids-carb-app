@@ -14,8 +14,8 @@ live screens, the alerts and the dose calculator, which keep their own code and 
   - Food (confirmed meals plus carbs-only entries) and low treatments are counted apart.
   - A meal saved with carbs unknown counts as unknown, not 0.
   - A meal not yet confirmed as eaten is left out.
-- **Period:** each report reads exactly its own period through `carb.report_data(from, to)` (draft in
-  `supabase/drafts/report_data.sql`, to be applied with the first report screen). It never uses the app's 60-day,
+- **Period:** each report reads exactly its own period through `carb.report_data(from, to)` (migration
+  `20261011114042`, applied with release 2.64.0). It never uses the app's 60-day,
   1,000-row cache, so 30- and 90-day reports are complete.
 - **Days:** a day is a Kuwait day, 00:00–24:00 at UTC+3.
 

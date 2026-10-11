@@ -3,7 +3,7 @@
 // them. The login is kept in Supabase Vault; the browser can save it but never read it back.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { hostFor, LLU_PRODUCT, LLU_VERSION, LluError, loginProblem, maskEmail, readingsFromGraph, redirectRegion, sensorFrom, sensorReminderDue, sensorToStore, sha256Hex, tooSoon } from './lib.ts';
-import { ackMessage, alertMessage, evaluate, lowNow, planMessage, planPushDue, rate15, recipients, sensorMessage, testMessage, treatRecheckMessage, treatRechecksDue, type TreatRow, type AlertCfg, type AlertKind, type Lang, type OpenAlert, type PlanRow } from './alerts.ts';
+import { ackMessage, alertMessage, evaluate, lowForecast, lowNow, planMessage, planPushDue, rate15, recipients, sensorMessage, testMessage, treatRecheckMessage, treatRechecksDue, type TreatRow, type AlertCfg, type AlertKind, type Lang, type OpenAlert, type PlanRow, type RecentAlert } from './alerts.ts';
 import { newVapid, sendPush, type Vapid } from './push.ts';
 
 const cors = {
@@ -112,9 +112,10 @@ async function pushAll(db: Db, payload: Payload | ((lang: Lang) => Payload), o: 
 async function sensorReminder(db: Db, now: number) {
   const [{ data: st }, { data: set }] = await Promise.all([
     db.from('cgm_state').select('connected,sensor_sn,sensor_started_at,sensor_reminded').eq('id', true).single(),
-    db.from('settings').select('child_name,sensor_days').eq('id', true).single(),
+    db.from('settings').select('child_name,sensor_days,alert_sensor_on').eq('id', true).single(),
   ]);
   const s = st as any;
+  if ((set as any)?.alert_sensor_on === false) return;
   if (!s?.connected || !s.sensor_sn || !s.sensor_started_at) return;
   const days = (set as any)?.sensor_days ?? 14;
   const due = sensorReminderDue(s.sensor_started_at, days, s.sensor_sn, s.sensor_reminded, now);
@@ -130,9 +131,10 @@ async function planReminders(db: Db, now: number) {
     .in('status', ['planned', 'dosed', 'eaten']).gte('dose_at', new Date(now - 9 * 3600000).toISOString()).lte('dose_at', new Date(now + 6 * 3600000).toISOString());
   if (!data?.length) return;
   const [{ data: set }, { data: last }] = await Promise.all([
-    db.from('settings').select('glucose_unit,iob_dia_min,plan_review_rules').eq('id', true).single(),
+    db.from('settings').select('glucose_unit,iob_dia_min,plan_review_rules,alert_plan_on').eq('id', true).single(),
     db.from('glucose_readings').select('taken_at,mg_dl,trend').order('taken_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
+  if ((set as any)?.alert_plan_on === false) return;
   const r = last as { taken_at: string; mg_dl: number; trend: number | null } | null;
   const g = r && now - Date.parse(r.taken_at) <= 15 * 60000 ? { mg: r.mg_dl, trend: r.trend, unit: ((set as any)?.glucose_unit === 'mmol' ? 'mmol' : 'mgdl') as 'mmol' | 'mgdl' } : null;
   const rv = { earlyMin: Number((set as any)?.plan_review_rules?.early_min) || 120, diaMin: Number((set as any)?.iob_dia_min) || 360 };
@@ -151,10 +153,10 @@ async function treatRechecks(db: Db, now: number) {
   const [{ data: rows }, { data: plans }, { data: set }, { data: last }] = await Promise.all([
     db.from('events').select('id,occurred_at,recheck_sent_at').eq('kind', 'treatment').is('deleted_at', null).gte('occurred_at', since),
     db.from('planned_meals').select('treatment_event_id').not('treatment_event_id', 'is', null).gte('dose_at', new Date(now - 12 * 3600000).toISOString()),
-    db.from('settings').select('glucose_unit,treat_recheck_min').eq('id', true).single(),
+    db.from('settings').select('glucose_unit,treat_recheck_min,alert_recheck_on').eq('id', true).single(),
     db.from('glucose_readings').select('taken_at,mg_dl,trend').order('taken_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
-  if (!rows?.length) return;
+  if (!rows?.length || (set as any)?.alert_recheck_on === false) return;
   const min = Number((set as any)?.treat_recheck_min) || 15;
   const due = treatRechecksDue(rows as TreatRow[], now, min, new Set((plans ?? []).map((p: any) => p.treatment_event_id)));
   const r = last as { taken_at: string; mg_dl: number; trend: number | null } | null;
@@ -167,12 +169,13 @@ async function treatRechecks(db: Db, now: number) {
 }
 
 async function runAlerts(db: Db, now: number) {
-  const [st, set, last, open, mem] = await Promise.all([
+  const [st, set, last, open, mem, rec] = await Promise.all([
     db.from('cgm_state').select('connected').eq('id', true).single(),
     db.from('settings').select('*').eq('id', true).single(),
     db.from('glucose_readings').select('taken_at,mg_dl,trend').gte('taken_at', new Date(now - 25 * 60000).toISOString()).order('taken_at'),
     db.from('alerts').select('*').neq('state', 'resolved'),
     db.from('members').select('user_id,alert_role'),
+    db.from('alerts').select('id,kind,started_at,resolved_at,progress,worst_mgdl').eq('state', 'resolved').gte('resolved_at', new Date(now - 60 * 60000).toISOString()),
   ]);
   const s: any = set.data;
   if (!s) { console.error('alerts: settings', set.error?.message); return; }
@@ -187,11 +190,12 @@ async function runAlerts(db: Db, now: number) {
     rapidRate: s.alert_rapid_rate === null ? null : Number(s.alert_rapid_rate), escalateMin: s.escalate_min,
     fallRate: s.alert_fall_rate == null ? null : Number(s.alert_fall_rate), riseRate: s.alert_rise_rate == null ? null : Number(s.alert_rise_rate),
     predictLowMin: s.alert_predict_low_min ?? null,
+    highOn: s.alert_high_on !== false, predictOn: s.alert_predict_on !== false, fallOn: s.alert_fall_on === true, riseOn: s.alert_rise_on === true,
     night: s.night_start && s.night_end ? { start: s.night_start, end: s.night_end, low: s.night_low_mgdl, high: s.night_high_mgdl, highSilent: s.night_high_silent } : null,
     school: s.school_start && s.school_end ? { days: s.school_days ?? [], start: s.school_start, end: s.school_end, low: s.school_low_mgdl, high: s.school_high_mgdl } : null };
   const members = (mem.data ?? []) as { user_id: string; alert_role: string }[];
   const openRows = (open.data ?? []) as (OpenAlert & Record<string, unknown>)[];
-  const steps = evaluate(now, readings, cfg, openRows, Boolean((st.data as any)?.connected));
+  const steps = evaluate(now, readings, cfg, openRows, Boolean((st.data as any)?.connected), (rec.data ?? []) as RecentAlert[]);
   for (const step of steps) {
     let id = step.id, startedAt = openRows.find((a) => a.id === id)?.started_at ?? new Date(now).toISOString();
     if (step.op === 'create') {
@@ -207,9 +211,13 @@ async function runAlerts(db: Db, now: number) {
       : (now - Date.parse(startedAt)) / 60000;
     const value = step.kind === 'no_data' ? null : (latest?.mg_dl ?? null);
     const fresh = latest && now - Date.parse(latest.taken_at) <= 15 * 60000;
+    const lowLimit = lowNow(now, cfg) ?? 70;
+    const eta = step.kind === 'predicted_low' && fresh ? lowForecast(readings, lowLimit, Math.max(s.alert_predict_low_min ?? 20, 1))?.eta ?? (step.patch.eta_min as number | null | undefined) ?? null : null;
     const msg = (lang: Lang) => alertMessage(step.kind, step.notify!, { value, trend: latest?.trend ?? null, unit: s.glucose_unit === 'mmol' ? 'mmol' : 'mgdl', minutes,
-      low: lowNow(now, cfg), rate: fresh ? rate15(readings) : null, ahead: s.alert_predict_low_min == null ? null : Math.max(s.alert_predict_low_min, 30) }, lang);
-    await pushAll(db, (lang) => { const m = msg(lang); return { title: m.title, body: m.body, tag: `alert-${step.kind}`, url: './#/', kind: step.kind, sticky: m.severity === 'urgent' }; },
+      low: lowLimit, rate: fresh ? rate15(readings) : null, eta }, lang);
+    // one glucose episode = one notification: expected, low and very low share a slot, so each update replaces the last
+    const tag = step.kind === 'predicted_low' || step.kind === 'low' || step.kind === 'urgent_low' ? 'alert-low' : `alert-${step.kind}`;
+    await pushAll(db, (lang) => { const m = msg(lang); return { title: m.title, body: m.body, tag, url: './#/', kind: step.kind, sticky: m.severity === 'urgent' }; },
       { kind: step.notify, alertId: id, urgency: msg('ar').urgency, users: recipients(members, step.notify) });
   }
 }
@@ -283,11 +291,15 @@ Deno.serve(async (req) => {
       if (!a) return json({ error: 'not_open' }, 404);
       const max = (a as any).kind === 'urgent_low' ? 15 : 60;
       const mins = Math.min(max, Math.max(5, Number(body.snooze_min) || 15));
+      // low, expected and high judge what comes next by direction, level and how long it lasts (see evaluate), not a timer
+      const judged = ['predicted_low', 'low', 'urgent_low', 'high'].includes((a as any).kind);
+      const { data: lastR } = await db.from('glucose_readings').select('mg_dl').order('taken_at', { ascending: false }).limit(1).maybeSingle();
       await db.from('alerts').update({ state: 'acknowledged', acknowledged_by: userId, acknowledged_at: new Date().toISOString(), ack_action: act,
-        snoozed_until: new Date(Date.now() + mins * 60000).toISOString() }).eq('id', (a as any).id);
+        ack_kind: (a as any).kind, ack_value: (lastR as any)?.mg_dl ?? null,
+        snoozed_until: judged ? null : new Date(Date.now() + mins * 60000).toISOString() }).eq('id', (a as any).id);
       const { data: me } = await db.from('members').select('display_name').eq('user_id', userId).maybeSingle();
       const ack = (lang: Lang) => ackMessage((a as any).kind as AlertKind, (me as any)?.display_name || null, act, lang);
-      await pushAll(db, (lang) => ({ title: ack(lang).title, body: ack(lang).body, tag: `alert-${(a as any).kind}`, url: './#/' }), { kind: 'ack', alertId: (a as any).id, urgency: 'normal', except: userId });
+      await pushAll(db, (lang) => ({ title: ack(lang).title, body: ack(lang).body, tag: ['predicted_low', 'low', 'urgent_low'].includes((a as any).kind) ? 'alert-low' : `alert-${(a as any).kind}`, url: './#/' }), { kind: 'ack', alertId: (a as any).id, urgency: 'normal', except: userId });
       return json({ ok: true, snoozed_min: mins });
     }
 

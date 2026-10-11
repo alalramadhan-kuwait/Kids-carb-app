@@ -17,9 +17,20 @@ import { ACTIVITY_KINDS, activityOn, setActivityPush } from '../lib/activityPush
 type Sub = { id: string; user_id: string; device_label: string | null; last_ok_at: string | null; last_error: string | null; endpoint: string };
 const KEYS = ['alert_urgent_low_mgdl', 'alert_low_mgdl', 'alert_high_mgdl', 'alert_low_delay_min', 'alert_high_delay_min', 'alert_nodata_min', 'alert_renotify_min',
   'alert_high_renotify_min', 'alert_rapid_rate', 'alert_fall_rate', 'alert_rise_rate', 'alert_predict_low_min', 'night_start', 'night_end', 'night_low_mgdl', 'night_high_mgdl', 'night_high_silent', 'night_theme',
-  'school_days', 'school_start', 'school_end', 'school_low_mgdl', 'school_high_mgdl', 'escalate_min'] as const;
+  'school_days', 'school_start', 'school_end', 'school_low_mgdl', 'school_high_mgdl', 'escalate_min',
+  'alert_high_on', 'alert_predict_on', 'alert_fall_on', 'alert_rise_on', 'alert_sensor_on', 'alert_plan_on', 'alert_recheck_on'] as const;
 // Arabic labels; translated with t() where shown.
 const WEEK = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']; // i18n-ok
+type OptionalKey = 'alert_predict_on' | 'alert_high_on' | 'alert_fall_on' | 'alert_rise_on' | 'alert_sensor_on' | 'alert_plan_on' | 'alert_recheck_on';
+const OPTIONAL: [OptionalKey, string, string][] = [ // i18n-ok: Arabic keys, translated with t() where shown
+  ['alert_predict_on', 'منخفض متوقع', 'فقط إذا كانت تنزل الآن فعلًا وستصل حد المنخفض'], // i18n-ok
+  ['alert_high_on', 'مرتفع', 'عند الوصول لحد المرتفع واستمراره'], // i18n-ok
+  ['alert_fall_on', 'نزول سريع', 'إشعار منفصل · مغلق افتراضيًا'], // i18n-ok
+  ['alert_rise_on', 'صعود سريع', 'إشعار منفصل · مغلق افتراضيًا'], // i18n-ok
+  ['alert_sensor_on', 'قرب انتهاء الحساس', 'قبل يوم وقبل ساعتين'], // i18n-ok
+  ['alert_plan_on', 'تذكيرات خطة الوجبة', 'الفحص، وقت الأكل، النتيجة'], // i18n-ok
+  ['alert_recheck_on', 'إعادة قياس بعد علاج الانخفاض', 'بعد ١٥ دقيقة من العلاج'], // i18n-ok
+];
 const ROLE: [string, string][] = [['primary', 'أولًا'], ['backup', 'احتياط'], ['off', 'لا']]; // i18n-ok
 
 export default function AlertsPage() {
@@ -60,6 +71,7 @@ export default function AlertsPage() {
   };
   const u = s.alert_urgent_low_mgdl, l = s.alert_low_mgdl, h = s.alert_high_mgdl;
   const problem =
+    u === null || l === null || h === null ? t('حدّ المنخفض جدًا والمنخفض والمرتفع مطلوبة') :
     u !== null && (u < 40 || u > 100) ? t('المنخفض جدًا خارج المعقول') :
     l !== null && (l < 50 || l > 150) ? t('المنخفض خارج المعقول') :
     h !== null && (h < 120 || h > 450) ? t('المرتفع خارج المعقول') :
@@ -68,10 +80,18 @@ export default function AlertsPage() {
     !rateOk(s.alert_rapid_rate) || !rateOk(s.alert_fall_rate) || !rateOk(s.alert_rise_rate) ? t('سرعة التغيّر خارج المعقول') :
     s.alert_renotify_min < 5 || s.alert_renotify_min > 60 ? t('تكرار المنخفض بين 5 و60 دقيقة') :
     s.alert_high_renotify_min < 15 || s.alert_high_renotify_min > 240 ? t('تكرار المرتفع بين 15 و240 دقيقة') :
-    s.alert_predict_low_min !== null && (s.alert_predict_low_min < 10 || s.alert_predict_low_min > 40) ? t('المنخفض المتوقع بين 10 و40 دقيقة') :
+    s.alert_predict_low_min === null || s.alert_predict_low_min < 10 || s.alert_predict_low_min > 40 ? t('المنخفض المتوقع بين 10 و40 دقيقة') :
+    s.alert_fall_on && fall === null || s.alert_rise_on && rise === null ? t('اكتب سرعة النزول والصعود') :
     (s.night_start === null) !== (s.night_end === null) ? t('اكتب بداية ونهاية الليل') :
     (s.school_start === null) !== (s.school_end === null) ? t('اكتب بداية ونهاية المدرسة') : '';
 
+  // a switch takes effect at once (it is not part of the limits below)
+  const setOn = async (k: OptionalKey, v: boolean) => {
+    setS({ ...s, [k]: v });
+    const { error } = await supabase.from('settings').update({ [k]: v }).eq('id', true);
+    if (error) { setS({ ...s, [k]: !v }); return toast(error.message); }
+    await reload();
+  };
   const save = async () => {
     const patch = Object.fromEntries(KEYS.map((k) => [k, s[k]]));
     const { error } = await supabase.from('settings').update(patch).eq('id', true);
@@ -85,9 +105,25 @@ export default function AlertsPage() {
         <Link to="/care-plan"><Card className="flex items-center gap-3 !p-4"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="heart" size={22} /></span><div className="min-w-0 flex-1"><div className="font-bold">{t('ماذا نفعل عند التنبيه')}</div><div className="text-sm text-slate-500">{t('خطوات الطبيب، تظهر مع كل تنبيه')}</div></div><span className="text-slate-300">{isEn() ? '›' : '‹'}</span></Card></Link>
         {ps !== null && ps !== 'on' && <Link to="/more" className="block"><Alert tone="near">{t('التنبيهات غير مفعّلة على هذا الجوال. فعّلها من «المزيد ← هذا الجوال».')}</Alert></Link>}
 
+
+        <Card className="space-y-1">
+          <h2 className="font-bold">{t('أي تنبيه يصلكم')}</h2>
+          <p className="pb-1 text-sm text-slate-600">{t('كل تنبيه هنا له مفتاحه. الثلاثة الأولى للسلامة وتبقى شغّالة دائمًا.')}</p>
+          {[t('منخفض جدًا'), t('منخفض'), t('لا توجد قراءة')].map((label) => (
+            <div key={label} className="flex min-h-[44px] items-center justify-between gap-3"><span>{label}</span><span className="text-sm text-slate-500" aria-label={t('دائمًا شغّال')}>🔒 {t('دائمًا شغّال')}</span></div>
+          ))}
+          <div className="my-1 border-t border-slate-100" />
+          {OPTIONAL.map(([key, label, hint]) => (
+            <div key={key} className="flex min-h-[48px] items-center justify-between gap-3">
+              <span className="min-w-0"><span className="block">{t(label)}</span><span className="block text-xs text-slate-500">{t(hint)}</span></span>
+              <Toggle on={!!s[key]} label={t(label)} onChange={(v) => setOn(key, v)} />
+            </div>
+          ))}
+        </Card>
+
         <Card className="space-y-3">
           <h2 className="font-bold">{t('حدود التنبيه')} <span className="text-sm font-normal text-slate-500">({unitLabel(unit)})</span></h2>
-          <p className="text-sm text-slate-600">{t('من الطبيب. اتركه فارغًا لإيقاف ذلك التنبيه.')}</p>
+          <p className="text-sm text-slate-600">{t('من الطبيب. المنخفض جدًا والمنخفض وبدون قراءة تبقى دائمًا شغّالة.')}</p>
           <p className="text-xs text-slate-500">{t('نطاق الألوان وهدف الجرعة في «أرقام الطبيب».')}</p>
           <div className="grid grid-cols-3 gap-2">
             <Field label={t('منخفض جدًا')}><NumInput value={g('alert_urgent_low_mgdl')} onChange={setG('alert_urgent_low_mgdl')} /></Field>
@@ -108,12 +144,12 @@ export default function AlertsPage() {
 
         <Card className="space-y-3">
           <h2 className="font-bold">{t('النزول أو الصعود السريع')}</h2>
-          <p className="text-sm text-slate-600">{t('{unit} بالدقيقة. فارغ = متوقف. من الطبيب.', { unit: unitLabel(unit) })}</p>
+          <p className="text-sm text-slate-600">{t('{unit} بالدقيقة. تُستخدم فقط إذا فعّلت التنبيه من الأعلى.', { unit: unitLabel(unit) })}</p>
           <div className="grid grid-cols-2 gap-2">
             <Field label={t('نزول أسرع من')}><NumInput value={fall} onChange={setFall} /></Field>
             <Field label={t('صعود أسرع من')}><NumInput value={rise} onChange={setRise} /></Field>
           </div>
-          <Field label={t('منخفض متوقع: نبّه قبل (دقائق)')} hint={t('ينبّه إذا كانت تنزل والنزول (وهو يخفّ تدريجيًا) يقرّبها من حد المنخفض خلال هذه المدة، ونصف ساعة على الأقل. فارغ = متوقف.')}>
+          <Field label={t('منخفض متوقع: نبّه قبل (دقائق)')} hint={t('ينبّه فقط إذا كانت تنزل الآن فعلًا ويُتوقع أن تصل حد المنخفض خلال هذه المدة. يُلغى فورًا إذا توقف النزول.')}>
             <NumInput value={s.alert_predict_low_min} onChange={(v) => setS({ ...s, alert_predict_low_min: v })} />
           </Field>
           <Btn kind="primary" block disabled={!!problem} onClick={save}>{t('حفظ')}</Btn>
