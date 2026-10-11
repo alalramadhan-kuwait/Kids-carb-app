@@ -52,12 +52,14 @@ async function run(db: Db, now: number) {
     if (!v || now - Date.parse(a.created_at) > 15 * 60000) continue; // no push key yet, or queued too long ago to be news
     const ref = a.ref_table === 'events'
       ? (await db.from('events').select('id,deleted_at').eq('id', a.ref_id).maybeSingle()).data as { deleted_at: string | null } | null
-      : (await db.from('meal_history').select('id').eq('id', a.ref_id).maybeSingle()).data as { deleted_at?: null } | null;
+      : a.ref_table === 'products'
+        ? (await db.from('products').select('id').eq('id', a.ref_id).maybeSingle()).data as { deleted_at?: null } | null
+        : (await db.from('meal_history').select('id').eq('id', a.ref_id).maybeSingle()).data as { deleted_at?: null } | null;
     if (!ref || ref.deleted_at) continue; // removed again as a mistake
     const users = activityRecipients(members, a.by_user, a.kind);
     if (!users.length) continue;
     const who = members.find((m) => m.user_id === a.by_user)?.display_name?.trim() || null;
-    await send(db, v, a, users, (lang) => ({ ...activityMessage(a, who, lang, unit), tag: `activity-${a.id}`, url: `./#/?at=${Date.parse(a.occurred_at)}` }), langs);
+    await send(db, v, a, users, (lang) => ({ ...activityMessage(a, who, lang, unit), tag: `activity-${a.id}`, url: a.kind === 'request' ? `./#/products/${a.ref_id}` : `./#/?at=${Date.parse(a.occurred_at)}` }), langs);
     sent++;
   }
   return sent;

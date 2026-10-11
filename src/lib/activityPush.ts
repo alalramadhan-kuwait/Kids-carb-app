@@ -3,13 +3,14 @@
 import { supabase } from './supabase';
 import type { Member } from './types';
 
-export type ActivityKind = 'meal' | 'rapid' | 'long' | 'treatment' | 'finger';
+export type ActivityKind = 'meal' | 'rapid' | 'long' | 'treatment' | 'finger' | 'request';
 export const ACTIVITY_KINDS: { k: ActivityKind; icon: string; label: string }[] = [
   { k: 'rapid', icon: '💉', label: 'نوفورابيد' }, // i18n-ok: translated where shown
   { k: 'long', icon: '💉', label: 'تريسيبا' }, // i18n-ok
   { k: 'meal', icon: '🍽️', label: 'وجبة' }, // i18n-ok
   { k: 'treatment', icon: '🧃', label: 'علاج انخفاض' }, // i18n-ok
   { k: 'finger', icon: '🩸', label: 'قياس وخز' }, // i18n-ok
+  { k: 'request', icon: '📷', label: 'طلب أكل جديد' }, // i18n-ok
 ];
 
 export const activityOn = (m: Member | null | undefined, k: ActivityKind) => m?.activity_push?.[k] !== false;

@@ -1405,4 +1405,9 @@ export const food: Record<string, string> = {
   "لكل 100 غ": "Per 100 g",
   "شيليه": "Remove",
   "الأقل": "Lowest",
+  "طلب أكل جديد": "New food request",
+  "صورة الأكل أو الملصق": "Photo of the food or label",
+  "صوّري": "Take a photo",
+  "صوّري غيرها": "Take another",
+  "من الصور": "From photos",
 };

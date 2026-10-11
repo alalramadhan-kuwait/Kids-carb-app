@@ -2721,6 +2721,13 @@ test('Topi cheese is found by «توبي» and «جبن»', async () => {
     assert.equal(strip(activityMessage(row('finger', { mgdl: 101 }), 'Rawan', 'en', 'mmol').title), '🩸 Rawan added a finger-prick 5.6 mmol/L');
     assert.equal(strip(activityMessage(row('rapid', { units: 4 }), 'Rawan', 'ar').title), '💉 نوفورابيد 4 وحدة · من Rawan');
     assert.equal(strip(activityMessage(row('rapid', { units: 4 }), 'Rawan', 'ar').body), 'الساعة 8:05 م');
+  });  test('a food asked for from simple mode tells the other parent, who can switch it off', () => {
+    const r = activityMessage(row('request', { name: 'مرق دجاج' }), 'Rawan', 'en');
+    assert.equal(strip(r.title), '📷 Rawan asked for a new food: مرق دجاج');
+    assert.equal(r.body, 'Open it to add its label and amounts');
+    assert.equal(strip(activityMessage(row('request', { name: 'كباب' }), 'Rawan', 'ar').title), '📷 طلب أكل جديد: كباب · من Rawan');
+    const members = [{ user_id: 'mom', display_name: 'Rawan' }, { user_id: 'dad', display_name: 'Dad' }, { user_id: 'gran', display_name: 'Gran', activity_push: { request: false } }];
+    assert.deepEqual(activityRecipients(members, 'mom', 'request'), ['dad']);
   });
 }
 

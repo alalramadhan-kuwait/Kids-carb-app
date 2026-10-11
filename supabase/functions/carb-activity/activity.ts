@@ -5,7 +5,7 @@ const LRI = String.fromCharCode(0x2066), PDI = String.fromCharCode(0x2069); // k
 const num = (mg: number, unit: 'mgdl' | 'mmol') => (unit === 'mmol' ? (Math.round((mg / 18.016) * 10) / 10).toFixed(1) : String(Math.round(mg)));
 const join = (...lines: (string | false | null | undefined)[]) => lines.filter(Boolean).join('\n');
 
-export type ActivityKind = 'meal' | 'rapid' | 'long' | 'treatment' | 'finger';
+export type ActivityKind = 'meal' | 'rapid' | 'long' | 'treatment' | 'finger' | 'request';
 export interface ActivityRow { kind: ActivityKind; by_user: string; occurred_at: string; carbs: number | null; units: number | null; mgdl: number | null; name: string | null }
 export interface ActivityMember { user_id: string; display_name: string | null; activity_push?: Partial<Record<ActivityKind, boolean>> | null }
 
@@ -18,11 +18,17 @@ const kw12 = (ms: number, en: boolean) => {
   const k = new Date(ms + 3 * 3600000), h = k.getUTCHours();
   return `${LRI}${h % 12 || 12}:${String(k.getUTCMinutes()).padStart(2, '0')} ${h < 12 ? (en ? 'AM' : 'ص') : (en ? 'PM' : 'م')}${PDI}`;
 };
-const ACT_ICON: Record<ActivityKind, string> = { meal: '🍽️', rapid: '💉', long: '💉', treatment: '🧃', finger: '🩸' };
+const ACT_ICON: Record<ActivityKind, string> = { meal: '🍽️', rapid: '💉', long: '💉', treatment: '🧃', finger: '🩸', request: '📷' };
 
 /** "Rawan added NovoRapid 4 U" / "8:05 PM". Facts only, like every other push. A meal with no carbs (null) was eaten out
  *  with its carbs not known: it says so, never "0 g". */
 export function activityMessage(a: ActivityRow, who: string | null, lang: Lang = 'ar', unit: 'mgdl' | 'mmol' = 'mmol') {
+  // a food that is not in the list yet: someone asked for it (with a photo of it or its label) and it waits for its label
+  if (a.kind === 'request') {
+    const en = lang === 'en', food = a.name ? `${LRI}${a.name}${PDI}` : '';
+    return { title: `${ACT_ICON.request} ${en ? `${who ?? 'Someone'} asked for a new food${food ? `: ${food}` : ''}` : `طلب أكل جديد${food ? `: ${food}` : ''}${who ? ` · من ${who}` : ''}`}`,
+      body: en ? 'Open it to add its label and amounts' : 'افتحه وكمّل الملصق والكميات' };
+  }
   const en = lang === 'en', n = (v: number | null) => `${LRI}${Math.round((v ?? 0) * 10) / 10}${PDI}`;
   const g = a.mgdl != null ? `${LRI}${num(a.mgdl, unit)} ${unit === 'mmol' ? 'mmol/L' : 'mg/dL'}${PDI}` : '';
   const what = en

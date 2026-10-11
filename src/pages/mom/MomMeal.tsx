@@ -1,6 +1,6 @@
 // Mom mode, building a meal from Layan's database: saved meals, recipes and products (grouped, with pictures), each
 // in one of its portions. Every choice is a full page; the meal being built is kept on the phone.
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { compareOps, draftOps, saveMeal, useCompare, useDraft, usePortions, useSavedMeals } from '../../lib/mom';
@@ -428,7 +428,9 @@ export function MomNew() {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLInputElement>(null), camera = useRef<HTMLInputElement>(null);
+  const preview = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
   const send = async () => {
     setBusy(true);
     try {
@@ -450,10 +452,16 @@ export function MomNew() {
   );
   return (
     <MomPage title={t('مو موجود')} back="/mom/add">
-      <button onClick={() => input.current?.click()} className="grid h-48 place-items-center rounded-3xl border-2 border-dashed border-slate-300 bg-white text-center">
-        {file ? <img src={URL.createObjectURL(file)} alt="" className="h-44 rounded-2xl object-cover" /> : <span><span className="block text-5xl">📷</span><b className="text-[18px]">{t('صوّري الأكل أو الملصق')}</b></span>}
-      </button>
-      <input ref={input} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+      {/* a photo of the food or its label: taken now, or one already on the phone */}
+      <div className="grid place-items-center rounded-3xl border-2 border-dashed border-slate-300 bg-white p-3 text-center">
+        {file ? <img src={preview!} alt="" className="h-44 rounded-2xl object-cover" /> : <span className="py-3"><span className="block text-5xl">📷</span><b className="text-[18px]">{t('صورة الأكل أو الملصق')}</b></span>}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Big tone="soft" className="!min-h-[52px] !text-[17px]" onClick={() => camera.current?.click()}>📷 {file ? t('صوّري غيرها') : t('صوّري')}</Big>
+        <Big tone="soft" className="!min-h-[52px] !text-[17px]" onClick={() => input.current?.click()}>🖼️ {t('من الصور')}</Big>
+      </div>
+      <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f); e.target.value = ''; }} />
+      <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f); e.target.value = ''; }} />
       <input className={inputCls} dir="auto" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('الاسم')} maxLength={60} />
       <Big disabled={busy || !name.trim()} onClick={send}>{t('أرسليه لبابا')}</Big>
     </MomPage>

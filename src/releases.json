@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-11",
+    "version": "2.64.1",
+    "notes": [
+      "لما ماما ترسل أكل مو موجود، يوصل إشعار لبابا فورًا، وفتحه يودّيه للأكل عشان يكمّل الملصق",
+      "صفحة «مو موجود»: تقدرين تصوّرين الحين أو تختارين صورة من الصور"
+    ],
+    "notes_en": [
+      "When a food that is not in the list is sent, the other parent gets a notification at once; opening it goes straight to the food to finish its label",
+      "«Not in the list»: take a photo now, or choose one from your photos"
+    ]
+  },
+  {
+    "date": "2026-10-11",
     "version": "2.64.0",
     "notes": [
       "تقارير الطبيب في «المزيد»: تقرير AGP، الملخص الأسبوعي، Snapshot وسجل يومي، كل واحد بملف PDF جاهز للمشاركة",
