@@ -27,7 +27,9 @@ import highPng from '../../assets/layan/layan-high.png';
 import highWebp from '../../assets/layan/layan-high.webp';
 import noReadingPng from '../../assets/layan/layan-no-reading.png';
 import noReadingWebp from '../../assets/layan/layan-no-reading.webp';
-import { Big, PEN, PEN_NAME, PenBar, TABS_PAD, ago, clock, dayWord, glucoseText, left, sensorLeft } from './MomUI';
+import { Big, PEN, PEN_NAME, PenBar, TABS_PAD, ago, clock, dayWord, glucoseText, left, sensorLeft, span } from './MomUI';
+import { Icon } from '../../components/Icon';
+import type { Settings } from '../../lib/types';
 
 const H = 3600000;
 const ARROW: Record<number, string> = { [-3]: '⇊', [-2]: '↓', [-1]: '↘', 0: '→', 1: '↗', 2: '↑', 3: '⇈' };
@@ -56,6 +58,7 @@ export function MomHome() {
   useEffect(() => { void syncComparisons(events, history).catch(() => {}); }, [events, history]);
   const { g } = useGlucose();
   const [now, setNow] = useState(Date.now());
+  const [full, setFull] = useState(false);
   const [series, setSeries] = useState<Series | null>(null);
   useEffect(() => {
     const load = () => { setNow(Date.now()); void fetchSeries(Date.now() - 12 * H, Date.now() + 60000).then(setSeries).catch(() => undefined); };
@@ -103,17 +106,26 @@ export function MomHome() {
   const juiceDue = juice ? Date.parse(juice.occurred_at) + recheckMin * 60000 : 0;
   const ack = () => { if (!juice) return; try { localStorage.setItem('mom-juice-ack', juice.id); } catch { /* blocked */ } setAcked(juice.id); };
 
-  const big = 'min-h-[60px] text-[21px]';
+  const big = '!min-h-[52px] !text-[18px]', small = '!min-h-[48px] !px-1 !text-[16px]';
   return (
     // one fixed screen: nothing scrolls; the graph takes whatever room is left
     <main className={cx('mx-auto flex h-[100dvh] max-w-md flex-col gap-2 overflow-hidden px-4 pt-[calc(8px+env(safe-area-inset-top))]', TABS_PAD)}>
-      <div className="relative flex min-h-[92px] shrink-0 items-center gap-3 overflow-hidden rounded-3xl py-2.5 ps-4 pe-1" style={{ color: '#fff', background: m.bg }}>
-        <div className="min-w-0 flex-1"><div className="text-[14px] opacity-90">{t('ليان')} · {at ? ago(at, now) : ''}{sensor ? ` · 📡 ${sensorLeft(sensor.life.left)}` : ''}</div><div className="text-[20px] font-bold leading-tight">{t(m.word)}</div><div className="text-[15px] opacity-90">{t(m.todo)}</div></div>
-        {latest && mood !== 'stale' && <div dir="ltr" className="flex items-baseline gap-1"><span className="text-[48px] font-extrabold leading-none">{glucoseText(latest.mg_dl, unit)}</span><span className="text-[30px]">{level !== null ? ARROW[level] : ''}</span></div>}
+      <div className="relative flex shrink-0 overflow-hidden rounded-3xl" style={{ color: '#fff', background: m.bg }}>
+        <div className="min-w-0 flex-1 py-2.5 ps-4 pe-1">
+          <div className="truncate text-[13px] leading-snug opacity-90">{t('ليان')} · {at ? ago(at, now) : ''}{sensor ? ` · 📡 ${sensorLeft(sensor.life.left)}` : ''}</div>
+          <div className="mt-0.5 flex items-center gap-3">
+            {latest && mood !== 'stale' && <div dir="ltr" className="flex shrink-0 items-baseline gap-1"><span className="num text-[46px] font-extrabold leading-none tracking-tight">{glucoseText(latest.mg_dl, unit)}</span><span className="text-[28px] leading-none">{level !== null ? ARROW[level] : ''}</span></div>}
+            <div className="min-w-0 text-[21px] font-bold leading-tight">{t(m.word)}</div>
+          </div>
+          <div className="mt-1 text-[15px] leading-snug opacity-95">{t(m.todo)}</div>
+        </div>
         <LayanCorner face={face} />
       </div>
 
-      <div className="flex max-h-[50dvh] min-h-[120px] flex-1 flex-col rounded-3xl border border-slate-100 bg-white px-1 pt-1">
+      <div className="relative flex max-h-[50dvh] min-h-[120px] flex-1 flex-col rounded-3xl border border-slate-100 bg-white px-1 pt-1">
+        <button onClick={() => setFull(true)} aria-label={t('كبّري الرسم')} className="absolute left-0 top-0 z-10 grid h-[44px] w-[44px] place-items-center">
+          <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-[15px] text-slate-600">⤢</span>
+        </button>
         <div ref={box} className="min-h-0 flex-1">
           {merged && <BigGraph key={focusAt ?? 0} at={focusAt} aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} alarmHigh={s.alert_high_mgdl ?? 240}
             shots={shots.map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
@@ -123,48 +135,72 @@ export function MomHome() {
         </div>
       </div>
 
-      <div className="shrink-0 rounded-3xl border border-slate-100 bg-white px-4 py-1.5">
-        {[lastRapid && { type: 'rapid' as const, e: lastRapid }, lastLong && { type: 'long' as const, e: lastLong }].filter(Boolean).map((x) => x && (
-          <Link key={x.type} to={`/mom/entry/${x.e.id}`} className="flex min-h-[40px] items-center gap-3"><PenBar type={x.type} /><span className="flex-1 text-[17px]">{t(PEN_NAME[x.type])} <b className="num">{x.e.insulin_units}</b> {t('وحدة')}</span><span className="text-[15px] text-slate-500">{ago(Date.parse(x.e.occurred_at), now)}</span></Link>
-        ))}
-        {nextAt && !lowNow && <div className="mb-1 rounded-xl bg-near-soft px-3 py-1.5 text-[16px] font-bold text-near">{t('لا نوفورابيد قبل الساعة {c}', { c: clock(nextAt) })}</div>}
+      <div className="shrink-0 space-y-1.5 rounded-3xl border border-slate-100 bg-white p-1.5">
+        {/* the last of each pen side by side: name and units, then how long ago */}
+        <div className="grid grid-cols-2 gap-1.5">
+          {[lastRapid && { type: 'rapid' as const, e: lastRapid }, lastLong && { type: 'long' as const, e: lastLong }].filter(Boolean).map((x, _i, all) => x && (
+            <Link key={x.type} to={`/mom/entry/${x.e.id}`} className={cx('flex min-h-[48px] items-center gap-2 rounded-2xl px-2 py-1 active:bg-slate-50', all.length === 1 && 'col-span-2')}>
+              <PenBar type={x.type} small />
+              <span className="min-w-0 leading-tight">
+                <span className="block truncate text-[16px]">{t(PEN_NAME[x.type])} <b className="num">{x.e.insulin_units}</b> {t('وحدة')}</span>
+                <span className="num block truncate text-[13px] text-slate-500">{ago(Date.parse(x.e.occurred_at), now)}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+        {nextAt && !lowNow && (
+          <div className="flex items-start gap-2 rounded-2xl bg-near-soft px-2.5 py-1.5 text-near">
+            <Icon name="clock" size={16} className="mt-0.5 shrink-0" />
+            <span className="min-w-0 leading-tight"><b className="block text-[14px]">{t('لا نوفورابيد قبل الساعة {c}', { c: clock(nextAt) })}</b><span className="block text-[12.5px] opacity-90">{t('خطة الدكتور: {d} بين الجرعتين', { d: span(s.dose_gap_min ?? 120) })}</span></span>
+          </div>
+        )}
       </div>
 
       {same && <SameMealLink short to={`/mom/same/${same.target.id}`} target={same.target} matches={same.matches}
-        className="flex min-h-[48px] shrink-0 items-center gap-2 rounded-3xl bg-brand-soft px-4 py-2 text-[17px] font-bold text-brand" />}
+        className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-2xl bg-brand-soft px-4 py-1.5 text-[16px] font-bold text-brand" />}
 
       {sensor && (sensorSoon || !sensor.site) && (
-        <Link to="/mom/sensor" className={cx('flex shrink-0 items-center gap-3 rounded-2xl px-4 py-2 text-[16px] font-bold', sensorSoon ? 'bg-over-soft text-over' : 'bg-white text-brand')}>
-          <span className="text-2xl">📡</span>
+        <Link to="/mom/sensor" className={cx('flex min-h-[44px] shrink-0 items-center gap-3 rounded-2xl px-4 py-1.5 text-[15px] font-bold', sensorSoon ? 'bg-over-soft text-over' : 'bg-white text-brand')}>
+          <span className="text-xl">📡</span>
           <span className="flex-1">{sensorSoon ? t('الحساس ينتهي {d} {c}', { d: dayWord(sensor.life.end, now), c: clock(sensor.life.end) }) : t('الحساس بأي ذراع؟')}</span><span>›</span>
         </Link>
       )}
 
       {juice && (
-        <Link to={`/mom/entry/${juice.id}`} className="flex shrink-0 items-center gap-3 rounded-2xl bg-near-soft px-4 py-2 text-near">
-          <span className="text-2xl">🧃</span>
-          <span className="flex-1 text-[16px] font-bold">{t('عصير {c}', { c: clock(Date.parse(juice.occurred_at)) })} · {juiceDue > now ? t('افحصيها بعد {m}', { m: left(juiceDue, now) }) : t('افحصيها الحين')}</span>
+        <Link to={`/mom/entry/${juice.id}`} className="flex min-h-[44px] shrink-0 items-center gap-3 rounded-2xl bg-near-soft px-4 py-1.5 text-near">
+          <span className="text-xl">🧃</span>
+          <span className="flex-1 text-[15px] font-bold">{t('عصير {c}', { c: clock(Date.parse(juice.occurred_at)) })} · {juiceDue > now ? t('افحصيها بعد {m}', { m: left(juiceDue, now) }) : t('افحصيها الحين')}</span>
         </Link>
       )}
 
       {/* one main button: the next step of whatever is going on (kept at the bottom when the graph leaves room) */}
       <div className="mt-auto shrink-0">
-        {juice ? <Big className={big} onClick={ack}>✓ {t('فحصتها')}</Big>
-          : lowNow ? <Big tone="danger" className={big} onClick={() => nav('/mom/juice')}>🧃 {t('عطيتها عصير')}</Big>
-          : open ? <Big className={big} onClick={() => nav(open.eating_at ? `/mom/ate/${open.id}` : `/mom/given/${open.id}`)}>🍽️ {open.eating_at ? t('شكثر أكلت؟') : t('بدأت تاكل؟')}</Big>
-          : due ? <Big className={big} onClick={() => nav(`/mom/plan/${due.id}`)}>💉 {t('وقت {x}', { x: due.name })}</Big>
+        {juice ? <Big className={big} onClick={ack}><Lbl icon="✓" text={t('فحصتها')} /></Big>
+          : lowNow ? <Big tone="danger" className={big} onClick={() => nav('/mom/juice')}><Lbl icon="🧃" text={t('عطيتها عصير')} /></Big>
+          : open ? <Big className={big} onClick={() => nav(open.eating_at ? `/mom/ate/${open.id}` : `/mom/given/${open.id}`)}><Lbl icon="🍽️" text={open.eating_at ? t('شكثر أكلت؟') : t('بدأت تاكل؟')} /></Big>
+          : due ? <Big className={big} onClick={() => nav(`/mom/plan/${due.id}`)}><Lbl icon="💉" text={t('وقت {x}', { x: due.name })} wrap /></Big>
           : <div className="grid grid-cols-2 gap-2">
-              <Big className={big} onClick={() => build('now')}>🍽️ {t('أضيفي وجبة')}</Big>
-              <Big tone="soft" className={big} onClick={() => build('plan')}>📅 {t('خططي وجبة')}</Big>
+              <Big className={big} onClick={() => build('now')}><Lbl icon="🍽️" text={t('أضيفي وجبة')} /></Big>
+              <Big tone="soft" className={big} onClick={() => build('plan')}><Lbl icon="📅" text={t('خططي وجبة')} /></Big>
             </div>}
       </div>
-      {next && <Link to={`/mom/plan/${next.id}`} className="shrink-0 rounded-2xl bg-white px-4 py-2 text-[16px]">📅 <bdi>{next.name}</bdi> · {dayWord(Date.parse(next.dose_at))} 💉 {clock(Date.parse(next.dose_at))} ›</Link>}
+      {next && <Link to={`/mom/plan/${next.id}`} className="flex min-h-[44px] shrink-0 items-center rounded-2xl bg-white px-4 py-1.5 text-[15px]">📅 <bdi>{next.name}</bdi> · {dayWord(Date.parse(next.dose_at))} 💉 {clock(Date.parse(next.dose_at))} ›</Link>}
       <div className="grid shrink-0 grid-cols-3 gap-2">
-        {lowNow || juice ? <Big tone="ghost" className="min-h-[52px] text-[18px]" disabled={lowNow} onClick={() => build('now')}>🍽️ {t('وجبة')}</Big> : <Big tone="ghost" className="min-h-[52px] text-[18px]" onClick={() => nav('/mom/juice')}>🧃 {t('عصير')}</Big>}
-        <Big tone="ghost" className="min-h-[52px] text-[18px]" disabled={lowNow} onClick={() => nav('/mom/shot')}>💉 {t('إبرة')}</Big>
-        <Big tone="ghost" className="min-h-[52px] !px-2 text-[18px]" onClick={() => nav('/mom/prick')}>🩸 {t('وخز')}</Big>
+        {lowNow || juice ? <Big tone="ghost" className={small} disabled={lowNow} onClick={() => build('now')}><Lbl icon="🍽️" text={t('وجبة')} /></Big> : <Big tone="ghost" className={small} onClick={() => nav('/mom/juice')}><Lbl icon="🧃" text={t('عصير')} /></Big>}
+        <Big tone="ghost" className={small} disabled={lowNow} onClick={() => nav('/mom/shot')}><Lbl icon="💉" text={t('إبرة')} /></Big>
+        <Big tone="ghost" className={small} onClick={() => nav('/mom/prick')}><Lbl icon="🩸" text={t('وخز')} /></Big>
       </div>
+      {full && <GraphFull onClose={() => setFull(false)} s={s} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} />}
     </main>
+  );
+}
+
+/** Icon and word on one line, the icon in a fixed box so every button lines up. */
+function Lbl({ icon, text, wrap }: { icon: string; text: string; wrap?: boolean }) {
+  return (
+    <span className={cx('flex items-center justify-center gap-1.5', !wrap && 'whitespace-nowrap')}>
+      <span aria-hidden className="grid w-[1.25em] shrink-0 place-items-center leading-none">{icon}</span><span className={cx(wrap && 'line-clamp-2')}>{text}</span>
+    </span>
   );
 }
 
@@ -178,7 +214,7 @@ function LayanCorner({ face }: { face: LayanFace | null }) {
   useEffect(() => { for (const [w] of Object.values(FACE)) { const i = new Image(); i.src = w; } }, []); // all five ready, no flash on a change
   if (!face) return null;
   return (
-    <div aria-hidden className="pointer-events-none relative w-[clamp(60px,19vw,90px)] shrink-0 self-stretch">
+    <div aria-hidden className="pointer-events-none relative w-[clamp(56px,17vw,80px)] shrink-0 self-stretch">
       <picture key={face}>
         <source srcSet={FACE[face][0]} type="image/webp" />
         <img src={FACE[face][1]} alt="" draggable={false} className="layan-in absolute inset-x-0 -bottom-2.5 w-full select-none" style={{ transform: isEn() ? 'scaleX(-1)' : undefined }} />
@@ -223,7 +259,7 @@ function lane<T extends { t: number }>(items: T[], x: (t: number) => number, rig
 
 /** The 12-hour graph: simple-mode home and the share link. */
 export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, meals, treats, pricks, at, span = 12 }: { span?: number; at?: number | null; treats: number[]; pricks: number[]; aspect: number; s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: number[] }) {
-  const W = 340, PL = 6, PR = 30, PT = 30, HH = Math.max(180, Math.round(W * aspect)), PH = HH - PT - 64;
+  const W = 340, PL = 6, PR = 30, PT = 26, HH = Math.max(180, Math.round(W * aspect)), PH = HH - PT - 58;
   const t0 = now - span * H; // hours shown (12 at home)
   // the scale: a few fixed steps chosen by the highest reading in these hours (see bigGraphScale)
   let maxSeen: number | null = null;
@@ -266,7 +302,7 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
   };
   const end = () => setPick(null);
   const px = pick ? x(pick.t) : 0;
-  const rowFood = PT + PH + 13, rowCare = PT + PH + 34;
+  const rowFood = PT + PH + 12, rowCare = PT + PH + 31;
   const inView = (t: number) => t >= t0 && t <= now;
   const food = lane([...meals.filter(inView).map((t) => ({ t, treat: false })), ...treats.filter(inView).map((t) => ({ t, treat: true }))], x, W - PR);
   const care = lane([...shots.filter((e) => inView(e.t)), ...pricks.filter(inView).map((t) => ({ t, u: null, type: null }))] as { t: number; u: number | null; type: 'rapid' | 'long' | null }[], x, W - PR);
@@ -300,3 +336,56 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
     </svg>
   );
 }
+
+/** The graph, larger: full screen (landscape where the phone allows), 3, 6, 12 or 24 hours, touch to read a value.
+ *  The same graph and readings as home; Close or the phone's back button returns to home. */
+function GraphFull({ onClose, s: st, unit, low, high, band }: { onClose: () => void; s: Settings; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number] }) {
+  const { events, history } = useData();
+  const { g } = useGlucose();
+  const [hours, setHours] = useState(12);
+  const [series, setSeries] = useState<Series | null>(null);
+  const [now] = useState(Date.now());
+  const box = useRef<HTMLDivElement>(null);
+  const [aspect, setAspect] = useState(0.6);
+  useEffect(() => { void fetchSeries(now - 24 * H, now + 60000).then(setSeries).catch(() => undefined); }, [now]);
+  useEffect(() => {
+    const el = box.current; if (!el) return;
+    const ro = new ResizeObserver(() => { const r = el.getBoundingClientRect(); if (r.width > 0 && r.height > 0) setAspect(r.height / r.width); });
+    ro.observe(el); return () => ro.disconnect();
+  }, []);
+  const closeRef = useRef(onClose); closeRef.current = onClose;
+  useEffect(() => {
+    history_.pushState({ graph: true }, '');
+    const onPop = () => closeRef.current();
+    window.addEventListener('popstate', onPop);
+    const el = document.documentElement as HTMLElement & { requestFullscreen?: () => Promise<void> };
+    el.requestFullscreen?.().then(() => (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> })?.lock?.('landscape')).catch(() => { /* not available: the layout adapts */ });
+    return () => { window.removeEventListener('popstate', onPop); if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {}); };
+  }, []);
+  const merged = useMemo(() => {
+    if (!series) return null;
+    const lastT = series.t.length ? series.t[series.t.length - 1] : 0;
+    const r = (g?.readings ?? []).filter((x) => Date.parse(x.taken_at) > lastT + 60000);
+    return mergeSeries(series, r.map((x) => Date.parse(x.taken_at)), r.map((x) => x.mg_dl));
+  }, [series, g]);
+  return (
+    <div role="dialog" aria-modal="true" aria-label={t('السكر')} className="fixed inset-0 z-[70] flex flex-col bg-white px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-[calc(8px+env(safe-area-inset-top))]">
+      <div className="flex shrink-0 items-center gap-2 pb-2">
+        <div className="flex gap-1" role="radiogroup" aria-label={t('المدة')}>
+          {[3, 6, 12, 24].map((h) => (
+            <button key={h} role="radio" aria-checked={hours === h} onClick={() => setHours(h)} className={cx('min-h-[44px] min-w-[52px] rounded-full px-3 text-[15px] font-bold', hours === h ? 'bg-brand text-white' : 'bg-slate-100 text-slate-600')}>{t('{h} س', { h })}</button>
+          ))}
+        </div>
+        <button onClick={() => history_.back()} className="ms-auto min-h-[44px] rounded-full bg-slate-900 px-4 text-[16px] font-bold text-white">✕ {t('إغلاق')}</button>
+      </div>
+      <div ref={box} className="min-h-0 flex-1">
+        {merged && <BigGraph key={hours} span={hours} aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={band} alarmHigh={st.alert_high_mgdl ?? 240}
+          shots={events.filter((e) => e.kind === 'insulin' && !e.deleted_at && e.insulin_units).map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
+          meals={history.filter((h) => (h.total_carbs ?? 99) >= 5).map((h) => Date.parse(h.eaten_at))}
+          treats={events.filter((e) => e.kind === 'treatment' && !e.deleted_at).map((e) => Date.parse(e.occurred_at))}
+          pricks={events.filter((e) => e.kind === 'bg_check' && !e.deleted_at).map((e) => Date.parse(e.occurred_at))} />}
+      </div>
+    </div>
+  );
+}
+const history_ = window.history;

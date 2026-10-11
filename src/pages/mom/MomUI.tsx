@@ -3,6 +3,8 @@
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { asset, cx } from '../../components/ui';
+import { Icon } from '../../components/Icon';
+import type { IconName } from '../../icons/defs';
 import { formatGlucose } from '../../lib/glucose';
 import { relDay } from '../../lib/constants';
 import { isEn, locale, t } from '../../i18n';
@@ -63,8 +65,8 @@ export function Choice({ icon, label, sub, on, onClick, color, compact }: { icon
     </button>
   );
 }
-export function PenBar({ type }: { type: 'rapid' | 'long' }) {
-  return <span aria-hidden className="inline-block h-9 w-3 shrink-0 rounded-full" style={{ background: PEN[type] }} />;
+export function PenBar({ type, small }: { type: 'rapid' | 'long'; small?: boolean }) {
+  return <span aria-hidden className={cx('inline-block shrink-0 rounded-full', small ? 'h-6 w-2.5' : 'h-9 w-3')} style={{ background: PEN[type] }} />;
 }
 
 export const SITE_NAME: Record<InjectionSite, string> = {
@@ -165,3 +167,42 @@ export const sensorLeft = (leftMs: number) => {
   const d = Math.floor(leftMs / 86400000);
   return d >= 3 ? t('{n} أيام', { n: d }) : d === 2 ? t('يومين') : d === 1 ? t('يوم') : span(Math.max(1, Math.ceil(leftMs / 60000)));
 };
+
+// ── settings list (simple-mode More): grouped rows like iOS Settings, in the app's colours ──
+/** A small heading and one rounded group of rows with hairline separators. */
+export function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-1.5">
+      <h2 className="px-4 text-[13px] font-semibold text-slate-500">{title}</h2>
+      <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white">{children}</div>
+    </section>
+  );
+}
+
+/** An on/off switch, iOS style: the knob sits at the end when on (right in English, left in Arabic). */
+export function Switch({ on, label, onChange, disabled }: { on: boolean; label: string; onChange: (v: boolean) => void; disabled?: boolean }) {
+  return (
+    // the track is iOS-sized (51 × 31); the button around it is 44 tall so it is easy to tap
+    <button role="switch" aria-checked={on} aria-label={label} disabled={disabled} onClick={() => onChange(!on)} className="-my-[6.5px] shrink-0 py-[6.5px] disabled:opacity-40">
+      <span className={cx('relative block h-[31px] w-[51px] rounded-full transition-colors', on ? 'bg-brand' : 'bg-[#cfcbd8]')}>
+        <span className={cx('absolute top-[2px] h-[27px] w-[27px] rounded-full bg-white shadow transition-all', on ? 'end-[2px]' : 'start-[2px]')} />
+      </span>
+    </button>
+  );
+}
+
+/** One settings row: a tinted icon tile, the label with an optional second line, then a switch or a chevron. */
+export function SettingsRow({ icon, tint, label, sub, onClick, end, subTone }: { icon: IconName; tint: string; label: string; sub?: ReactNode; onClick?: () => void; end?: ReactNode; subTone?: 'warn' }) {
+  const body = (
+    <>
+      <span aria-hidden className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-lg text-white" style={{ background: tint }}><Icon name={icon} size={19} /></span>
+      <span className="min-w-0 flex-1 py-0.5">
+        <span className="block text-[17px] font-semibold leading-snug">{label}</span>
+        {sub && <span className={cx('block text-[13px] leading-snug', subTone === 'warn' ? 'text-over' : 'text-slate-500')}>{sub}</span>}
+      </span>
+      {end ?? (onClick && <span aria-hidden className="shrink-0 text-[22px] leading-none text-slate-300">{isEn() ? '›' : '‹'}</span>)}
+    </>
+  );
+  const cls = 'flex min-h-[52px] w-full items-center gap-3 px-4 py-2 text-start';
+  return onClick && !end ? <button onClick={onClick} className={cx(cls, 'active:bg-slate-50')}>{body}</button> : <div className={cls}>{body}</div>;
+}
