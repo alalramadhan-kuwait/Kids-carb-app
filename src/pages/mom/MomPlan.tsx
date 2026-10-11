@@ -14,7 +14,7 @@ import { fmt } from '../../lib/carbs';
 import { cx, inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import type { PlannedMeal, Product } from '../../lib/types';
-import { Big, Choice, MomPage, SITE_NAME, clock, dayWord, sensorLeft } from './MomUI';
+import { Big, Choice, MomPage, SITE_NAME, SettingsGroup, SettingsRow, Switch, clock, dayWord, sensorLeft } from './MomUI';
 import { setAlarmSound, testAlarm, useAlarmSound } from '../../components/Alarm';
 import { setKeepAwake, useKeepAwakePref } from '../../lib/keepAwake';
 import type { InjectionSite } from '../../lib/types';
@@ -157,20 +157,54 @@ export function MomMore() {
   const sensor = useSensor();
   const sound = useAlarmSound();
   const awake = useKeepAwakePref();
+  // icon tiles in the app's purples and blues (orange and red are kept for glucose and warnings)
+  const TINT = { alerts: '#5b4bd5', device: '#3f7fd0', plan: '#8b5cf6', app: '#8a84a0' };
   return (
     <MomPage title={t('المزيد')} back={null} tabs>
-      <Choice icon={sound ? '🔔' : '🔕'} label={t('صوت التنبيه')} sub={sound ? t('شغّال على هالتلفون · اضغطي للإطفاء') : t('طافي على هالتلفون · اضغطي للتشغيل')} on={sound}
-        onClick={() => { setAlarmSound(!sound); if (!sound) testAlarm('low'); }} />
-      <Choice icon={awake ? '☀️' : '🌙'} label={t('الشاشة تبقى شغّالة')} sub={awake ? t('شغّال · خلّي التلفون على الشاحن') : t('طافي · اضغطي للتشغيل')} on={awake} onClick={() => setKeepAwake(!awake)} />
-      <Choice icon="📡" label={t('الحساس')} onClick={() => nav('/mom/sensor')}
-        sub={sensor ? `${sensor.site ? t(SITE_NAME[sensor.site]) : t('وين؟')} · ${t('ينتهي بعد {x}', { x: sensorLeft(sensor.life.left) })}` : t('ما في حساس')} />
-      <Choice icon="📅" label={t('مخططة')} sub={n ? t('{n} معلّقة', { n }) : undefined} onClick={() => nav('/mom/plans')} />
-      <Choice icon="💉" label={t('أماكن الإبر')} onClick={() => nav('/mom/sites')} />
-      <Choice icon="🗑️" label={t('المحذوفة مؤخرًا')} onClick={() => nav('/mom/deleted')} />
-      <PhonePushChoice />
-      <Choice icon="📣" label={t('أخبرني لما يسجّل غيري')} onClick={() => nav('/mom/activity')} />
-      <Choice icon="🔓" label={t('الوضع الكامل')} onClick={() => { if (window.confirm(t('تفتحين الوضع الكامل؟'))) { setFullModeNow(true); nav('/'); } }} />
+      <div className="space-y-5 pb-2">
+        <SettingsGroup title={t('التنبيهات والإشعارات')}>
+          <SettingsRow icon="sound" tint={TINT.alerts} label={t('صوت التنبيه')} sub={t('على هالتلفون')}
+            end={<Switch on={sound} label={t('صوت التنبيه')} onChange={(v) => { setAlarmSound(v); if (v) testAlarm('low'); }} />} />
+          <PhonePushRow tint={TINT.alerts} />
+          <SettingsRow icon="family" tint={TINT.alerts} label={t('أخبرني لما يسجّل غيري')} onClick={() => nav('/mom/activity')} />
+        </SettingsGroup>
+        <SettingsGroup title={t('الجهاز والحساس')}>
+          <SettingsRow icon="sun" tint={TINT.device} label={t('الشاشة تبقى شغّالة')} sub={awake ? t('خلّي التلفون على الشاحن') : undefined}
+            end={<Switch on={awake} label={t('الشاشة تبقى شغّالة')} onChange={setKeepAwake} />} />
+          <SettingsRow icon="sensor" tint={TINT.device} label={t('الحساس')} onClick={() => nav('/mom/sensor')}
+            sub={sensor ? `${sensor.site ? t(SITE_NAME[sensor.site]) : t('وين؟')} · ${t('ينتهي بعد {x}', { x: sensorLeft(sensor.life.left) })}` : t('ما في حساس')}
+            subTone={sensor && sensor.life.state !== 'ok' ? 'warn' : undefined} />
+        </SettingsGroup>
+        <SettingsGroup title={t('التخطيط والسجلات')}>
+          <SettingsRow icon="calendar" tint={TINT.plan} label={t('مخططة')} sub={n ? t('{n} معلّقة', { n }) : undefined} onClick={() => nav('/mom/plans')} />
+          <SettingsRow icon="insulin" tint={TINT.plan} label={t('أماكن الإبر')} onClick={() => nav('/mom/sites')} />
+          <SettingsRow icon="trash" tint={TINT.plan} label={t('المحذوفة مؤخرًا')} onClick={() => nav('/mom/deleted')} />
+        </SettingsGroup>
+        <SettingsGroup title={t('إعدادات التطبيق')}>
+          <SettingsRow icon="unlock" tint={TINT.app} label={t('الوضع الكامل')} onClick={() => { if (window.confirm(t('تفتحين الوضع الكامل؟'))) { setFullModeNow(true); nav('/'); } }} />
+        </SettingsGroup>
+      </div>
     </MomPage>
+  );
+}
+
+/** This phone's notifications as a settings row: off → the switch turns them on (the phone asks for permission);
+ *  on → shown as on (turning them off is not offered here, as before); not possible yet → why, in the second line. */
+function PhonePushRow({ tint }: { tint: string }) {
+  const [ps, setPs] = useState<PushState | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { void pushState().then(setPs); }, []);
+  if (!ps) return null;
+  const on = async () => {
+    if (ps !== 'off' || busy) return;
+    setBusy(true);
+    try { setPs(await enablePush()); } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
+  };
+  const why = ps === 'needs_install' ? t('افتحي التطبيق من أيقونته على الشاشة الرئيسية أول') : ps === 'denied' ? t('مرفوضة: فعّليها من إعدادات التلفون ← الإشعارات ← ليان') : ps === 'unsupported' ? t('هالمتصفح ما يدعم الإشعارات') : undefined;
+  return (
+    <SettingsRow icon="bell" tint={tint} label={t('الإشعارات على هالتلفون')} sub={why} subTone={why ? 'warn' : undefined}
+      end={ps === 'on' ? <span className="shrink-0 text-[15px] font-semibold text-ok">✓ {t('شغّال')}</span>
+        : ps === 'off' ? <Switch on={false} disabled={busy} label={t('الإشعارات على هالتلفون')} onChange={() => void on()} /> : undefined} />
   );
 }
 
