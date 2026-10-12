@@ -1,6 +1,6 @@
 // Mom mode, building a meal from Layan's database: saved meals, recipes and products (grouped, with pictures), each
 // in one of its portions. Every choice is a full page; the meal being built is kept on the phone.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { compareOps, draftOps, saveMeal, useCompare, useDraft, usePortions, useSavedMeals } from '../../lib/mom';
@@ -50,7 +50,7 @@ export function useCatalog() {
   const carbParts = (rid: string) => (ingsByRecipe.get(rid) ?? []).filter((i) => i.role !== 'snack' && i.state !== 'raw' && (i.unit === 'g' || i.unit === 'ml'))
     .map((i) => ({ i, p: i.product_id ? products.find((x) => x.id === i.product_id) ?? null : null }))
     .filter((x): x is { i: Ingredient; p: Product } => !!x.p && x.p.approved && Number(x.p.carbs_per_100) >= 5 && !x.p.per_item)
-    .map(({ i, p }) => ({ product: p, name: p.name, cooked: i.state === 'cooked' }));
+    .map(({ i, p }) => ({ product: p, name: p.name, cooked: i.state === 'cooked', q: Number(i.quantity) }));
   /** A list row's carbs: the grams for the food's first portion (or a plate, an item, 100 g), and what that is. */
   const carbsLine = (kind: 'product' | 'recipe', id: string): { g: number; per: string } | null => {
     const p = firstPortion(kind, id);
@@ -68,6 +68,19 @@ export const pic = (x: Product | Recipe | null | undefined) => ({ path: x?.image
 
 const RECENT = 'mom-recent-v1';
 export const recent = (): { kind: 'product' | 'recipe'; id: string }[] => { try { return JSON.parse(localStorage.getItem(RECENT) ?? '[]'); } catch { return []; } };
+const LAST = 'mom-last-portion-v1';
+type Last = { portion_id: string | null; unit?: MomItem['unit']; amount?: number };
+/** The amount she last had of a food (a portion, or an amount in a unit), to suggest next time. */
+export const lastPortion = (kind: 'product' | 'recipe', id: string): Last | null => {
+  try { const all = JSON.parse(localStorage.getItem(LAST) ?? '{}') as Record<string, Last>; return all[`${kind}:${id}`] ?? null; } catch { return null; }
+};
+const rememberPortion = (it: MomItem) => {
+  try {
+    const all = JSON.parse(localStorage.getItem(LAST) ?? '{}') as Record<string, Last>;
+    all[`${it.kind}:${it.id}`] = it.portion_id ? { portion_id: it.portion_id } : { portion_id: null, unit: it.unit, amount: it.amount };
+    localStorage.setItem(LAST, JSON.stringify(all));
+  } catch { /* storage blocked */ }
+};
 export const remember = (x: { kind: 'product' | 'recipe'; id: string }) => {
   try { localStorage.setItem(RECENT, JSON.stringify([x, ...recent().filter((r) => !(r.kind === x.kind && r.id === x.id))].slice(0, 12))); } catch { /* blocked */ }
 };
@@ -369,10 +382,14 @@ export function MomGroup({ browse = false }: { browse?: boolean }) {
 /** One item: its picture and label facts, Dad's portions first, then a label serving or grams (a recipe: plates).
  *  Nothing preselected unless changing an item already on the plate. */
 export function MomPortion() {
-  const nav = useNavigate();
   const { kind, id } = useParams() as { kind: 'product' | 'recipe'; id: string };
   const [sp] = useSearchParams();
-  const k = sp.get('k');
+  // a fresh page for each food (and each item changed): a choice never carries over to another food
+  return <PortionPage key={`${kind}:${id}:${sp.get('k') ?? ''}`} kind={kind} id={id} k={sp.get('k')} />;
+}
+
+function PortionPage({ kind, id, k }: { kind: 'product' | 'recipe'; id: string; k: string | null }) {
+  const nav = useNavigate();
   const d = useDraft();
   const { c, itemCarbs, recipeGi, carbParts, nameOf, photoOf } = useCatalog();
   const rGi = kind === 'recipe' ? recipeGi(id) : null;
@@ -384,12 +401,13 @@ export function MomPortion() {
   const packIsServing = !!prod && !prod.per_item && !!ss && Number(prod.pack_size) === ss;
   const gUnit = prod?.unit === 'ml' ? t('مل') : t('غرام');
   const cur = k !== null ? d.items[Number(k)] ?? null : null;
-  // the choice: one of Dad's portions, or 'serving' / 'g' / 'plate' with an amount
   const each = !!prod?.per_item; // sold by the item: a count, never grams
-  const [sel, setSel] = useState<string | null>(cur ? cur.portion_id ?? cur.unit ?? null : each ? 'serving' : null);
-  const [amt, setAmt] = useState<number | null>(cur && !cur.portion_id ? cur.amount ?? null : each ? 1 : null);
+  // the choice: one of Dad's portions, or 'serving' / 'g' / 'plate' / 'cup' with an amount. Nothing is chosen for
+  // her: a new food starts empty (her last amount is only suggested); changing one starts from what it was
+  const [sel, setSel] = useState<string | null>(cur ? cur.portion_id ?? cur.unit ?? null : null);
+  const [amt, setAmt] = useState<number | null>(cur && !cur.portion_id ? cur.amount ?? null : null);
+  const [more, setMore] = useState(false);
   const free = sel === 'serving' || sel === 'g' || sel === 'plate' || sel === 'cup';
-  const showAmt = free && !(sel === 'g' && pack !== null && amt === pack);
   const item: MomItem | null = !sel ? null : free ? (amt && amt > 0 ? { kind, id, portion_id: null, amount: amt, unit: sel as 'serving' | 'g' | 'plate' | 'cup' } : null) : { kind, id, portion_id: sel };
   const g = item ? itemCarbs(item) : null;
   const x = photoOf({ kind, id });
@@ -398,6 +416,7 @@ export function MomPortion() {
     if (!item || g === null) return;
     if (k !== null) draftOps.replace(Number(k), item); else draftOps.add(item);
     remember({ kind, id });
+    rememberPortion(item);
     nav('/mom/meal', { replace: true });
   };
   const carbsText = (v: number | null) => (v === null ? '' : v < 1 ? t('بدون كارب') : `${fmt(v)} ${t('غرام كارب')}`);
@@ -405,57 +424,93 @@ export function MomPortion() {
   // a home dish can be weighed: carbs for 100 g of what is in the pot; what is served on the side is added apart
   const plate = !prod ? itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'plate' }) : null;
   const per100 = !prod ? itemCarbs({ kind, id, portion_id: null, amount: 100, unit: 'g' }) : null;
+  const per100p = prod && !each ? itemCarbs({ kind, id, portion_id: null, amount: 100, unit: 'g' }) : null;
+  const serving = prod && ss ? itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'serving' }) : null;
   const rec = !prod ? c.recipes.find((r) => r.id === id) ?? null : null;
   const pot = rec ? recipePot(rec, c.ingsByRecipe.get(rec.id) ?? [], c.products) : null;
-  const cups = pot?.cups ?? null;
+  // one cup only: Dad's own cup portion, when he made one, rather than the estimate
+  const dadCup = mine.some((p) => /كوب|cup/i.test(p.label)); // i18n-ok: matches Dad's portion names
+  const cups = dadCup ? null : pot?.cups ?? null;
   const cup = cups ? itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'cup' }) : null;
-  // a part that holds the carbs (the rice of a machboos) can be weighed on its own when it is weighed cooked or as is
+  // the parts that hold the carbs (the rice of a machboos), offered when they hold most of the dish's carbs
   const parts = rec ? carbParts(rec.id) : [];
+  const partsCarbs = parts.reduce((a, p) => a + (itemCarbs({ kind: 'product', id: p.product.id, portion_id: null, amount: p.q, unit: 'g', ...(p.cooked ? { cooked: true } : {}) }) ?? 0), 0);
+  const partsOk = parts.length > 0 && plate !== null && plate > 0 && partsCarbs / plate >= 0.6;
   const sides = !prod ? (c.ingsByRecipe.get(id) ?? []).filter((i) => i.on_side).map((i) => tMaybe(i.label ?? c.products.find((p) => p.id === i.product_id)?.name ?? '')).filter(Boolean) : [];
+
+  // every way to say how much, each with its carbs
+  type Opt = { key: string; sel: string; amount: number | null; icon: ReactNode; label: string; sub: string; dad: boolean; go?: () => void };
+  const approx = (on: boolean | undefined) => (on ? ` · ${t('تقريبي')}` : '');
+  const opts: Opt[] = [
+    ...mine.map((p) => ({ key: 'p:' + p.id, sel: p.id, amount: null, icon: p.photo_path ? <Photo path={p.photo_path} className="h-9 w-9" /> : '⭐', label: tMaybe(p.label), sub: carbsText(itemCarbs({ kind, id, portion_id: p.id })), dad: true })),
+    ...(prod && ss ? [{ key: 'serving', sel: 'serving', amount: 1, icon: each ? '🔢' : packIsServing ? '📦' : '🥄', label: each ? t('بالعدد') : packIsServing ? t('بالعلبة') : t('بالحصة'),
+      sub: each ? t('الحبة = {g}', { g: carbsText(serving) }) : packIsServing ? t('العلبة = {s} {u} · {g}', { s: fmt(ss), u: gUnit, g: carbsText(serving) }) : t('حصة = {s} {u} · {g}', { s: fmt(ss), u: gUnit, g: carbsText(serving) }), dad: false }] : []),
+    ...(prod && pack && !each ? [{ key: 'pack', sel: 'g', amount: pack, icon: '📦', label: t('العلبة كاملة'), sub: `${fmt(pack)} ${gUnit} · ${carbsText(itemCarbs({ kind, id, portion_id: null, amount: pack, unit: 'g' }))}`, dad: false }] : []),
+    ...(prod && !each ? [{ key: 'g', sel: 'g', amount: ss, icon: '⚖️', label: prod.unit === 'ml' ? t('بالمل') : t('بالغرام'), sub: t('كل 100 {u} = {g}', { u: gUnit, g: carbsText(per100p) }), dad: false }] : []),
+    ...(!prod && cup !== null ? [{ key: 'cup', sel: 'cup', amount: 0.5, icon: '🥣', label: t('بالكوب'), sub: t('الكوب = {g}', { g: carbsText(cup) }) + approx(pot?.cupsApprox), dad: false }] : []),
+    ...(!prod && per100 !== null ? [{ key: 'g', sel: 'g', amount: null, icon: '⚖️', label: t('وزنتها بالميزان'), sub: t('كل 100 غرام = {g}', { g: carbsText(per100) }) + approx(pot?.gApprox), dad: false }] : []),
+    ...(!prod && partsOk ? [{ key: 'parts', sel: '', amount: null, icon: '🍚', label: t('وزنت اللي فيه كارب بروحه'), sub: parts.map((p) => shownName(p.product)).join(' · '), dad: false,
+      go: () => nav(`/mom/parts/${id}${k !== null ? `?k=${k}` : ''}`, { replace: true }) }] : []),
+    ...(!prod && plate !== null ? [{ key: 'plate', sel: 'plate', amount: 1, icon: '🍽️', label: t('بالصحون'), sub: t('الصحن = {g}', { g: carbsText(plate) }), dad: false }] : []),
+  ];
+  const isOn = (o: Opt) => !!sel && o.sel === sel && (o.key === 'pack' ? amt === pack : o.key === 'g' && pack !== null ? amt !== pack : true);
+  // her last amount for this food, shown first and marked — never chosen for her
+  const last = k === null ? lastPortion(kind, id) : null;
+  const lastOpt = last ? opts.find((o) => (last.portion_id ? o.key === 'p:' + last.portion_id : last.unit === 'g' && pack !== null && last.amount === pack ? o.key === 'pack' : o.sel === last.unit && o.key !== 'pack')) ?? null : null;
+  const lastAmount = lastOpt && !last?.portion_id && lastOpt.key !== 'pack' ? last?.amount ?? null : null;
+  const lastCarbs = last ? itemCarbs({ kind, id, portion_id: last.portion_id ?? null, ...(last.portion_id ? {} : { amount: last.amount, unit: last.unit }) } as MomItem) : null;
+  const dadOpts = opts.filter((o) => o.dad && o !== lastOpt), otherOpts = opts.filter((o) => !o.dad && o !== lastOpt);
+  const showOthers = more || !dadOpts.length || otherOpts.some(isOn);
+  const unitWord = sel === 'g' ? gUnit : sel === 'serving' ? (each ? t('حبة') : packIsServing ? t('علبة') : t('حصة')) : sel === 'cup' ? t('كوب') : t('صحن');
+  const amountEditor = (
+    <div className="flex items-center justify-center gap-3 rounded-2xl bg-white py-2">
+      <button aria-label="+" className="grid h-12 w-12 place-items-center rounded-full bg-brand-soft text-2xl font-bold text-brand" onClick={() => setAmt(Math.round(((amt ?? 0) + step) * 10) / 10)}>+</button>
+      {sel === 'g'
+        ? <input inputMode="decimal" dir="ltr" autoFocus={amt === null} className={cx(inputCls, '!w-28 !text-center !text-[26px] font-bold')} value={amt ?? ''} onChange={(e) => { const v = Number(e.target.value.replace(',', '.')); setAmt(e.target.value === '' || !Number.isFinite(v) ? null : v); }} />
+        : <span className="num w-20 text-center text-[34px] font-extrabold">{amt === null ? '—' : fmt(amt)}</span>}
+      <button aria-label="−" className="grid h-12 w-12 place-items-center rounded-full bg-brand-soft text-2xl font-bold text-brand" onClick={() => setAmt(Math.max(0, Math.round(((amt ?? 0) - step) * 10) / 10))}>−</button>
+      <span className="text-[16px] text-slate-500">{unitWord}</span>
+    </div>
+  );
+  const render = (o: Opt, mark?: boolean) => {
+    const on = !o.go && isOn(o);
+    const editing = on && free && o.key !== 'pack';
+    return (
+      <div key={o.key + (mark ? '-last' : '')} className="space-y-2">
+        <Choice icon={o.icon} on={on} onClick={() => (o.go ? o.go() : pick(o.sel, mark && lastAmount !== null ? lastAmount : on ? amt : o.amount))}
+          label={mark ? <>{o.label}{lastAmount !== null && ` · ${fmt(lastAmount)} ${o.sel === 'g' ? gUnit : o.sel === 'cup' ? t('كوب') : o.sel === 'plate' ? t('صحن') : ''}`}</> : o.label}
+          sub={mark ? <><span className="me-1 rounded-full bg-near-soft px-2 py-0.5 text-[12px] font-bold text-near">{t('آخر مرة')}</span>{carbsText(lastCarbs)}</> : o.sub} />
+        {editing && amountEditor}
+      </div>
+    );
+  };
   return (
     <MomPage title={nameOf({ kind, id })} foot={<>
-      {item && g !== null && <div className="text-center text-[18px] font-bold text-brand">{carbsText(g)}</div>}
-      <Big disabled={!item || g === null} onClick={done}>{k !== null ? t('تم') : t('إضافة')}</Big>
+      {/* the carbs of what is chosen, always in view; nothing to add until she chooses */}
+      <div className="text-center">{item && g !== null ? <span className="text-[22px] font-bold text-brand"><span className="num">{fmt(g)}</span> {t('غرام كارب')}</span> : <span className="text-[16px] text-slate-500">{t('اختاري الكمية')}</span>}</div>
+      <Big className="!min-h-[56px] !text-[18px]" disabled={!item || g === null} onClick={done}>{k !== null ? t('تم') : t('إضافة')}</Big>
     </>}>
-      <div className="flex items-center gap-3 rounded-3xl bg-white p-3">
-        <Photo {...pic(x)} className="h-24 w-24 shrink-0 rounded-2xl" />
+      <div className="flex items-center gap-3 rounded-2xl bg-white p-2.5">
+        <Photo {...pic(x)} className="h-16 w-16 shrink-0 rounded-xl" />
         {prod ? (
-          <div className="space-y-0.5 text-[16px]">
+          <div className="min-w-0 space-y-0.5 text-[15px]">
             {each ? <div><b className="num">{fmt(Number(prod.carbs_per_100))}</b> {t('غرام كارب بالحبة')}</div> : <div><b className="num">{fmt(Number(prod.carbs_per_100))}</b> {t('غرام كارب بكل 100 {u}', { u: gUnit })}</div>}
-            {ss && !each && <div className="text-slate-600">{t('الحصة {s} {u} = {g}', { s: fmt(ss), u: gUnit, g: carbsText(itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'serving' })) })}</div>}
-            {prod.brand && <div className="text-sm text-slate-500"><bdi>{prod.brand}</bdi></div>}
-            <GiBadge food={prod} big />
+            {prod.brand && <div className="text-[13px] text-slate-500"><bdi>{prod.brand}</bdi></div>}
+            <GiBadge food={prod} />
           </div>
-        ) : <div className="space-y-0.5 text-[16px]">
-          {per100 !== null && <div>{t('كل 100 غرام = {g}', { g: carbsText(per100) })}</div>}
-          {plate !== null && <div className={per100 !== null ? 'text-slate-600' : ''}>{t('الصحن الواحد = {g}', { g: carbsText(plate) })}</div>}
-          {rGi && <GiBadge food={{ gi: rGi.gi, gi_match: rGi.approx ? 'similar' : 'exact' }} big />}
+        ) : <div className="min-w-0 space-y-0.5 text-[15px]">
+          {plate !== null && <div>{t('الصحن الواحد = {g}', { g: carbsText(plate) })}</div>}
+          {rGi && <GiBadge food={{ gi: rGi.gi, gi_match: rGi.approx ? 'similar' : 'exact' }} />}
         </div>}
       </div>
-      <h2 className="text-[18px] font-bold">{t('كم؟')}</h2>
-      {mine.map((p) => <Choice key={p.id} icon={p.photo_path ? <Photo path={p.photo_path} className="h-11 w-11" /> : '⭐'} label={tMaybe(p.label)} sub={carbsText(itemCarbs({ kind, id, portion_id: p.id }))} on={sel === p.id} onClick={() => pick(p.id, null)} />)}
-      {prod && ss && <Choice icon={each ? '🔢' : packIsServing ? '📦' : '🥄'} label={each ? t('بالعدد') : packIsServing ? t('بالعلبة') : t('بالحصة')}
-        sub={each ? undefined : packIsServing ? t('العلبة = {s} {u} · {g}', { s: fmt(ss), u: gUnit, g: carbsText(itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'serving' })) }) : t('حصة = {s} {u}', { s: fmt(ss), u: gUnit })}
-        on={sel === 'serving'} onClick={() => pick('serving', sel === 'serving' ? amt : 1)} />}
-      {prod && pack && !each && <Choice icon="📦" label={t('العلبة كاملة')} sub={`${fmt(pack)} ${gUnit} · ${carbsText(itemCarbs({ kind, id, portion_id: null, amount: pack, unit: 'g' }))}`} on={sel === 'g' && amt === pack} onClick={() => pick('g', pack)} />}
-      {prod && !each && <Choice icon="⚖️" label={prod.unit === 'ml' ? t('بالمل') : t('بالغرام')} on={sel === 'g' && amt !== pack} onClick={() => pick('g', sel === 'g' && amt !== pack ? amt : ss ?? null)} />}
-      {!prod && cup !== null && <Choice icon="🥣" label={t('بالكوب')} sub={`${t('الكوب = {g}', { g: carbsText(cup) })}${pot?.cupsApprox ? ` · ${t('تقريبي')}` : ''}`} on={sel === 'cup'} onClick={() => pick('cup', sel === 'cup' ? amt : 0.5)} />}
-      {!prod && per100 !== null && <Choice icon="⚖️" label={t('وزنتها بالميزان')} sub={`${t('اكتبي الرقم اللي طلع')}${pot?.gApprox ? ` · ${t('تقريبي')}` : ''}`} on={sel === 'g'} onClick={() => pick('g', sel === 'g' ? amt : null)} />}
-      {!prod && parts.length > 0 && <Choice icon="🍚" label={t('وزنت اللي فيه كارب بروحه')} sub={parts.map((x) => shownName(x.product)).join(' · ')} onClick={() => nav(`/mom/parts/${id}${k !== null ? `?k=${k}` : ''}`, { replace: true })} />}
-      {!prod && (sel === 'cup' || sel === 'g') && (pot?.cupsApprox || pot?.gApprox) && <p className="text-center text-[14px] text-slate-500">{t('تقريبي: من مقادير الوصفة. للدقة بابا يقيس القدر مرة وحدة.')}</p>}
-      {!prod && <Choice icon="🍽️" label={t('بالصحون')} on={sel === 'plate'} onClick={() => pick('plate', sel === 'plate' ? amt : 1)} />}
-      {showAmt && (
-        <div className="flex items-center justify-center gap-4">
-          <button aria-label="+" className="grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => setAmt(Math.round(((amt ?? 0) + step) * 10) / 10)}>+</button>
-          {sel === 'g'
-            ? <input inputMode="decimal" dir="ltr" className={cx(inputCls, '!w-28 !text-center !text-[28px] font-bold')} value={amt ?? ''} onChange={(e) => { const v = Number(e.target.value.replace(',', '.')); setAmt(e.target.value === '' || !Number.isFinite(v) ? null : v); }} />
-            : <span className="num w-24 text-center text-[40px] font-extrabold">{amt === null ? '—' : fmt(amt)}</span>}
-          <button aria-label="−" className="grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => setAmt(Math.max(0, Math.round(((amt ?? 0) - step) * 10) / 10))}>−</button>
-          <span className="text-[18px] text-slate-500">{sel === 'g' ? gUnit : sel === 'serving' ? (each ? t('حبة') : packIsServing ? t('علبة') : t('حصة')) : sel === 'cup' ? t('كوب') : t('صحن')}</span>
-        </div>
-      )}
-      {sel === 'g' && <p className="rounded-2xl bg-brand-soft px-4 py-3 text-[16px] leading-relaxed text-brand">⚖️ {t('حطي الصحن فاضي على الميزان واضغطي ON لين يصير 0، بعدين حطي الأكل.')}</p>}
-      {sel === 'g' && sides.length > 0 && <p className="text-center text-[15px] text-slate-600">{t('{x} على الجنب: إذا أكلته أضيفيه بروحه', { x: sides.join(' · ') })}</p>}
+      <h2 className="text-[17px] font-bold">{t('كم أكلت؟')}</h2>
+      {lastOpt && render(lastOpt, true)}
+      {dadOpts.map((o) => render(o))}
+      {otherOpts.length > 0 && (showOthers ? otherOpts.map((o) => render(o))
+        : <button className="min-h-[48px] rounded-2xl border border-dashed border-slate-300 text-[16px] font-bold text-brand" onClick={() => setMore(true)}>{t('كمية ثانية')} ▾</button>)}
+      {(sel === 'cup' || (sel === 'g' && !prod)) && (pot?.cupsApprox || pot?.gApprox) && <p className="text-center text-[13px] text-slate-500">{t('تقريبي: من مقادير الوصفة. للدقة بابا يقيس القدر مرة وحدة.')}</p>}
+      {sel === 'g' && <p className="rounded-2xl bg-brand-soft px-4 py-2.5 text-[15px] leading-relaxed text-brand">⚖️ {t('حطي الصحن فاضي على الميزان واضغطي ON لين يصير 0، بعدين حطي الأكل.')}</p>}
+      {sel === 'g' && sides.length > 0 && <p className="text-center text-[14px] text-slate-600">{t('{x} على الجنب: إذا أكلته أضيفيه بروحه', { x: sides.join(' · ') })}</p>}
       {k !== null && <button className="min-h-[44px] font-bold text-over" onClick={() => { draftOps.remove(Number(k)); nav('/mom/meal', { replace: true }); }}>{t('شيليه من الصحن')}</button>}
     </MomPage>
   );

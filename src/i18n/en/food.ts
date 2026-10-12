@@ -1489,4 +1489,11 @@ export const food: Record<string, string> = {
   "مجموع الكارب": "Total carbs",
   "إضافة أكل ثاني": "Add another food",
   "ابحثي: رز، هريس، توست، ماكدونالدز…": "Search: rice, harees, toast, McDonald's…",
+  "الحبة = {g}": "Each = {g}",
+  "حصة = {s} {u} · {g}": "Serving = {s} {u} · {g}",
+  "كل 100 {u} = {g}": "Each 100 {u} = {g}",
+  "الصحن = {g}": "A plate = {g}",
+  "آخر مرة": "Last time",
+  "اختاري الكمية": "Choose how much",
+  "كمية ثانية": "Another amount",
 };
