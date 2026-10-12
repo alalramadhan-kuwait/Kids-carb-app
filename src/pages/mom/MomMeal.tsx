@@ -14,7 +14,7 @@ import { Photo, asset, cx, inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import { RESTAURANTS, cupsOf, menuOf, restaurantByKey, restaurantOf, type Restaurant } from '../../lib/restaurants';
 import { foodName, untranslated, type Named } from '../../lib/foodName';
-import { Big, Choice, MomPage } from './MomUI';
+import { Big, Choice, MomPage, okToReplace } from './MomUI';
 import type { HistoryEntry, Ingredient, PlanItem, Product, Recipe } from '../../lib/types';
 import { productOf } from '../../lib/mealItems';
 import { reusable } from '../../lib/entryActions';
@@ -122,7 +122,12 @@ export function MomMeal() {
   // nothing on the plate yet: straight to the search (the summary appears with the first food)
   if (!d.items.length) return <Navigate to="/mom/add" replace />;
   return (
-    <MomPage compact title={d.name ?? title} back="/mom" foot={<Big md disabled={total === null} onClick={() => nav(d.mode === 'plan' ? '/mom/when' : '/mom/dose')}>{d.mode === 'plan' ? `${t('التالي')} · 🕐 ${t('متى؟')}` : t('التالي')}</Big>}>
+    <MomPage compact title={d.name ?? title} back="/mom" foot={<>
+      {/* the total and both buttons stay in view however long the list (a small phone with 8 foods) */}
+      <div className="flex items-baseline justify-between px-1"><span className="text-[15px] text-slate-500">{t('مجموع الكارب')}</span><b className="num text-[26px] leading-none text-slate-900">{total === null ? '—' : `${gramsText(total)} ${t('غ')}`}</b></div>
+      <Big tone="soft" className="!min-h-[48px] !text-[17px]" onClick={() => nav('/mom/add')}>+ {t('إضافة أكل ثاني')}</Big>
+      <Big md disabled={total === null} onClick={() => nav(d.mode === 'plan' ? '/mom/when' : '/mom/dose')}>{d.mode === 'plan' ? `${t('التالي')} · 🕐 ${t('متى؟')}` : t('التالي')}</Big>
+    </>}>
       <ul className="divide-y divide-slate-100 rounded-3xl border border-slate-100 bg-white px-3">
         {d.items.map((it, k) => {
           const g = itemCarbs(it), p = photoOf(it);
@@ -132,7 +137,7 @@ export function MomMeal() {
               <button onClick={() => nav(`/mom/item/${it.kind}/${it.id}?k=${k}`)} className="flex min-w-0 flex-1 items-center gap-3 text-start">
                 <Photo {...pic(p)} className="h-12 w-12 shrink-0 rounded-xl" />
                 <span className="min-w-0 flex-1"><b className="block text-[16px] leading-snug"><bdi>{nameOf(it)}</bdi></b><span className="text-[13px] text-slate-500"><bdi>{portionLabel(it)}</bdi> · <span className="text-brand">{t('تعديل')}</span></span></span>
-                <span className="shrink-0 text-[16px] font-bold">{g === null ? '—' : g < 1 ? <span className="font-normal text-slate-500">{t('بدون كارب')}</span> : <><span className="num">{fmt(g)}</span> <span className="text-[13px] font-normal text-slate-500">{t('غ')}</span></>}</span>
+                <span className="shrink-0 text-[16px] font-bold">{g === null ? '—' : g === 0 ? <span className="font-normal text-slate-500">{t('بدون كارب')}</span> : <><span className="num">{gramsText(g)}</span> <span className="text-[13px] font-normal text-slate-500">{t('غ')}</span></>}</span>
               </button>
               <button aria-label={t('شيليه من الصحن')} onClick={() => draftOps.remove(k)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[20px] text-slate-400 active:bg-slate-100">✕</button>
             </li>
@@ -140,9 +145,7 @@ export function MomMeal() {
         })}
       </ul>
       <Left />
-      <div className="flex items-baseline justify-between rounded-2xl bg-white px-4 py-3"><span className="text-[16px] text-slate-500">{t('مجموع الكارب')}</span><b className="num text-[26px] text-slate-900">{total === null ? '—' : `${fmt(total)} ${t('غ')}`}</b></div>
       {total !== null && <MealGiLine m={mealGiOf(d.items)} big />}
-      <Big tone="soft" md onClick={() => nav('/mom/add')}>+ {t('إضافة أكل ثاني')}</Big>
       {!sameAsSaved && d.items.length > 1 && (naming ? (
         <div className="flex gap-2">
           <input className={inputCls} dir="auto" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('اسم الوجبة')} maxLength={40} autoFocus />
@@ -166,13 +169,16 @@ export function FoodRow({ x, icon, title, sub, carbs, per, onClick }: { x?: Prod
       </span>
       {carbs !== null && (
         <span className="max-w-[38%] shrink-0 text-end leading-tight">
-          <span className="block whitespace-nowrap text-[16px] font-bold text-brand"><span className="num">{fmt(carbs)}</span> {t('غ')}</span>
+          <span className="block whitespace-nowrap text-[16px] font-bold text-brand"><span className="num">{gramsText(carbs)}</span> {t('غ')}</span>
           {per && <span className="block text-[12px] text-slate-500"><bdi>{per}</bdi></span>}
         </span>
       )}
     </button>
   );
 }
+
+/** Grams of carbs as shown: one decimal; a little more than nothing is «‎<0.1», never 0 (0 is only for none at all). */
+export const gramsText = (g: number) => (g > 0 && g < 0.05 ? '<0.1' : fmt(g));
 
 /** A food's name in the app's language (its curated Arabic or English name), else as entered. */
 export const shownName = (x: Named) => (untranslated(x) ? tMaybe(x.name) : foodName(x));
@@ -445,7 +451,7 @@ function PortionPage({ kind, id, k }: { kind: 'product' | 'recipe'; id: string; 
     rememberPortion(item);
     nav('/mom/meal', { replace: true });
   };
-  const carbsText = (v: number | null) => (v === null ? '' : v < 1 ? t('بدون كارب') : `${fmt(v)} ${t('غرام كارب')}`);
+  const carbsText = (v: number | null) => (v === null ? '' : v === 0 ? t('بدون كارب') : `${gramsText(v)} ${t('غرام كارب')}`);
   const step = sel === 'g' ? (ss && ss < 40 ? 5 : 10) : 0.5;
   // a home dish can be weighed: carbs for 100 g of what is in the pot; what is served on the side is added apart
   const plate = !prod ? itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'plate' }) : null;
@@ -467,19 +473,26 @@ function PortionPage({ kind, id, k }: { kind: 'product' | 'recipe'; id: string; 
   // every way to say how much, each with its carbs
   type Opt = { key: string; sel: string; amount: number | null; icon: ReactNode; label: string; sub: string; dad: boolean; go?: () => void };
   const approx = (on: boolean | undefined) => (on ? ` · ${t('تقريبي')}` : '');
+  // Dad's portions say it best: a ready-made amount with the same carbs as one of them is not offered again, and a
+  // way to count (servings, plates, cups) that starts where one of his portions is says it is for another number
+  const dadCarbs = mine.map((p) => itemCarbs({ kind, id, portion_id: p.id }));
+  const likeDad = (v: number | null) => v !== null && dadCarbs.some((d) => d !== null && Math.abs(d - v) < 0.05);
+  const packCarbs = prod && pack ? itemCarbs({ kind, id, portion_id: null, amount: pack, unit: 'g' }) : null;
   const opts: Opt[] = [
     ...mine.map((p) => ({ key: 'p:' + p.id, sel: p.id, amount: null, icon: p.photo_path ? <Photo path={p.photo_path} className="h-9 w-9" /> : '⭐', label: tMaybe(p.label), sub: carbsText(itemCarbs({ kind, id, portion_id: p.id })), dad: true })),
-    ...(prod && ss ? [{ key: 'serving', sel: 'serving', amount: 1, icon: each ? '🔢' : packIsServing ? '📦' : '🥄', label: each ? t('بالعدد') : packIsServing ? t('بالعلبة') : t('بالحصة'),
+    ...(prod && ss ? [{ key: 'serving', sel: 'serving', amount: 1, icon: each ? '🔢' : packIsServing ? '📦' : '🥄',
+      label: likeDad(serving) ? (each ? t('عدد ثاني من الحبات') : packIsServing ? t('عدد ثاني من العلب') : t('عدد ثاني من الحصص')) : each ? t('بالعدد') : packIsServing ? t('بالعلبة') : t('بالحصة'),
       sub: each ? t('الحبة = {g}', { g: carbsText(serving) }) : packIsServing ? t('العلبة = {s} {u} · {g}', { s: fmt(ss), u: gUnit, g: carbsText(serving) }) : t('حصة = {s} {u} · {g}', { s: fmt(ss), u: gUnit, g: carbsText(serving) }), dad: false }] : []),
-    ...(prod && pack && !each ? [{ key: 'pack', sel: 'g', amount: pack, icon: '📦', label: t('العلبة كاملة'), sub: `${fmt(pack)} ${gUnit} · ${carbsText(itemCarbs({ kind, id, portion_id: null, amount: pack, unit: 'g' }))}`, dad: false }] : []),
-    ...(prod && !each ? [{ key: 'g', sel: 'g', amount: ss, icon: '⚖️', label: prod.unit === 'ml' ? t('بالمل') : t('بالغرام'), sub: t('كل 100 {u} = {g}', { u: gUnit, g: carbsText(per100p) }), dad: false }] : []),
-    ...(!prod && cup !== null ? [{ key: 'cup', sel: 'cup', amount: 0.5, icon: '🥣', label: t('بالكوب'), sub: t('الكوب = {g}', { g: carbsText(cup) }) + approx(pot?.cupsApprox), dad: false }] : []),
+    ...(prod && pack && !each && !likeDad(packCarbs) ? [{ key: 'pack', sel: 'g', amount: pack, icon: '📦', label: t('العلبة كاملة'), sub: `${fmt(pack)} ${gUnit} · ${carbsText(itemCarbs({ kind, id, portion_id: null, amount: pack, unit: 'g' }))}`, dad: false }] : []),
+    ...(prod && !each ? [{ key: 'g', sel: 'g', amount: null, icon: '⚖️', label: prod.unit === 'ml' ? t('بالمل') : t('بالغرام'), sub: t('كل 100 {u} = {g}', { u: gUnit, g: carbsText(per100p) }), dad: false }] : []),
+    ...(!prod && cup !== null ? [{ key: 'cup', sel: 'cup', amount: 0.5, icon: '🥣', label: likeDad(cup) ? t('عدد ثاني من الأكواب') : t('بالكوب'), sub: t('الكوب = {g}', { g: carbsText(cup) }) + approx(pot?.cupsApprox), dad: false }] : []),
     ...(!prod && per100 !== null ? [{ key: 'g', sel: 'g', amount: null, icon: '⚖️', label: t('وزنتها بالميزان'), sub: t('كل 100 غرام = {g}', { g: carbsText(per100) }) + approx(pot?.gApprox), dad: false }] : []),
     ...(!prod && partsOk ? [{ key: 'parts', sel: '', amount: null, icon: '🍚', label: t('وزنت اللي فيه كارب بروحه'), sub: parts.map((p) => shownName(p.product)).join(' · '), dad: false,
       go: () => nav(`/mom/parts/${id}${k !== null ? `?k=${k}` : ''}`, { replace: true }) }] : []),
-    ...(!prod && plate !== null ? [{ key: 'plate', sel: 'plate', amount: 1, icon: '🍽️', label: t('بالصحون'), sub: t('الصحن = {g}', { g: carbsText(plate) }), dad: false }] : []),
+    ...(!prod && plate !== null ? [{ key: 'plate', sel: 'plate', amount: 1, icon: '🍽️', label: likeDad(plate) ? t('عدد ثاني من الصحون') : t('بالصحون'), sub: t('الصحن = {g}', { g: carbsText(plate) }), dad: false }] : []),
   ];
-  const isOn = (o: Opt) => !!sel && o.sel === sel && (o.key === 'pack' ? amt === pack : o.key === 'g' && pack !== null ? amt !== pack : true);
+  const packShown = opts.some((o) => o.key === 'pack');
+  const isOn = (o: Opt) => !!sel && o.sel === sel && (o.key === 'pack' ? amt === pack : o.key === 'g' && packShown ? amt !== pack : true);
   // her last amount for this food, shown first and marked — never chosen for her
   const last = k === null ? lastPortion(kind, id) : null;
   const lastOpt = last ? opts.find((o) => (last.portion_id ? o.key === 'p:' + last.portion_id : last.unit === 'g' && pack !== null && last.amount === pack ? o.key === 'pack' : o.sel === last.unit && o.key !== 'pack')) ?? null : null;
@@ -513,7 +526,7 @@ function PortionPage({ kind, id, k }: { kind: 'product' | 'recipe'; id: string; 
   return (
     <MomPage compact title={nameOf({ kind, id })} foot={<>
       {/* the carbs of what is chosen, always in view; nothing to add until she chooses */}
-      <div className="text-center">{item && g !== null ? <span className="text-[22px] font-bold text-brand"><span className="num">{fmt(g)}</span> {t('غرام كارب')}</span> : <span className="text-[16px] text-slate-500">{t('اختاري الكمية')}</span>}</div>
+      <div className="text-center">{item && g !== null ? <span className="text-[22px] font-bold text-brand">{g === 0 ? t('بدون كارب') : <><span className="num">{gramsText(g)}</span> {t('غرام كارب')}</>}</span> : <span className="text-[16px] text-slate-500">{t('اختاري الكمية')}</span>}</div>
       <Big md disabled={!item || g === null} onClick={done}>{k !== null ? t('تم') : t('إضافة')}</Big>
     </>}>
       <div className="flex items-center gap-3 rounded-2xl bg-white p-2.5">
@@ -640,7 +653,7 @@ export function MomFoodItem() {
       {inCompare || cmp.length >= COMPARE_MAX
         ? <Big tone="soft" onClick={() => nav('/mom/compare')}>⚖️ {t('شوفي المقارنة ({n})', { n: cmp.length })}</Big>
         : <Big tone="soft" onClick={() => compareOps.add({ kind, id })}>⚖️ {t('قارني')}</Big>}
-      <Big onClick={() => { draftOps.start('now'); nav(`/mom/item/${kind}/${id}`); }}>🍽️ {t('أضيفيها لوجبة')}</Big>
+      <Big onClick={() => { if (!okToReplace('now')) { nav('/mom/meal'); return; } draftOps.start('now'); nav(`/mom/item/${kind}/${id}`); }}>🍽️ {t('أضيفيها لوجبة')}</Big>
     </>}>
       <Photo {...pic(x)} className="mx-auto h-36 w-36 shrink-0 rounded-3xl" />
       {prod?.brand && <p className="text-center text-[15px] text-slate-500"><bdi>{prod.brand}</bdi></p>}
@@ -691,14 +704,14 @@ export function MomParts() {
   };
   return (
     <MomPage compact title={nameOf({ kind: 'recipe', id })} foot={<>
-      <div className="flex items-baseline justify-between px-1"><span className="text-[17px] text-slate-500">{t('الكارب')}</span><b className="num text-[26px]">{total === null ? '—' : `${fmt(total)} ${t('غ كارب')}`}</b></div>
+      <div className="flex items-baseline justify-between px-1"><span className="text-[17px] text-slate-500">{t('الكارب')}</span><b className="num text-[26px]">{total === null ? '—' : `${gramsText(total)} ${t('غ كارب')}`}</b></div>
       <Big md disabled={!items.length || total === null} onClick={done}>{t('تم')}</Big>
     </>}>
       <p className="rounded-2xl bg-brand-soft px-4 py-2.5 text-center text-[16px] text-brand">⚖️ {t('صفّري الميزان قبل كل صنف')}</p>
       {parts.map((x, n) => (
         <div key={x.product.id} className="space-y-2 rounded-3xl bg-white px-4 py-3">
           <div className="flex items-center gap-2 text-[19px] font-bold"><span className="flex-1"><bdi>{shownName(x.product)}</bdi> {x.cooked && <span className="text-[14px] font-normal text-slate-500">{t('مطبوخ')}</span>}</span>
-            <span className="num shrink-0 text-[18px] font-bold text-brand">{partCarbs(n) === null ? '' : `${fmt(partCarbs(n)!)} ${t('غ')}`}</span></div>
+            <span className="num shrink-0 text-[18px] font-bold text-brand">{partCarbs(n) === null ? '' : `${gramsText(partCarbs(n)!)} ${t('غ')}`}</span></div>
           <div className="flex items-center justify-center gap-3" dir="ltr">
             <input inputMode="decimal" dir="ltr" placeholder="0" className={cx(inputCls, '!w-32 !text-center !text-[30px] font-bold')} value={g[n] ?? ''}
               onChange={(e) => { const v = Number(e.target.value.replace(',', '.')); setG(g.map((o, m) => (m === n ? (e.target.value === '' || !Number.isFinite(v) || v <= 0 ? null : v) : o))); }} />

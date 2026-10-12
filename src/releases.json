@@ -3,20 +3,24 @@
     "version": "3.0.0",
     "date": "2026-10-12",
     "notes": [
-      "إضافة وجبة صارت تبدأ بالبحث: اكتبي اسم الأكل، اختاري الكمية، وأضيفي.",
+      "إضافة وجبة صارت تبدأ بالبحث، وتحته المفضلة والأخيرة وطرق ثانية للإضافة (بالميزان، طبخ البيت، المطاعم، أكل برّا، أقسام الأكل).",
       "نتائج البحث مرتبة: الاسم المطابق أول، بعدين اللي يبدأ بنفس الكلمة، والأكل اللي تاكله ليان وايد يطلع قبل.",
       "الرجوع من الأكل يرجعك لنفس البحث ونفس المكان.",
       "آخر كمية أكلتها تطلع أول وعليها «آخر مرة»، بس ما تنختار إلا إذا ضغطتي عليها.",
       "صفحة الوجبة تبين كل صنف وكاربه والمجموع، وتقدرين تعدلين أو تشيلين أي صنف قبل الإبرة.",
-      "الخط والمسافات أصغر شوي، فيطلع أكثر على الشاشة."
+      "الخط والمسافات أصغر شوي، فيطلع أكثر على الشاشة.",
+      "إذا في وجبة ما خلصت، التطبيق يسألك قبل ما يمسحها.",
+      "الكارب القليل (مثل 0.6 غ) يطلع برقمه، و«بدون كارب» بس للي ما فيه كارب أبد."
     ],
     "notes_en": [
-      "Adding a meal now starts with search: type the food, choose how much, add.",
+      "Adding a meal now starts with search, then favourites and recent foods, then other ways to add (by weight, home cooking, restaurants, ate out, food groups).",
       "Results are ordered: the exact name first, then names starting with what you typed, and what Layan has most often comes earlier.",
       "Back from a food returns to the same search, at the same place.",
       "The amount she had last time is shown first, marked «Last time», but only chosen when you tap it.",
       "The meal page lists each food with its carbs and the total; change or remove any food before the dose.",
-      "Slightly smaller text and spacing, so more fits on the screen."
+      "Slightly smaller text and spacing, so more fits on the screen.",
+      "If a meal is unfinished, the app asks before clearing it.",
+      "A small amount of carbs (like 0.6 g) shows as its number; «No carbs» only means none at all."
     ]
   },
   {

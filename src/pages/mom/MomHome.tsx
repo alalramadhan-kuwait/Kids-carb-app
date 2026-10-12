@@ -27,7 +27,7 @@ import highPng from '../../assets/layan/layan-high.png';
 import highWebp from '../../assets/layan/layan-high.webp';
 import noReadingPng from '../../assets/layan/layan-no-reading.png';
 import noReadingWebp from '../../assets/layan/layan-no-reading.webp';
-import { Big, PEN, PEN_NAME, PenBar, TABS_PAD, ago, clock, dayWord, glucoseText, left, sensorLeft, span } from './MomUI';
+import { Big, okToReplace, PEN, PEN_NAME, PenBar, TABS_PAD, ago, clock, dayWord, glucoseText, left, sensorLeft, span } from './MomUI';
 import { Icon } from '../../components/Icon';
 import type { Settings } from '../../lib/types';
 
@@ -94,7 +94,8 @@ export function MomHome() {
   const waiting = plans.filter((p) => p.status === 'planned' && phase(p, now) !== 'done').sort((a, b) => Date.parse(a.dose_at) - Date.parse(b.dose_at));
   const due = waiting.find((p) => phase(p, now) === 'check') ?? null;
   const next = due ? null : waiting.find((p) => Date.parse(p.dose_at) - now < 18 * H) ?? null;
-  const build = (mode: 'now' | 'plan') => { draftOps.start(mode); nav('/mom/meal'); };
+  // a meal of the other kind replaces the one being built: asked first; kept, the plate opens as it is
+  const build = (mode: 'now' | 'plan') => { if (okToReplace(mode)) draftOps.start(mode); nav('/mom/meal'); };
   // the sensor: days left in the status line; its last day, or an unknown arm, gets a card
   const sensor = useSensor();
   const sensorSoon = sensor && sensor.life.state !== 'ok';

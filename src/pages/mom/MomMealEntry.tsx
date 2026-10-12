@@ -16,7 +16,7 @@ import { DoseReview } from '../../components/DoseReview';
 import { toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import type { MealSlot, PlannedMeal } from '../../lib/types';
-import { Big, Choice, MomPage, clock, ago } from './MomUI';
+import { Big, Choice, MomPage, clock, ago, okToReplace } from './MomUI';
 import { plateFromLog, useCatalog } from './MomMeal';
 import { draftOps } from '../../lib/mom';
 
@@ -113,7 +113,7 @@ export function MomMealEntry() {
       <div className="text-[17px] font-bold">{t('متى أكلت؟')}</div>
       <TimePicker value={at ?? was} onChange={setAt} />
       <div className="flex flex-col gap-1 pt-2">
-        {h.lines.length > 0 && <button disabled={busy} className="min-h-[48px] text-[16px] font-bold text-brand" onClick={() => { const r = plateFromLog(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.left); nav('/mom/meal'); }}>🍽️ {t('نفس الأكل لوجبة جديدة')}</button>}
+        {h.lines.length > 0 && <button disabled={busy} className="min-h-[48px] text-[16px] font-bold text-brand" onClick={() => { if (okToReplace()) { const r = plateFromLog(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.left); } nav('/mom/meal'); }}>🍽️ {t('نفس الأكل لوجبة جديدة')}</button>}
         <button disabled={busy} className="min-h-[48px] text-[16px] font-bold text-over" onClick={remove}>🗑 {t('غلط · امسحيها')}</button>
       </div>
     </MomPage>

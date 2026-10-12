@@ -1,6 +1,7 @@
 // Mom mode building blocks: a full page (title + back arrow, no bottom sheets), big buttons, pen colours, and the
 // glucose helpers every mom page shares. Big text, few words.
-import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { draftOps } from '../../lib/mom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { asset, cx } from '../../components/ui';
 import { Icon } from '../../components/Icon';
@@ -33,10 +34,12 @@ export const left = (ms: number, now = Date.now()) => {
 };
 export const glucoseText = (mg: number, unit: 'mmol' | 'mgdl') => formatGlucose(mg, unit);
 
-export function MomPage({ title, back = -1, children, foot, tabs, top, compact }: { title: string; back?: string | number | null; children: ReactNode; foot?: ReactNode; tabs?: boolean; /** stays under the title while the page scrolls (a search box) */ top?: ReactNode;
-  /** the add-meal pages: a slightly smaller title and tighter rows, so more of the list shows */ compact?: boolean }) {
+export function MomPage({ title, back = -1, children, foot, tabs, top, compact, keyboard }: { title: string; back?: string | number | null; children: ReactNode; foot?: ReactNode; tabs?: boolean; /** stays under the title while the page scrolls (a search box) */ top?: ReactNode;
+  /** the add-meal pages: a slightly smaller title and tighter rows, so more of the list shows */ compact?: boolean;
+  /** a page searched with the phone's keyboard: room under the list for the keyboard, and dragging the list puts the keyboard away */ keyboard?: boolean }) {
   const nav = useNavigate();
   const scroller = useKeptScroll();
+  const kb = useKeyboardHeight(!!keyboard);
   return (
     <main className="mx-auto flex h-[100dvh] max-w-md flex-col">
       {/* the title and back arrow stay put below the phone's clock/camera; the page scrolls under them, the buttons stay at the bottom */}
@@ -45,11 +48,36 @@ export function MomPage({ title, back = -1, children, foot, tabs, top, compact }
         <h1 className={cx('min-w-0 font-bold leading-tight', compact ? 'text-[21px]' : 'text-[24px]')}><bdi>{title}</bdi></h1>
       </header>
       {top && <div className="shrink-0 px-4 pb-2">{top}</div>}
-      <div ref={scroller.ref} onScroll={scroller.onScroll} className={cx('flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4', compact ? 'gap-2' : 'gap-3', tabs && !foot ? TABS_PAD : !foot && 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{children}</div>
+      <div ref={scroller.ref} onScroll={scroller.onScroll} onTouchMove={keyboard ? putKeyboardAway : undefined} className={cx('flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4', compact ? 'gap-2' : 'gap-3', tabs && !foot ? TABS_PAD : !foot && 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{children}{kb > 0 && <div aria-hidden className="shrink-0" style={{ height: kb }} />}</div>
       {/* with the tabs, the buttons sit just above them */}
       {foot && <div className={cx('shrink-0 space-y-2 px-4 pt-3', tabs ? TABS_PAD : 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{foot}</div>}
     </main>
   );
+}
+
+/** How much of the screen the phone's keyboard covers (iPhone: the keyboard lies over the page, which keeps its
+ *  height), from the visual viewport; 0 when it is closed or the browser does not say. */
+function useKeyboardHeight(on: boolean) {
+  const [h, setH] = useState(0);
+  useEffect(() => {
+    const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+    if (!on || !vv) return;
+    const read = () => setH(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
+    read();
+    vv.addEventListener('resize', read); vv.addEventListener('scroll', read);
+    return () => { vv.removeEventListener('resize', read); vv.removeEventListener('scroll', read); };
+  }, [on]);
+  return h > 80 ? h : 0; // small changes are the browser's bars, not a keyboard
+}
+/** Dragging the list closes the keyboard, so the results under it can be reached. */
+const putKeyboardAway = () => { const a = document.activeElement; if (a instanceof HTMLInputElement) a.blur(); };
+
+/** Starting a meal of the other kind (now / plan), or putting another meal on the plate, replaces the one being built:
+ *  asked first when it has food on it. False when she keeps it. */
+export function okToReplace(mode?: 'now' | 'plan'): boolean {
+  const d = draftOps.get();
+  if (!d.items.length || (mode && d.mode === mode)) return true;
+  return window.confirm(t('في وجبة ما خلصت ({n} صنف). تمسحينها وتبدين من جديد؟', { n: d.items.length }));
 }
 
 /** The page's scroll position, kept per history entry (the page scrolls inside its own box, which the browser does

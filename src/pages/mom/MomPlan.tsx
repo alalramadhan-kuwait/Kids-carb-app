@@ -14,7 +14,7 @@ import { fmt } from '../../lib/carbs';
 import { cx, inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import type { PlannedMeal, Product } from '../../lib/types';
-import { Big, Choice, MomPage, SITE_NAME, SettingsGroup, SettingsRow, Switch, clock, dayWord, sensorLeft } from './MomUI';
+import { Big, Choice, MomPage, okToReplace, SITE_NAME, SettingsGroup, SettingsRow, Switch, clock, dayWord, sensorLeft } from './MomUI';
 import { setAlarmSound, testAlarm, useAlarmSound } from '../../components/Alarm';
 import { setKeepAwake, useKeepAwakePref } from '../../lib/keepAwake';
 import type { InjectionSite } from '../../lib/types';
@@ -97,7 +97,7 @@ export function MomPlans() {
   const { products, settings } = useData();
   const now = Date.now();
   return (
-    <MomPage title={t('مخططة')} back="/mom/more" foot={<Big tone="soft" onClick={() => { draftOps.start('plan'); nav('/mom/meal'); }}>📅 {t('خططي وجبة')}</Big>}>
+    <MomPage title={t('مخططة')} back="/mom/more" foot={<Big tone="soft" onClick={() => { if (okToReplace('plan')) draftOps.start('plan'); nav('/mom/meal'); }}>📅 {t('خططي وجبة')}</Big>}>
       {!list.length && <p className="text-center text-[18px] text-slate-500">{t('ما في وجبات مخططة')}</p>}
       {list.map((p) => {
         const m = planMeal(p.items, products, settings);
