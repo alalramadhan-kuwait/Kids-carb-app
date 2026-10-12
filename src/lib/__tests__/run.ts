@@ -2785,23 +2785,31 @@ test('Topi cheese is found by «توبي» and «جبن»', async () => {
     const noSize = { ...pasta, ingsByRecipe: new Map([['r2', [ing('bread', 2, { unit: 'serving', product_id: 'frost' })]]]) as any };
     assert.equal(M.planItemsOf({ kind: 'recipe', id: 'r2', portion_id: null, amount: 200, unit: 'g' }, noSize), null, 'a serving with no known size: no weight, never a guess');
   });
-  test('mom meal: a pot weighed dry (harees) — no weighing until the pot is measured; then grams and cups are shares of it', () => {
-    const ing = (id: string, q: number, o: Record<string, unknown> = {}) => ({ id, role: 'main', product_id: null, slot_category: null, label: id, quantity: q, unit: 'g', state: 'as_is', qty_confirmed: true, note: null, sort: 0, ...o }) as any;
+  test('mom meal: a pot not measured is estimated (dry grain ×3, raw veg ×0.8, a cup 160 g of rice or 230 g of stew); measured wins', () => {
+    const ing = (id: string, q: number, o: Record<string, unknown> = {}) => ({ id, role: 'main', product_id: id, slot_category: null, label: id, quantity: q, unit: 'g', state: 'as_is', qty_confirmed: true, note: null, sort: 0, ...o }) as any;
+    const ps = [prod('wheat', { carbs_per_100: 75.9, category: 'حبوب وبقوليات' }), prod('meat', { carbs_per_100: 0 }), prod('sugar', { carbs_per_100: 100 }), prod('onion', { carbs_per_100: 9.3 }), prod('rice', { carbs_per_100: 28.2, category: 'رز' })];
     const ings = [ing('wheat', 40, { state: 'raw' }), ing('meat', 60, { state: 'cooked' }), ing('sugar', 5)];
     const r = { ...cat.recipes[0], id: 'h' };
-    const c3 = { ...cat, recipes: [r], ingsByRecipe: new Map([['h', ings]]) as any };
-    assert.equal(M.recipePotGrams(r, ings, []), null, 'weighed before cooking: the raw weights say nothing about the cooked pot');
-    assert.equal(M.planItemsOf({ kind: 'recipe', id: 'h', portion_id: null, amount: 150, unit: 'g' }, c3), null, 'never the raw sum');
-    assert.equal(M.planItemsOf({ kind: 'recipe', id: 'h', portion_id: null, amount: 0.5, unit: 'cup' }, c3), null, 'no cups counted yet');
+    const est = M.recipePot(r, ings, ps);
+    assert.equal(est.g, 40 * 3 + 60 + 5, 'the dry wheat triples');
+    assert.equal(est.gApprox, true);
+    assert.equal(Math.round(est.cups! * 100) / 100, Math.round(185 / 230 * 100) / 100, 'a stew-like cup');
+    assert.equal(est.cupsApprox, true);
+    const machboos = [ing('rice', 140, { state: 'cooked' }), ing('meat', 100, { state: 'cooked' }), ing('onion', 50, { state: 'raw' })];
+    const m = M.recipePot(r, machboos, ps);
+    assert.equal(m.g, 140 + 100 + 40, 'raw onion shrinks; nothing dry, so the weight is not flagged');
+    assert.equal(m.gApprox, false);
+    assert.equal(m.cups, 280 / 160, 'a rice dish: a cup of rice');
     const measured = { ...r, cooked_weight_g: 300, yield_cups: 2 };
-    const c4 = { ...c3, recipes: [measured] };
-    assert.equal(M.recipePotGrams(measured, ings, []), 300);
-    assert.equal(M.recipeShare(measured, ings, [], 'g', 150), 0.5);
-    assert.equal(M.recipeShare(measured, ings, [], 'cup', 0.5), 0.25);
-    assert.equal(M.recipeShare(measured, ings, [], 'plate', 0.5), 0.5);
+    assert.deepEqual(M.recipePot(measured, ings, ps), { g: 300, cups: 2, gApprox: false, cupsApprox: false });
+    assert.equal(M.recipeShare(measured, ings, ps, 'g', 150), 0.5);
+    assert.equal(M.recipeShare(measured, ings, ps, 'cup', 0.5), 0.25);
+    assert.equal(M.recipeShare(measured, ings, ps, 'plate', 0.5), 0.5);
+    const c4 = { ...cat, products: ps, recipes: [measured], ingsByRecipe: new Map([['h', ings]]) as any };
     assert.deepEqual(M.planItemsOf({ kind: 'recipe', id: 'h', portion_id: null, amount: 0.5, unit: 'cup' }, c4)!.map((i) => i.quantity), [10, 15, 1.25], 'half a cup of a two-cup pot');
     assert.deepEqual(M.planItemsOf({ kind: 'recipe', id: 'h', portion_id: null, amount: 75, unit: 'g' }, c4)!.map((i) => i.quantity), [10, 15, 1.25]);
-    assert.equal(M.recipeShare({ ...r, cooked_weight_g: 0 }, [ing('rice', 200, { state: 'cooked' })], [], 'g', 100), 0.5, 'all weighed cooked: the ingredients\' own weight is the pot');
+    const noSize = [ing('bread', 2, { unit: 'serving' })];
+    assert.equal(M.recipePot(r, noSize, ps).g, null, 'a serving with no known size: no weight, never a guess');
   });
   test('mom meal: one part of a dish weighed after cooking keeps its cooked state (dry pasta label, cooked on the plate)', () => {
     const c5 = { ...cat, products: [...cat.products, prod('pasta', { carbs_per_100: 72, cooked_yield: 2.4 })] };

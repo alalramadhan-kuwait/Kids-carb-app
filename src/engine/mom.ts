@@ -24,24 +24,57 @@ export function recipeMixGrams(ings: Ingredient[], products: Product[]): number 
   return g > 0 ? g : null;
 }
 
-/** What a plate of a recipe weighs, to turn grams on the scale into a share of the pot: the pot weighed after
- *  cooking when Dad measured it; otherwise the ingredients' own weights, but only when none of them was weighed
- *  before cooking (grains drink water, meat loses it, so raw weights say nothing about the cooked dish). */
-export function recipePotGrams(r: Recipe, ings: Ingredient[], products: Product[]): number | null {
-  if (r.cooked_weight_g && Number(r.cooked_weight_g) > 0) return Number(r.cooked_weight_g);
+/** Without a label, a dry grain or pulse (≥ 20 g carbs per 100, weighed before cooking) is taken to triple when
+ *  cooked (rice 2.6×, pasta 2.4×, lentils 2.5×, harees wheat more); vegetables and meat weighed raw lose a fifth. */
+export const DRY_YIELD = 3, RAW_YIELD = 0.8;
+/** What a cup of a cooked dish weighs: rice dishes about 160 g (a cup of cooked rice), stews and porridges 230 g. */
+export const CUP_G_RICE = 160, CUP_G_STEW = 230;
+
+export interface Pot { g: number | null; cups: number | null; gApprox: boolean; cupsApprox: boolean }
+/** The recipe's pot, to turn grams on the scale or cups into a share of it. Measured once by Dad when he did;
+ *  otherwise worked out from the ingredients (cooked weights as they are, raw ones grown or shrunk by cooking) and
+ *  marked approximate. Cups not counted are the weight over a usual cup of that kind of dish. What is served on
+ *  the side is not in the pot. */
+export function recipePot(r: Recipe, ings: Ingredient[], products: Product[]): Pot {
   const pot = ings.filter((i) => i.role !== 'snack' && !i.on_side);
-  if (pot.some((i) => i.state === 'raw')) return null;
-  return recipeMixGrams(ings, products);
+  let g: number | null = r.cooked_weight_g && Number(r.cooked_weight_g) > 0 ? Number(r.cooked_weight_g) : null;
+  let gApprox = false;
+  if (g === null) {
+    let sum = 0, ok = pot.length > 0;
+    for (const i of pot) {
+      const pr = i.product_id ? products.find((x) => x.id === i.product_id) ?? null : null;
+      const q = Number(i.quantity);
+      let w: number | null = i.unit === 'g' || i.unit === 'ml' ? q : i.unit === 'tbsp' ? q * TBSP_G : pr?.serving_size ? q * Number(pr.serving_size) : null;
+      if (w === null) { ok = false; break; }
+      if (i.state === 'raw') {
+        const dry = (pr ? Number(pr.carbs_per_100) : 0) >= 20;
+        const y = pr?.cooked_yield && Number(pr.cooked_yield) > 0 ? Number(pr.cooked_yield) : dry ? DRY_YIELD : RAW_YIELD;
+        if (dry && !pr?.cooked_yield) gApprox = true;
+        w *= y;
+      }
+      sum += w;
+    }
+    g = ok && sum > 0 ? sum : null;
+  }
+  const counted = r.yield_cups && Number(r.yield_cups) > 0 ? Number(r.yield_cups) : null;
+  // a rice dish: cooked rice is its biggest part (machboos, rice with stew)
+  const biggest = [...pot].sort((x, y) => Number(y.quantity) - Number(x.quantity))[0];
+  const rice = !!biggest?.product_id && products.find((x) => x.id === biggest.product_id)?.category === 'رز'; // i18n-ok: stored category
+  const cups = counted ?? (g ? g / (rice ? CUP_G_RICE : CUP_G_STEW) : null);
+  return { g, cups, gApprox, cupsApprox: counted === null };
 }
-/** How many cups the pot fills (measured once), or null. */
-export const recipeCups = (r: Recipe) => (r.yield_cups && Number(r.yield_cups) > 0 ? Number(r.yield_cups) : null);
+/** Kept for the screens that only need the weight. */
+export const recipePotGrams = (r: Recipe, ings: Ingredient[], products: Product[]) => recipePot(r, ings, products).g;
+/** How many cups the pot fills: counted by Dad, or estimated. */
+export const recipeCups = (r: Recipe, ings: Ingredient[] = [], products: Product[] = []) => recipePot(r, ings, products).cups;
 
 /** A share of the recipe for an amount eaten: plates as they are, cups of the pot, grams of the cooked dish. Null
- *  when the pot was not measured that way. Grams and cups leave out what is served on the side. */
+ *  when the pot's size cannot be worked out (an ingredient with no known weight). */
 export function recipeShare(r: Recipe, ings: Ingredient[], products: Product[], unit: 'plate' | 'cup' | 'g', amount: number): number | null {
   if (!(amount > 0)) return null;
   if (unit === 'plate') return amount;
-  const base = unit === 'cup' ? recipeCups(r) : recipePotGrams(r, ings, products);
+  const pot = recipePot(r, ings, products);
+  const base = unit === 'cup' ? pot.cups : pot.g;
   return base ? amount / base : null;
 }
 

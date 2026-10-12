@@ -5,7 +5,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 import { useData } from '../../lib/data';
 import { compareOps, draftOps, saveMeal, useCompare, useDraft, usePortions, useSavedMeals } from '../../lib/mom';
 import { planMeal } from '../../lib/plans';
-import { COMPARE_MAX, planItems, planItemsOf, readyForMom, recipeCups, type Catalog, type MomItem } from '../../engine/mom';
+import { COMPARE_MAX, planItems, planItemsOf, readyForMom, recipePot, type Catalog, type MomItem } from '../../engine/mom';
 import { groupByKey, groupOf, groupsIn, subgroupOf, subgroupsIn } from '../../lib/productGroups';
 import { matches } from '../../lib/search';
 import { fmt } from '../../lib/carbs';
@@ -397,7 +397,8 @@ export function MomPortion() {
   const plate = !prod ? itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'plate' }) : null;
   const per100 = !prod ? itemCarbs({ kind, id, portion_id: null, amount: 100, unit: 'g' }) : null;
   const rec = !prod ? c.recipes.find((r) => r.id === id) ?? null : null;
-  const cups = rec ? recipeCups(rec) : null;
+  const pot = rec ? recipePot(rec, c.ingsByRecipe.get(rec.id) ?? [], c.products) : null;
+  const cups = pot?.cups ?? null;
   const cup = cups ? itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'cup' }) : null;
   // a part that holds the carbs (the rice of a machboos) can be weighed on its own when it is weighed cooked or as is
   const parts = rec ? carbParts(rec.id) : [];
@@ -429,10 +430,10 @@ export function MomPortion() {
         on={sel === 'serving'} onClick={() => pick('serving', sel === 'serving' ? amt : 1)} />}
       {prod && pack && !each && <Choice icon="📦" label={t('العلبة كاملة')} sub={`${fmt(pack)} ${gUnit} · ${carbsText(itemCarbs({ kind, id, portion_id: null, amount: pack, unit: 'g' }))}`} on={sel === 'g' && amt === pack} onClick={() => pick('g', pack)} />}
       {prod && !each && <Choice icon="⚖️" label={prod.unit === 'ml' ? t('بالمل') : t('بالغرام')} on={sel === 'g' && amt !== pack} onClick={() => pick('g', sel === 'g' && amt !== pack ? amt : ss ?? null)} />}
-      {!prod && cup !== null && <Choice icon="🥣" label={t('بالكوب')} sub={t('الكوب = {g}', { g: carbsText(cup) })} on={sel === 'cup'} onClick={() => pick('cup', sel === 'cup' ? amt : 0.5)} />}
-      {!prod && per100 !== null && <Choice icon="⚖️" label={t('وزنتها بالميزان')} sub={t('اكتبي الرقم اللي طلع')} on={sel === 'g'} onClick={() => pick('g', sel === 'g' ? amt : null)} />}
+      {!prod && cup !== null && <Choice icon="🥣" label={t('بالكوب')} sub={`${t('الكوب = {g}', { g: carbsText(cup) })}${pot?.cupsApprox ? ` · ${t('تقريبي')}` : ''}`} on={sel === 'cup'} onClick={() => pick('cup', sel === 'cup' ? amt : 0.5)} />}
+      {!prod && per100 !== null && <Choice icon="⚖️" label={t('وزنتها بالميزان')} sub={`${t('اكتبي الرقم اللي طلع')}${pot?.gApprox ? ` · ${t('تقريبي')}` : ''}`} on={sel === 'g'} onClick={() => pick('g', sel === 'g' ? amt : null)} />}
       {!prod && parts.length > 0 && <Choice icon="🍚" label={t('وزنت اللي فيه كارب بروحه')} sub={parts.map((x) => tMaybe(x.name)).join(' · ')} onClick={() => nav(`/mom/parts/${id}${k !== null ? `?k=${k}` : ''}`, { replace: true })} />}
-      {!prod && (per100 === null || cup === null) && <p className="text-center text-[14px] text-slate-500">{per100 === null ? t('للوزن أو الكوب: بابا يقيس القدر بعد الطبخ مرة وحدة') : t('للكوب: بابا يعدّ كم كوب يطلع القدر مرة وحدة')}</p>}
+      {!prod && (sel === 'cup' || sel === 'g') && (pot?.cupsApprox || pot?.gApprox) && <p className="text-center text-[14px] text-slate-500">{t('تقريبي: من مقادير الوصفة. للدقة بابا يقيس القدر مرة وحدة.')}</p>}
       {!prod && <Choice icon="🍽️" label={t('بالصحون')} on={sel === 'plate'} onClick={() => pick('plate', sel === 'plate' ? amt : 1)} />}
       {showAmt && (
         <div className="flex items-center justify-center gap-4">

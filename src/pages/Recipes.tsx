@@ -10,7 +10,7 @@ import { computeMeal, fmt, problemText, unitText } from '../lib/carbs';
 import { blocker } from '../lib/suggest';
 import { acceptTotal, setFavorite, setIngredientProduct, setRecipeImage, setRecipePot } from '../lib/api';
 import { usePortions } from '../lib/mom';
-import { recipeCups, recipePotGrams, recipeShare } from '../engine/mom';
+import { recipePot, recipeShare } from '../engine/mom';
 import { ProductPicker } from '../components/ProductPicker';
 import { uploadPhoto } from '../lib/supabase';
 import type { Ingredient } from '../lib/types';
@@ -88,7 +88,7 @@ export function RecipeView() {
   if (!recipe) return <Page title={t('الوصفة')} back={() => nav(-1)}><Card>{t('الوصفة غير موجودة.')}</Card></Page>;
 
   const mine = portions.filter((p) => p.recipe_id === recipe.id);
-  const potG = recipePotGrams(recipe, base, products), cups = recipeCups(recipe);
+  const potNow = recipePot(recipe, base, products), potG = potNow.g, cups = potNow.cups;
   const eat = (unit: 'plate' | 'cup' | 'g', amount: number | null, label?: string) => {
     setHow({ unit, amount, label });
     const k = amount ? recipeShare(recipe, base, products, unit, amount) : null;
@@ -162,10 +162,10 @@ export function RecipeView() {
           <label className="block min-w-0"><span className="mb-0.5 block text-xs font-medium text-slate-500">{t('بالميزان (غرام مطبوخ)')}</span>
             <NumInput value={how?.unit === 'g' ? how.amount : null} onChange={(v) => eat('g', v)} disabled={!potG} placeholder={potG ? '150' : '—'} className="!text-center" /></label>
         </div>
-        {(!cups || !potG) && <p className="text-xs text-slate-500">{!potG ? t('للكوب والميزان: قيسوا القدر بعد الطبخ مرة وحدة (تحت).') : t('للكوب: عدّوا كم كوب يطلع القدر مرة وحدة (تحت).')}</p>}
+        {(how?.unit === 'cup' || how?.unit === 'g') && how.amount ? <p className="text-xs text-slate-500">{(how.unit === 'cup' ? potNow.cupsApprox : potNow.gApprox) ? t('تقريبي: من مقادير الوصفة ({g} غ تقريباً، {c} كوب). للدقة قيسوا القدر مرة وحدة (تحت).', { g: Math.round(potG ?? 0), c: fmt(Math.round((cups ?? 0) * 10) / 10) }) : t('من قياس القدر.')}</p> : null}
         <p className="text-xs text-slate-500">{t('أو وزنت الجزء اللي فيه كارب بروحه (مثل العيش)؟ اكتب وزنه في المكونات تحت.')}</p>
         <details className="rounded-xl bg-slate-50 px-3 py-2">
-          <summary className="min-h-[36px] cursor-pointer text-sm font-bold text-brand">{t('قياس القدر (مرة وحدة بعد الطبخ)')}{(recipe.cooked_weight_g || cups) ? ` · ${[recipe.cooked_weight_g ? `${fmt(Number(recipe.cooked_weight_g))} ${t('غ')}` : null, cups ? t('{n} كوب', { n: fmt(cups) }) : null].filter(Boolean).join(' · ')}` : ''}</summary>
+          <summary className="min-h-[36px] cursor-pointer text-sm font-bold text-brand">{t('قياس القدر (مرة وحدة بعد الطبخ)')}{(recipe.cooked_weight_g || recipe.yield_cups) ? ` · ${[recipe.cooked_weight_g ? `${fmt(Number(recipe.cooked_weight_g))} ${t('غ')}` : null, recipe.yield_cups ? t('{n} كوب', { n: fmt(Number(recipe.yield_cups)) }) : null].filter(Boolean).join(' · ')}` : ''}</summary>
           <p className="mb-2 text-xs text-slate-500">{t('بكميات الوصفة هذي بالضبط: صبّوا الأكل المطبوخ كله بكوب ليان وعدّوا، أو وزنوا القدر مليان ناقص وزنه فاضي. ما يدخل فيه اللي على الجنب.')}</p>
           <div className="grid grid-cols-2 gap-2">
             <label className="block min-w-0"><span className="mb-0.5 block text-xs font-medium text-slate-500">{t('الوزن بعد الطبخ (غ)')}</span>

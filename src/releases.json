@@ -4,16 +4,16 @@
     "date": "2026-10-12",
     "notes": [
       "الوصفات صار ينسجل منها اللي أكلته ليان بالكوب، أو بوزن صحنها، أو بوزن الجزء اللي فيه كارب بروحه (مثل العيش).",
-      "بابا يقيس القدر مرة وحدة بعد الطبخ (وزنه أو كم كوب يطلع)، والتطبيق يحسب منه.",
-      "الأكلات اللي حبوبها توزن قبل الطبخ (مثل الهريس) ما تنوزن بالميزان لين ينقاس القدر، لأن الحساب كان يطلع أكثر من الحقيقي.",
+      "بدون قياس، التطبيق يقدّر حجم القدر من مقادير الوصفة ويكتب «تقريبي». إذا بابا قاس القدر مرة وحدة (وزنه أو كم كوب يطلع) يصير الحساب أدق.",
+      "الأكلات اللي حبوبها مكتوبة ناشفة (مثل الهريس) صار وزنها يتقدّر صح بعد الطبخ، بدل ما يطلع الكارب أكثر من الحقيقي.",
       "كل أكل يبيّن مؤشره الجلايسيمي: منخفض أو متوسط أو عالي، يعني كم بسرعة يرفع السكر.",
       "الوجبة تبيّن سرعة الكارب فيها كلها، والحمل الجلايسيمي.",
       "الأرقام من الجداول الدولية، واللي ما له رقم مكتوب «تقريبي» أو «تقديري». معلومة فقط: ما تغيّر الكارب ولا الإبرة."
     ],
     "notes_en": [
       "Recipes can now be logged by the cup, by weighing her plate, or by weighing the carb part on its own (like the rice).",
-      "Dad measures the pot once after cooking (its weight or how many cups it fills), and the app works from that.",
-      "Dishes whose grains are weighed before cooking (like harees) cannot be weighed on the scale until the pot is measured, because the old sum came out too high.",
+      "Without a measurement the app estimates the pot from the recipe's amounts and says «approximate». If Dad measures the pot once (its weight or how many cups it fills), it becomes more accurate.",
+      "Dishes whose grains are written dry (like harees) are now estimated at their cooked weight, instead of counting more carbs than they have.",
       "Every food shows its glycemic index: low, medium or high — how fast it tends to raise glucose.",
       "A meal shows how fast its carbs act overall, and its glycemic load.",
       "Values come from the international GI tables; anything without one is marked approximate or estimated. Information only: it changes neither the carbs nor the dose."
