@@ -17,7 +17,7 @@ export function drawWeeklyPdf(doc: JsPdf, s: WeeklySummary, p: PatientInfo, gene
   const labelW = 17, statW = 13, chartX = M + labelW, chartW = W - 2 * M - labelW - 4 * statW - 2;
   const statX = (i: number) => chartX + chartW + 2 + i * statW + statW / 2;
   s.weeks.forEach((wk, wi) => {
-    if (wi > 0) doc.addPage();
+    if (wi > 0) doc.addPage('a4', 'portrait');
     // ── header ──
     text('Weekly Summary', M, M + 6, { size: 18, bold: true, c: C.blue });
     text('Continuous glucose monitoring · mmol/L', W - M, M + 6, { size: 8, c: C.muted, align: 'right' });

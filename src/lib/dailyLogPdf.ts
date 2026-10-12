@@ -18,7 +18,7 @@ export function drawDailyLogPdf(doc: JsPdf, log: DailyLog, p: PatientInfo, gener
   const { fill, stroke, text, footer } = pdfKit(doc, generatedAt, appVersion);
   let page = 0;
   const head = (d: DailyLogDay, i: number, cont: boolean) => {
-    if (page > 0) doc.addPage();
+    if (page > 0) doc.addPage('a4', 'portrait');
     page++;
     text('Daily Log', M, M + 6, { size: 18, bold: true, c: C.blue });
     text('Continuous glucose monitoring · mmol/L', W - M, M + 6, { size: 8, c: C.muted, align: 'right' });

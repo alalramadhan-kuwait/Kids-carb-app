@@ -61,3 +61,13 @@ export function useLang(): Lang {
 }
 /** Only for tests. */
 export const __setLangForTest = (l: Lang) => { current = l; };
+
+/**
+ * For a section made in another language (the visit report's family pages): switches the text language without
+ * re-rendering the app; call the returned function to switch back. Only what renders in between uses it.
+ */
+export function swapLang(l: Lang): () => void {
+  const prev = current;
+  current = l;
+  return () => { current = prev; };
+}

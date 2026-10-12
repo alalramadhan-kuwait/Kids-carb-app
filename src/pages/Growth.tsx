@@ -62,7 +62,7 @@ export default function Growth() {
 
 /* --------------------------------------------------------------- summary */
 
-function Summary({ g, period }: { g: GrowthNutrition; period: 'd3' | 'd7' | 'd30' }) {
+export function Summary({ g, period }: { g: GrowthNutrition; period: 'd3' | 'd7' | 'd30' }) {
   const a = g.avg[period], st = g.energy[period], r = g.energyRef, b = g.bal[period];
   const overall = st === 'within' ? t('ضمن المدى ✓') : st === 'below' ? t('أقل من المدى') : st === 'above' ? t('أعلى من المدى') : t('بيانات غير كافية بعد');
   const macros = (['carbs', 'protein', 'fat'] as const).map((n) => ({ n, l: macroLevel(n, a, g.refs, g.coverageMin) }));
@@ -112,7 +112,7 @@ function RangeBar({ value, lo, hi }: { value: number; lo: number; hi: number }) 
 
 /* ---------------------------------------------------------- daily average */
 
-function DailyAverage({ g, period }: { g: GrowthNutrition; period: 'd3' | 'd7' | 'd30' }) {
+export function DailyAverage({ g, period }: { g: GrowthNutrition; period: 'd3' | 'd7' | 'd30' }) {
   const a = g.avg[period], b = g.bal[period];
   const amount = (n: Nutrient) => { const v = a.nutrients[n].est; return v === null ? { v: '—', u: '' } : { v: UNIT[n] === 'mg' ? n0(v) : String(Math.round(v)), u: UNIT_AR[UNIT[n]] }; };
   const others = NUTRIENTS.filter((n) => n !== 'carbs' && n !== 'protein' && n !== 'fat');
@@ -149,7 +149,7 @@ const Line = ({ name, amount, mark, word, tone }: { name: string; amount: { v: s
 
 /* ------------------------------------------------------------------ growth */
 
-function GrowthSection({ g, onAdd, onEdit }: { g: GrowthNutrition; onAdd: () => void; onEdit: (m: MeasurementRow) => void }) {
+export function GrowthSection({ g, onAdd, onEdit }: { g: GrowthNutrition; onAdd: () => void; onEdit: (m: MeasurementRow) => void }) {
   const [ind, setInd] = useState<Indicator>('bmi');
   const L = g.growth.latest, lastH = [...g.points].reverse().find((p) => p.height_cm !== null);
   const zb = [...g.points].reverse().find((p) => p.z.bmi != null)?.z.bmi ?? null, zh = lastH?.z.hfa ?? null, zw = L?.z.wfa ?? null;
@@ -204,7 +204,7 @@ const Meas = ({ name, v, p }: { name: string; v: string; p: string | null }) => 
 
 /* ------------------------------------------------------------ one tap deeper */
 
-function MealPatterns({ g, period }: { g: GrowthNutrition; period: 'd3' | 'd7' | 'd30' }) {
+export function MealPatterns({ g, period }: { g: GrowthNutrition; period: 'd3' | 'd7' | 'd30' }) {
   const a = g.avg[period], f = g.fatty;
   const enough = a.groupCoverage >= g.coverageMin && a.days > 0;
   return (

@@ -16,6 +16,7 @@ import { buildDailyLog } from '../../engine/report/dailyLog';
 import { buildSnapshot } from '../../engine/report/snapshot';
 import { buildMealtime, slotOf } from '../../engine/report/mealtime';
 import { buildMonthly } from '../../engine/report/monthly';
+import { buildVisitModels, visitFacts } from '../visitPdf';
 
 let n = 0;
 const test = (name: string, fn: () => void) => { fn(); n++; console.log('  ok', name); };
@@ -360,6 +361,27 @@ test('monthly: calendar weeks from Sunday; days outside the period are empty; th
   assert.equal(oct.days.length, 3); assert.equal(oct.daysWithData, 2, 'the third day has no sensor data');
   near(oct.avg, 120 / 18.016, 1e-6); near(oct.tir, 100, 1e-9);
   assert.ok(oct.weeks.flat().filter((c) => c && !c.inPeriod).every((c) => c!.d === null));
+});
+
+// ── Visit report ──
+test('visit report: one load builds every section; each low is listed once, a very low as very low; night is midnight to 6', () => {
+  const now = T0 + 20 * DAY, { from } = reportPeriod(14, now);
+  const lvl = (t: number) => {
+    const k = Math.floor((t - from) / MIN);                 // minutes into the period
+    if (k >= 2 * 1440 + 120 && k < 2 * 1440 + 150) return 60;   // day 2, 2:00 Kuwait… (period starts at a Kuwait midnight)
+    if (k >= 4 * 1440 + 600 && k < 4 * 1440 + 640) return k < 4 * 1440 + 615 ? 62 : 48; // day 4, 10:00: low, then below 3.0
+    if (k >= 6 * 1440 + 900 && k < 6 * 1440 + 940) return 270; // day 6, 15:00: very high
+    return 120;
+  };
+  const rs = series(from, (now - from) / MIN, 1, (m) => lvl(from + m * MIN));
+  const data = { from, to: now, readings: rs, sources: [], insulin: [], meals: [], treatments: [], fingerPricks: [], sensors: [] };
+  const m = buildVisitModels(data, 14, now);
+  assert.ok(m.weekly && !m.monthly, '14 days: weekly pages');
+  assert.deepEqual(m.events.map((e) => [e.kind, e.night]), [['low', true], ['veryLow', false], ['veryHigh', false]]);
+  const f = visitFacts(m); assert.equal(f.lows, 2); assert.equal(f.nightLows, 1); assert.equal(f.veryHighs, 1);
+  near(f.tir! + f.tbr! + f.tar!, 100, 1e-6);
+  const m30 = buildVisitModels(data, 30, now);
+  assert.ok(m30.monthly && !m30.weekly, '30 days: the monthly calendar');
 });
 
 console.log(`\n${n} report engine tests passed`);

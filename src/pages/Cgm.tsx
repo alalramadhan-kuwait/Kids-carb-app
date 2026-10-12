@@ -61,6 +61,7 @@ export default function Cgm() {
           </>
         )}
         <Card><p className="text-sm leading-relaxed text-slate-600">{t('القراءات قد تتأخر بضع دقائق عن الجهاز. حاسبة الجرعة لا تعطي رقمًا من قراءة أقدم من 15 دقيقة.')}</p></Card>
+        <Link to="/settings/advanced" className="flex min-h-[52px] items-center justify-between rounded-2xl bg-white px-4 font-semibold shadow-sm active:bg-slate-50">{t('نوع الحساس')}<span className="text-slate-300">{isEn() ? '›' : '‹'}</span></Link>
       </div>
     </Page>
   );

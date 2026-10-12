@@ -141,7 +141,7 @@ export function drawAgpPdf(doc: JsPdf, r: AgpReport, p: PatientInfo, appVersion 
   const days = r.daily, PER = 14, cols = 2, gap = 6;
   const top = M + 17, rowH = (H - 18 - top) / 7, gw = (W - 2 * M - gap) / cols;
   for (let start = 0; start < days.length; start += PER) {
-    doc.addPage(); page++;
+    doc.addPage('a4', 'portrait'); page++;
     text('AGP Report · Daily glucose profiles', M, M + 6, { size: 13, bold: true, c: C.blue });
     text(`${p.name || ''}  ·  ${r.label}`, W - M, M + 6, { size: 8, c: C.muted, align: 'right' });
     text('One chart per day, midnight to midnight (Kuwait time). Every chart uses the same scale, 0–22 mmol/L; green is the target range 3.9–10.0; red dots are readings below 3.9. Gaps are missing sensor data and are never filled in.', M, M + 10.5, { size: 6.8, c: C.muted, maxW: W - 2 * M });

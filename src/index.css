@@ -118,3 +118,6 @@ html.mom-lock body { position: fixed; inset: 0; width: 100%; padding-bottom: 0; 
 @keyframes layan-in { from { opacity: 0; } to { opacity: 1; } }
 .layan-in { animation: layan-in 180ms ease-out; }
 @media (prefers-reduced-motion: reduce) { .layan-in { animation: none; } }
+/* the visit report's hidden pages: controls are left out of the PDF */
+.visit-capture [data-part="growth"] button, .visit-capture summary::marker { display: none; }
+.visit-capture [data-part="growth"] svg { display: none; }

@@ -16,6 +16,7 @@ import { buildWeeklySummary } from '../engine/report/weekly';
 import { glucoseEvents } from '../engine/report/events';
 import { useData } from '../lib/data';
 import { Btn, Page, Sheet, cx, inputCls, toast } from '../components/ui';
+import { CsvExport } from './Share';
 
 export const daysFrom = (sp: URLSearchParams): ReportDays => { const n = Number(sp.get('days')); return (REPORT_PERIODS as readonly number[]).includes(n) ? (n as ReportDays) : 14; };
 
@@ -47,8 +48,11 @@ export function DoctorReports() {
   const [edit, setEdit] = useState(false);
   return (
     <div dir="ltr" lang="en">
-      <Page ltr title="Doctor reports" back={() => backTo(nav, '/more')}>
+      <Page ltr title="All reports" back={() => backTo(nav, '/more')}>
         <div className="space-y-3">
+          <Link to="/visit" className="flex items-center gap-3 rounded-2xl bg-brand px-4 py-3 text-white shadow-sm active:opacity-90">
+            <span className="min-w-0 flex-1"><span className="block text-lg font-bold">Visit report</span><span className="block text-sm opacity-90">Everything in one PDF for the doctor and the dietitian</span></span><span>›</span>
+          </Link>
           <PeriodPicker days={days} onChange={(d) => setSp({ days: String(d) }, { replace: true })} />
           <button onClick={() => setEdit(true)} className="flex min-h-[48px] w-full items-center justify-between rounded-2xl bg-white px-4 text-start shadow-sm">
             <span className="min-w-0 truncate"><b>{patient.name || 'Add patient name'}</b>{patient.birthDate && <span className="text-slate-500"> · {ageText(patient.birthDate, Date.now())}{patient.birthApprox ? ' (approx.)' : ''}</span>}{patient.clinic && <span className="text-slate-500"> · {patient.clinic}</span>}</span>
@@ -87,6 +91,16 @@ export function DoctorReports() {
             <div className="flex items-baseline justify-between"><h2 className="text-lg font-bold">Monthly Summary</h2><span className="text-slate-300">›</span></div>
             <p className="text-sm text-slate-500">Each month as a calendar: every day’s curve, average and lows</p>
           </Link>
+          <h2 className="px-1 pt-2 text-sm font-bold text-slate-500">For the dietitian and the care team</h2>
+          <Link to="/diet-sheet" className="block space-y-1 rounded-2xl bg-white p-4 shadow-sm active:bg-slate-50">
+            <div className="flex items-baseline justify-between"><h2 className="text-lg font-bold">Dietitian sheet</h2><span className="text-slate-300">›</span></div>
+            <p className="text-sm text-slate-500">One page per day: meals, carbs, glucose before and after, insulin (in the app's language)</p>
+          </Link>
+          <Link to="/plans/report" className="block space-y-1 rounded-2xl bg-white p-4 shadow-sm active:bg-slate-50">
+            <div className="flex items-baseline justify-between"><h2 className="text-lg font-bold">Meal plans for the care team</h2><span className="text-slate-300">›</span></div>
+            <p className="text-sm text-slate-500">Calculated and given doses, patterns, and what is worth reviewing</p>
+          </Link>
+          <div dir="auto"><CsvExport /></div>
           <Note />
         </div>
       </Page>

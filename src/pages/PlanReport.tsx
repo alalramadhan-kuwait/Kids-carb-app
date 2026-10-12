@@ -19,11 +19,13 @@ import { isEn, t } from '../i18n';
 const DAY = 86400000;
 const dateOf = (ms: number) => new Date(ms).toLocaleDateString(isEn() ? 'en-GB' : 'ar-KW-u-nu-latn', { day: 'numeric', month: 'short' });
 
-export function PlanReport() {
+/** The care team's meal plan review. `print`: for the visit report, a fixed period, no controls, everything open. */
+export function PlanReport({ print, fixedDays }: { print?: boolean; fixedDays?: number } = {}) {
   const nav = useNavigate();
   const { settings } = useData();
   const { facts, loaded } = usePlanFacts();
-  const [days, setDays] = useState(30);
+  const [pickedDays, setDays] = useState(30);
+  const days = fixedDays ?? pickedDays;
   const g = gOf(settings.glucose_unit);
   const rules = useMemo(() => rulesOf(settings.plan_review_rules as never), [settings.plan_review_rules]);
   const from = useMemo(() => Date.now() - days * DAY, [days]);
@@ -42,15 +44,16 @@ export function PlanReport() {
   useEffect(() => { const f = () => document.querySelectorAll('details').forEach((d) => { d.open = true; }); window.addEventListener('beforeprint', f); return () => window.removeEventListener('beforeprint', f); }, []);
 
   return (
-    <main className="mx-auto max-w-2xl space-y-3 px-4 pb-28 pt-3">
-      <div className="flex items-center gap-2 print:hidden">
+    <main className={cx('mx-auto max-w-2xl space-y-3', print ? 'visit-flow' : 'px-4 pb-28 pt-3')} data-ready={loaded ? '1' : undefined}>
+      {print && <h1 className="text-xl font-bold">{t('الوجبات المخططة لفريق الرعاية')}</h1>}
+      {!print && <div className="flex items-center gap-2 print:hidden">
         <button aria-label={t('رجوع')} onClick={() => nav(-1)} className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl shadow-sm">{isEn() ? '←' : '→'}</button>
         <h1 className="flex-1 text-xl font-bold">{t('الوجبات المخططة لفريق الرعاية')}</h1>
-      </div>
+      </div>}
       <h1 className="hidden text-xl font-bold print:block">{t('الوجبات المخططة لفريق الرعاية')}</h1>
-      <div className="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 text-sm print:hidden">
+      {!print && <div className="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 text-sm print:hidden">
         {[14, 30, 90].map((d) => <button key={d} onClick={() => setDays(d)} className={cx('min-h-[40px] rounded-full', days === d ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{t('{n} يومًا', { n: d })}</button>)}
-      </div>
+      </div>}
       <OvernightBasal from={from} pattern={rules.pattern_min} />
       {!loaded ? <p className="text-slate-500">…</p> : list.length === 0 ? <Card><p className="text-sm text-slate-500">{t('لا توجد وجبات مخططة بمراجعة نهائية في هذه الفترة.')}</p></Card> : (
         <Card className="space-y-3">
@@ -67,7 +70,7 @@ export function PlanReport() {
           )}
           {withDose.length > 0 && <p className="text-sm">💉 {differ.length === 0 ? t('أُعطيت الجرعة المحسوبة في كل الوجبات') : t('أُعطيت جرعة غير المحسوبة في {n} من {of} وجبات', { n: differ.length, of: withDose.length })}{corrections > 0 && <> · {t('تصحيح بعد الأكل: {n}', { n: corrections })}</>}</p>}
 
-          <details className="text-sm">
+          <details className="text-sm" open={print || undefined}>
             <summary className="min-h-[40px] cursor-pointer py-2 font-bold text-brand">{t('التفاصيل: الأدلة والأنماط وكل الوجبات')}</summary>
             <div className="space-y-3">
               <EvidenceList list={evidence} facts={list} />
@@ -85,7 +88,7 @@ export function PlanReport() {
       <p className="text-[11px] text-slate-500">
         {t('من {a} إلى {b}', { a: dateOf(from), b: dateOf(Date.now()) })} · {unitLabel(settings.glucose_unit)} · {t('الإعدادات الحالية: مدة عمل الإنسولين {d} · الجرعة قبل الأكل بـ {m} د', { d: dur(settings.iob_dia_min ?? 360), m: settings.dose_to_meal_min ?? 0 })}
       </p>
-      <Btn block kind="ghost" className="print:hidden" onClick={() => window.print()}>{t('طباعة أو حفظ PDF')}</Btn>
+      {!print && <Btn block kind="ghost" className="print:hidden" onClick={() => window.print()}>{t('طباعة أو حفظ PDF')}</Btn>}
       <p className="text-center text-[11px] text-slate-400">{t('ملاحظات من بياناتها، وليست توصية بجرعة.')}</p>
     </main>
   );

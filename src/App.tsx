@@ -27,8 +27,8 @@ import Shared from './pages/Shared';
 import SharePage from './pages/Share';
 import WidgetPage from './pages/Widget';
 import DietSheetPage from './pages/DietSheet';
+import VisitReport from './pages/VisitReport';
 import GrowthPage from './pages/Growth';
-import Report from './pages/Report';
 import Scan from './pages/Scan';
 import { isNight } from './lib/schedule';
 import { UpdateBanner, VersionTag } from './components/Version';
@@ -192,7 +192,7 @@ const TABS: { to: string; label: string; icon: IconName; match: string[] }[] = [
   { to: '/timeline', label: 'السجل', icon: 'history', match: ['/timeline'] }, // i18n-ok
   { to: '/meals', label: 'الوجبات', icon: 'meals', match: ['/meals', '/recipes', '/products', '/plans', '/scan'] }, // i18n-ok
   { to: '/analysis', label: 'التحليل', icon: 'advanced', match: ['/analysis', '/advanced'] }, // i18n-ok
-  { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm', '/alerts', '/care-plan', '/share', '/widget', '/diet-sheet', '/report'] }, // i18n-ok
+  { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm', '/alerts', '/care-plan', '/share', '/widget', '/diet-sheet', '/reports', '/visit', '/portions', '/import', '/deleted'] }, // i18n-ok
 ];
 
 /** Appearance: a fixed day or night choice on this phone, or automatic (night colours in the parents' night window
@@ -306,8 +306,9 @@ function Shell() {
         <Route path="/diet-sheet" element={<DietSheetPage />} />
         <Route path="/growth" element={<GrowthPage />} />
         <Route path="/sites" element={<SitesPage />} />
-        <Route path="/report" element={<Report />} />
+        <Route path="/report" element={<Navigate to="/reports/agp" replace />} />
         <Route path="/reports" element={<DoctorReports />} />
+        <Route path="/visit" element={<VisitReport />} />
         <Route path="/reports/agp" element={<AgpReportPage />} />
         <Route path="/reports/weekly" element={<WeeklySummaryPage />} />
         <Route path="/reports/daily" element={<DailyLogPage />} />

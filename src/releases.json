@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-12",
+    "version": "2.68.0",
+    "notes": [
+      "«تقرير الزيارة»: زر واحد يجهّز PDF واحد للطبيب وأخصائية التغذية (تقارير الطبيب، الوجبات المخططة، النمو والتغذية، جدول التغذية اليومي، وملاحظات الزيارة) للمشاركة أو الطباعة",
+      "تختارون لغة صفحات العائلة والتغذية: عربي أو إنجليزي؛ تقارير الطبيب تبقى بالإنجليزي",
+      "«المزيد» أبسط: «زيارة العيادة» فوق، وكل التقارير في صفحة واحدة، و«الأكل والكميات» صفحة واحدة، والاستيراد والمحذوفة تحت «متقدم»"
+    ],
+    "notes_en": [
+      "«Visit report»: one button makes one PDF for the doctor and the dietitian (doctor reports, meal plans, growth and nutrition, the daily food sheet and visit notes) to share or print",
+      "You choose the language of the family and nutrition pages: Arabic or English; the doctor reports stay in English",
+      "«More» is simpler: «Clinic visit» at the top, every report on one page, «Food & portions» as one page, and import and recently deleted under «Advanced»"
+    ]
+  },
+  {
+    "date": "2026-10-12",
     "version": "2.67.0",
     "notes": [
       "زر ⤢ على رسم «التحليل» يفتحه بالعرض على الشاشة كاملة، حتى لو قفل التدوير شغّال: لفّوا الجوال لليسار، و«إغلاق» يرجعكم"

@@ -24,14 +24,11 @@ async function copyLink(url: string) {
 
 export default function SharePage() {
   const nav = useNavigate();
-  const { nameOf } = useData();
   const [links, setLinks] = useState<LinkRow[]>([]);
   const [scope, setScope] = useState<'school' | 'viewer'>('school');
   const [label, setLabel] = useState('');
   const [days, setDays] = useState(30);
   const [fresh, setFresh] = useState<string | null>(null);
-  const [exportDays, setExportDays] = useState(30);
-  const [busy, setBusy] = useState(false);
   const load = async () => { const { data } = await supabase.from('share_links').select('*').order('created_at', { ascending: false }); setLinks((data ?? []) as LinkRow[]); };
   useEffect(() => { load(); }, []);
 
@@ -44,27 +41,9 @@ export default function SharePage() {
   };
   const revoke = async (id: string) => { if (!confirm(t('إيقاف هذا الرابط؟ يتوقف فورًا.'))) return; await supabase.rpc('revoke_share_link', { p_id: id }); load(); };
 
-  const exportCsv = async () => {
-    setBusy(true);
-    try {
-      const to = new Date(), from = new Date(to.getTime() - exportDays * 86400000);
-      const [g, e, h] = await Promise.all([
-        supabase.rpc('glucose_series', { p_from: from.toISOString(), p_to: to.toISOString() }),
-        supabase.from('events').select('*').gte('occurred_at', from.toISOString()).order('occurred_at').limit(5000),
-        supabase.from('meal_history').select('*').is('deleted_at', null).eq('intake', 'confirmed').gte('eaten_at', from.toISOString()).order('eaten_at').limit(5000),
-      ]);
-      const ser = g.data as { t: number[]; v: number[] };
-      const csv = buildCsv(ser.t.map((t, k) => ({ t: t * 1000, v: ser.v[k] })), (e.data ?? []) as EventRow[], (h.data ?? []) as HistoryEntry[], nameOf);
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-      a.download = `layan-${from.toISOString().slice(0, 10)}-${to.toISOString().slice(0, 10)}.csv`;
-      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    } catch (err) { toast(t('تعذّر التصدير: {msg}', { msg: (err as Error).message })); } finally { setBusy(false); }
-  };
-
   const active = links.filter((l) => !l.revoked_at && Date.parse(l.expires_at) > Date.now());
   return (
-    <Page title={t('المشاركة والتقارير')} back={() => nav(-1)}>
+    <Page title={t('المشاركة')} back={() => nav(-1)}>
       <div className="space-y-3">
         <Card className="space-y-3">
           <h2 className="font-bold">{t('رابط للعرض فقط')}</h2>
@@ -105,15 +84,39 @@ export default function SharePage() {
           </Card>
         )}
 
-        <Card className="space-y-3">
-          <h2 className="font-bold">{t('تصدير البيانات (CSV)')}</h2>
-          <p className="text-sm text-slate-600">{t('القراءات وكل ما سُجّل، بتوقيت الكويت وبالوحدتين. يفتح في Excel أو Numbers.')}</p>
-          <div className="flex gap-1.5">{[14, 30, 90].map((d) => <Chip key={d} active={exportDays === d} onClick={() => setExportDays(d)}>{t('{n} يوم', { n: d })}</Chip>)}</div>
-          <Btn block disabled={busy} onClick={exportCsv}>{busy ? '…' : t('تنزيل الملف')}</Btn>
-        </Card>
-
-        <Link to="/report"><Card className="flex items-center gap-3 !p-4"><div className="flex-1"><div className="font-bold">{t('تقرير للعيادة')}</div><div className="text-sm text-slate-500">{t('صفحة جاهزة للطباعة أو الحفظ PDF')}</div></div><span className="text-slate-400">{isEn() ? '›' : '‹'}</span></Card></Link>
       </div>
     </Page>
+  );
+}
+
+/** The readings and everything logged as a spreadsheet file (shown with all the reports). */
+export function CsvExport() {
+  const { nameOf } = useData();
+  const [exportDays, setExportDays] = useState(30);
+  const [busy, setBusy] = useState(false);
+  const exportCsv = async () => {
+    setBusy(true);
+    try {
+      const to = new Date(), from = new Date(to.getTime() - exportDays * 86400000);
+      const [g, e, h] = await Promise.all([
+        supabase.rpc('glucose_series', { p_from: from.toISOString(), p_to: to.toISOString() }),
+        supabase.from('events').select('*').gte('occurred_at', from.toISOString()).order('occurred_at').limit(5000),
+        supabase.from('meal_history').select('*').is('deleted_at', null).eq('intake', 'confirmed').gte('eaten_at', from.toISOString()).order('eaten_at').limit(5000),
+      ]);
+      const ser = g.data as { t: number[]; v: number[] };
+      const csv = buildCsv(ser.t.map((t, k) => ({ t: t * 1000, v: ser.v[k] })), (e.data ?? []) as EventRow[], (h.data ?? []) as HistoryEntry[], nameOf);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      a.download = `layan-${from.toISOString().slice(0, 10)}-${to.toISOString().slice(0, 10)}.csv`;
+      a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch (err) { toast(t('تعذّر التصدير: {msg}', { msg: (err as Error).message })); } finally { setBusy(false); }
+  };
+  return (
+    <Card className="space-y-3">
+      <h2 className="font-bold">{t('تصدير البيانات (CSV)')}</h2>
+      <p className="text-sm text-slate-600">{t('القراءات وكل ما سُجّل، بتوقيت الكويت وبالوحدتين. يفتح في Excel أو Numbers.')}</p>
+      <div className="flex gap-1.5">{[14, 30, 90].map((d) => <Chip key={d} active={exportDays === d} onClick={() => setExportDays(d)}>{t('{n} يوم', { n: d })}</Chip>)}</div>
+      <Btn block disabled={busy} onClick={exportCsv}>{busy ? '…' : t('تنزيل الملف')}</Btn>
+    </Card>
   );
 }

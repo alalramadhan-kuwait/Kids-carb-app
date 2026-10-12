@@ -112,23 +112,19 @@ export function More() {
   return (
     <Page title={t('المزيد')}>
       <div className="space-y-5 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-8 lg:gap-y-6 lg:space-y-0">
+        {group(t('زيارة العيادة'), <>
+          {link('/visit', 'user', t('تقرير الزيارة'), t('PDF واحد للطبيب وأخصائية التغذية، للمشاركة أو الطباعة'))}
+          {link('/reports', 'note', t('كل التقارير'), t('AGP، الأسبوعي، الشهري، الوجبات، جدول التغذية، ملف CSV'))}
+        </>)}
         {group(t('ليان'), <>
           {link('/alerts', 'bell', t('التنبيهات وماذا نفعل'), t('الحدود، الليل والمدرسة، من يصله التنبيه، وخطوات الطبيب'))}
           {link('/doctor', 'insulin', t('أرقام الطبيب'), t('نسبة الكارب، التصحيح، هدف الجرعة، خطوة القلم'))}
           {link('/sites', 'repeat', t('أماكن الإبر'), t('المكان الأنسب الآن، خريطة جسمها، وأين أُعطيت كل جرعة'))}
           {link('/growth', 'heart', t('النمو والتغذية'), t('الوزن والطول، الطاقة، التوازن'))}
         </>)}
-        {group(t('الأكل'), <>
-          {link('/portions', 'meals', t('كميات ليان'), t('صحن ليان الصغير والكبير… لوضع ماما'))}
-          {link('/settings', 'products', t('إعدادات الأكل'), t('أقصى كارب للوجبة، المدى المفضّل، الملعقة'))}
-        </>)}
-        {group(t('التقارير والمشاركة'), <>
-          {link('/reports', 'user', t('تقارير الطبيب'), t('تقرير AGP بصيغة PDF للعيادة، بالإنجليزي'))}
-          {link('/share', 'family', t('المشاركة والتقارير'), t('رابط للمدرسة أو العائلة، ملف CSV، تقرير للعيادة'))}
-          {link('/diet-sheet', 'note', t('جدول أخصائية التغذية'), t('صفحة لكل يوم: الوجبات، الكارب، السكر قبل وبعد، الإنسولين'))}
-          {link('/plans/report', 'history', t('الوجبات المخططة لفريق الرعاية'), t('الجرعة المحسوبة والمعطاة، الأنماط، وما يستحق المراجعة'))}
-          {link('/import', 'copy', t('استيراد من Gluroo'), t('قراءات وجرعات ووجبات من ملف التصدير'))}
-          {link('/deleted', 'trash', t('المحذوفة مؤخرًا'), t('آخر 30 يوم: من حذفها ومتى، وإرجاعها'))}
+        {group(t('الأكل والمشاركة'), <>
+          {link('/settings', 'meals', t('الأكل والكميات'), t('كميات ليان، أقصى كارب للوجبة، المدى المفضّل، الملعقة'))}
+          {link('/share', 'family', t('المشاركة'), t('رابط للمدرسة أو العائلة'))}
         </>)}
         <div id="phone">{group(t('هذا الجوال'), <>
           <li className="px-4 py-3"><PhonePush /></li>
@@ -175,8 +171,9 @@ export function More() {
         <details className="rounded-2xl border border-slate-100 bg-white lg:col-span-2">
           <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between px-4 font-medium text-slate-600">{t('متقدم')}<span className="text-slate-300">{isEn() ? '›' : '‹'}</span></summary>
           <ul className="divide-y divide-slate-100 border-t border-slate-100">
-            {link('/cgm', 'sensor', t('ربط الحساس'), t('LibreLinkUp لعرض السكر الحي'))}
-            {link('/settings/advanced', 'settings', t('إعدادات متقدمة'), t('نوع الحساس'))}
+            {link('/cgm', 'sensor', t('الحساس'), t('ربط LibreLinkUp ونوع الحساس'))}
+            {link('/import', 'copy', t('استيراد من Gluroo'), t('قراءات وجرعات ووجبات من ملف التصدير'))}
+            {link('/deleted', 'trash', t('المحذوفة مؤخرًا'), t('آخر 30 يوم: من حذفها ومتى، وإرجاعها'))}
           </ul>
         </details>
         <footer className="space-y-1 pt-1 text-center text-xs text-slate-400 lg:col-span-2">
@@ -190,7 +187,7 @@ export function More() {
 
 // ── settings ────────────────────────────────────────────────────────────────
 export type SettingsPart = 'food' | 'doctor' | 'advanced';
-const PART_TITLE: Record<SettingsPart, string> = { food: 'إعدادات الأكل', doctor: 'أرقام الطبيب', advanced: 'متقدم' }; // i18n-ok
+const PART_TITLE: Record<SettingsPart, string> = { food: 'الأكل والكميات', doctor: 'أرقام الطبيب', advanced: 'متقدم' }; // i18n-ok
 /** Settings in three pages (food, the doctor's numbers, advanced), one form and one save underneath. */
 export function SettingsPage({ part = 'food' }: { part?: SettingsPart }) {
   const nav = useNavigate();
@@ -217,6 +214,11 @@ export function SettingsPage({ part = 'food' }: { part?: SettingsPart }) {
     <Page title={t(PART_TITLE[part])} back={() => nav(-1)}>
       <div className="space-y-4">
         {part === 'food' && <>
+        <Link to="/portions" className="flex min-h-[56px] items-center gap-3 rounded-2xl bg-white px-4 py-2.5 shadow-sm active:bg-slate-50">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="meals" size={20} /></span>
+          <span className="min-w-0 flex-1"><span className="block font-semibold">{t('كميات ليان')}</span><span className="block truncate text-sm text-slate-500">{t('صحن ليان الصغير والكبير… لوضع ماما')}</span></span>
+          <span className="text-slate-300">{isEn() ? '›' : '‹'}</span>
+        </Link>
         <Card className="space-y-3">
           <h2 className="font-bold">{t('هامش الأمان')}</h2>
           <Field label={t('الحد الأقصى لكارب الوجبة (غ)')} hint={t('فوقه يظهر تحذير واضح ولا تُقترح الوصفة. لا نمنع التسجيل بالقوة.')}>

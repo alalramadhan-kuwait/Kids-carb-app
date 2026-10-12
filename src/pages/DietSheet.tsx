@@ -14,7 +14,7 @@ import { usePortions } from '../lib/mom';
 import { Icon } from '../components/Icon';
 import { fmtTime, hourTick } from '../lib/constants';
 import { AFTER_MIN, DEFAULT_STARTS, SLOT_KEYS, buildDay, type Activity, type DaySheet, type Dose, type Flag, type Food, type Line, type Occasion, type Slot, type Sum, type Prick, type SlotKey, type SlotStarts, type Treat } from '../lib/dietSheet';
-import type { EventRow, HistoryEntry, Portion, Product, Unit } from '../lib/types';
+import type { EventRow, HistoryEntry, Portion, Product, Recipe, Unit } from '../lib/types';
 import { Alert, Card, Page, cx } from '../components/ui';
 import { SharePdf } from '../components/SharePdf';
 import { makePdf } from '../lib/pdfShare';
@@ -79,80 +79,7 @@ export default function DietSheetPage() {
     let live = true;
     setBusy(true); setErr('');
     (async () => {
-      const start = a, end = b + DAY, after = end + 6 * 3600000;   // the late rise after dinner runs past midnight
-      const [h, e, series] = await Promise.all([
-        supabase.from('meal_history').select('*').is('deleted_at', null).eq('intake', 'confirmed').gte('eaten_at', new Date(start).toISOString()).lt('eaten_at', new Date(after).toISOString()).order('eaten_at').limit(3000),
-        supabase.from('events').select('*').is('deleted_at', null).gte('occurred_at', new Date(start - 3600000).toISOString()).lt('occurred_at', new Date(after).toISOString()).order('occurred_at').limit(5000),
-        fetchSeries(start, after),
-      ]);
-      if (h.error || e.error) throw new Error((h.error ?? e.error)!.message);
-      const hist = (h.data ?? []) as HistoryEntry[], ev = (e.data ?? []) as EventRow[];
-      // what the plans add: the meal type, the part eaten, and which dose was for which meal
-      const ids = hist.map((x) => x.id), recipeIds = [...new Set(hist.map((x) => x.recipe_id).filter((x): x is string => !!x))];
-      const [pl, rc, ri] = await Promise.all([
-        ids.length ? supabase.from('planned_meals').select('history_id,slot,part_eaten,carbs_planned,dose_event_id,eating_at').or(`history_id.in.(${ids.join(',')}),and(history_id.is.null,status.eq.eaten,eating_at.gte.${new Date(start).toISOString()},eating_at.lt.${new Date(after).toISOString()})`) : Promise.resolve({ data: [], error: null }),
-        recipeIds.length ? supabase.from('recipes').select('id,carb_pending').in('id', recipeIds) : Promise.resolve({ data: [], error: null }),
-        recipeIds.length ? supabase.from('recipe_ingredients').select('recipe_id,qty_confirmed,product_id,slot_category').in('recipe_id', recipeIds) : Promise.resolve({ data: [], error: null }),
-      ]);
-      type PlanRow = { history_id: string | null; slot: string; part_eaten: number | null; carbs_planned: number | null; dose_event_id: string | null; eating_at: string | null };
-      const plans = (pl.data ?? []) as PlanRow[];
-      // a plan whose entry was deleted and logged again has no link: it is the entry eaten within 10 minutes of its time
-      for (const r of plans) if (!r.history_id && r.eating_at) {
-        const at = Date.parse(r.eating_at);
-        const m = hist.filter((x) => !plans.some((q) => q.history_id === x.id) && Math.abs(Date.parse(x.eaten_at) - at) <= 10 * 60000).sort((a, b) => Math.abs(Date.parse(a.eaten_at) - at) - Math.abs(Date.parse(b.eaten_at) - at))[0];
-        if (m) r.history_id = m.id;
-      }
-      const planOf = new Map(plans.filter((r) => r.history_id).map((r) => [r.history_id!, r]));
-      const doseFor = new Map(plans.filter((r) => r.dose_event_id && r.history_id).map((r) => [r.dose_event_id!, r.history_id!]));
-      const unsure = new Set<string>([
-        ...((rc.data ?? []) as { id: string; carb_pending: boolean }[]).filter((r) => r.carb_pending).map((r) => r.id),
-        ...((ri.data ?? []) as { recipe_id: string; qty_confirmed: boolean | null; product_id: string | null; slot_category: string | null }[]).filter((r) => r.qty_confirmed === false || (!r.product_id && !r.slot_category)).map((r) => r.recipe_id),
-      ]);
-      const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
-      const productFor = (key: string | null, name: string) => products.find((p) => key && [p.name, p.brand].filter(Boolean).join(' — ') === key) ?? products.find((p) => p.name === name) ?? null;
-      const slotKey = (x: string | undefined): Food['slot'] => (x === 'breakfast' || x === 'lunch' || x === 'dinner' || x === 'snack' ? x : null);
-      const foods: Food[] = [], treatments: Treat[] = [];
-      for (const x of hist) {
-        const t0 = Date.parse(x.eaten_at), carbs = x.carbs_unknown ? 0 : Number(x.total_carbs);
-        const plan = planOf.get(x.id);
-        const imported = x.source === 'gluroo';
-        const flags: Flag[] = [];
-        if (imported) flags.push('imported');
-        if (x.carbs_unknown) flags.push('unknown');
-        if (x.needs_review) flags.push('review');
-        if (x.recipe_id && unsure.has(x.recipe_id)) flags.push('recipe');
-        const lines: Line[] = (x.lines ?? []).map((l) => {
-          const p = productFor(l.product ?? null, l.name);
-          return { name: p ? foodName(p) : l.name, named: !!p && !untranslated(p), quantity: imported && l.unit === 'serving' && l.quantity === 1 ? null : l.quantity ?? null, unit: l.unit ?? null, carbs: l.carbs ?? null, productKey: l.product ?? null };
-        });
-        // the meal's own name: its recipe, or its one product, in the page's language
-        const rec = x.recipe_id ? recipes.find((r) => r.id === x.recipe_id) : null;
-        const one = !rec && (x.lines ?? []).length === 1 ? productFor(x.lines[0].product ?? null, x.lines[0].name) : null;
-        const own = rec ?? one ?? productFor(null, x.name);
-        const note = x.notes && !/^gluroo\b/i.test(x.notes.trim()) ? x.notes.trim() : null;
-        foods.push({ t: t0, id: x.id, name: own ? foodName(own) : x.name, named: !!own && !untranslated(own), detail: null, carbs, fat: num(x.total_fat), protein: num(x.total_protein), kcal: num(x.total_kcal), fiber: num(x.total_fiber),
-          slot: slotKey(plan?.slot), planned: !!plan, recipe: !!x.recipe_id, lines, note, flags, partEaten: num(plan?.part_eaten), carbsPlanned: num(plan?.carbs_planned) });
-      }
-      const doses: Dose[] = [], pricks: Prick[] = [], acts: Activity[] = [];
-      for (const x of ev) {
-        const t0 = Date.parse(x.occurred_at);
-        if (x.kind === 'insulin' && x.insulin_units) {
-          const c = x.dose_calc;
-          doses.push({ t: t0, id: x.id, units: Number(x.insulin_units), type: x.insulin_type === 'long' ? 'long' : 'rapid', purpose: x.bolus_purpose, forFood: doseFor.get(x.id) ?? null,
-            calc: c ? { food: Number(c.food), correction: Number(c.correction), carbs: c.carbs ?? null, suggested: c.suggested ?? null } : null });
-        }
-        else if (x.kind === 'carbs' && x.carbs_g) foods.push({ t: t0, id: x.id, name: x.note?.trim() || t('كارب'), detail: null, carbs: Number(x.carbs_g), fat: null, protein: null, kcal: null, fiber: null, flags: x.note?.trim() ? [] : ['unnamed'] });
-        else if (x.kind === 'treatment' && x.carbs_g !== null) {
-          const tp = x.treatment ? productFor(null, x.treatment) : null;   // logged from the products list as a low treatment
-          treatments.push({ t: t0, name: tp ? foodName(tp) : tMaybe(x.treatment ?? t('علاج انخفاض')), named: !!tp && !untranslated(tp), carbs: Number(x.carbs_g), productName: tp?.name ?? x.treatment });
-        }
-        else if (x.kind === 'bg_check' && x.bg_mgdl) pricks.push({ t: t0, mg: Number(x.bg_mgdl) });
-        else if (x.kind === 'exercise') acts.push({ t: t0, text: t('رياضة {m} د', { m: x.activity_min ?? 0 }) + (x.note ? ` · ${x.note}` : '') });
-        else if (x.kind === 'sleep' && x.ends_at) acts.push({ t: t0, text: t('نوم {a} – {b}', { a: time(t0), b: time(Date.parse(x.ends_at)) }) });
-        else if (x.kind === 'note' && x.note) acts.push({ t: t0, text: x.note });
-      }
-      const out: DaySheet[] = [];
-      for (let d = a; d <= b; d += DAY) out.push(buildDay(d, starts, { foods, doses, pricks, treatments, activities: acts, series: { t: series.t, v: series.v }, low, high }));
+      const out = await loadDaySheets(a, b, starts, { products, recipes, low, high });
       if (live) setSheets(out);
     })().catch((x) => { if (live) setErr((x as Error).message); }).finally(() => { if (live) setBusy(false); });
     return () => { live = false; };
@@ -222,10 +149,91 @@ export default function DietSheetPage() {
   );
 }
 
+/** The dietitian's day sheets for the Kuwait days a … b (day starts), read from the database. Also used by the
+ *  visit report. Words inside (unnamed carbs, exercise, sleep) are in the language current while it runs. */
+export async function loadDaySheets(a: number, b: number, starts: SlotStarts, o: { products: Product[]; recipes: Recipe[]; low: number; high: number }): Promise<DaySheet[]> {
+  const { products, recipes, low, high } = o;
+  const start = a, end = b + DAY, after = end + 6 * 3600000;   // the late rise after dinner runs past midnight
+  const [h, e, series] = await Promise.all([
+    supabase.from('meal_history').select('*').is('deleted_at', null).eq('intake', 'confirmed').gte('eaten_at', new Date(start).toISOString()).lt('eaten_at', new Date(after).toISOString()).order('eaten_at').limit(3000),
+    supabase.from('events').select('*').is('deleted_at', null).gte('occurred_at', new Date(start - 3600000).toISOString()).lt('occurred_at', new Date(after).toISOString()).order('occurred_at').limit(5000),
+    fetchSeries(start, after),
+  ]);
+  if (h.error || e.error) throw new Error((h.error ?? e.error)!.message);
+  const hist = (h.data ?? []) as HistoryEntry[], ev = (e.data ?? []) as EventRow[];
+  // what the plans add: the meal type, the part eaten, and which dose was for which meal
+  const ids = hist.map((x) => x.id), recipeIds = [...new Set(hist.map((x) => x.recipe_id).filter((x): x is string => !!x))];
+  const [pl, rc, ri] = await Promise.all([
+    ids.length ? supabase.from('planned_meals').select('history_id,slot,part_eaten,carbs_planned,dose_event_id,eating_at').or(`history_id.in.(${ids.join(',')}),and(history_id.is.null,status.eq.eaten,eating_at.gte.${new Date(start).toISOString()},eating_at.lt.${new Date(after).toISOString()})`) : Promise.resolve({ data: [], error: null }),
+    recipeIds.length ? supabase.from('recipes').select('id,carb_pending').in('id', recipeIds) : Promise.resolve({ data: [], error: null }),
+    recipeIds.length ? supabase.from('recipe_ingredients').select('recipe_id,qty_confirmed,product_id,slot_category').in('recipe_id', recipeIds) : Promise.resolve({ data: [], error: null }),
+  ]);
+  type PlanRow = { history_id: string | null; slot: string; part_eaten: number | null; carbs_planned: number | null; dose_event_id: string | null; eating_at: string | null };
+  const plans = (pl.data ?? []) as PlanRow[];
+  // a plan whose entry was deleted and logged again has no link: it is the entry eaten within 10 minutes of its time
+  for (const r of plans) if (!r.history_id && r.eating_at) {
+    const at = Date.parse(r.eating_at);
+    const m = hist.filter((x) => !plans.some((q) => q.history_id === x.id) && Math.abs(Date.parse(x.eaten_at) - at) <= 10 * 60000).sort((a, b) => Math.abs(Date.parse(a.eaten_at) - at) - Math.abs(Date.parse(b.eaten_at) - at))[0];
+    if (m) r.history_id = m.id;
+  }
+  const planOf = new Map(plans.filter((r) => r.history_id).map((r) => [r.history_id!, r]));
+  const doseFor = new Map(plans.filter((r) => r.dose_event_id && r.history_id).map((r) => [r.dose_event_id!, r.history_id!]));
+  const unsure = new Set<string>([
+    ...((rc.data ?? []) as { id: string; carb_pending: boolean }[]).filter((r) => r.carb_pending).map((r) => r.id),
+    ...((ri.data ?? []) as { recipe_id: string; qty_confirmed: boolean | null; product_id: string | null; slot_category: string | null }[]).filter((r) => r.qty_confirmed === false || (!r.product_id && !r.slot_category)).map((r) => r.recipe_id),
+  ]);
+  const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+  const productFor = (key: string | null, name: string) => products.find((p) => key && [p.name, p.brand].filter(Boolean).join(' — ') === key) ?? products.find((p) => p.name === name) ?? null;
+  const slotKey = (x: string | undefined): Food['slot'] => (x === 'breakfast' || x === 'lunch' || x === 'dinner' || x === 'snack' ? x : null);
+  const foods: Food[] = [], treatments: Treat[] = [];
+  for (const x of hist) {
+    const t0 = Date.parse(x.eaten_at), carbs = x.carbs_unknown ? 0 : Number(x.total_carbs);
+    const plan = planOf.get(x.id);
+    const imported = x.source === 'gluroo';
+    const flags: Flag[] = [];
+    if (imported) flags.push('imported');
+    if (x.carbs_unknown) flags.push('unknown');
+    if (x.needs_review) flags.push('review');
+    if (x.recipe_id && unsure.has(x.recipe_id)) flags.push('recipe');
+    const lines: Line[] = (x.lines ?? []).map((l) => {
+      const p = productFor(l.product ?? null, l.name);
+      return { name: p ? foodName(p) : l.name, named: !!p && !untranslated(p), quantity: imported && l.unit === 'serving' && l.quantity === 1 ? null : l.quantity ?? null, unit: l.unit ?? null, carbs: l.carbs ?? null, productKey: l.product ?? null };
+    });
+    // the meal's own name: its recipe, or its one product, in the page's language
+    const rec = x.recipe_id ? recipes.find((r) => r.id === x.recipe_id) : null;
+    const one = !rec && (x.lines ?? []).length === 1 ? productFor(x.lines[0].product ?? null, x.lines[0].name) : null;
+    const own = rec ?? one ?? productFor(null, x.name);
+    const note = x.notes && !/^gluroo\b/i.test(x.notes.trim()) ? x.notes.trim() : null;
+    foods.push({ t: t0, id: x.id, name: own ? foodName(own) : x.name, named: !!own && !untranslated(own), detail: null, carbs, fat: num(x.total_fat), protein: num(x.total_protein), kcal: num(x.total_kcal), fiber: num(x.total_fiber),
+      slot: slotKey(plan?.slot), planned: !!plan, recipe: !!x.recipe_id, lines, note, flags, partEaten: num(plan?.part_eaten), carbsPlanned: num(plan?.carbs_planned) });
+  }
+  const doses: Dose[] = [], pricks: Prick[] = [], acts: Activity[] = [];
+  for (const x of ev) {
+    const t0 = Date.parse(x.occurred_at);
+    if (x.kind === 'insulin' && x.insulin_units) {
+      const c = x.dose_calc;
+      doses.push({ t: t0, id: x.id, units: Number(x.insulin_units), type: x.insulin_type === 'long' ? 'long' : 'rapid', purpose: x.bolus_purpose, forFood: doseFor.get(x.id) ?? null,
+        calc: c ? { food: Number(c.food), correction: Number(c.correction), carbs: c.carbs ?? null, suggested: c.suggested ?? null } : null });
+    }
+    else if (x.kind === 'carbs' && x.carbs_g) foods.push({ t: t0, id: x.id, name: x.note?.trim() || t('كارب'), detail: null, carbs: Number(x.carbs_g), fat: null, protein: null, kcal: null, fiber: null, flags: x.note?.trim() ? [] : ['unnamed'] });
+    else if (x.kind === 'treatment' && x.carbs_g !== null) {
+      const tp = x.treatment ? productFor(null, x.treatment) : null;   // logged from the products list as a low treatment
+      treatments.push({ t: t0, name: tp ? foodName(tp) : tMaybe(x.treatment ?? t('علاج انخفاض')), named: !!tp && !untranslated(tp), carbs: Number(x.carbs_g), productName: tp?.name ?? x.treatment });
+    }
+    else if (x.kind === 'bg_check' && x.bg_mgdl) pricks.push({ t: t0, mg: Number(x.bg_mgdl) });
+    else if (x.kind === 'exercise') acts.push({ t: t0, text: t('رياضة {m} د', { m: x.activity_min ?? 0 }) + (x.note ? ` · ${x.note}` : '') });
+    else if (x.kind === 'sleep' && x.ends_at) acts.push({ t: t0, text: t('نوم {a} – {b}', { a: time(t0), b: time(Date.parse(x.ends_at)) }) });
+    else if (x.kind === 'note' && x.note) acts.push({ t: t0, text: x.note });
+  }
+  const out: DaySheet[] = [];
+  for (let d = a; d <= b; d += DAY) out.push(buildDay(d, starts, { foods, doses, pricks, treatments, activities: acts, series: { t: series.t, v: series.v }, low, high }));
+  return out;
+}
+
 const niceDay = (ms: number) => Number.isFinite(ms) ? new Date(ms + 3 * 3600000).toLocaleDateString(locale(), { day: 'numeric', month: 'short', timeZone: 'UTC', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions) : '—';
 
 // ── shared words for both views ──────────────────────────────────────────────────────────────────────────────
-type Ctx = { g: (mg: number) => string; low: number; high: number; products: Product[]; portions: Portion[] };
+export type Ctx = { g: (mg: number) => string; low: number; high: number; products: Product[]; portions: Portion[] };
 const FLAG_TEXT: Record<Flag, string> = { estimate: 'تقديري', imported: 'مستورد', review: 'يحتاج مراجعة', recipe: 'وصفة غير مؤكدة', unnamed: 'غير مسمّى', duplicate: 'مكرر؟', unknown: 'الكارب غير معروف' }; // i18n-ok: shown through t()
 const AFF_TEXT = { food: 'أكل', treatment: 'علاج', correction: 'تصحيح' } as const; // i18n-ok: shown through t()
 const r1 = (x: number) => Math.round(x * 10) / 10;
@@ -371,7 +379,7 @@ const C = { ink: '#261E5C', ink2: '#625A87', ink3: '#9084A9', line: '#E4DCF9', s
   ok: '#1F7A55', high: '#8F5A00', low: '#B83A44', okDot: '#46B98A', highDot: '#F2A541', lowDot: '#E95F68', band: '#E3F5EC', ins: '#2E7CD6', carb: '#C2408F' };
 const tone = (mg: number, low: number, high: number) => (mg < low ? C.low : mg > high ? C.high : C.ok);
 
-function SheetPage({ s, unit, low, high, child, rapidName, basalName, ratios, ctx }: {
+export function SheetPage({ s, unit, low, high, child, rapidName, basalName, ratios, ctx }: {
   s: DaySheet; unit: GlucoseUnit; low: number; high: number; child: string; rapidName: string | null; basalName: string | null; ratios: { from: string; cr: number; isf: number }[]; ctx: Ctx;
 }) {
   const g = ctx.g;
@@ -626,7 +634,7 @@ const levelFor = (n: number) => (n <= LEVELS[0].first ? 0 : 1);
 const chunksOf = <T,>(xs: T[], first: number, next: number) => { const out = [xs.slice(0, first)]; for (let i = first; i < xs.length; i += next) out.push(xs.slice(i, i + next)); return out; };
 const eventPages = (s: DaySheet, products: Product[]) => { if (!s.recorded) return 0; const n = dayEvents(s, products).length, L = LEVELS[levelFor(n)]; return chunksOf(Array(n).fill(0), L.first, L.next).length; };
 
-function EventsPages({ s, unit, low, high, child, ctx }: { s: DaySheet; unit: GlucoseUnit; low: number; high: number; child: string; ctx: Ctx }) {
+export function EventsPages({ s, unit, low, high, child, ctx }: { s: DaySheet; unit: GlucoseUnit; low: number; high: number; child: string; ctx: Ctx }) {
   const evs = s.recorded ? dayEvents(s, ctx.products) : [];
   const [level, setLevel] = useState(() => levelFor(evs.length));
   const box = useRef<HTMLDivElement>(null);
