@@ -2,7 +2,7 @@
 // (home cooking, foods, restaurant items, her saved meals) best match first. Before typing: her saved meals, what
 // she had lately, the rice-and-stew scale, eating out, and the ways to browse. The text typed is kept in the
 // address, so Back from a food comes back to the same results.
-import { useMemo, type ReactNode } from 'react';
+import { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { draftOps, useDraft, useSavedMeals } from '../../lib/mom';
@@ -12,33 +12,13 @@ import { rankFoods } from '../../lib/search';
 import { RESTAURANTS, restaurantOf } from '../../lib/restaurants';
 import { productOf } from '../../lib/mealItems';
 import { reusable } from '../../lib/entryActions';
-import { fmt } from '../../lib/carbs';
-import { Photo, cx, inputCls } from '../../components/ui';
+import { cx, inputCls } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import type { Product, Recipe, SavedMeal } from '../../lib/types';
 import { Big, MomPage } from './MomUI';
-import { GroupTile, RestaurantLogo, pic, plateFromLog, recent, shownName, useCatalog, useUrlQuery } from './MomMeal';
+import { FoodRow, GroupTile, RestaurantLogo, plateFromLog, recent, shownName, useCatalog, useUrlQuery } from './MomMeal';
 
 type Food = { kind: 'product'; x: Product } | { kind: 'recipe'; x: Recipe } | { kind: 'meal'; x: SavedMeal };
-
-/** One row of the list: picture, name (wrapping), a second line, and the carbs with what they are for. */
-export function FoodRow({ x, icon, title, sub, carbs, per, onClick }: { x?: Product | Recipe | null; icon?: ReactNode; title: string; sub?: string; carbs: number | null; per?: string; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="flex min-h-[60px] w-full items-center gap-3 rounded-2xl bg-white px-3 py-2 text-start shadow-sm active:opacity-80">
-      {x ? <Photo {...pic(x)} className="h-12 w-12 shrink-0 rounded-xl" /> : <span aria-hidden className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-soft text-2xl">{icon}</span>}
-      <span className="min-w-0 flex-1">
-        <span className="block text-[16px] font-bold leading-snug"><bdi>{title}</bdi></span>
-        {sub && <span className="block text-[13px] leading-snug text-slate-500"><bdi>{sub}</bdi></span>}
-      </span>
-      {carbs !== null && (
-        <span className="max-w-[38%] shrink-0 text-end leading-tight">
-          <span className="block whitespace-nowrap text-[16px] font-bold text-brand"><span className="num">{fmt(carbs)}</span> {t('غ')}</span>
-          {per && <span className="block text-[12px] text-slate-500"><bdi>{per}</bdi></span>}
-        </span>
-      )}
-    </button>
-  );
-}
 
 export function MomFind() {
   const nav = useNavigate();
@@ -85,7 +65,7 @@ export function MomFind() {
 
   // browsing: home cooking, restaurants, or the food groups (Back returns to the search)
   if (browse) return (
-    <MomPage title={browse === 'recipes' ? t('طبخ البيت') : browse === 'restaurants' ? t('مطاعم') : t('أقسام الأكل')} back={-1}>
+    <MomPage compact title={browse === 'recipes' ? t('طبخ البيت') : browse === 'restaurants' ? t('مطاعم') : t('أقسام الأكل')} back={-1}>
       {browse === 'recipes' && (recipes.length ? [...recipes].sort((a, b) => Number(fav('recipe', b.id)) - Number(fav('recipe', a.id)) || (uses.get('recipe:' + b.id) ?? 0) - (uses.get('recipe:' + a.id) ?? 0)).map((r) => row({ kind: 'recipe', x: r }))
         : <p className="text-center text-slate-500">{t('بابا ما جهّز وصفات بعد')}</p>)}
       {browse === 'restaurants' && (
@@ -101,7 +81,7 @@ export function MomFind() {
       )}
       {browse === 'groups' && (
         <div className="grid grid-cols-3 gap-2">
-          {groupsIn(products.filter((p) => !restaurantOf(p.brand))).map(({ group: gr, n }) => <GroupTile key={gr.key} emoji={gr.emoji} label={tMaybe(gr.label)} n={n} onClick={() => nav(`/mom/add/g/${gr.key}`)} />)}
+          {groupsIn(products.filter((p) => !restaurantOf(p.brand))).map(({ group: gr, n }) => <GroupTile dense key={gr.key} emoji={gr.emoji} label={tMaybe(gr.label)} n={n} onClick={() => nav(`/mom/add/g/${gr.key}`)} />)}
         </div>
       )}
     </MomPage>
@@ -115,13 +95,13 @@ export function MomFind() {
       placeholder={t('ابحثي: رز، هريس، توست، ماكدونالدز…')} aria-label={t('ابحثي')} />
   );
   return (
-    <MomPage title={title} back={back} top={search}>
+    <MomPage compact title={title} back={back} top={search}>
       {left}
       {q.trim() ? (
         found.length ? <div className="space-y-2">{found.slice(0, 60).map(row)}</div> : (
           <div className="space-y-3 py-4 text-center">
             <p className="text-[16px] text-slate-600">{t('ما لقينا «{q}»', { q: q.trim() })}</p>
-            <Big tone="soft" className="!min-h-[52px] !text-[17px]" onClick={() => nav('/mom/new')}>📷 {t('مو موجود؟ أرسليه لبابا')}</Big>
+            <Big tone="soft" md onClick={() => nav('/mom/new')}>📷 {t('مو موجود؟ أرسليه لبابا')}</Big>
           </div>
         )
       ) : (

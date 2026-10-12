@@ -122,7 +122,7 @@ export function MomMeal() {
   // nothing on the plate yet: straight to the search (the summary appears with the first food)
   if (!d.items.length) return <Navigate to="/mom/add" replace />;
   return (
-    <MomPage title={d.name ?? title} back="/mom" foot={<Big disabled={total === null} onClick={() => nav(d.mode === 'plan' ? '/mom/when' : '/mom/dose')}>{d.mode === 'plan' ? `${t('التالي')} · 🕐 ${t('متى؟')}` : t('التالي')}</Big>}>
+    <MomPage compact title={d.name ?? title} back="/mom" foot={<Big md disabled={total === null} onClick={() => nav(d.mode === 'plan' ? '/mom/when' : '/mom/dose')}>{d.mode === 'plan' ? `${t('التالي')} · 🕐 ${t('متى؟')}` : t('التالي')}</Big>}>
       <ul className="divide-y divide-slate-100 rounded-3xl border border-slate-100 bg-white px-3">
         {d.items.map((it, k) => {
           const g = itemCarbs(it), p = photoOf(it);
@@ -142,7 +142,7 @@ export function MomMeal() {
       <Left />
       <div className="flex items-baseline justify-between rounded-2xl bg-white px-4 py-3"><span className="text-[16px] text-slate-500">{t('مجموع الكارب')}</span><b className="num text-[26px] text-slate-900">{total === null ? '—' : `${fmt(total)} ${t('غ')}`}</b></div>
       {total !== null && <MealGiLine m={mealGiOf(d.items)} big />}
-      <Big tone="soft" className="!min-h-[56px] !text-[18px]" onClick={() => nav('/mom/add')}>+ {t('إضافة أكل ثاني')}</Big>
+      <Big tone="soft" md onClick={() => nav('/mom/add')}>+ {t('إضافة أكل ثاني')}</Big>
       {!sameAsSaved && d.items.length > 1 && (naming ? (
         <div className="flex gap-2">
           <input className={inputCls} dir="auto" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('اسم الوجبة')} maxLength={40} autoFocus />
@@ -152,6 +152,25 @@ export function MomMeal() {
         </div>
       ) : <button className="min-h-[44px] text-[16px] font-bold text-brand" onClick={() => setNaming(true)}>⭐ {t('احفظيها وجبة')}</button>)}
     </MomPage>
+  );
+}
+
+/** One row of the list: picture, name (wrapping), a second line, and the carbs with what they are for. */
+export function FoodRow({ x, icon, title, sub, carbs, per, onClick }: { x?: Product | Recipe | null; icon?: ReactNode; title: string; sub?: string; carbs: number | null; per?: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="flex min-h-[60px] w-full items-center gap-3 rounded-2xl bg-white px-3 py-2 text-start shadow-sm active:opacity-80">
+      {x ? <Photo {...pic(x)} className="h-12 w-12 shrink-0 rounded-xl" /> : <span aria-hidden className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-brand-soft text-2xl">{icon}</span>}
+      <span className="min-w-0 flex-1">
+        <span className="block text-[16px] font-bold leading-snug"><bdi>{title}</bdi></span>
+        {sub && <span className="block text-[13px] leading-snug text-slate-500"><bdi>{sub}</bdi></span>}
+      </span>
+      {carbs !== null && (
+        <span className="max-w-[38%] shrink-0 text-end leading-tight">
+          <span className="block whitespace-nowrap text-[16px] font-bold text-brand"><span className="num">{fmt(carbs)}</span> {t('غ')}</span>
+          {per && <span className="block text-[12px] text-slate-500"><bdi>{per}</bdi></span>}
+        </span>
+      )}
+    </button>
   );
 }
 
@@ -191,8 +210,15 @@ function useFoods(browse: boolean) {
   const recipes = c.recipes.filter((r) => readyForMom('recipe', r.id, c));
   const pick = (kind: 'product' | 'recipe', id: string) => nav(browse ? `/mom/food/${kind}/${id}` : `/mom/item/${kind}/${id}`);
   const homeFirst = (l: Product[]) => [...l].sort((a, b) => Number(b.available !== false) - Number(a.available !== false));
-  const tile = (kind: 'product' | 'recipe', x: Product | Recipe) => <FoodTile key={kind + x.id} x={x} carbs={cat.tileCarbs(kind, x.id)} onClick={() => pick(kind, x.id)} />;
-  return { ...cat, products, recipes, homeFirst, tile, pick };
+  // the nutrition tab browses picture tiles; adding a meal lists rows (more of them fit, carbs to the side)
+  const tile = (kind: 'product' | 'recipe', x: Product | Recipe) => {
+    if (browse) return <FoodTile key={kind + x.id} x={x} carbs={cat.tileCarbs(kind, x.id)} onClick={() => pick(kind, x.id)} />;
+    const cl = cat.carbsLine(kind, x.id);
+    return <FoodRow key={kind + x.id} x={x} title={shownName(x)} sub={kind === 'product' && 'brand' in x && x.brand ? (restaurantOf(x.brand) ? undefined : x.brand) : undefined} carbs={cl?.g ?? null} per={cl?.per} onClick={() => pick(kind, x.id)} />;
+  };
+  /** the foods laid out: tiles in two columns to browse, rows to add */
+  const grid = (children: ReactNode) => <div className={browse ? 'grid grid-cols-2 gap-2' : 'space-y-2'}>{children}</div>;
+  return { ...cat, products, recipes, homeFirst, tile, pick, grid };
 }
 
 /** «⚖️ قارني (2)»: the way to the compare page, at the bottom of the food pages while the compare list has foods. */
@@ -284,7 +310,7 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   const [sp, setSp] = useSearchParams();
   const [q, setQ] = useUrlQuery();
   const r = restaurantByKey(key);
-  const { products, tile, pick } = useFoods(browse);
+  const { products, tile, pick, grid } = useFoods(browse);
   const items = products.filter((p) => restaurantOf(p.brand)?.key === key);
   const bar = useCompareBar(browse), menuBack = useBack(browse ? '/mom/food?tab=restaurants' : '/mom/add?browse=restaurants');
   // frozen yogurt (and any food sold in sizes): size first, then the flavour
@@ -296,7 +322,7 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
     const size = sized.cups.sizes.find((x) => x.size.key === cup);
     const here = `${browse ? '/mom/food' : '/mom/add'}/r/${key}`, back = size ? `${here}?cup=choose` : here;
     return (
-      <MomPage title={size ? `${size.size.emoji} ${tMaybe(size.size.label)}` : t('أي حجم؟')} back={back} foot={bar}>
+      <MomPage compact={!browse} title={size ? `${size.size.emoji} ${tMaybe(size.size.label)}` : t('أي حجم؟')} back={back} foot={bar}>
         {!size && sized.cups.sizes.map(({ size: z, items: xs }) => {
           const cs = xs.map((x) => Number(x.item.carbs_per_100));
           return <Choice key={z.key} icon={z.emoji} label={tMaybe(z.label)} sub={t('{a}–{b} غ كارب', { a: `\u2066${fmt(Math.min(...cs))}`, b: `${fmt(Math.max(...cs))}\u2069` })} onClick={() => setSp({ cup: z.key }, { replace: true })} />;
@@ -315,22 +341,22 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   );
   const here = `${browse ? '/mom/food' : '/mom/add'}/r/${key}`;
   return (
-    <MomPage title={open && sections.length > 1 ? `${open.section.emoji} ${tMaybe(open.section.label)}` : r ? tMaybe(r.label) : t('مطاعم')} back={open && sections.length > 1 ? here : menuBack} foot={bar}>
+    <MomPage compact={!browse} title={open && sections.length > 1 ? `${open.section.emoji} ${tMaybe(open.section.label)}` : r ? tMaybe(r.label) : t('مطاعم')} back={open && sections.length > 1 ? here : menuBack} foot={bar}>
       {!open && r && <div className="flex justify-center"><RestaurantLogo r={r} size={64} /></div>}
       {!open && <input className={inputCls} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('ابحثي في المنيو')} />}
       {q.trim() && !open ? (
-        found.length ? <div className="grid grid-cols-2 gap-2">{found.map((p) => tile('product', p))}</div> : <p className="text-center text-slate-500">{t('ما في شي بهالاسم')}</p>
+        found.length ? grid(found.map((p) => tile('product', p))) : <p className="text-center text-slate-500">{t('ما في شي بهالاسم')}</p>
       ) : open ? (
         <>
           {cupRow(open.cups)}
-          <div className="grid grid-cols-2 gap-2">{(open.cups.sizes.length ? open.cups.rest : open.items).map((p) => tile('product', p))}</div>
+          {grid((open.cups.sizes.length ? open.cups.rest : open.items).map((p) => tile('product', p)))}
         </>
       ) : (
         <>
           {sections.filter((x) => x.cups.sizes.length).map((x) => <div key={x.section.key}>{cupRow(x.cups)}</div>)}
           <div className="grid grid-cols-2 gap-2">
             {sections.map(({ section, items: xs, cups }) => (cups.sizes.length && !cups.rest.length ? null
-              : <GroupTile key={section.key} emoji={section.emoji} label={tMaybe(section.label)} n={cups.sizes.length ? cups.rest.length : xs.length} onClick={() => setSp({ sec: section.key })} />))}
+              : <GroupTile dense={!browse} key={section.key} emoji={section.emoji} label={tMaybe(section.label)} n={cups.sizes.length ? cups.rest.length : xs.length} onClick={() => setSp({ sec: section.key })} />))}
           </div>
         </>
       )}
@@ -339,11 +365,11 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   );
 }
 
-export function GroupTile({ emoji, label, sub, n, onClick }: { emoji: string; label: string; sub?: string; n: number; onClick: () => void }) {
+export function GroupTile({ emoji, label, sub, n, onClick, dense }: { emoji: string; label: string; sub?: string; n: number; onClick: () => void; dense?: boolean }) {
   return (
-    <button onClick={onClick} className="flex min-h-[112px] flex-col items-center justify-center gap-1 rounded-2xl border border-slate-100 bg-white p-2 active:opacity-80">
-      <span aria-hidden className="text-[40px] leading-none">{emoji}</span>
-      <span className="line-clamp-2 text-center text-[16px] font-bold leading-tight">{label}</span>
+    <button onClick={onClick} className={cx('flex flex-col items-center justify-center gap-1 rounded-2xl border border-slate-100 bg-white p-2 active:opacity-80', dense ? 'min-h-[84px]' : 'min-h-[112px]')}>
+      <span aria-hidden className={cx('leading-none', dense ? 'text-[30px]' : 'text-[40px]')}>{emoji}</span>
+      <span className={cx('line-clamp-2 text-center font-bold leading-tight', dense ? 'text-[14px]' : 'text-[16px]')}>{label}</span>
       {sub && <span className="text-center text-[14px] leading-tight text-slate-500">{sub}</span>}
       <span className="num text-[14px] text-slate-500">{n}</span>
     </button>
@@ -356,7 +382,7 @@ export function MomGroup({ browse = false }: { browse?: boolean }) {
   const nav = useNavigate();
   const { key, sub } = useParams() as { key: string; sub?: string };
   const gr = groupByKey(key);
-  const { products, homeFirst, tile } = useFoods(browse);
+  const { products, homeFirst, tile, grid } = useFoods(browse);
   const inGroup = products.filter((p) => groupOf(p.category).key === key);
   const subs = subgroupsIn(inGroup, key);
   const base = `${browse ? '/mom/food' : '/mom/add'}/g/${key}`;
@@ -365,16 +391,16 @@ export function MomGroup({ browse = false }: { browse?: boolean }) {
   const bar = useCompareBar(browse), back = useBack(one || sub === 'all' ? base : browse ? '/mom/food' : '/mom/add?browse=groups');
   const title = one ? `${one.emoji} ${tMaybe(one.label)}` : gr ? `${gr.emoji} ${tMaybe(gr.label)}` : t('أكل');
   if (!one && sub !== 'all' && subs.length > 1) return (
-    <MomPage title={title} back={back} foot={bar}>
+    <MomPage compact={!browse} title={title} back={back} foot={bar}>
       <div className="grid grid-cols-2 gap-2">
-        {subs.map(({ sub: x, n }) => <GroupTile key={x.key} emoji={x.emoji} label={tMaybe(x.label)} n={n} onClick={() => nav(`${base}/${x.key}`)} />)}
+        {subs.map(({ sub: x, n }) => <GroupTile dense={!browse} key={x.key} emoji={x.emoji} label={tMaybe(x.label)} n={n} onClick={() => nav(`${base}/${x.key}`)} />)}
       </div>
       <button className="min-h-[48px] text-[16px] font-bold text-brand" onClick={() => nav(`${base}/all`)}>{t('الكل')} ({inGroup.length})</button>
     </MomPage>
   );
   return (
-    <MomPage title={title} back={back} foot={bar}>
-      {list.length ? <div className="grid grid-cols-2 gap-2">{list.map((p) => tile('product', p))}</div> : <p className="text-center text-slate-500">{t('ما في شي هني بعد')}</p>}
+    <MomPage compact={!browse} title={title} back={back} foot={bar}>
+      {list.length ? grid(list.map((p) => tile('product', p))) : <p className="text-center text-slate-500">{t('ما في شي هني بعد')}</p>}
     </MomPage>
   );
 }
@@ -477,7 +503,7 @@ function PortionPage({ kind, id, k }: { kind: 'product' | 'recipe'; id: string; 
     const editing = on && free && o.key !== 'pack';
     return (
       <div key={o.key + (mark ? '-last' : '')} className="space-y-2">
-        <Choice icon={o.icon} on={on} onClick={() => (o.go ? o.go() : pick(o.sel, mark && lastAmount !== null ? lastAmount : on ? amt : o.amount))}
+        <Choice dense icon={o.icon} on={on} onClick={() => (o.go ? o.go() : pick(o.sel, mark && lastAmount !== null ? lastAmount : on ? amt : o.amount))}
           label={mark ? <>{o.label}{lastAmount !== null && ` · ${fmt(lastAmount)} ${o.sel === 'g' ? gUnit : o.sel === 'cup' ? t('كوب') : o.sel === 'plate' ? t('صحن') : ''}`}</> : o.label}
           sub={mark ? <><span className="me-1 rounded-full bg-near-soft px-2 py-0.5 text-[12px] font-bold text-near">{t('آخر مرة')}</span>{carbsText(lastCarbs)}</> : o.sub} />
         {editing && amountEditor}
@@ -485,10 +511,10 @@ function PortionPage({ kind, id, k }: { kind: 'product' | 'recipe'; id: string; 
     );
   };
   return (
-    <MomPage title={nameOf({ kind, id })} foot={<>
+    <MomPage compact title={nameOf({ kind, id })} foot={<>
       {/* the carbs of what is chosen, always in view; nothing to add until she chooses */}
       <div className="text-center">{item && g !== null ? <span className="text-[22px] font-bold text-brand"><span className="num">{fmt(g)}</span> {t('غرام كارب')}</span> : <span className="text-[16px] text-slate-500">{t('اختاري الكمية')}</span>}</div>
-      <Big className="!min-h-[56px] !text-[18px]" disabled={!item || g === null} onClick={done}>{k !== null ? t('تم') : t('إضافة')}</Big>
+      <Big md disabled={!item || g === null} onClick={done}>{k !== null ? t('تم') : t('إضافة')}</Big>
     </>}>
       <div className="flex items-center gap-3 rounded-2xl bg-white p-2.5">
         <Photo {...pic(x)} className="h-16 w-16 shrink-0 rounded-xl" />
@@ -664,9 +690,9 @@ export function MomParts() {
     nav('/mom/meal', { replace: true });
   };
   return (
-    <MomPage title={nameOf({ kind: 'recipe', id })} foot={<>
+    <MomPage compact title={nameOf({ kind: 'recipe', id })} foot={<>
       <div className="flex items-baseline justify-between px-1"><span className="text-[17px] text-slate-500">{t('الكارب')}</span><b className="num text-[26px]">{total === null ? '—' : `${fmt(total)} ${t('غ كارب')}`}</b></div>
-      <Big disabled={!items.length || total === null} onClick={done}>{t('تم')}</Big>
+      <Big md disabled={!items.length || total === null} onClick={done}>{t('تم')}</Big>
     </>}>
       <p className="rounded-2xl bg-brand-soft px-4 py-2.5 text-center text-[16px] text-brand">⚖️ {t('صفّري الميزان قبل كل صنف')}</p>
       {parts.map((x, n) => (

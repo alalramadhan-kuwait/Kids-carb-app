@@ -1,5 +1,25 @@
 [
   {
+    "version": "3.0.0",
+    "date": "2026-10-12",
+    "notes": [
+      "إضافة وجبة صارت تبدأ بالبحث: اكتبي اسم الأكل، اختاري الكمية، وأضيفي.",
+      "نتائج البحث مرتبة: الاسم المطابق أول، بعدين اللي يبدأ بنفس الكلمة، والأكل اللي تاكله ليان وايد يطلع قبل.",
+      "الرجوع من الأكل يرجعك لنفس البحث ونفس المكان.",
+      "آخر كمية أكلتها تطلع أول وعليها «آخر مرة»، بس ما تنختار إلا إذا ضغطتي عليها.",
+      "صفحة الوجبة تبين كل صنف وكاربه والمجموع، وتقدرين تعدلين أو تشيلين أي صنف قبل الإبرة.",
+      "الخط والمسافات أصغر شوي، فيطلع أكثر على الشاشة."
+    ],
+    "notes_en": [
+      "Adding a meal now starts with search: type the food, choose how much, add.",
+      "Results are ordered: the exact name first, then names starting with what you typed, and what Layan has most often comes earlier.",
+      "Back from a food returns to the same search, at the same place.",
+      "The amount she had last time is shown first, marked «Last time», but only chosen when you tap it.",
+      "The meal page lists each food with its carbs and the total; change or remove any food before the dose.",
+      "Slightly smaller text and spacing, so more fits on the screen."
+    ]
+  },
+  {
     "version": "2.70.0",
     "date": "2026-10-12",
     "notes": [

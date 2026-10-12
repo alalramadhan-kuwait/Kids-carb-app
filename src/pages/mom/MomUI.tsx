@@ -33,18 +33,19 @@ export const left = (ms: number, now = Date.now()) => {
 };
 export const glucoseText = (mg: number, unit: 'mmol' | 'mgdl') => formatGlucose(mg, unit);
 
-export function MomPage({ title, back = -1, children, foot, tabs, top }: { title: string; back?: string | number | null; children: ReactNode; foot?: ReactNode; tabs?: boolean; /** stays under the title while the page scrolls (a search box) */ top?: ReactNode }) {
+export function MomPage({ title, back = -1, children, foot, tabs, top, compact }: { title: string; back?: string | number | null; children: ReactNode; foot?: ReactNode; tabs?: boolean; /** stays under the title while the page scrolls (a search box) */ top?: ReactNode;
+  /** the add-meal pages: a slightly smaller title and tighter rows, so more of the list shows */ compact?: boolean }) {
   const nav = useNavigate();
   const scroller = useKeptScroll();
   return (
     <main className="mx-auto flex h-[100dvh] max-w-md flex-col">
       {/* the title and back arrow stay put below the phone's clock/camera; the page scrolls under them, the buttons stay at the bottom */}
-      <header className="flex min-h-[48px] shrink-0 items-center gap-3 px-4 pb-3 pt-[calc(12px+env(safe-area-inset-top))]">
-        {back !== null && <button aria-label={t('رجوع')} onClick={() => (typeof back === 'number' ? nav(back) : nav(back))} className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-2xl shadow-sm">{isEn() ? '←' : '→'}</button>}
-        <h1 className="text-[24px] font-bold leading-tight">{title}</h1>
+      <header className={cx('flex min-h-[48px] shrink-0 items-center gap-3 px-4 pt-[calc(12px+env(safe-area-inset-top))]', compact ? 'pb-2' : 'pb-3')}>
+        {back !== null && <button aria-label={t('رجوع')} onClick={() => (typeof back === 'number' ? nav(back) : nav(back))} className={cx('grid shrink-0 place-items-center rounded-full bg-white shadow-sm', compact ? 'h-11 w-11 text-xl' : 'h-12 w-12 text-2xl')}>{isEn() ? '←' : '→'}</button>}
+        <h1 className={cx('min-w-0 font-bold leading-tight', compact ? 'text-[21px]' : 'text-[24px]')}><bdi>{title}</bdi></h1>
       </header>
       {top && <div className="shrink-0 px-4 pb-2">{top}</div>}
-      <div ref={scroller.ref} onScroll={scroller.onScroll} className={cx('flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4', tabs && !foot ? TABS_PAD : !foot && 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{children}</div>
+      <div ref={scroller.ref} onScroll={scroller.onScroll} className={cx('flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4', compact ? 'gap-2' : 'gap-3', tabs && !foot ? TABS_PAD : !foot && 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{children}</div>
       {/* with the tabs, the buttons sit just above them */}
       {foot && <div className={cx('shrink-0 space-y-2 px-4 pt-3', tabs ? TABS_PAD : 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{foot}</div>}
     </main>
@@ -71,18 +72,19 @@ function useKeptScroll() {
   return { ref, onScroll };
 }
 
-export function Big({ children, onClick, tone = 'primary', disabled, className }: { children: ReactNode; onClick?: () => void; tone?: 'primary' | 'soft' | 'ghost' | 'danger'; disabled?: boolean; className?: string }) {
+export function Big({ children, onClick, tone = 'primary', disabled, className, md }: { children: ReactNode; onClick?: () => void; tone?: 'primary' | 'soft' | 'ghost' | 'danger'; disabled?: boolean; className?: string; /** the add-meal pages: 56 tall, 18 px */ md?: boolean }) {
   const s = { primary: 'bg-brand text-white', soft: 'bg-brand-soft text-brand', ghost: 'bg-white text-slate-800 border border-slate-200', danger: 'bg-over text-white' }[tone];
-  return <button disabled={disabled} onClick={onClick} className={cx('min-h-[60px] w-full rounded-2xl px-4 text-[20px] font-bold active:opacity-80 disabled:opacity-40', s, className)}>{children}</button>;
+  return <button disabled={disabled} onClick={onClick} className={cx('w-full rounded-2xl px-4 font-bold active:opacity-80 disabled:opacity-40', md ? 'min-h-[56px] text-[18px]' : 'min-h-[60px] text-[20px]', s, className)}>{children}</button>;
 }
 
 /** A choice row: picture/emoji, big words, selected tick. */
-export function Choice({ icon, label, sub, on, onClick, color, compact }: { icon?: ReactNode; label: ReactNode; sub?: ReactNode; on?: boolean; onClick: () => void; color?: string; /** two side by side on a phone: smaller icon, and the coloured border alone marks the choice */ compact?: boolean }) {
+export function Choice({ icon, label, sub, on, onClick, color, compact, dense }: { icon?: ReactNode; label: ReactNode; sub?: ReactNode; on?: boolean; onClick: () => void; color?: string; /** two side by side on a phone: smaller icon, and the coloured border alone marks the choice */ compact?: boolean;
+  /** the add-meal pages: 56 tall, 17 px, a smaller icon */ dense?: boolean }) {
   return (
     <button onClick={onClick} style={color ? { borderColor: color } : undefined} aria-pressed={on}
-      className={cx('flex min-h-[64px] w-full items-center rounded-2xl border-2 bg-white py-2 text-start active:opacity-80', compact ? 'gap-2 px-3' : 'gap-3 px-4', on ? 'border-brand bg-brand-soft' : 'border-slate-200')}>
-      {icon && <span className={cx('grid shrink-0 place-items-center overflow-hidden rounded-xl', compact ? 'h-9 w-9 text-2xl' : 'h-11 w-11 text-3xl')}>{icon}</span>}
-      <span className="min-w-0 flex-1"><span className={cx('block font-bold leading-snug', compact ? 'text-[18px]' : 'text-[19px]')}><bdi>{label}</bdi></span>{sub && <span className="block text-sm text-slate-500">{sub}</span>}</span>
+      className={cx('flex w-full items-center rounded-2xl border-2 bg-white text-start active:opacity-80', dense ? 'min-h-[56px] py-1.5' : 'min-h-[64px] py-2', compact || dense ? 'gap-2.5 px-3' : 'gap-3 px-4', on ? 'border-brand bg-brand-soft' : 'border-slate-200')}>
+      {icon && <span className={cx('grid shrink-0 place-items-center overflow-hidden rounded-xl', compact || dense ? 'h-9 w-9 text-2xl' : 'h-11 w-11 text-3xl')}>{icon}</span>}
+      <span className="min-w-0 flex-1"><span className={cx('block font-bold leading-snug', dense ? 'text-[17px]' : compact ? 'text-[18px]' : 'text-[19px]')}><bdi>{label}</bdi></span>{sub && <span className={cx('block text-slate-500', dense ? 'text-[13px] leading-snug' : 'text-sm')}>{sub}</span>}</span>
       {on && !compact && <span className="shrink-0 text-2xl text-brand">✓</span>}
     </button>
   );

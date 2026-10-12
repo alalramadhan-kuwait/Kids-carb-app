@@ -58,9 +58,9 @@ export function MomPlate() {
   const card = 'space-y-2 rounded-3xl bg-white px-4 py-3';
 
   return (
-    <MomPage title={t('صحن بالميزان')} back="/mom/meal" foot={<>
+    <MomPage compact title={t('صحن بالميزان')} back="/mom/meal" foot={<>
       <div className="flex items-baseline justify-between px-1"><span className="text-[17px] text-slate-500">{t('الكارب')}</span><b className="num text-[26px]">{total === null ? '—' : `${fmt(total)} ${t('غ كارب')}`}</b></div>
-      <Big disabled={!items.length || total === null} onClick={done}>{t('تم')}</Big>
+      <Big md disabled={!items.length || total === null} onClick={done}>{t('تم')}</Big>
     </>}>
       <p className="rounded-2xl bg-brand-soft px-4 py-2.5 text-center text-[16px] text-brand">⚖️ {t('صفّري الميزان قبل كل صنف')}</p>
 
