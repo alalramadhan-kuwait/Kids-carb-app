@@ -211,6 +211,19 @@ async function who(row, v, name, pic) {
 }
 
 // value, arrow, change and time, top right
+// How old the reading is, counting up by itself: iOS redraws a relative date on its own, so it stays true even when
+// iOS has not let the widget refresh (it decides when widgets refresh, often every 15–30 minutes).
+function liveAge(stack, t, size, opts) {
+  const o = opts || {};
+  const d = stack.addDate(new Date(t));
+  d.applyRelativeStyle();
+  d.font = o.medium ? Font.mediumSystemFont(size) : Font.systemFont(size);
+  d.textColor = new Color(LOCK ? "#ffffff" : o.color || C.ink);
+  d.lineLimit = 1;
+  d.minimumScaleFactor = 0.6;
+  return d;
+}
+
 function headline(r, v, big, showDelta) {
   text(r, v.value, big, { bold: true, color: v.color });
   r.addSpacer(4);
@@ -220,6 +233,7 @@ function headline(r, v, big, showDelta) {
   side.layoutVertically();
   if (showDelta) text(side, v.delta ? v.delta.split(" ")[0] : v.word, 13, { medium: true, color: C.ink });
   text(side, v.stale ? W.old : v.clock, 12, { color: C.text2 });
+  liveAge(side, v.last.t, 11, { color: C.text2 });
 }
 
 const d = await load();
@@ -227,7 +241,8 @@ const fam = config.widgetFamily || "medium";
 LOCK = fam.startsWith("accessory");
 const w = new ListWidget();
 w.url = APP;
-w.refreshAfterDate = new Date(Date.now() + 5 * MIN);
+// a request only: iOS decides when a widget really refreshes (the reading's age below keeps counting meanwhile)
+w.refreshAfterDate = new Date(Date.now() + 3 * MIN);
 const v = d && !d.error ? view(d) : null;
 const name = (d && d.child) || W.child;
 
@@ -251,7 +266,8 @@ if (fam === "accessoryInline") {
   }
 } else if (fam === "accessoryRectangular") {
   text(w, v ? v.value + " " + v.arrow : name + " —", 22, { bold: true });
-  text(w, v ? v.age + (v.stale ? "" : " · " + v.word) : d && d.error === "invalid" ? W.expired : W.noReading, 11);
+  if (v) { const r = w.addStack(); r.centerAlignContent(); liveAge(r, v.last.t, 11); if (!v.stale) text(r, " · " + v.word, 11); }
+  else text(w, d && d.error === "invalid" ? W.expired : W.noReading, 11);
   if (v && v.onboard) text(w, v.onboard.line, 11, { medium: true });
 } else if (!d || d.error === "invalid") message(w, W.revoked);
 else if (d.error) message(w, W.offline);
@@ -270,7 +286,11 @@ else {
     text(top, v.value, 30, { bold: true, color: v.color });
     top.addSpacer(3);
     text(top, v.arrow, 20, { bold: true, color: v.color });
-    text(w, (v.stale ? W.old + " · " : "") + v.age + (v.onboard && v.onboard.iob ? " · IOB " + v.onboard.iob : ""), 10, { color: v.stale ? C.text["low"] : C.text2 });
+    const ar = w.addStack(); ar.centerAlignContent();
+    const ac = v.stale ? C.text["low"] : C.text2;
+    if (v.stale) text(ar, W.old + " · ", 10, { color: ac });
+    liveAge(ar, v.last.t, 10, { color: ac });
+    if (v.onboard && v.onboard.iob) text(ar, " · IOB " + v.onboard.iob, 10, { color: ac });
     w.addSpacer();
   } else {
     // medium and large: a header (picture, name, IOB, COB | reading); the trend spans the whole width below

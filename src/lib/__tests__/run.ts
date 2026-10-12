@@ -2446,7 +2446,7 @@ console.log('iphone widget');
     const texts: string[] = []; let shown = false; let req: any = null; const files = new Map<string, string>();
     if (opts.cache !== undefined) files.set('d/layan-widget.json', JSON.stringify(opts.cache));
     if (opts.savedCode) files.set('d/layan-widget-code.js', opts.savedCode);
-    const node = (): any => new Proxy({}, { set: () => true, get: (_t, p) => p === 'then' ? undefined : p === 'addText' ? (x: string) => { texts.push(String(x)); return U; } : p === 'addStack' ? () => node() : U });
+    const node = (): any => new Proxy({}, { set: () => true, get: (_t, p) => p === 'then' ? undefined : p === 'addText' ? (x: string) => { texts.push(String(x)); return U; } : p === 'addDate' ? (d: Date) => { texts.push(`@age ${Math.round((Date.now() - d.getTime()) / 60000)}m`); return U; } : p === 'addStack' ? () => node() : U });
     function Request(this: any, url: string) {
       this.url = url;
       if (url.endsWith('/widget/layan-widget.js')) {
@@ -2476,7 +2476,7 @@ console.log('iphone widget');
     const clock = (() => { const x = new Date(now - 2 * 60000); return String(x.getHours()).padStart(2, '0') + ':' + String(x.getMinutes()).padStart(2, '0'); })();
     assert.match(m.texts, /ليان/); assert.match(m.texts, /6\.1/); assert.match(m.texts, /↘/); assert.match(m.texts, /−0\.6/); assert.ok(m.texts.includes(clock), 'the reading\'s time');
     const sm = (await run('small', data)).texts;
-    assert.match(sm, /6\.1/); assert.match(sm, /قبل 2 د/);
+    assert.match(sm, /6\.1/); assert.match(sm, /@age 2m/, 'the age counts up by itself');
     assert.equal(m.req.url, 'https://x.supabase.co/rest/v1/rpc/share_view');
     assert.deepEqual(JSON.parse(m.req.body), { p_token: 'tok"en' }, 'the token is embedded safely');
     assert.equal(m.req.headers['Content-Profile'], 'carb');
@@ -2512,7 +2512,7 @@ console.log('iphone widget');
     assert.match((await run('medium', null, { throws: true })).texts, /لا اتصال/);
     assert.match((await run('medium', null, { throws: true, cache: data })).texts, /بلا اتصال/);
     assert.match((await run('medium', { ...data, readings: [] })).texts, /لا توجد قراءات/);
-    assert.match((await run('small', data, { en: true })).texts, /2 min ago/, 'in English when the app is');
+    assert.match((await run('accessoryInline', data, { en: true })).texts, /2 min ago/, 'in English when the app is');
   });
 }
 
