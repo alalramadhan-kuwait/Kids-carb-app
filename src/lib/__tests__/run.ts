@@ -2893,5 +2893,27 @@ console.log('glycemic index');
   });
 }
 
+console.log('food search ranking');
+{
+  const { matchTier, rankFoods } = await import('../search');
+  test('search tiers: exact name, then a name beginning with it, then found another way; «ال» and a note in brackets ignored', () => {
+    assert.equal(matchTier(['رز'], [], 'رز'), 0);
+    assert.equal(matchTier(['الرز'], [], 'رز'), 0, '«ال» in the name');
+    assert.equal(matchTier(['نخي (حمص حب مطبوخ)'], [], 'نخي'), 0, 'the note in brackets');
+    assert.equal(matchTier(['رز بسمتي مطبوخ'], [], 'رز'), 1);
+    assert.equal(matchTier(['أرز أبيض مطبوخ', 'White rice, cooked'], [], 'rice'), 2, 'a word inside the English name');
+    assert.equal(matchTier(['Big Mac'], ["McDonald's"], 'ماك'), 2, 'the brand, in the other language');
+    assert.equal(matchTier(['Harees'], [], 'HAR'), 1, 'case does not matter');
+    assert.equal(matchTier(['هريس'], [], 'رز'), null);
+    assert.equal(matchTier(['بطاط مسلوق'], [], 'طاط'), 2, 'only «ال» counts for a name start; «ب» is not one');
+  });
+  test('search order: tier first; then favourites, then most eaten, then at home, then name', () => {
+    const f = (label: string, o: Record<string, unknown> = {}) => ({ label, names: [label], ...o });
+    const items = [f('رز مصري مطبوخ', { home: false }), f('رز بسمتي مطبوخ', { uses: 3 }), f('أرز أبيض مطبوخ'), f('رز', { uses: 0 }), f('رز ودجاج', { fav: true }), f('هريس')];
+    assert.deepEqual(rankFoods(items, 'رز', (x) => x).map((x) => x.label), ['رز', 'رز ودجاج', 'رز بسمتي مطبوخ', 'رز مصري مطبوخ', 'أرز أبيض مطبوخ']);
+    assert.deepEqual(rankFoods(items, '  ', (x) => x), [], 'nothing typed, nothing found');
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);

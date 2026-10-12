@@ -110,3 +110,37 @@ export function matches(hay: (string | null | undefined)[], query: string): bool
     return ts.some((x) => ws.some((v) => x.startsWith(v) || x.replace(AR_LEAD, '').startsWith(v)));
   });
 }
+
+/** How well a food's own names answer what was typed: 0 a name is exactly it, 1 a name begins with it, 2 it is found
+ *  some other way (a word inside a name, the other language, the brand or category — the usual search); null when
+ *  it is not found. A name's trailing note in brackets does not stop an exact match («نخي (حمص حب مطبوخ)» is «نخي»),
+ *  and «ال» in front is ignored on either side. */
+const AL = /^ال/; // i18n-ok: regex
+export function matchTier(names: (string | null | undefined)[], others: (string | null | undefined)[], query: string): 0 | 1 | 2 | null {
+  const qn = norm(query);
+  if (!qn) return null;
+  const qs = [qn, qn.replace(AL, '')].filter(Boolean);
+  let tier: 1 | null = null;
+  for (const n of names) {
+    if (!n?.trim()) continue;
+    const full = norm(n), core = norm(n.replace(/\s*[([].*$/, ''));
+    const forms = [full, core, full.replace(AL, ''), core.replace(AL, '')];
+    if (forms.some((f) => qs.includes(f))) return 0;
+    if (forms.some((f) => qs.some((q) => f.startsWith(q)))) tier = 1;
+  }
+  return tier ?? (matches([...names, ...others], query) ? 2 : null);
+}
+
+export interface Rankable { names: (string | null | undefined)[]; others?: (string | null | undefined)[]; fav?: boolean; uses?: number; home?: boolean; label: string }
+/** The foods that answer the query, best first: exact names, then names beginning with it, then the rest; among
+ *  equally good ones her favourites, then what she has most often, then what is at home, then by name. */
+export function rankFoods<T>(items: T[], query: string, of: (x: T) => Rankable): T[] {
+  const scored: { x: T; r: Rankable; tier: number }[] = [];
+  for (const x of items) {
+    const r = of(x);
+    const tier = matchTier(r.names, r.others ?? [], query);
+    if (tier !== null) scored.push({ x, r, tier });
+  }
+  return scored.sort((a, b) => a.tier - b.tier || Number(!!b.r.fav) - Number(!!a.r.fav) || (b.r.uses ?? 0) - (a.r.uses ?? 0)
+    || Number(b.r.home !== false) - Number(a.r.home !== false) || a.r.label.localeCompare(b.r.label)).map((s) => s.x);
+}

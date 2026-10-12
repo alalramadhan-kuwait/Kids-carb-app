@@ -33,7 +33,7 @@ export const left = (ms: number, now = Date.now()) => {
 };
 export const glucoseText = (mg: number, unit: 'mmol' | 'mgdl') => formatGlucose(mg, unit);
 
-export function MomPage({ title, back = -1, children, foot, tabs }: { title: string; back?: string | number | null; children: ReactNode; foot?: ReactNode; tabs?: boolean }) {
+export function MomPage({ title, back = -1, children, foot, tabs, top }: { title: string; back?: string | number | null; children: ReactNode; foot?: ReactNode; tabs?: boolean; /** stays under the title while the page scrolls (a search box) */ top?: ReactNode }) {
   const nav = useNavigate();
   const scroller = useKeptScroll();
   return (
@@ -43,6 +43,7 @@ export function MomPage({ title, back = -1, children, foot, tabs }: { title: str
         {back !== null && <button aria-label={t('رجوع')} onClick={() => (typeof back === 'number' ? nav(back) : nav(back))} className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-2xl shadow-sm">{isEn() ? '←' : '→'}</button>}
         <h1 className="text-[24px] font-bold leading-tight">{title}</h1>
       </header>
+      {top && <div className="shrink-0 px-4 pb-2">{top}</div>}
       <div ref={scroller.ref} onScroll={scroller.onScroll} className={cx('flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4', tabs && !foot ? TABS_PAD : !foot && 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{children}</div>
       {/* with the tabs, the buttons sit just above them */}
       {foot && <div className={cx('shrink-0 space-y-2 px-4 pt-3', tabs ? TABS_PAD : 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{foot}</div>}

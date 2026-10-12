@@ -1,7 +1,7 @@
 // Mom mode, building a meal from Layan's database: saved meals, recipes and products (grouped, with pictures), each
 // in one of its portions. Every choice is a full page; the meal being built is kept on the phone.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { compareOps, draftOps, saveMeal, useCompare, useDraft, usePortions, useSavedMeals } from '../../lib/mom';
 import { planMeal } from '../../lib/plans';
@@ -51,15 +51,24 @@ export function useCatalog() {
     .map((i) => ({ i, p: i.product_id ? products.find((x) => x.id === i.product_id) ?? null : null }))
     .filter((x): x is { i: Ingredient; p: Product } => !!x.p && x.p.approved && Number(x.p.carbs_per_100) >= 5 && !x.p.per_item)
     .map(({ i, p }) => ({ product: p, name: p.name, cooked: i.state === 'cooked' }));
-  return { c, carbsOf, itemCarbs, mealCarbs, mealGiOf, recipeGi, carbParts, nameOf, photoOf, firstPortion, tileCarbs };
+  /** A list row's carbs: the grams for the food's first portion (or a plate, an item, 100 g), and what that is. */
+  const carbsLine = (kind: 'product' | 'recipe', id: string): { g: number; per: string } | null => {
+    const p = firstPortion(kind, id);
+    if (p) { const g = itemCarbs({ kind, id, portion_id: p.id }); return g === null ? null : { g, per: tMaybe(p.label) }; }
+    if (kind === 'recipe') { const g = itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'plate' }); return g === null ? null : { g, per: t('صحن') }; }
+    const pr = products.find((x) => x.id === id);
+    if (!pr) return null;
+    return pr.per_item ? { g: Number(pr.carbs_per_100), per: t('الحبة') } : { g: Number(pr.carbs_per_100), per: pr.unit === 'ml' ? t('100 مل') : t('100 غ') };
+  };
+  return { c, carbsOf, itemCarbs, mealCarbs, mealGiOf, recipeGi, carbParts, carbsLine, nameOf, photoOf, firstPortion, tileCarbs };
 }
 
 /** What Photo needs for a product or recipe: its photo, its own emoji (generic foods), its category. */
 export const pic = (x: Product | Recipe | null | undefined) => ({ path: x?.image_path, category: x?.category, emoji: x && 'emoji' in x ? x.emoji : null });
 
 const RECENT = 'mom-recent-v1';
-const recent = (): { kind: 'product' | 'recipe'; id: string }[] => { try { return JSON.parse(localStorage.getItem(RECENT) ?? '[]'); } catch { return []; } };
-const remember = (x: { kind: 'product' | 'recipe'; id: string }) => {
+export const recent = (): { kind: 'product' | 'recipe'; id: string }[] => { try { return JSON.parse(localStorage.getItem(RECENT) ?? '[]'); } catch { return []; } };
+export const remember = (x: { kind: 'product' | 'recipe'; id: string }) => {
   try { localStorage.setItem(RECENT, JSON.stringify([x, ...recent().filter((r) => !(r.kind === x.kind && r.id === x.id))].slice(0, 12))); } catch { /* blocked */ }
 };
 
@@ -88,7 +97,6 @@ export function MomMeal() {
   const { itemCarbs, mealCarbs, mealGiOf, nameOf, photoOf, c } = useCatalog();
   const { meals } = useSavedMeals();
   const { history } = useData();
-  const fromLog = useMemo(() => reusable(history), [history]);
   const total = mealCarbs(d.items);
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
@@ -98,41 +106,30 @@ export function MomMeal() {
     : `${fmt(it.amount ?? 0)} ${it.unit === 'serving' ? t('حصة') : it.unit === 'plate' ? t('صحن') : it.unit === 'cup' ? t('كوب') : c.products.find((p) => p.id === it.id)?.unit === 'ml' ? t('مل') : t('غرام')}`;
   const Left = () => d.left.length ? <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ <bdi>{d.left.join(' · ')}</bdi> {t('ما ينحسب بالإبرة · كلّمي بابا')}</p> : null;
   const title = d.mode === 'plan' ? t('خطة وجبة') : t('وجبة ليان');
-  if (!d.items.length) return (
-    <MomPage title={title} back="/mom">
-      <Left />
-      {meals.length > 0 && <h2 className="text-[17px] font-bold text-slate-500">⭐ {t('وجباتها')}</h2>}
-      {meals.slice(0, 6).map((m) => <Choice key={m.id} icon="⭐" label={m.name} sub={m.items.map((i) => nameOf(i)).join(' · ')} onClick={() => draftOps.load(m)} />)}
-      {/* or a meal she had lately, onto the plate to change */}
-      {d.mode === 'now' && fromLog.length > 0 && <h2 className="text-[17px] font-bold text-slate-500">🕘 {t('من السجل')}</h2>}
-      {d.mode === 'now' && fromLog.slice(0, 4).map((h) => <Choice key={h.id} icon="🍽️" label={<><bdi>{tMaybe(h.name)}</bdi> · <span className="num">{fmt(h.total_carbs)}</span> {t('غ كارب')}</>} sub={h.lines.map((l) => tMaybe(l.name)).join(' · ')}
-        onClick={() => { const r = plateFromLog(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.left); }} />)}
-      <Big tone="primary" onClick={() => nav('/mom/plate')}>⚖️ {t('عيش ومرق بالميزان')}</Big>
-      <Big tone="soft" onClick={() => nav('/mom/add')}>+ {t('شي ثاني')}</Big>
-      {d.mode === 'now' && <Big tone="ghost" onClick={() => nav('/mom/out')}>🍽️ {t('أكل برّا · ما أعرف الكارب')}</Big>}
-    </MomPage>
-  );
+  // nothing on the plate yet: straight to the search (the summary appears with the first food)
+  if (!d.items.length) return <Navigate to="/mom/add" replace />;
   return (
     <MomPage title={d.name ?? title} back="/mom" foot={<Big disabled={total === null} onClick={() => nav(d.mode === 'plan' ? '/mom/when' : '/mom/dose')}>{d.mode === 'plan' ? `${t('التالي')} · 🕐 ${t('متى؟')}` : t('التالي')}</Big>}>
       <ul className="divide-y divide-slate-100 rounded-3xl border border-slate-100 bg-white px-3">
         {d.items.map((it, k) => {
           const g = itemCarbs(it), p = photoOf(it);
           return (
-            <li key={k} className="flex items-center gap-3 py-2.5">
+            <li key={k} className="flex items-center gap-2 py-2">
+              {/* tap to change the amount */}
               <button onClick={() => nav(`/mom/item/${it.kind}/${it.id}?k=${k}`)} className="flex min-w-0 flex-1 items-center gap-3 text-start">
-                <Photo {...pic(p)} className="h-14 w-14 shrink-0 rounded-xl" />
-                <span className="min-w-0 flex-1"><b className="block truncate text-[18px]"><bdi>{nameOf(it)}</bdi></b><span className="text-[15px] text-slate-500"><bdi>{portionLabel(it)}</bdi></span></span>
-                <span className="shrink-0 text-[16px] font-bold">{g === null ? '—' : g < 1 ? <span className="font-normal text-slate-500">{t('بدون كارب')}</span> : <>{fmt(g)} <span className="text-[14px] font-normal text-slate-500">{t('غ كارب')}</span></>}</span>
+                <Photo {...pic(p)} className="h-12 w-12 shrink-0 rounded-xl" />
+                <span className="min-w-0 flex-1"><b className="block text-[16px] leading-snug"><bdi>{nameOf(it)}</bdi></b><span className="text-[13px] text-slate-500"><bdi>{portionLabel(it)}</bdi> · <span className="text-brand">{t('تعديل')}</span></span></span>
+                <span className="shrink-0 text-[16px] font-bold">{g === null ? '—' : g < 1 ? <span className="font-normal text-slate-500">{t('بدون كارب')}</span> : <><span className="num">{fmt(g)}</span> <span className="text-[13px] font-normal text-slate-500">{t('غ')}</span></>}</span>
               </button>
+              <button aria-label={t('شيليه من الصحن')} onClick={() => draftOps.remove(k)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[20px] text-slate-400 active:bg-slate-100">✕</button>
             </li>
           );
         })}
       </ul>
       <Left />
-      <div className="flex items-baseline justify-between px-1 text-slate-500"><span>{t('الكارب')}</span><b className="num text-[22px] text-slate-900">{total === null ? '—' : `${fmt(total)} ${t('غ كارب')}`}</b></div>
+      <div className="flex items-baseline justify-between rounded-2xl bg-white px-4 py-3"><span className="text-[16px] text-slate-500">{t('مجموع الكارب')}</span><b className="num text-[26px] text-slate-900">{total === null ? '—' : `${fmt(total)} ${t('غ')}`}</b></div>
       {total !== null && <MealGiLine m={mealGiOf(d.items)} big />}
-      <Big tone="soft" onClick={() => nav('/mom/add')}>+ {t('إضافة شي')}</Big>
-      <button className="min-h-[44px] text-[16px] font-bold text-brand" onClick={() => nav('/mom/plate')}>⚖️ {t('عيش ومرق بالميزان')}</button>
+      <Big tone="soft" className="!min-h-[56px] !text-[18px]" onClick={() => nav('/mom/add')}>+ {t('إضافة أكل ثاني')}</Big>
       {!sameAsSaved && d.items.length > 1 && (naming ? (
         <div className="flex gap-2">
           <input className={inputCls} dir="auto" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('اسم الوجبة')} maxLength={40} autoFocus />
@@ -276,7 +273,7 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   const r = restaurantByKey(key);
   const { products, tile, pick } = useFoods(browse);
   const items = products.filter((p) => restaurantOf(p.brand)?.key === key);
-  const bar = useCompareBar(browse), menuBack = useBack(`${browse ? '/mom/food' : '/mom/add'}?tab=restaurants`);
+  const bar = useCompareBar(browse), menuBack = useBack(browse ? '/mom/food?tab=restaurants' : '/mom/add?browse=restaurants');
   // frozen yogurt (and any food sold in sizes): size first, then the flavour
   const cup = sp.get('cup');
   const sections = menuOf(items, r?.lead).map((x) => ({ ...x, cups: cupsOf(x.items) }));
@@ -329,7 +326,7 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   );
 }
 
-function GroupTile({ emoji, label, sub, n, onClick }: { emoji: string; label: string; sub?: string; n: number; onClick: () => void }) {
+export function GroupTile({ emoji, label, sub, n, onClick }: { emoji: string; label: string; sub?: string; n: number; onClick: () => void }) {
   return (
     <button onClick={onClick} className="flex min-h-[112px] flex-col items-center justify-center gap-1 rounded-2xl border border-slate-100 bg-white p-2 active:opacity-80">
       <span aria-hidden className="text-[40px] leading-none">{emoji}</span>
@@ -352,7 +349,7 @@ export function MomGroup({ browse = false }: { browse?: boolean }) {
   const base = `${browse ? '/mom/food' : '/mom/add'}/g/${key}`;
   const one = subs.find((x) => x.sub.key === sub)?.sub ?? null;
   const list = homeFirst(one ? inGroup.filter((p) => subgroupOf(p)?.key === one.key) : inGroup);
-  const bar = useCompareBar(browse), back = useBack(one || sub === 'all' ? base : browse ? '/mom/food' : '/mom/add?tab=products');
+  const bar = useCompareBar(browse), back = useBack(one || sub === 'all' ? base : browse ? '/mom/food' : '/mom/add?browse=groups');
   const title = one ? `${one.emoji} ${tMaybe(one.label)}` : gr ? `${gr.emoji} ${tMaybe(gr.label)}` : t('أكل');
   if (!one && sub !== 'all' && subs.length > 1) return (
     <MomPage title={title} back={back} foot={bar}>

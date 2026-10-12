@@ -39,6 +39,7 @@ import { themePref } from './lib/theme';
 import { t, useLang } from './i18n';
 import { LangSwitch } from './components/LangSwitch';
 import { MomHome } from './pages/mom/MomHome';
+import { MomFind } from './pages/mom/MomFind';
 import { MomAdd, MomFoodItem, MomGroup, MomMeal, MomNew, MomParts, MomPortion, MomRestaurant } from './pages/mom/MomMeal';
 import { MomPlate } from './pages/mom/MomPlate';
 import { MomCompare } from './pages/mom/MomCompare';
@@ -241,7 +242,7 @@ function Shell() {
         <Route path="/mom" element={<MomHome />} />
         <Route path="/mom/meal" element={<MomMeal />} />
         <Route path="/mom/plate" element={<MomPlate />} />
-        <Route path="/mom/add" element={<MomAdd />} />
+        <Route path="/mom/add" element={<MomFind />} />
         <Route path="/mom/add/g/:key" element={<MomGroup />} />
         <Route path="/mom/add/g/:key/:sub" element={<MomGroup />} />
         <Route path="/mom/item/:kind/:id" element={<MomPortion />} />
