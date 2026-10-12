@@ -2228,7 +2228,12 @@ console.log('dietitian sheet');
   test('dietitian sheet: the day\'s glucose and its lows', () => {
     assert.equal(sheet.lows.length, 1); assert.equal(sheet.lows[0].nadir, 62); assert.ok(sheet.lows[0].minutes >= 25);
     assert.ok(sheet.glucose.inRange! > 80); assert.equal(sheet.glucose.min, 62);
-    assert.equal(D.slotOf(4 * 60 + 59, D.DEFAULT_STARTS), null); assert.equal(D.slotOf(16 * 60, D.DEFAULT_STARTS), 'snack2');
+    // the family's meal times: after midnight is night; breakfast to 11; 11–1 snack; lunch 1–5 pm; dinner from 5 pm
+    assert.equal(D.slotOf(3 * 60 + 59, D.DEFAULT_STARTS), null); assert.equal(D.slotOf(10 * 60, D.DEFAULT_STARTS), 'breakfast');
+    assert.equal(D.slotOf(12 * 60, D.DEFAULT_STARTS), 'snack1'); assert.equal(D.slotOf(16 * 60 + 13, D.DEFAULT_STARTS), 'lunch');
+    assert.equal(D.slotOf(18 * 60 + 30, D.DEFAULT_STARTS), 'dinner');
+    assert.equal(D.slotOf(16 * 60 + 13, D.DEFAULT_STARTS, null, 'dinner'), 'lunch', 'a meal planned as dinner but eaten at 4 pm is lunch');
+    assert.equal(D.slotOf(15 * 60, D.DEFAULT_STARTS, null, 'snack'), 'snack2', 'a snack stays a snack');
   });
   test('graph + events page: the day in time order, numbered; a meal keeps its insulin, the rest get rows of their own', () => {
     const ev = DE.dayEvents(sheet, []);
@@ -2269,7 +2274,7 @@ console.log('dietitian sheet');
   const f2 = (t: number, name: string, carbs: number, o: Record<string, unknown> = {}) => ({ t, name, detail: null, carbs, fat: null, protein: null, kcal: null, fiber: null, ...o });
   const day2 = D.buildDay(day, D.DEFAULT_STARTS, {
     foods: [f2(at(7, 56), 'Cocktail drink', 15), f2(at(7, 57), 'Crackers', 6), f2(at(10, 58), 'Milk', 12, { slot: 'breakfast', planned: true, id: 'b' }),
-      f2(at(10, 59), 'Egg sandwich', 33, { slot: 'breakfast', planned: true, id: 'b2', fat: 9 }), f2(at(12, 0), 'Rice', 40), f2(at(13, 30), 'Apple', 10),
+      f2(at(10, 59), 'Egg sandwich', 33, { slot: 'breakfast', planned: true, id: 'b2', fat: 9 }), f2(at(13, 10), 'Rice', 40), f2(at(14, 40), 'Apple', 10),
       f2(at(20, 0), 'Qeemar and honey', 37, { recipe: true }), f2(at(20, 38), 'Mango nectar', 19)],
     doses: [{ t: at(10, 51), units: 2, type: 'rapid', purpose: 'meal', forFood: 'b', calc: { food: 2.6, correction: 0, carbs: 40, suggested: 2 } }, { t: at(19, 40), units: 3, type: 'rapid', purpose: null }],
     pricks: [], treatments: [], activities: [], series: series2, low: 70, high: 180,
@@ -2282,13 +2287,13 @@ console.log('dietitian sheet');
     assert.ok(!D.isTreatment(f2(at(20, 40), 'Recipe', 20, { recipe: true }), series2, 70), 'a recipe is never a treatment');
     assert.ok(!D.isTreatment(f2(at(7, 50), 'Big breakfast', 60), series2, 70), 'a meal started during a low is still a meal');
   });
-  test('dietitian sheet: the planned meal type wins over the clock; its dose goes with it, with the calculator split', () => {
+  test('dietitian sheet: a planned breakfast eaten before 11 is breakfast; its dose goes with it, with the calculator split', () => {
     assert.deepEqual(s2.breakfast.foods.map((f) => f.name), ['Milk', 'Egg sandwich']); assert.equal(s2.snack1.foods.length, 0);
     assert.equal(s2.breakfast.occasions.length, 1); assert.equal(s2.breakfast.occasions[0].doses[0].calc!.carbs, 40);
   });
   test('dietitian sheet: eating times apart are separate occasions; a reading 2 h after says what else happened', () => {
     assert.deepEqual(s2.lunch.occasions.map((o) => o.foods.map((f) => f.name)), [['Rice'], ['Apple']]);
-    assert.deepEqual(s2.lunch.occasions[0].affected, [{ kind: 'food', t: at(13, 30) }]);
+    assert.deepEqual(s2.lunch.occasions[0].affected, [{ kind: 'food', t: at(14, 40) }]);
     assert.equal(s2.dinner.occasions[0].lowAfter!.mg, 45, 'the low after dinner is shown with dinner');
     assert.deepEqual(s2.dinner.occasions[0].affected.map((x) => x.kind), ['treatment']);
   });
@@ -2306,7 +2311,7 @@ console.log('dietitian sheet');
     assert.equal(s3.snack1.foods.length, 0); assert.equal(d3.treatments.length, 0, 'a low after she started eating is not why she ate');
     assert.deepEqual(s3.breakfast.occasions[0].doses.map((x) => x.units), [2]);
     // a small late-morning snack with no insulin stays a snack
-    const d4 = D.buildDay(day, D.DEFAULT_STARTS, { foods: [f2(at(10, 30), 'Biscuit', 8)], doses: [], pricks: [], treatments: [], activities: [], series: series2, low: 70, high: 180 });
+    const d4 = D.buildDay(day, D.DEFAULT_STARTS, { foods: [f2(at(11, 30), 'Biscuit', 8)], doses: [], pricks: [], treatments: [], activities: [], series: series2, low: 70, high: 180 });
     assert.equal(d4.slots.find((x) => x.key === 'snack1')!.foods.length, 1);
   });
   test('dietitian sheet: a snack after a low that was already treated, once she is back in range, is food', () => {

@@ -16,7 +16,7 @@ import { ageText } from '../lib/reportPdf';
 import { dayStartOf } from '../engine/day';
 import { effectiveRange, formatGlucose, unitLabel } from '../lib/glucose';
 import { DEFAULT_STARTS, SLOT_KEYS, type DaySheet, type SlotStarts } from '../lib/dietSheet';
-import { EventsPages, SheetPage, loadDaySheets, type Ctx } from './DietSheet';
+import { EventsPages, STARTS_KEY, SheetPage, loadDaySheets, type Ctx } from './DietSheet';
 import { DailyAverage, GrowthSection, MealPatterns, Summary } from './Growth';
 import { PlanReport } from './PlanReport';
 import { ObservationsSection } from './visit/Observations';
@@ -36,7 +36,7 @@ async function waitFor(ok: () => boolean, ms = 25000) {
   while (!ok()) { if (Date.now() - t0 > ms) throw new Error('timeout'); await wait(150); }
 }
 function loadStarts(): SlotStarts {
-  try { const j = JSON.parse(localStorage.getItem('diet-sheet-starts') ?? 'null'); if (j && SLOT_KEYS.every((k) => typeof j[k] === 'number')) return j; } catch { /* default */ }
+  try { const j = JSON.parse(localStorage.getItem(STARTS_KEY) ?? 'null'); if (j && SLOT_KEYS.every((k) => typeof j[k] === 'number')) return j; } catch { /* default */ }
   return DEFAULT_STARTS;
 }
 

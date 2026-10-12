@@ -5,14 +5,18 @@
 // nothing here suggests a dose. Pure, tested in Node with made-up data.
 import { isFatty } from '../engine/iob';
 import { lowerBound, type Series } from '../engine/series';
+import { PERIOD_BOUNDS, periodOf, type PeriodBounds } from '../engine/mealPeriod';
 
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
 
 export type SlotKey = 'breakfast' | 'snack1' | 'lunch' | 'snack2' | 'dinner';
 export const SLOT_KEYS: SlotKey[] = ['breakfast', 'snack1', 'lunch', 'snack2', 'dinner'];
-/** Where each column starts, in minutes after midnight (Kuwait); dinner runs to midnight, earlier is "night". */
+/** Where each column starts, in minutes after midnight (Kuwait); dinner runs to midnight, earlier is "night".
+ *  The family's rule (engine/mealPeriod.ts): breakfast to 11, morning snack 11–1, lunch 1–5 pm, dinner from 5 pm.
+ *  Snack 2 holds the snacks from lunch time on, so it starts with lunch. */
 export interface SlotStarts { breakfast: number; snack1: number; lunch: number; snack2: number; dinner: number }
-export const DEFAULT_STARTS: SlotStarts = { breakfast: 5 * 60, snack1: 10 * 60, lunch: 12 * 60, snack2: 16 * 60, dinner: 19 * 60 };
+export const DEFAULT_STARTS: SlotStarts = { breakfast: PERIOD_BOUNDS.breakfast, snack1: PERIOD_BOUNDS.snack, lunch: PERIOD_BOUNDS.lunch, snack2: PERIOD_BOUNDS.lunch, dinner: PERIOD_BOUNDS.dinner };
+const boundsOf = (s: SlotStarts): PeriodBounds => ({ breakfast: s.breakfast, snack: s.snack1, lunch: s.lunch, dinner: s.dinner });
 
 export const AFTER_MIN = 120;          // "after eating" = 2 hours after the start of the meal (the usual check)
 export const BUMP = { fromMin: 120, toMin: 300, riseMg: 36 } as const; // a late rise: +2 mmol/L between 2 and 5 h
@@ -114,12 +118,12 @@ export function lateBump(s: Series, t0: number, otherFood: number[]): Bump | nul
 export const sumOf = (xs: (number | null)[]): Sum => ({ v: xs.every((x) => x === null) ? null : xs.reduce<number>((a, x) => a + (x ?? 0), 0), partial: xs.some((x) => x === null) && xs.some((x) => x !== null) });
 const sumOrNull = (xs: (number | null)[]) => (xs.some((x) => x === null) ? (xs.every((x) => x === null) ? null : xs.reduce<number>((a, x) => a + (x ?? 0), 0)) : xs.reduce<number>((a, x) => a + (x as number), 0));
 
-/** Which column a time of day falls in; null before breakfast (night). */
-export function slotOf(minuteOfDay: number, starts: SlotStarts): SlotKey | null {
+/** Which column a meal falls in by the clock (and its carbs: a small amount is a snack); null after midnight
+ *  (night). A stored 'snack' stays a snack; a stored breakfast/lunch/dinner never overrides the time. */
+export function slotOf(minuteOfDay: number, starts: SlotStarts, carbs: number | null = null, stored?: string | null): SlotKey | null {
   if (minuteOfDay < starts.breakfast) return null;
-  let cur: SlotKey = 'breakfast';
-  for (const k of SLOT_KEYS) if (minuteOfDay >= starts[k]) cur = k;
-  return cur;
+  const p = periodOf(minuteOfDay, carbs, stored, boundsOf(starts));
+  return p === 'snack' ? (minuteOfDay < starts.lunch ? 'snack1' : 'snack2') : p;
 }
 
 export const TREAT_MAX_G = 25;          // a low treatment is small: a meal started during a low is still a meal
@@ -167,14 +171,15 @@ export function buildDay(start: number, starts: SlotStarts, d: { foods: Food[]; 
   const by = new Map<SlotKey, Food[]>(SLOT_KEYS.map((k) => [k, []]));
   for (const f of foods) {
     const minute = Math.floor((f.t - start) / MIN);
-    const k = f.slot === 'snack' ? (minute < starts.lunch ? 'snack1' : 'snack2') : f.slot ?? slotOf(minute, starts);
+    // by the clock alone (items of one sitting stay together); a stored snack stays a snack
+    const k = slotOf(minute, starts, null, f.slot);
     if (k) by.get(k)!.push(f); else night.push(f);
   }
   // no breakfast logged as such: the morning's first real meal (in Snack 1, not placed by a plan) is her breakfast
   const s1 = by.get('snack1')!;
-  if (!by.get('breakfast')!.length && s1.length && !s1[0].slot) {
+  if (!by.get('breakfast')!.length && s1.length && s1[0].slot !== 'snack') {
     const first: Food[] = [s1[0]];
-    for (const f of s1.slice(1)) if (!f.slot && f.t - first[first.length - 1].t <= OCCASION_GAP_MIN * MIN) first.push(f); else break;
+    for (const f of s1.slice(1)) if (f.slot !== 'snack' && f.t - first[first.length - 1].t <= OCCASION_GAP_MIN * MIN) first.push(f); else break;
     const t0 = first[0].t, tLast = first[first.length - 1].t;
     const dosed = d.doses.some((x) => x.type === 'rapid' && x.t >= t0 - 45 * MIN && x.t <= tLast + 30 * MIN);
     if (dosed || first.reduce((a, f) => a + f.carbs, 0) >= BREAKFAST_MIN_G) { by.set('breakfast', first); by.set('snack1', s1.slice(first.length)); }

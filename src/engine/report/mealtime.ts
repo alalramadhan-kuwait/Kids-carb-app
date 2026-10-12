@@ -6,7 +6,8 @@
 //
 // A "sitting" is everything eaten within SITTING_MIN of the first bite. A sitting ends where the next one starts, so
 // one meal's curve never carries the next meal. Something eaten while she was low is a low treatment, not a meal.
-import { MIN, grid, kwMinuteOfDay, type Reading } from './cgm';
+import { MIN, grid, kwDayKey, kwMinuteOfDay, type Reading } from './cgm';
+import { PERIOD_BOUNDS, SNACK_G as PERIOD_SNACK_G, periodOf } from '../mealPeriod';
 import { glucoseEvents } from './events';
 import { mmol } from './agpReport';
 import type { ReportInsulin, ReportMeal } from './days';
@@ -14,10 +15,8 @@ import type { ReportInsulin, ReportMeal } from './days';
 export const SITTING_MIN = 30, BEFORE_MIN = 60, AFTER_MIN = 240, STEP_MIN = 15, MIN_SITTINGS = 3;
 export type MealSlot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
-/** Kuwait time windows used when a meal has no slot of its own (its stored slot wins). */
-export const SLOT_HOURS: Record<Exclude<MealSlot, 'snack'>, [number, number]> = { breakfast: [5, 11], lunch: [11, 16], dinner: [16, 22] };
-/** Under this many grams a sitting is a snack, whatever the hour. */
-export const SNACK_G = 15;
+/** Under this many grams a sitting is a snack, whatever the hour (the shared rule in engine/mealPeriod.ts). */
+export const SNACK_G = PERIOD_SNACK_G;
 
 export interface Sitting { at: number; slot: MealSlot; carbs: number | null; meals: number; insulin: number | null; pre: number | null; at2h: number | null; peak: number | null; peakMin: number | null; lowAfter: boolean; end: number }
 export interface MealtimeSlot {
@@ -35,12 +34,10 @@ export interface Mealtime { from: number; to: number; slots: MealtimeSlot[]; sit
 const median = (xs: number[]) => { if (!xs.length) return null; const s = [...xs].sort((a, b) => a - b), m = s.length / 2; return s.length % 2 ? s[Math.floor(m)] : (s[m - 1] + s[m]) / 2; };
 const q = (xs: number[], p: number) => { const s = [...xs].sort((a, b) => a - b), i = (s.length - 1) * p, lo = Math.floor(i); return s[lo] + (s[Math.ceil(i)] - s[lo]) * (i - lo); };
 
+/** The meal period by the clock (engine/mealPeriod.ts): breakfast to 11, lunch 1–5 pm, dinner from 5 pm; a stored
+ *  snack stays a snack, a stored meal name does not override the time. */
 export function slotOf(at: number, carbs: number | null, stored: string | null | undefined): MealSlot {
-  if (stored === 'breakfast' || stored === 'lunch' || stored === 'dinner' || stored === 'snack') return stored;
-  if (carbs !== null && carbs < SNACK_G) return 'snack';
-  const h = kwMinuteOfDay(at) / 60;
-  for (const s of ['breakfast', 'lunch', 'dinner'] as const) if (h >= SLOT_HOURS[s][0] && h < SLOT_HOURS[s][1]) return s;
-  return 'snack';
+  return periodOf(kwMinuteOfDay(at), carbs, stored);
 }
 
 export function buildMealtime(o: { readings: Reading[]; from: number; to: number; now: number; meals: ReportMeal[]; insulin: ReportInsulin[] }): Mealtime {
@@ -76,6 +73,15 @@ export function buildMealtime(o: { readings: Reading[]; from: number; to: number
     });
   });
 
+  // a day with no breakfast: its first real meal before lunch time (20 g or more, or with a dose) was her breakfast
+  const BREAKFAST_MIN_G = 20, firstOfDay = new Map<string, Sitting>();
+  for (const s of sittings) if (!firstOfDay.has(kwDayKey(s.at))) firstOfDay.set(kwDayKey(s.at), s);
+  for (const [day, s] of firstOfDay) {
+    const m = kwMinuteOfDay(s.at);
+    if (sittings.some((x) => kwDayKey(x.at) === day && x.slot === 'breakfast')) continue;
+    if (s.slot === 'snack' && m >= PERIOD_BOUNDS.breakfast && m < PERIOD_BOUNDS.lunch && ((s.carbs ?? BREAKFAST_MIN_G) >= BREAKFAST_MIN_G || s.insulin !== null)) s.slot = 'breakfast';
+  }
+
   const slots = SLOTS.map((slot): MealtimeSlot => {
     const ss = sittings.filter((s) => s.slot === slot);
     const num = (f: (s: Sitting) => number | null) => ss.map(f).filter((v): v is number => v !== null);
@@ -97,4 +103,4 @@ export function buildMealtime(o: { readings: Reading[]; from: number; to: number
 }
 
 export const SLOT_LABEL: Record<MealSlot, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snacks' };
-export const MEALTIME_NOTE = 'A sitting is everything eaten within 30 minutes. Meal periods follow the meal\'s own tag, otherwise the time eaten (breakfast 5–11, lunch 11–16, dinner 16–22; under 15 g or other hours: snack). Food eaten while below 3.9 counts as a low treatment and is left out. Each curve stops where the next sitting starts; missing sensor data is never filled in; a point needs 3 sittings. Insulin: rapid doses given from 30 min before to 30 min after.';
+export const MEALTIME_NOTE = 'A sitting is everything eaten within 30 minutes. Meal periods follow the time eaten (Kuwait): breakfast 4–11 am, lunch 1–5 pm, dinner from 5 pm; under 15 g, 11 am–1 pm or after midnight: snack (a day\'s first real meal before 1 pm is its breakfast). Food eaten while below 3.9 counts as a low treatment and is left out. Each curve stops where the next sitting starts; missing sensor data is never filled in; a point needs 3 sittings. Insulin: rapid doses given from 30 min before to 30 min after.';

@@ -13,7 +13,8 @@ import { foodName, untranslated } from '../lib/foodName';
 import { usePortions } from '../lib/mom';
 import { Icon } from '../components/Icon';
 import { fmtTime, hourTick } from '../lib/constants';
-import { AFTER_MIN, DEFAULT_STARTS, SLOT_KEYS, buildDay, type Activity, type DaySheet, type Dose, type Flag, type Food, type Line, type Occasion, type Slot, type Sum, type Prick, type SlotKey, type SlotStarts, type Treat } from '../lib/dietSheet';
+import { isGenericMealName } from '../engine/mealPeriod';
+import { AFTER_MIN, DEFAULT_STARTS, SLOT_KEYS, buildDay, slotOf, type Activity, type DaySheet, type Dose, type Flag, type Food, type Line, type Occasion, type Slot, type Sum, type Prick, type SlotKey, type SlotStarts, type Treat } from '../lib/dietSheet';
 import type { EventRow, HistoryEntry, Portion, Product, Recipe, Unit } from '../lib/types';
 import { Alert, Card, Page, cx } from '../components/ui';
 import { SharePdf } from '../components/SharePdf';
@@ -22,7 +23,8 @@ import { dayEvents, markers, type CarbSource, type DayEvent } from '../lib/dayEv
 import { isEn, locale, t, tMaybe } from '../i18n';
 
 const MIN = 60000, DAY = 86400000;
-const STARTS_KEY = 'diet-sheet-starts';
+// v2: the family's meal times (lunch 1–5 pm, dinner from 5 pm); times kept under the old key are not reused
+export const STARTS_KEY = 'diet-sheet-starts-v2';
 const SLOT_LABEL: Record<SlotKey, string> = { breakfast: 'الإفطار', snack1: 'سناك 1', lunch: 'الغداء', snack2: 'سناك 2', dinner: 'العشاء' }; // i18n-ok: shown through t()
 const isoDay = (t: number) => new Date(t + 3 * 3600000).toISOString().slice(0, 10);       // Kuwait date of a day start
 const dayFromIso = (s: string) => Date.parse(s + 'T00:00:00+03:00');
@@ -123,10 +125,10 @@ export default function DietSheetPage() {
           <details className="text-sm" open={showTimes} onToggle={(e) => setShowTimes((e.target as HTMLDetailsElement).open)}>
             <summary className="min-h-[36px] cursor-pointer py-1 text-slate-600">{t('أوقات الوجبات')}</summary>
             <div className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-5">
-              {SLOT_KEYS.map((k) => (
+              {SLOT_KEYS.filter((k) => k !== 'snack2').map((k) => (
                 <label key={k} className="text-xs"><span className="mb-1 block text-slate-600">{t('{slot} يبدأ', { slot: t(SLOT_LABEL[k]) })}</span>
                   <TimeField dir="ltr" className="min-h-[40px] w-full rounded-xl border border-slate-200 bg-white px-2" value={hm(starts[k])}
-                    onChange={(e) => { const v = toMin(e.target.value); if (Number.isFinite(v)) setStarts({ ...starts, [k]: v }); }} /></label>
+                    onChange={(e) => { const v = toMin(e.target.value); if (Number.isFinite(v)) setStarts({ ...starts, [k]: v, ...(k === 'lunch' ? { snack2: v } : {}) }); }} /></label>
               ))}
               <button className="col-span-2 text-start text-xs font-bold text-brand sm:col-span-5" onClick={() => setStarts(DEFAULT_STARTS)}>{t('الأوقات الافتراضية')}</button>
             </div>
@@ -204,7 +206,10 @@ export async function loadDaySheets(a: number, b: number, starts: SlotStarts, o:
     const one = !rec && (x.lines ?? []).length === 1 ? productFor(x.lines[0].product ?? null, x.lines[0].name) : null;
     const own = rec ?? one ?? productFor(null, x.name);
     const note = x.notes && !/^gluroo\b/i.test(x.notes.trim()) ? x.notes.trim() : null;
-    foods.push({ t: t0, id: x.id, name: own ? foodName(own) : x.name, named: !!own && !untranslated(own), detail: null, carbs, fat: num(x.total_fat), protein: num(x.total_protein), kcal: num(x.total_kcal), fiber: num(x.total_fiber),
+    // a meal saved under a plain meal word ("عشا") is named by the period it really was in, so it never reads as dinner in the lunch column
+    const plain = !own && isGenericMealName(x.name);
+    const pk = plain ? slotOf(Math.floor(((t0 + 3 * 3600000) % DAY) / MIN), starts, null, slotKey(plan?.slot)) : null;
+    foods.push({ t: t0, id: x.id, name: own ? foodName(own) : plain ? (pk ? t(SLOT_LABEL[pk]) : t('أكل بالليل')) : x.name, named: !!own && !untranslated(own), detail: null, carbs, fat: num(x.total_fat), protein: num(x.total_protein), kcal: num(x.total_kcal), fiber: num(x.total_fiber),
       slot: slotKey(plan?.slot), planned: !!plan, recipe: !!x.recipe_id, lines, note, flags, partEaten: num(plan?.part_eaten), carbsPlanned: num(plan?.carbs_planned) });
   }
   const doses: Dose[] = [], pricks: Prick[] = [], acts: Activity[] = [];

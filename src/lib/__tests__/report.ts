@@ -327,11 +327,15 @@ test('snapshot: insulin and carbs averaged over the days that have them (and tha
 });
 
 // ── Mealtime Patterns ──
-test('mealtime: meals within 30 min are one sitting; its slot is its tag, else the hour; under 15 g is a snack', () => {
+test('mealtime: the meal period is the time eaten (breakfast to 11, lunch 1–5 pm, dinner from 5 pm); under 15 g is a snack', () => {
   const h = 3600000, day = T0 + 2 * DAY;
   assert.equal(slotOf(day + 7 * h, 30, null), 'breakfast'); assert.equal(slotOf(day + 13 * h, 30, null), 'lunch');
-  assert.equal(slotOf(day + 19 * h, 30, null), 'dinner'); assert.equal(slotOf(day + 13 * h, 10, null), 'snack'); assert.equal(slotOf(day + 23 * h, 40, null), 'snack');
-  assert.equal(slotOf(day + 23 * h, 40, 'dinner'), 'dinner', 'the stored slot wins');
+  assert.equal(slotOf(day + 12 * h, 30, null), 'snack', '11–1 is the morning snack');
+  assert.equal(slotOf(day + 19 * h, 30, null), 'dinner'); assert.equal(slotOf(day + 13 * h, 10, null), 'snack'); assert.equal(slotOf(day + 23 * h, 40, null), 'dinner');
+  assert.equal(slotOf(day + 16 * h + 13 * 60000, 52, 'dinner'), 'lunch', 'a meal tagged dinner but eaten at 4:13 pm is lunch');
+  assert.equal(slotOf(day + 18 * h, 40, 'lunch'), 'dinner', 'a meal tagged lunch but eaten at 6 pm is dinner');
+  assert.equal(slotOf(day + 15 * h, 40, 'snack'), 'snack', 'a snack stays a snack');
+  assert.equal(slotOf(day + 2 * h, 30, null), 'snack', 'after midnight: a snack');
 });
 test('mealtime: one sitting per meal, the curve stops at the next sitting, a gap stays empty, a meal eaten while low is a treatment', () => {
   const h = 3600000, days = 4;
@@ -388,16 +392,16 @@ test('visit report: one load builds every section; each low is listed once, a ve
 // ── Observations & questions ──
 test('observations: a repeated lunch rise is found with its evidence; corrections with food after them are not judged; too little evidence is said', () => {
   const h = 3600000, days = 8, from = T0, to = T0 + days * DAY, now = to;
-  // 120 all day; lunch at 12:00 with 40 g and 2 U at 11:50; on 6 of 8 days it rises to 240 at +90 and is 210 at +2 h
+  // 120 all day; lunch at 1 pm with 40 g and 2 U at 12:50; on 6 of 8 days it rises to 240 at +90 and is 210 at +2 h
   const lvl = (t: number) => {
     const d = Math.floor((t - from) / DAY), m = (t - from - d * DAY) / MIN, spike = d % 4 !== 3;
-    if (m >= 12 * 60 && m < 15 * 60) { const k = m - 12 * 60; return spike ? (k < 90 ? 120 + (120 * k) / 90 : 240 - (k - 90)) : 120 + Math.min(30, k / 3); }
+    if (m >= 13 * 60 && m < 16 * 60) { const k = m - 13 * 60; return spike ? (k < 90 ? 120 + (120 * k) / 90 : 240 - (k - 90)) : 120 + Math.min(30, k / 3); }
     if (d === 2 && m >= 17 * 60 && m < 20 * 60) return 230;        // a high afternoon, corrected at 17:05, then a snack at 18:00
     return 120;
   };
   const rs = series(from, days * 1440, 5, (m) => lvl(from + m * MIN));
   const meals: any[] = [], insulin: any[] = [];
-  for (let d = 0; d < days; d++) { meals.push({ at: from + d * DAY + 12 * h, carbs: 40, unknown: false, pending: false, name: 'Lunch', slot: 'lunch' }); insulin.push({ at: from + d * DAY + 12 * h - 10 * MIN, units: 2, type: 'rapid' }); }
+  for (let d = 0; d < days; d++) { meals.push({ at: from + d * DAY + 13 * h, carbs: 40, unknown: false, pending: false, name: 'Lunch', slot: 'lunch' }); insulin.push({ at: from + d * DAY + 13 * h - 10 * MIN, units: 2, type: 'rapid' }); }
   insulin.push({ at: from + 2 * DAY + 17 * h + 5 * MIN, units: 1, type: 'rapid', purpose: 'correction' });
   meals.push({ at: from + 2 * DAY + 18 * h, carbs: 12, unknown: false, pending: false, name: 'Snack', slot: 'snack' });
   const mealtime = buildMealtime({ readings: rs, from, to, now, meals, insulin });

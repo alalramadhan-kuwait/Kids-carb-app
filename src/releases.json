@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-12",
+    "version": "2.68.2",
+    "notes": [
+      "تسمية الوجبات في التقارير وجدول التغذية صارت حسب وقت الأكل: الإفطار للساعة 11، سناك الضحى 11–1، الغداء من 1 إلى 5 العصر، والعشاء من 5 المغرب. وجبة مكتوب عليها «عشا» وأكلتها 4 العصر تنحسب غداء"
+    ],
+    "notes_en": [
+      "Meals in the reports and the dietitian sheet are now named by the time eaten: breakfast until 11, late-morning snack 11–1, lunch 1–5 pm, dinner from 5 pm. A meal tagged «dinner» but eaten at 4 pm counts as lunch"
+    ]
+  },
+  {
+    "date": "2026-10-12",
     "version": "2.68.1",
     "notes": [
       "«كم أكلت؟» صارت «كلها» تلقائيًا: إذا ما اختار أحد، تنحسب الوجبة كاملة بعد وقت الأكل بـ 10 دقائق، وتقدرون تغيّرونها بعدين (¾، ½، ¼) من صفحة الوجبة"

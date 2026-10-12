@@ -683,4 +683,5 @@ export const analysis: Record<string, string> = {
   "انحسبت «كلها» تلقائيًا. غيّريها إذا أكلت أقل.": "Counted as «All» automatically. Change it if she ate less.",
   "تنحسب «كلها» تلقائيًا": "counted as «All» automatically",
   "تلقائيًا": "automatic",
+  "أكل بالليل": "Night-time food",
 };
