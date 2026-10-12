@@ -4,6 +4,7 @@ export const analysis: Record<string, string> = {
   'مباشر': 'Live',
   'اليوم': 'Today',
   'أمس': 'Yesterday',
+  'ملء الشاشة': 'Full screen',
   'الأنماط': 'Patterns',
   'الوجبات': 'Meals',
   'مقارنة': 'Compare',

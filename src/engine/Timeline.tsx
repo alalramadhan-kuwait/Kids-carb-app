@@ -57,7 +57,7 @@ export const dayWord = (ms: number, now: number) => {
   return d === 0 ? t('اليوم') : d === 1 ? `${t('أمس')} · ${kwDate(ms)}` : kwDate(ms);
 };
 
-export function Timeline({ series, view, now, onView, range, unit, height: total, marks = [], layers, onSelect, dayParts, highlight, tracks, forecasts, ahead = 0.04, night }: {
+export function Timeline({ series, view, now, onView, range, unit, height: total, marks = [], layers, onSelect, dayParts, highlight, tracks, forecasts, ahead = 0.04, night, rotated = false }: {
   series: Series; view: View; now: number; onView: (v: View, opts?: { animate?: boolean }) => void;
   range: Range; unit: GlucoseUnit; height: number;
   marks?: Mark[]; layers?: Set<Layer>; onSelect?: (g: Group) => void;
@@ -65,6 +65,9 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
   /** the parents' night hours (Kuwait time, "HH:MM"), shaded when 6 hours or more are shown */
   night?: { start: string; end: string } | null;
   forecasts?: Forecast[]; ahead?: number;
+  /** drawn turned a quarter clockwise (the sideways view on phones that cannot turn the page themselves): the
+   *  finger's screen position is turned back so every gesture works along the graph's own time axis */
+  rotated?: boolean;
 }) {
   // the readout floats just above the plot while a point is read, so the finger on the graph never covers it;
   // the canvas keeps its full height and never moves under the finger
@@ -461,7 +464,14 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
     pts: new Map<number, { x: number; y: number }>(), mode: 'none' as 'none' | 'pan' | 'pinch' | 'cross' | 'pending' | 'scroll', frame: 0,
     x0: 0, y0: 0, t0: 0, view0: view, dist0: 0, mid0: 0, timer: 0, lastTap: { t: 0, x: 0 }, vel: 0, lastX: 0, lastT: 0, fling: 0, wasLow: false, lastInspectT: 0,
   });
-  const rect = () => wrap.current!.getBoundingClientRect();
+  const rotRef = useRef(rotated); rotRef.current = rotated;
+  // screen → the graph's own frame: turned a quarter clockwise, its x runs down the screen and its y runs right to left
+  const rect = () => {
+    const r = wrap.current!.getBoundingClientRect();
+    return rotRef.current ? { left: r.top, top: window.innerWidth - r.right, width: r.height, height: r.width } : r;
+  };
+  const vp = (ev: { pointerId: number; clientX: number; clientY: number; target: EventTarget }) =>
+    rotRef.current ? { pointerId: ev.pointerId, target: ev.target, clientX: ev.clientY, clientY: window.innerWidth - ev.clientX } : ev;
   const inspectAt = (clientX: number) => {
     const r = rect(), x = clientX - r.left, v = viewRef.current;
     const t = v.end - v.span + (x / r.width) * v.span;
@@ -476,7 +486,8 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
   };
   const stopFling = () => { cancelAnimationFrame(g.current.fling); g.current.fling = 0; };
 
-  const onDown = (e: React.PointerEvent) => {
+  const onDown = (ev: React.PointerEvent) => {
+    const e = vp(ev);
     stopFling();
     (e.target as Element).setPointerCapture?.(e.pointerId);
     const s = g.current; s.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -493,7 +504,8 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
     }
   };
   // Pointer moves are coalesced to one update per screen frame; the latest position wins.
-  const onMove = (e: React.PointerEvent) => {
+  const onMove = (ev: React.PointerEvent) => {
+    const e = vp(ev);
     const s = g.current; if (!s.pts.has(e.pointerId)) return;
     s.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (!s.frame) s.frame = requestAnimationFrame(() => { s.frame = 0; step(); });
@@ -526,7 +538,8 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
       onView({ span: s.view0.span, end: limitEnd(end, now, s.view0.span, ahead) });
     }
   };
-  const onUp = (e: React.PointerEvent) => {
+  const onUp = (ev: React.PointerEvent) => {
+    const e = vp(ev);
     const s = g.current;
     if (s.frame) { cancelAnimationFrame(s.frame); s.frame = 0; step(); } // apply the last move before letting go
     s.pts.delete(e.pointerId);
@@ -572,7 +585,8 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
     if (s.pts.size === 0) s.mode = 'none';
   };
   // the phone took the touch over to scroll the page: forget it, without reading it as a tap
-  const onCancel = (e: React.PointerEvent) => {
+  const onCancel = (ev: React.PointerEvent) => {
+    const e = vp(ev);
     const s = g.current;
     if (s.frame) { cancelAnimationFrame(s.frame); s.frame = 0; }
     window.clearTimeout(s.timer);
@@ -586,7 +600,8 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
       const m = g.current.mode;
       if (e.touches.length > 1 || m === 'pan' || m === 'cross' || m === 'pinch') e.preventDefault();
       else if (m === 'pending' && e.touches.length === 1) {
-        const dx = Math.abs(e.touches[0].clientX - g.current.x0), dy = Math.abs(e.touches[0].clientY - g.current.y0);
+        const p = vp({ pointerId: 0, target: e.target!, clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
+        const dx = Math.abs(p.clientX - g.current.x0), dy = Math.abs(p.clientY - g.current.y0);
         if (dx > dy && dx > 4) e.preventDefault();
       }
     };
@@ -615,7 +630,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
   return (
     <div ref={wrap} className="relative select-none" style={{ height }} dir="ltr">
       <canvas
-        ref={canvas} style={{ width: '100%', height, touchAction: 'pan-y' }}
+        ref={canvas} style={{ width: '100%', height, touchAction: rotated ? 'none' : 'pan-y' }}
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onCancel} onWheel={onWheel}
         role="img" aria-label={t('رسم السكر {from}–{to}، {state}', { from: clock(view.end - view.span), to: clock(view.end), state: freshness(lastT, now) === 'live' ? t('مباشر') : t('غير محدّث') })}
       />

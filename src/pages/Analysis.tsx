@@ -94,6 +94,19 @@ function Live() {
   const { settings, history, events } = useData();
   const { g } = useGlucose();
   const land = useLandscape();
+  // ⤢: the graph full screen and sideways. A phone that can turn the page itself (Android) does; an iPhone cannot, so
+  // the page is turned a quarter here and the graph reads the finger in its own frame
+  const [wide, setWide] = useState(false);
+  const closeWide = useRef(() => setWide(false));
+  useEffect(() => {
+    if (!wide) return;
+    window.history.pushState({ wide: true }, '');
+    const onPop = () => closeWide.current();
+    window.addEventListener('popstate', onPop);
+    const el = document.documentElement as HTMLElement & { requestFullscreen?: () => Promise<void> };
+    el.requestFullscreen?.().then(() => (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> })?.lock?.('landscape')).catch(() => { /* not available: turned below */ });
+    return () => { window.removeEventListener('popstate', onPop); if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {}); };
+  }, [wide]);
   const [layers, setLayers] = useState<Set<Layer>>(loadLayers);
   const [layersOpen, setLayersOpen] = useState(false);
   const [picked, setPicked] = useState<Group | null>(null);
@@ -151,24 +164,33 @@ function Live() {
   const status = latest && fresh !== 'missing' ? glucoseStatus(latest.mg_dl, rng.low, rng.high) : null;
   const period = PERIODS.find((p) => Math.abs(p.ms - view.span) / p.ms < 0.03)?.id;
 
-  if (land.landscape) return (
-    <div className="fixed inset-0 z-[46] flex flex-col bg-[rgb(var(--bg))] pe-[env(safe-area-inset-right)] ps-[env(safe-area-inset-left)]">
-      <div className="flex h-12 items-center gap-3 px-3">
-        {latest && <span className="num text-2xl font-bold text-brand-num">{formatGlucose(latest.mg_dl, unit)}</span>}
-        <span className={cx('rounded-full px-2 py-0.5 text-xs font-bold', FRESH[fresh].cls)}>{t(FRESH[fresh].text)}</span>
-        <div className="ms-auto flex gap-1.5" dir="ltr">
-          {PERIODS.slice(0, 6).map((pp) => <Chip key={pp.id} active={period === pp.id} onClick={() => onView({ span: pp.ms, end: live ? Infinity : view.end }, { animate: true })}>{pp.id}</Chip>)}
-          {!live && <button onClick={() => onView({ span: view.span, end: Infinity }, { animate: true })} className="min-h-[36px] rounded-full bg-brand px-3 text-sm font-bold text-white">{t('الآن')}</button>}
+  if (land.landscape || wide) {
+    const sideways = !land.landscape, W = window.innerWidth, Hh = land.height || window.innerHeight;
+    return (
+      <div className="fixed inset-0 z-[46] overflow-hidden bg-[rgb(var(--bg))]">
+        <div className="absolute flex flex-col"
+          style={sideways
+            ? { top: 0, left: 0, width: Hh, height: W, transform: `translate(${W}px, 0) rotate(90deg)`, transformOrigin: 'top left', paddingLeft: 'env(safe-area-inset-top)', paddingRight: 'env(safe-area-inset-bottom)' }
+            : { inset: 0, paddingLeft: 'env(safe-area-inset-left)', paddingRight: 'env(safe-area-inset-right)' }}>
+          <div className="flex h-12 shrink-0 items-center gap-3 px-3">
+            {latest && <span className="num text-2xl font-bold text-brand-num">{formatGlucose(latest.mg_dl, unit)}</span>}
+            <span className={cx('rounded-full px-2 py-0.5 text-xs font-bold', FRESH[fresh].cls)}>{t(FRESH[fresh].text)}</span>
+            <div className="ms-auto flex gap-1.5" dir="ltr">
+              {PERIODS.slice(0, 6).map((pp) => <Chip key={pp.id} active={period === pp.id} onClick={() => onView({ span: pp.ms, end: live ? Infinity : view.end }, { animate: true })}>{pp.id}</Chip>)}
+              {!live && <button onClick={() => onView({ span: view.span, end: Infinity }, { animate: true })} className="min-h-[36px] rounded-full bg-brand px-3 text-sm font-bold text-white">{t('الآن')}</button>}
+            </div>
+            {wide && <button onClick={() => window.history.back()} className="min-h-[36px] shrink-0 rounded-full bg-slate-900 px-3 text-sm font-bold text-white">✕ {t('إغلاق')}</button>}
+          </div>
+          <div className="relative flex-1 bg-white">
+            <GraphLoadNotice error={loadError} empty={!series.t.length} retry={retry} className="mb-1" />
+            <Timeline series={series} view={view} now={now} onView={onView} unit={unit} height={Math.max(160, (sideways ? W : Hh) - 48)} rotated={sideways}
+              range={rng} marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={ahead} night={nightOf(settings)} />
+          </div>
+          <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
         </div>
       </div>
-      <div className="flex-1 bg-white">
-        <GraphLoadNotice error={loadError} empty={!series.t.length} retry={retry} className="mb-1" />
-        <Timeline series={series} view={view} now={now} onView={onView} unit={unit} height={Math.max(160, land.height - 48)}
-          range={rng} marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={ahead} night={nightOf(settings)} />
-      </div>
-      <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
-    </div>
-  );
+    );
+  }
 
   return (
     <div className="space-y-3 pb-4">
@@ -193,7 +215,8 @@ function Live() {
         <Timeline series={series} view={view} now={now} onView={onView} unit={unit} height={height}
           range={rng}
           marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={ahead} night={nightOf(settings)} />
-        {loading && <div className="absolute start-3 top-3 text-xs text-slate-400">…</div>}
+        {loading && <div className="absolute start-14 top-3 text-xs text-slate-400">…</div>}
+        <button onClick={() => setWide(true)} aria-label={t('ملء الشاشة')} className="absolute left-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-white/90 text-lg font-bold text-slate-600 shadow-sm ring-1 ring-slate-200">⤢</button>
         <GraphHelp past={forecasts.some((f) => f.kind === 'past')} tracks={!!(tracks?.iob || tracks?.cob)} act={!!tracks?.act} className="absolute right-12 top-3" />
       </div>
 
