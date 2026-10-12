@@ -40,6 +40,7 @@ import { t, useLang } from './i18n';
 import { LangSwitch } from './components/LangSwitch';
 import { MomHome } from './pages/mom/MomHome';
 import { MomAdd, MomFoodItem, MomGroup, MomMeal, MomNew, MomPortion, MomRestaurant } from './pages/mom/MomMeal';
+import { MomPlate } from './pages/mom/MomPlate';
 import { MomCompare } from './pages/mom/MomCompare';
 import { MomAte, MomDose, MomGiven } from './pages/mom/MomDose';
 import { MomMealEdit } from './pages/mom/MomMealEdit';
@@ -239,6 +240,7 @@ function Shell() {
         <Route path="/" element={simple ? <Navigate to={new URLSearchParams(search).get('plan') ? `/mom/plan/${new URLSearchParams(search).get('plan')}` : new URLSearchParams(search).get('at') ? `/mom?at=${new URLSearchParams(search).get('at')}` : '/mom'} replace /> : <Now />} />
         <Route path="/mom" element={<MomHome />} />
         <Route path="/mom/meal" element={<MomMeal />} />
+        <Route path="/mom/plate" element={<MomPlate />} />
         <Route path="/mom/add" element={<MomAdd />} />
         <Route path="/mom/add/g/:key" element={<MomGroup />} />
         <Route path="/mom/add/g/:key/:sub" element={<MomGroup />} />

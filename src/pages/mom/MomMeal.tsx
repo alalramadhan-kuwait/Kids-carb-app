@@ -82,6 +82,7 @@ export function MomMeal() {
   const [name, setName] = useState('');
   const sameAsSaved = d.savedId && meals.find((m) => m.id === d.savedId && JSON.stringify(m.items) === JSON.stringify(d.items));
   const portionLabel = (it: MomItem) => it.portion_id ? tMaybe(c.portions.find((p) => p.id === it.portion_id)?.label ?? '')
+    : it.unit === 'g' && c.products.find((p) => p.id === it.id)?.per_item ? `× ${fmt((it.amount ?? 0) / 100)}`
     : `${fmt(it.amount ?? 0)} ${it.unit === 'serving' ? t('حصة') : it.unit === 'plate' ? t('صحن') : c.products.find((p) => p.id === it.id)?.unit === 'ml' ? t('مل') : t('غرام')}`;
   const Left = () => d.left.length ? <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ <bdi>{d.left.join(' · ')}</bdi> {t('ما ينحسب بالإبرة · كلّمي بابا')}</p> : null;
   const title = d.mode === 'plan' ? t('خطة وجبة') : t('وجبة ليان');
@@ -94,7 +95,8 @@ export function MomMeal() {
       {d.mode === 'now' && fromLog.length > 0 && <h2 className="text-[17px] font-bold text-slate-500">🕘 {t('من السجل')}</h2>}
       {d.mode === 'now' && fromLog.slice(0, 4).map((h) => <Choice key={h.id} icon="🍽️" label={<><bdi>{tMaybe(h.name)}</bdi> · <span className="num">{fmt(h.total_carbs)}</span> {t('غ كارب')}</>} sub={h.lines.map((l) => tMaybe(l.name)).join(' · ')}
         onClick={() => { const r = plateFromLog(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.left); }} />)}
-      <Big tone={meals.length ? 'soft' : 'primary'} onClick={() => nav(meals.length ? '/mom/add?tab=recipes' : '/mom/add')}>+ {t('شي ثاني')}</Big>
+      <Big tone="primary" onClick={() => nav('/mom/plate')}>⚖️ {t('عيش ومرق بالميزان')}</Big>
+      <Big tone="soft" onClick={() => nav(meals.length ? '/mom/add?tab=recipes' : '/mom/add')}>+ {t('شي ثاني')}</Big>
       {d.mode === 'now' && <Big tone="ghost" onClick={() => nav('/mom/out')}>🍽️ {t('أكل برّا · ما أعرف الكارب')}</Big>}
     </MomPage>
   );
@@ -117,6 +119,7 @@ export function MomMeal() {
       <Left />
       <div className="flex items-baseline justify-between px-1 text-slate-500"><span>{t('الكارب')}</span><b className="num text-[22px] text-slate-900">{total === null ? '—' : `${fmt(total)} ${t('غ كارب')}`}</b></div>
       <Big tone="soft" onClick={() => nav('/mom/add')}>+ {t('إضافة شي')}</Big>
+      <button className="min-h-[44px] text-[16px] font-bold text-brand" onClick={() => nav('/mom/plate')}>⚖️ {t('عيش ومرق بالميزان')}</button>
       {!sameAsSaved && d.items.length > 1 && (naming ? (
         <div className="flex gap-2">
           <input className={inputCls} dir="auto" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('اسم الوجبة')} maxLength={40} autoFocus />
