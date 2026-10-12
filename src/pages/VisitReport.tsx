@@ -2,13 +2,13 @@
 // are the doctor reports, drawn in English (visitPdf.ts). The family's sections — cover, meal plans, growth and
 // nutrition, the dietitian's daily sheets, notes — are laid out here, hidden, in the language chosen for them, then
 // pictured onto the same PDF. Nothing here calculates or suggests a dose.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Btn, Card, Chip, Page, cx, toast } from '../components/ui';
 import { useData } from '../lib/data';
 import { usePortions } from '../lib/mom';
-import { loadReportData } from '../lib/reportData';
+import { loadReportData, type ReportData } from '../lib/reportData';
 import { usePatient } from '../lib/useReport';
 import { addHtmlPages, sharePdf } from '../lib/pdfShare';
 import { VISIT_PERIODS, buildVisitModels, drawVisitDoctor, visitFacts, type VisitDays, type VisitModels } from '../lib/visitPdf';
@@ -19,13 +19,16 @@ import { DEFAULT_STARTS, SLOT_KEYS, type DaySheet, type SlotStarts } from '../li
 import { EventsPages, SheetPage, loadDaySheets, type Ctx } from './DietSheet';
 import { DailyAverage, GrowthSection, MealPatterns, Summary } from './Growth';
 import { PlanReport } from './PlanReport';
+import { ObservationsSection } from './visit/Observations';
+import { buildObservations, type NutritionIn } from '../engine/report/observations';
+import { nightOf } from '../lib/schedule';
 import { useGrowthNutrition } from '../lib/growth';
 import { kwDate, reportPeriod, VALIDATION_NOTE } from '../engine/report/agpReport';
 import { isEn, lang, swapLang, t, type Lang } from '../i18n';
 
 const DAY = 86400000;
 type FoodDays = 7 | 14;
-interface Job { models: VisitModels; sheets: DaySheet[]; lang: Lang; done: () => void }
+interface Job { models: VisitModels; data: ReportData; sheets: DaySheet[]; lang: Lang; done: () => void }
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function waitFor(ok: () => boolean, ms = 25000) {
@@ -72,7 +75,7 @@ export default function VisitReport() {
       const today = dayStartOf(now);
       const sheets = await loadDaySheets(today - (foodDays - 1) * DAY, today, loadStarts(), { products, recipes, low, high });
       setStep(W.pages);
-      await new Promise<void>((done) => setJob({ models, sheets, lang: pageLang, done }));
+      await new Promise<void>((done) => setJob({ models, data, sheets, lang: pageLang, done }));
       const root = holder.current!;
       await waitFor(() => Array.from(root.querySelectorAll<HTMLElement>('[data-part]')).every((el) => el.dataset.ready === '1') && !!root.querySelector('[data-part="plans"] main[data-ready="1"]'));
       root.querySelectorAll<HTMLDetailsElement>('[data-part="growth"] details').forEach((d) => { d.open = true; }); // growth's sections open on paper (the meal plans open their own)
@@ -129,7 +132,7 @@ export default function VisitReport() {
             <li>{t('الوجبات المخططة: الجرعة المحسوبة والمعطاة')}</li>
             <li>{t('النمو والتغذية: الوزن والطول، الطاقة، التوازن')}</li>
             <li>{t('جدول التغذية: صفحة لكل يوم')}</li>
-            <li>{t('ملاحظات الزيارة: ما تُظهره البيانات، وأسطر لأسئلتكم')}</li>
+            <li>{t('ملاحظات وأسئلة لفريق الرعاية: ما وجده التطبيق في بياناتها، بالدليل، مع سؤال لكل ملاحظة ومكان لملاحظات الطبيب')}</li>
           </ol>
           <p className="text-xs text-slate-500">{t('ملاحظات من بياناتها، وليست توصية بجرعة.')}</p>
         </Card>
@@ -145,9 +148,35 @@ export default function VisitReport() {
 
 /** Everything pictured into the PDF, in the chosen language. Each part says when it is ready. */
 function VisitPages({ job, low, high, days }: { job: Job; low: number; high: number; days: VisitDays }) {
-  const { settings, products } = useData();
+  const { settings, products, history, events } = useData();
   const { portions } = usePortions();
   const g = useGrowthNutrition();
+  // the observations, once the nutrition model is ready (it feeds the dietitian's findings)
+  const obs = useMemo(() => {
+    if (!g.ready) return null;
+    const per = days > 14 ? 'd30' as const : 'd7' as const, a = g.avg[per], E = a.energy.est;
+    const share = (k: 'carbs' | 'fat' | 'protein', kcalPerG: number) => { const v = a.nutrients[k]?.est; return v != null && E ? (v * kcalPerG * 100) / E : null; };
+    const pc = (z: number | null | undefined) => (z == null ? null : Math.round(100 * pnorm(z)));
+    // the latest weight, height and BMI, each from the last measurement that has it
+    const lastWith = (k: 'weight_kg' | 'height_cm' | 'bmi') => [...g.points].reverse().find((p) => p[k] != null) ?? null;
+    const Lw = lastWith('weight_kg'), Lh = lastWith('height_cm'), Lb = lastWith('bmi');
+    const L = g.growth.latest ?? Lw;
+    const nutrition: NutritionIn = {
+      days: a.days, enough: a.enough, kcal: a.totalKcal, ref: g.energyRef, energyState: g.energy[per], coverage: a.energy.coverage,
+      pct: { carbs: share('carbs', 4), fat: share('fat', 9), protein: share('protein', 4) },
+      balanceState: g.bal[per].state, issues: g.bal[per].issues,
+      growth: { state: g.growth.state, measurements: g.measurements.length, change90: g.growth.change.d90, reasons: g.growth.reasons,
+        latest: L ? { on: L.on, weight: Lw?.weight_kg ?? null, height: Lh?.height_cm ?? null, pW: pc(Lw?.z.wfa), pH: pc(Lh?.z.hfa), pBmi: pc(Lb?.z.bmi) } : null },
+    };
+    const night = nightOf(settings);
+    return buildObservations({
+      readings: job.data.readings, from: job.models.from, to: job.models.to, now: job.models.now, insulin: job.data.insulin, meals: job.data.meals, treatments: job.data.treatments,
+      mealtime: job.models.mealtime,
+      makeup: history.map((h) => ({ at: Date.parse(h.eaten_at), fat: h.total_fat == null ? null : Number(h.total_fat), protein: h.total_protein == null ? null : Number(h.total_protein), name: h.name ?? null })),
+      activities: events.filter((e) => e.kind === 'exercise' && !e.deleted_at).map((e) => Date.parse(e.occurred_at)),
+      lowMg: low, highMg: high, night: { start: night?.start ?? '21:00', end: night?.end ?? '07:00' }, ratios: settings.ratios ?? [], nutrition,
+    });
+  }, [g, job, days, history, events, settings, low, high]);
   const ctx: Ctx = { g: (mg: number) => formatGlucose(mg, settings.glucose_unit), low, high, products, portions };
   const patient = usePatient();
   const child = (isEn() && patient.name) || settings.child_name || t('ليان');
@@ -167,7 +196,7 @@ function VisitPages({ job, low, high, days }: { job: Job; low: number; high: num
           <EventsPages s={s} unit={settings.glucose_unit} low={low} high={high} child={child} ctx={ctx} />
         </div>)}
       </div>
-      <div data-part="notes" data-ready="1" className="space-y-3 p-4"><Notes m={job.models} /></div>
+      <div data-part="notes" data-ready={obs ? '1' : '0'} className="space-y-3 p-4">{obs && <ObservationsSection obs={obs} unit={settings.glucose_unit} />}</div>
     </>
   );
 }
@@ -227,7 +256,7 @@ function Cover({ m }: { m: VisitModels }) {
           <li>{t('الوجبات المخططة: الجرعة المحسوبة والمعطاة')}</li>
           <li>{t('النمو والتغذية: الوزن والطول، الطاقة، التوازن')}</li>
           <li>{t('جدول التغذية: صفحة لكل يوم')}</li>
-          <li>{t('ملاحظات الزيارة: ما تُظهره البيانات، وأسطر لأسئلتكم')}</li>
+          <li>{t('ملاحظات وأسئلة لفريق الرعاية: ما وجده التطبيق في بياناتها، بالدليل، مع سؤال لكل ملاحظة ومكان لملاحظات الطبيب')}</li>
         </ol>
       </section>
       <p className="text-xs text-slate-500" dir="ltr">{VALIDATION_NOTE}</p>
@@ -236,26 +265,9 @@ function Cover({ m }: { m: VisitModels }) {
   );
 }
 
-const SLOT_WORD: Record<string, string> = { breakfast: 'الإفطار', lunch: 'الغداء', dinner: 'العشاء', snack: 'السناكات' }; // i18n-ok: shown through t()
-
-function Notes({ m }: { m: VisitModels }) {
-  const f = visitFacts(m);
-  const g1 = (x: number | null) => (x == null ? '–' : x.toFixed(1));
-  const lines = (n: number) => Array.from({ length: n }, (_, i) => <div key={i} className="h-8 border-b border-slate-300" />);
-  return (
-    <>
-      <h1 className="text-xl font-bold">{t('ملاحظات الزيارة')}</h1>
-      <section className="rounded-xl border border-slate-200 p-3 text-sm">
-        <h2 className="mb-1 font-bold">{t('ما تُظهره البيانات')}</h2>
-        <ul className="list-disc space-y-1 ps-5">
-          <li>{t('الوقت في النطاق {a}، تحت النطاق {b}، فوق النطاق {c}', { a: pct(f.tir), b: pct(f.tbr), c: pct(f.tar) })}</li>
-          <li>{t('{n} انخفاض، منها {k} في الليل · {h} ارتفاع شديد', { n: f.lows, k: f.nightLows, h: f.veryHighs })}</li>
-          {f.meals.map((x) => <li key={x.slot}>{t(SLOT_WORD[x.slot])}: {t('قبل الأكل {a}، بعد ساعتين {b} mmol/L ({n} مرة)', { a: g1(x.pre), b: g1(x.at2h), n: x.sittings })}{x.lowsAfter ? ` · ${t('انخفاض بعدها {n} مرة', { n: x.lowsAfter })}` : ''}</li>)}
-        </ul>
-        <p className="mt-2 text-xs text-slate-500">{t('ملاحظات من بياناتها، وليست توصية بجرعة.')}</p>
-      </section>
-      <section className="rounded-xl border border-slate-200 p-3"><h2 className="font-bold">{t('أسئلة للطبيب')}</h2>{lines(6)}</section>
-      <section className="rounded-xl border border-slate-200 p-3"><h2 className="font-bold">{t('أسئلة لأخصائية التغذية')}</h2>{lines(6)}</section>
-    </>
-  );
+/** Standard normal CDF (growth z-score → percentile). Abramowitz–Stegun 7.1.26. */
+function pnorm(z: number) {
+  const x = Math.abs(z) / Math.SQRT2, k = 1 / (1 + 0.3275911 * x);
+  const erf = 1 - (((((1.061405429 * k - 1.453152027) * k) + 1.421413741) * k - 0.284496736) * k + 0.254829592) * k * Math.exp(-x * x);
+  return z >= 0 ? (1 + erf) / 2 : (1 - erf) / 2;
 }

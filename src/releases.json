@@ -4,11 +4,13 @@
     "version": "2.68.0",
     "notes": [
       "«تقرير الزيارة»: زر واحد يجهّز PDF واحد للطبيب وأخصائية التغذية (تقارير الطبيب، الوجبات المخططة، النمو والتغذية، جدول التغذية اليومي، وملاحظات الزيارة) للمشاركة أو الطباعة",
+      "آخر التقرير «ملاحظات وأسئلة لفريق الرعاية»: ما وجده التطبيق في بياناتها (الارتفاعات بعد الوجبات، الانخفاضات، الليل مع التريسيبا، التصحيح، الطاقة والنمو) مع الدليل والتواريخ وتفسيرات محتملة، وسؤال للطبيب أو أخصائية التغذية ومكان لملاحظاتهم. لا يقترح جرعات أبدًا",
       "تختارون لغة صفحات العائلة والتغذية: عربي أو إنجليزي؛ تقارير الطبيب تبقى بالإنجليزي",
       "«المزيد» أبسط: «زيارة العيادة» فوق، وكل التقارير في صفحة واحدة، و«الأكل والكميات» صفحة واحدة، والاستيراد والمحذوفة تحت «متقدم»"
     ],
     "notes_en": [
       "«Visit report»: one button makes one PDF for the doctor and the dietitian (doctor reports, meal plans, growth and nutrition, the daily food sheet and visit notes) to share or print",
+      "The report ends with «Observations & Questions for the Care Team»: what the app found in her data (rises after meals, lows, nights on Tresiba, corrections, energy and growth) with the evidence, dates and possible explanations, a question for the doctor or dietitian, and room for their notes. It never suggests a dose",
       "You choose the language of the family and nutrition pages: Arabic or English; the doctor reports stay in English",
       "«More» is simpler: «Clinic visit» at the top, every report on one page, «Food & portions» as one page, and import and recently deleted under «Advanced»"
     ]

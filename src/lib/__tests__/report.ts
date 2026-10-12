@@ -17,6 +17,7 @@ import { buildSnapshot } from '../../engine/report/snapshot';
 import { buildMealtime, slotOf } from '../../engine/report/mealtime';
 import { buildMonthly } from '../../engine/report/monthly';
 import { buildVisitModels, visitFacts } from '../visitPdf';
+import { buildObservations } from '../../engine/report/observations';
 
 let n = 0;
 const test = (name: string, fn: () => void) => { fn(); n++; console.log('  ok', name); };
@@ -382,6 +383,36 @@ test('visit report: one load builds every section; each low is listed once, a ve
   near(f.tir! + f.tbr! + f.tar!, 100, 1e-6);
   const m30 = buildVisitModels(data, 30, now);
   assert.ok(m30.monthly && !m30.weekly, '30 days: the monthly calendar');
+});
+
+// ── Observations & questions ──
+test('observations: a repeated lunch rise is found with its evidence; corrections with food after them are not judged; too little evidence is said', () => {
+  const h = 3600000, days = 8, from = T0, to = T0 + days * DAY, now = to;
+  // 120 all day; lunch at 12:00 with 40 g and 2 U at 11:50; on 6 of 8 days it rises to 240 at +90 and is 210 at +2 h
+  const lvl = (t: number) => {
+    const d = Math.floor((t - from) / DAY), m = (t - from - d * DAY) / MIN, spike = d % 4 !== 3;
+    if (m >= 12 * 60 && m < 15 * 60) { const k = m - 12 * 60; return spike ? (k < 90 ? 120 + (120 * k) / 90 : 240 - (k - 90)) : 120 + Math.min(30, k / 3); }
+    if (d === 2 && m >= 17 * 60 && m < 20 * 60) return 230;        // a high afternoon, corrected at 17:05, then a snack at 18:00
+    return 120;
+  };
+  const rs = series(from, days * 1440, 5, (m) => lvl(from + m * MIN));
+  const meals: any[] = [], insulin: any[] = [];
+  for (let d = 0; d < days; d++) { meals.push({ at: from + d * DAY + 12 * h, carbs: 40, unknown: false, pending: false, name: 'Lunch', slot: 'lunch' }); insulin.push({ at: from + d * DAY + 12 * h - 10 * MIN, units: 2, type: 'rapid' }); }
+  insulin.push({ at: from + 2 * DAY + 17 * h + 5 * MIN, units: 1, type: 'rapid', purpose: 'correction' });
+  meals.push({ at: from + 2 * DAY + 18 * h, carbs: 12, unknown: false, pending: false, name: 'Snack', slot: 'snack' });
+  const mealtime = buildMealtime({ readings: rs, from, to, now, meals, insulin });
+  const o = buildObservations({ readings: rs, from, to, now, insulin, meals, treatments: [], mealtime, makeup: [], activities: [], lowMg: 70, highMg: 180,
+    night: { start: '21:00', end: '07:00' }, ratios: [{ from: '00:00', cr: 15 }, { from: '12:00', cr: 20 }], nutrition: null });
+  const lunch = o.doctor.find((f) => f.kind === 'meal_rise');
+  assert.ok(lunch, 'lunch rise found'); assert.equal(lunch!.data.slot, 'lunch'); assert.equal(lunch!.data.k, 6); assert.equal(lunch!.data.n, 8);
+  assert.equal(lunch!.data.cr, 20, 'the ratio in use is shown as it is, never a new one'); assert.equal(lunch!.data.doseMin, 10);
+  assert.ok(lunch!.maybe.some((m) => m.key === 'm_carb_count'), 'other explanations listed');
+  assert.ok(!o.doctor.some((f) => f.kind === 'corrections'), 'one correction, followed by food: not judged');
+  assert.ok(o.gaps.some((g) => g.key === 'gap_corr' && g.p!.food === 1), 'and the reason is said');
+  assert.ok(o.gaps.some((g) => g.key === 'gap_night'), 'no long-acting logged: overnight not judged');
+  assert.ok(o.doctor.length + o.dietitian.length <= 8);
+  const banned = /ratio_new|newRatio|suggest|propos|isf_new/i;
+  assert.ok(!banned.test(JSON.stringify(o)), 'no proposed dose, ratio or factor anywhere');
 });
 
 console.log(`\n${n} report engine tests passed`);
