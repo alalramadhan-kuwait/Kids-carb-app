@@ -1,5 +1,19 @@
 [
   {
+    "version": "2.70.0",
+    "date": "2026-10-12",
+    "notes": [
+      "كل أكل يبيّن مؤشره الجلايسيمي: منخفض أو متوسط أو عالي، يعني كم بسرعة يرفع السكر.",
+      "الوجبة تبيّن سرعة الكارب فيها كلها، والحمل الجلايسيمي.",
+      "الأرقام من الجداول الدولية، واللي ما له رقم مكتوب «تقريبي» أو «تقديري». معلومة فقط: ما تغيّر الكارب ولا الإبرة."
+    ],
+    "notes_en": [
+      "Every food shows its glycemic index: low, medium or high — how fast it tends to raise glucose.",
+      "A meal shows how fast its carbs act overall, and its glycemic load.",
+      "Values come from the international GI tables; anything without one is marked approximate or estimated. Information only: it changes neither the carbs nor the dose."
+    ]
+  },
+  {
     "date": "2026-10-12",
     "version": "2.69.2",
     "notes": [

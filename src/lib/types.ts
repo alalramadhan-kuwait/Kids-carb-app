@@ -35,6 +35,8 @@ export interface Product {
   // sold by the item, no weight published (restaurant cups, sandwiches): one item is stored as 100 units, so every
   // per-100 value is the per-item value and the usual maths holds; screens offer items only, never grams
   per_item?: boolean;
+  /** glycemic index (glucose = 100) and how it was found: information only, never part of a dose (engine/gi.ts) */
+  gi?: number | null; gi_match?: 'exact' | 'similar' | 'estimate' | 'na' | null; gi_note?: string | null;
   label_basis: 'as_sold' | 'cooked';
   cooked_yield: number | null; // cooked g per 1 g as sold
   available: boolean;

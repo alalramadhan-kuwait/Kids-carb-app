@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
+import { GiBadge } from '../components/Gi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { MICRO_FIELD, deriveLabel, fmt, labelMismatch, targetMiss, type Micro } from '../lib/carbs';
 import { GROUP, NUTRIENT_NAME } from '../components/growthText';
 import { CATEGORY_GROUP } from '../engine/nutrition';
 import { deleteProduct, saveProduct } from '../lib/api';
+import type { Product } from '../lib/types';
 import { supabase, uploadPhoto } from '../lib/supabase';
 import { PRODUCT_CATEGORIES } from '../lib/constants';
 import { t, tMaybe } from '../i18n';
@@ -43,6 +45,8 @@ export default function ProductEdit() {
   const [approved, setApproved] = useState(p?.approved ?? true);
   const [available, setAvailableState] = useState(p?.available ?? true);
   const [notes, setNotes] = useState(p?.notes ?? '');
+  const [gi, setGi] = useState<number | null>(p?.gi ?? null);
+  const [giMatch, setGiMatch] = useState<NonNullable<Product['gi_match']> | ''>(p?.gi_match ?? '');
   const [busy, setBusy] = useState(false);
 
   const derived = deriveLabel({ per100, serving, perServing });
@@ -61,6 +65,9 @@ export default function ProductEdit() {
         fat_per_100: fat, fiber_per_100: fiber, protein_per_100: protein, kcal_per_100: kcal,
         ...Object.fromEntries((Object.keys(MICRO_FIELD) as Micro[]).map((m) => [MICRO_FIELD[m], micro[m]])), food_group: group || null,
         label_basis: basis, cooked_yield: cookedYield, approved, available, notes: notes.trim() || null,
+        // a GI typed in by hand without saying where it came from is kept as an estimate
+        gi: giMatch === 'na' ? null : gi !== null && gi >= 0 && gi <= 100 ? Math.round(gi) : null,
+        gi_match: giMatch === 'na' ? 'na' : gi !== null && gi >= 0 && gi <= 100 ? (giMatch || 'estimate') : null,
         label_updated_at: new Date().toISOString().slice(0, 10),
       });
       await reload();
@@ -171,6 +178,24 @@ export default function ProductEdit() {
               <NumInput value={cookedYield} onChange={setCookedYield} />
             </Field>
           )}
+        </Card>
+
+        <Card className="space-y-3">
+          <h2 className="font-bold">{t('المؤشر الجلايسيمي')} <GiBadge food={{ gi, gi_match: giMatch || null }} /></h2>
+          <p className="text-xs text-slate-500">{t('معلومة فقط: سرعة رفع الكارب للسكر (الجلوكوز = 100). ما يغيّر الكارب ولا الإبرة.')}</p>
+          <div className="grid grid-cols-[1fr_2fr] gap-2">
+            <Field label={t('الرقم')}><NumInput value={gi} onChange={setGi} /></Field>
+            <Field label={t('مصدره')}>
+              <select className={inputCls} value={giMatch} onChange={(e) => setGiMatch(e.target.value as typeof giMatch)}>
+                <option value="">—</option>
+                <option value="exact">{t('من الجداول الدولية')}</option>
+                <option value="similar">{t('أكل مشابه (تقريبي)')}</option>
+                <option value="estimate">{t('تقديري')}</option>
+                <option value="na">{t('لا ينطبق (كارب قليل)')}</option>
+              </select>
+            </Field>
+          </div>
+          {p?.gi_note && <p className="text-xs text-slate-500"><bdi>{p.gi_note}</bdi></p>}
         </Card>
 
         <Card className="space-y-3">

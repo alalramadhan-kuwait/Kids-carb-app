@@ -18,6 +18,8 @@ import { Big, Choice, MomPage } from './MomUI';
 import type { HistoryEntry, PlanItem, Product, Recipe } from '../../lib/types';
 import { productOf } from '../../lib/mealItems';
 import { reusable } from '../../lib/entryActions';
+import { mealGi } from '../../engine/gi';
+import { GiBadge, MealGiLine } from '../../components/Gi';
 
 /** The catalogue Mom mode reads, and the carbs of any item or meal (null if any part is unknown). */
 export function useCatalog() {
@@ -27,6 +29,10 @@ export function useCatalog() {
   const carbsOf = (items: PlanItem[] | null) => { if (!items) return null; const m = planMeal(items, products, settings); return m.complete ? Math.round(m.total.carbs * 10) / 10 : null; };
   const itemCarbs = (it: MomItem) => carbsOf(planItemsOf(it, c));
   const mealCarbs = (items: MomItem[]) => carbsOf(planItems(items, c));
+  // how fast the carbs act (information only; engine/gi.ts)
+  const giOfItems = (items: PlanItem[] | null) => { if (!items) return null; const m = planMeal(items, products, settings); return m.complete ? mealGi(m.lines.map((l) => ({ carbs: l.carbs, food: l.product }))) : null; };
+  const mealGiOf = (items: MomItem[]) => giOfItems(planItems(items, c));
+  const recipeGi = (id: string) => giOfItems(planItemsOf({ kind: 'recipe', id, portion_id: null, amount: 1, unit: 'plate' }, c));
   const nameOf = (it: { kind: 'product' | 'recipe'; id: string }) => tMaybe((it.kind === 'product' ? products : recipes).find((x) => x.id === it.id)?.name ?? '');
   const photoOf = (it: { kind: 'product' | 'recipe'; id: string }): Product | Recipe | null => (it.kind === 'product' ? products : recipes).find((x) => x.id === it.id) ?? null;
   const firstPortion = (kind: 'product' | 'recipe', id: string) => c.portions.find((p) => (kind === 'product' ? p.product_id === id : p.recipe_id === id)) ?? null;
@@ -39,7 +45,7 @@ export function useCatalog() {
     if (pr?.per_item) return t('الحبة = {g} غ كارب', { g: fmt(Number(pr.carbs_per_100)) });
     return pr ? t('{g} غ / 100 {u}', { g: fmt(Number(pr.carbs_per_100)), u: pr.unit === 'ml' ? t('مل') : t('غ') }) : null;
   };
-  return { c, carbsOf, itemCarbs, mealCarbs, nameOf, photoOf, firstPortion, tileCarbs };
+  return { c, carbsOf, itemCarbs, mealCarbs, mealGiOf, recipeGi, nameOf, photoOf, firstPortion, tileCarbs };
 }
 
 /** What Photo needs for a product or recipe: its photo, its own emoji (generic foods), its category. */
@@ -73,7 +79,7 @@ export function plateFromLog(h: HistoryEntry, products: Product[], itemCarbs: (i
 export function MomMeal() {
   const nav = useNavigate();
   const d = useDraft();
-  const { itemCarbs, mealCarbs, nameOf, photoOf, c } = useCatalog();
+  const { itemCarbs, mealCarbs, mealGiOf, nameOf, photoOf, c } = useCatalog();
   const { meals } = useSavedMeals();
   const { history } = useData();
   const fromLog = useMemo(() => reusable(history), [history]);
@@ -118,6 +124,7 @@ export function MomMeal() {
       </ul>
       <Left />
       <div className="flex items-baseline justify-between px-1 text-slate-500"><span>{t('الكارب')}</span><b className="num text-[22px] text-slate-900">{total === null ? '—' : `${fmt(total)} ${t('غ كارب')}`}</b></div>
+      {total !== null && <MealGiLine m={mealGiOf(d.items)} big />}
       <Big tone="soft" onClick={() => nav('/mom/add')}>+ {t('إضافة شي')}</Big>
       <button className="min-h-[44px] text-[16px] font-bold text-brand" onClick={() => nav('/mom/plate')}>⚖️ {t('عيش ومرق بالميزان')}</button>
       {!sameAsSaved && d.items.length > 1 && (naming ? (
@@ -352,7 +359,8 @@ export function MomPortion() {
   const [sp] = useSearchParams();
   const k = sp.get('k');
   const d = useDraft();
-  const { c, itemCarbs, nameOf, photoOf } = useCatalog();
+  const { c, itemCarbs, recipeGi, nameOf, photoOf } = useCatalog();
+  const rGi = kind === 'recipe' ? recipeGi(id) : null;
   const mine = c.portions.filter((p) => (kind === 'product' ? p.product_id === id : p.recipe_id === id));
   const prod = kind === 'product' ? c.products.find((p) => p.id === id) ?? null : null;
   const ss = prod?.serving_size ? Number(prod.serving_size) : null;
@@ -395,10 +403,12 @@ export function MomPortion() {
             {each ? <div><b className="num">{fmt(Number(prod.carbs_per_100))}</b> {t('غرام كارب بالحبة')}</div> : <div><b className="num">{fmt(Number(prod.carbs_per_100))}</b> {t('غرام كارب بكل 100 {u}', { u: gUnit })}</div>}
             {ss && !each && <div className="text-slate-600">{t('الحصة {s} {u} = {g}', { s: fmt(ss), u: gUnit, g: carbsText(itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'serving' })) })}</div>}
             {prod.brand && <div className="text-sm text-slate-500"><bdi>{prod.brand}</bdi></div>}
+            <GiBadge food={prod} big />
           </div>
         ) : <div className="space-y-0.5 text-[16px]">
           {per100 !== null && <div>{t('كل 100 غرام = {g}', { g: carbsText(per100) })}</div>}
           {plate !== null && <div className={per100 !== null ? 'text-slate-600' : ''}>{t('الصحن الواحد = {g}', { g: carbsText(plate) })}</div>}
+          {rGi && <GiBadge food={{ gi: rGi.gi, gi_match: rGi.approx ? 'similar' : 'exact' }} big />}
         </div>}
       </div>
       <h2 className="text-[18px] font-bold">{t('كم؟')}</h2>

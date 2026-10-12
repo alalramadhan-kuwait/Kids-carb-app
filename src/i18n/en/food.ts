@@ -1445,4 +1445,16 @@ export const food: Record<string, string> = {
   "بالعلبة": "By the pack",
   "العلبة = {s} {u} · {g}": "A pack = {s} {u} · {g}",
   "علبة": "pack",
+  // ── glycemic index ──
+  "عالي": "high",
+  "مؤشر جلايسيمي {w}": "GI {w}",
+  "سرعة الكارب في الوجبة": "How fast this meal's carbs act",
+  "الحمل الجلايسيمي {gl}": "Glycemic load {gl}",
+  "المؤشر الجلايسيمي": "Glycemic index (GI)",
+  "معلومة فقط: سرعة رفع الكارب للسكر (الجلوكوز = 100). ما يغيّر الكارب ولا الإبرة.": "Information only: how fast the carbs raise glucose (glucose = 100). It changes neither the carbs nor the dose.",
+  "الرقم": "Value",
+  "مصدره": "Source",
+  "من الجداول الدولية": "International GI tables",
+  "أكل مشابه (تقريبي)": "A similar food (approximate)",
+  "لا ينطبق (كارب قليل)": "Not applicable (little carbohydrate)",
 };

@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { GiBadge } from '../components/Gi';
+import { mealGi } from '../engine/gi';
 import { matches } from '../lib/search';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { backTo } from '../lib/nav';
@@ -64,6 +66,7 @@ export function RecipeView() {
   // the drink or the snack can be left out for this meal only (she skipped it); the lines stay visible, greyed, and do not count
   const [skip, setSkip] = useState<{ drink: boolean; snack: boolean }>({ drink: false, snack: false });
   const shown = useMemo(() => computeMeal(ings, products, settings), [ings, products, settings]);
+  const rGi = useMemo(() => (shown.complete ? mealGi(shown.lines.map((l) => ({ carbs: l.carbs, food: l.product }))) : null), [shown]);
   const meal = useMemo(() => (skip.drink || skip.snack
     ? computeMeal(ings.filter((i) => !(i.role === 'drink' && skip.drink) && !(i.role === 'snack' && skip.snack)), products, settings)
     : shown), [skip, ings, products, settings, shown]);
@@ -104,7 +107,7 @@ export function RecipeView() {
       <Card className="mb-3 space-y-3">
         <div className="flex items-center justify-between">
           <CarbBadge carbs={meal.total.carbs} level={meal.level} size="lg" unknown={!meal.complete} />
-          <div className="text-end text-sm text-slate-500">{recipe.approved ? <Badge tone="ok">{t('معتمدة')}</Badge> : <Badge tone="near">{t('تحت المراجعة')}</Badge>}</div>
+          <div className="text-end text-sm text-slate-500">{recipe.approved ? <Badge tone="ok">{t('معتمدة')}</Badge> : <Badge tone="near">{t('تحت المراجعة')}</Badge>}{rGi && <div className="mt-1"><GiBadge food={{ gi: rGi.gi, gi_match: rGi.approx ? 'similar' : 'exact' }} /></div>}</div>
         </div>
         {meal.complete && <Nutrition n={meal.total} missing={meal.missing} />}
         {meal.complete && meal.level === 'near' && <Alert tone="near">{t('قريبة من الحد الأقصى ({max}غ).', { max: settings.max_meal_carbs })}</Alert>}

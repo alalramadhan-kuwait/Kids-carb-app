@@ -2836,5 +2836,31 @@ test('the newest release notes are for the version being built', () => {
   assert.ok(rel[0].notes_en?.length > 0, 'add notes_en (English) to the newest release');
 });
 
+console.log('glycemic index');
+{
+  const { giBand, glBand, giOf, mealGi } = await import('../../engine/gi');
+  test('gi: bands at 55/70 and 10/20; a food with too little carbohydrate, or none recorded, shows nothing', () => {
+    assert.deepEqual([giBand(55), giBand(56), giBand(69), giBand(70)], ['low', 'mid', 'mid', 'high']);
+    assert.deepEqual([glBand(10), glBand(11), glBand(19.9), glBand(20)], ['low', 'mid', 'mid', 'high']);
+    assert.equal(giOf({ gi: null, gi_match: 'na' }), null);
+    assert.equal(giOf({ gi: 50, gi_match: null }), null);
+    assert.deepEqual(giOf({ gi: 73, gi_match: 'exact' }), { gi: 73, band: 'high', approx: false, estimate: false });
+    assert.equal(giOf({ gi: 55, gi_match: 'estimate' })!.estimate, true);
+  });
+  test('gi: a meal is weighted by carbs; meat adds no load; too many foods without a GI shows nothing', () => {
+    const rice = { gi: 73, gi_match: 'exact' as const }, lentils = { gi: 32, gi_match: 'exact' as const }, meat = { gi: null, gi_match: 'na' as const };
+    const m = mealGi([{ carbs: 30, food: rice }, { carbs: 10, food: lentils }, { carbs: 0.5, food: meat }])!;
+    assert.equal(m.gi, Math.round((73 * 30 + 32 * 10) / 40));
+    assert.equal(m.gl, Math.round(0.73 * 30 + 0.32 * 10));
+    assert.equal(m.approx, false);
+    assert.equal(mealGi([{ carbs: 30, food: rice }, { carbs: 10, food: null }]), null, '75% known is not enough');
+    const part = mealGi([{ carbs: 45, food: rice }, { carbs: 5, food: null }])!;
+    assert.equal(part.approx, true, 'a part without a GI makes it approximate');
+    assert.equal(part.gl, Math.round(0.73 * 45 * 50 / 45), 'the unknown part counted at the meal\'s GI');
+    assert.equal(mealGi([{ carbs: 0.5, food: rice }]), null, 'no carbs, nothing to say');
+    assert.equal(mealGi([{ carbs: 20, food: { gi: 55, gi_match: 'similar' } }])!.approx, true);
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { GiBadge } from '../components/Gi';
 import { matches } from '../lib/search';
 import { Link, useNavigate } from 'react-router-dom';
 import { backTo } from '../lib/nav';
@@ -69,7 +70,7 @@ export function ProductList() {
                   <div className="text-sm"><span className="num font-bold">{fmt(p.carbs_per_100)}</span> {p.per_item ? t('غ كارب بالحبة') : p.unit === 'g' ? t('غ/100غ') : t('غ/100مل')}
                     {p.carbs_per_serving !== null && <> • {t('حصة')} <span className="num font-bold">{fmt(p.carbs_per_serving)}</span></>}</div>
                   <div className="mt-0.5 flex flex-wrap gap-1">
-                    {p.approved ? <Badge tone="ok">{t('معتمد')}</Badge> : <Badge tone="near">{t('غير معتمد')}</Badge>}
+                    {p.approved ? <Badge tone="ok">{t('معتمد')}</Badge> : <Badge tone="near">{t('غير معتمد')}</Badge>} <GiBadge food={p} />
                     {miss && <Badge tone="over">{t('فوق الهدف ({max})', { max: miss.max })}</Badge>}
                   </div>
                 </div>
