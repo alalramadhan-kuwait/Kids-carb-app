@@ -1,5 +1,19 @@
 [
   {
+    "date": "2026-10-12",
+    "version": "2.66.0",
+    "notes": [
+      "تقرير «أنماط الوجبات» في تقارير الطبيب: كيف يتحرك السكر قبل وبعد الفطور والغداء والعشاء والسناكات، مع الكارب والإنسولين",
+      "تقرير «الملخص الشهري»: تقويم لكل يوم برسمه الصغير، ونسبة الوقت في النطاق لكل أسبوع وللشهر",
+      "التقريرين ينحفظون PDF للدكتور، واضغطوا على أي يوم في الشهر يفتح رسمه"
+    ],
+    "notes_en": [
+      "«Mealtime Patterns» in Doctor reports: how glucose moves before and after breakfast, lunch, dinner and snacks, with carbs and insulin",
+      "«Monthly Summary»: a calendar with a small graph for each day, and time in range for each week and the month",
+      "Both save as a PDF for the doctor; tap any day in the month to open its graph"
+    ]
+  },
+  {
     "date": "2026-10-11",
     "version": "2.65.1",
     "notes": [
