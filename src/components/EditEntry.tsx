@@ -10,6 +10,8 @@ import { brandsOf } from '../lib/brand';
 import { nutrProblem, scaled, totalsOf, type NutrState } from '../lib/per100';
 import { NutritionFields, nutrStateFrom } from './NutritionFields';
 import { TimePicker } from './TimePicker';
+import { fmtTime, relDay } from '../lib/constants';
+import { fmt } from '../lib/carbs';
 import { isEn, t, tr } from '../i18n';
 
 const PROBLEM: Record<EditProblem, string> = tr({ // i18n-ok: values translated when read
@@ -70,26 +72,37 @@ export function EditEntry({ e, h, onDone, onCancel, onItems }: { e?: EventRow; h
   const box = 'block w-full min-w-0 max-w-full appearance-none rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 min-h-[40px] text-base outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft';
   const num = '!min-h-[40px] !rounded-xl !px-1 !py-1.5 !text-center';
   const others = brands.filter((b) => b.toLowerCase() !== brand.trim().toLowerCase()).slice(0, 8);
+  // a tidy sheet: what is changed most (time, name, carbs, how much she ate) in view; the rest opens on request.
+  // Anything with a problem opens by itself, so a mistake is never hidden.
+  const [openTime, setOpenTime] = useState(false);
+  const [openNutr, setOpenNutr] = useState(false);
+  const [openMore, setOpenMore] = useState(false);
+  const showNutr = openNutr || problem === 'nutrition' || problem === 'carbs' || n.mode === 'per100';
+  const showTime = openTime || problem === 'future';
+  const chev = isEn() ? '›' : '‹';
+  const row = 'flex min-h-[48px] w-full items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 text-start';
+  const v = (x: number | null, d = 1) => (x === null ? '–' : fmt(Math.round(x * 10 ** d) / 10 ** d));
   return (
     <div className="space-y-2.5">
       {onItems && <button type="button" onClick={onItems} className="flex min-h-[44px] w-full items-center justify-between rounded-xl bg-brand-soft px-3 text-sm font-bold text-brand">{t('تعديل الأصناف والكميات')}<span>{isEn() ? '›' : '‹'}</span></button>}
-      <TimePicker value={whenMs} onChange={setWhenMs} />
-      {kind === 'meal' && (
-        <div className="grid grid-cols-[3fr_2fr] gap-2">
-          <L label={t('الاسم')}><input className={box} dir="auto" value={name} maxLength={120} onChange={(x) => setName(x.target.value)} /></L>
-          <L label={t('البراند')}>
-            <input className={box} dir="auto" list="brand-list" value={brand} maxLength={60} onChange={(x) => setBrand(x.target.value)} />
-            <datalist id="brand-list">{brands.map((b) => <option key={b} value={b} />)}</datalist>
-          </L>
-        </div>
+      {showTime ? <TimePicker value={whenMs} onChange={setWhenMs} /> : (
+        <button type="button" onClick={() => setOpenTime(true)} className={row}>
+          <span className="text-sm text-slate-500">{t('الوقت')}</span>
+          <span className="flex-1 text-[17px] font-bold text-brand-num"><bdi>{relDay(new Date(whenMs))} · {fmtTime(new Date(whenMs))}</bdi></span>
+          <span className="text-sm font-bold text-brand">{t('تغيير')} {chev}</span>
+        </button>
       )}
-      {kind === 'meal' && others.length > 0 && (
-        <div className="-mx-4 -mt-1 flex gap-1.5 overflow-x-auto px-4">
-          {others.map((b) => <button key={b} type="button" onClick={() => setBrand(b)} className="h-7 shrink-0 rounded-full bg-slate-50 px-2.5 text-xs text-slate-600"><bdi>{b}</bdi></button>)}
-        </div>
-      )}
+      {kind === 'meal' && <L label={t('الاسم')}><input className={box} dir="auto" value={name} maxLength={120} onChange={(x) => setName(x.target.value)} /></L>}
       {kind === 'insulin' && <L label={e?.insulin_type === 'long' ? t('وحدات الإنسولين الطويل') : t('وحدات الإنسولين السريع')}><NumInput className={num} value={units} onChange={setUnits} /></L>}
-      {kind === 'meal' && <NutritionFields s={n} set={typeIn} />}
+      {kind === 'meal' && (showNutr ? <NutritionFields s={n} set={typeIn} /> : (
+        <button type="button" onClick={() => setOpenNutr(true)} className={row}>
+          <span className="min-w-0 flex-1">
+            <span className="num text-[20px] font-bold">{v(tot.carbs)}</span> <span className="text-sm text-slate-500">{t('غ كارب')}</span>
+            <span className="block truncate text-xs text-slate-500">{t('دهون {f} · بروتين {p} · ألياف {b} · {k} سعرة', { f: v(tot.fat), p: v(tot.protein), b: v(tot.fiber), k: v(tot.kcal, 0) })}</span>
+          </span>
+          <span className="text-sm font-bold text-brand">{t('تعديل')} {chev}</span>
+        </button>
+      ))}
       {kind === 'meal' && (
         <div className="flex items-center gap-1.5">
           <span className="shrink-0 text-sm text-slate-600">{t('أكلت:')}</span>
@@ -101,7 +114,7 @@ export function EditEntry({ e, h, onDone, onCancel, onItems }: { e?: EventRow; h
           </div>
         </div>
       )}
-      {kind === 'meal' && (h?.lines.length ?? 0) > 1 && <p className="-mt-1 text-[11px] text-slate-500">{t('وجبة من عدة أصناف: أزرار «أكلت» تغيّر كل الأصناف، والكتابة تغيّر المجموع فقط.')}</p>}
+      {kind === 'meal' && part !== 1 && (h?.lines.length ?? 0) > 1 && <p className="-mt-1 text-[11px] text-slate-500">{t('وجبة من عدة أصناف: أزرار «أكلت» تغيّر كل الأصناف، والكتابة تغيّر المجموع فقط.')}</p>}
       {(kind === 'carbs' || kind === 'treatment') && <L label={t('الكارب (غ)')}><NumInput className={num} value={carbs} onChange={setCarbs} /></L>}
       {kind === 'carbs' && (
         <button type="button" onClick={() => { setN(nutrStateFrom({ carbs, fat: null, protein: null, fiber: null, kcal: null })); setAsMeal(true); }}
@@ -110,14 +123,29 @@ export function EditEntry({ e, h, onDone, onCancel, onItems }: { e?: EventRow; h
       {asMeal && <p className="-mt-1 text-[11px] text-slate-500">{t('يُحفظ كأكل باسمه وقيمه بدل «كارب» فقط، في نفس الوقت.')}</p>}
       {kind === 'bg_check' && <L label={t('وخز الإصبع ({unit})', { unit: unitLabel(unit) })}><NumInput className={num} value={bg} onChange={setBg} /></L>}
       {kind === 'exercise' && <L label={t('المدة (دقيقة)')}><NumInput className={num} value={minutes} onChange={setMinutes} /></L>}
-      {kind !== 'note' && <L label={t('ملاحظة')}><input className={box} dir="auto" value={note} maxLength={300} onChange={(x) => setNote(x.target.value)} /></L>}
+      {kind !== 'note' && kind !== 'meal' && <L label={t('ملاحظة')}><input className={box} dir="auto" value={note} maxLength={300} onChange={(x) => setNote(x.target.value)} /></L>}
       {kind === 'note' && <L label={t('الملاحظة')}><textarea className={box} dir="auto" rows={3} value={note} maxLength={500} onChange={(x) => setNote(x.target.value)} /></L>}
-      {kind === 'meal' && (
+      {kind === 'meal' && !openMore && (
+        <button type="button" onClick={() => setOpenMore(true)} className="flex min-h-[40px] w-full items-center justify-between text-sm font-bold text-brand">
+          <span>{t('المزيد: البراند، الملاحظة، أكل متكرر')}{note.trim() || brand.trim() ? ' •' : ''}</span><span>{chev}</span>
+        </button>
+      )}
+      {kind === 'meal' && openMore && <>
+        <L label={t('البراند')}>
+          <input className={box} dir="auto" list="brand-list" value={brand} maxLength={60} onChange={(x) => setBrand(x.target.value)} />
+          <datalist id="brand-list">{brands.map((b) => <option key={b} value={b} />)}</datalist>
+        </L>
+        {others.length > 0 && (
+          <div className="-mx-4 -mt-1 flex gap-1.5 overflow-x-auto px-4">
+            {others.map((b) => <button key={b} type="button" onClick={() => setBrand(b)} className="h-7 shrink-0 rounded-full bg-slate-50 px-2.5 text-xs text-slate-600"><bdi>{b}</bdi></button>)}
+          </div>
+        )}
+        <L label={t('ملاحظة')}><input className={box} dir="auto" value={note} maxLength={300} onChange={(x) => setNote(x.target.value)} /></L>
         <label className="flex min-h-[44px] items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-1.5">
           <span className="text-sm font-medium">{inQuick ? t('حدّثه في «أكل متكرر»') : t('أضفه إلى «أكل متكرر»')}</span>
           <Toggle on={keep} onChange={setToQuick} label={t('أكل متكرر')} />
         </label>
-      )}
+      </>}
       {problem && problem !== 'time' && <Alert tone="near">{PROBLEM[problem]}</Alert>}
       {/* always in reach: stays at the bottom of the sheet on a small phone and above the keyboard */}
       <div className="sticky bottom-0 -mx-4 grid grid-cols-2 gap-2 border-t border-slate-100 bg-white px-4 pb-1 pt-2 lg:-mx-6 lg:px-6">

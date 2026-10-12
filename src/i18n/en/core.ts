@@ -286,4 +286,6 @@ export const core: Record<string, string> = {
   "الدخول بحساب آخر": "Sign in with another account",
   "إذا كان بريدك جديد: اطلب من الأم أو الأب إضافته من المزيد ← إضافة أحد الوالدين.": "If your email is new: ask Mum or Dad to add it in More → Add a parent.",
   "أول تفعيل للتطبيق (رمز التفعيل)": "First-time setup (activation code)",
+  "دهون {f} · بروتين {p} · ألياف {b} · {k} سعرة": "Fat {f} · protein {p} · fibre {b} · {k} kcal",
+  "المزيد: البراند، الملاحظة، أكل متكرر": "More: brand, note, frequent foods",
 };
