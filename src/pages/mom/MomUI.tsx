@@ -1,7 +1,7 @@
 // Mom mode building blocks: a full page (title + back arrow, no bottom sheets), big buttons, pen colours, and the
 // glucose helpers every mom page shares. Big text, few words.
-import type { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { asset, cx } from '../../components/ui';
 import { Icon } from '../../components/Icon';
 import type { IconName } from '../../icons/defs';
@@ -35,6 +35,7 @@ export const glucoseText = (mg: number, unit: 'mmol' | 'mgdl') => formatGlucose(
 
 export function MomPage({ title, back = -1, children, foot, tabs }: { title: string; back?: string | number | null; children: ReactNode; foot?: ReactNode; tabs?: boolean }) {
   const nav = useNavigate();
+  const scroller = useKeptScroll();
   return (
     <main className="mx-auto flex h-[100dvh] max-w-md flex-col">
       {/* the title and back arrow stay put below the phone's clock/camera; the page scrolls under them, the buttons stay at the bottom */}
@@ -42,11 +43,31 @@ export function MomPage({ title, back = -1, children, foot, tabs }: { title: str
         {back !== null && <button aria-label={t('رجوع')} onClick={() => (typeof back === 'number' ? nav(back) : nav(back))} className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white text-2xl shadow-sm">{isEn() ? '←' : '→'}</button>}
         <h1 className="text-[24px] font-bold leading-tight">{title}</h1>
       </header>
-      <div className={cx('flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4', tabs && !foot ? TABS_PAD : !foot && 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{children}</div>
+      <div ref={scroller.ref} onScroll={scroller.onScroll} className={cx('flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4', tabs && !foot ? TABS_PAD : !foot && 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{children}</div>
       {/* with the tabs, the buttons sit just above them */}
       {foot && <div className={cx('shrink-0 space-y-2 px-4 pt-3', tabs ? TABS_PAD : 'pb-[calc(16px+env(safe-area-inset-bottom))]')}>{foot}</div>}
     </main>
   );
+}
+
+/** The page's scroll position, kept per history entry (the page scrolls inside its own box, which the browser does
+ *  not restore): coming Back to a list puts it where she left it. */
+function useKeptScroll() {
+  const { key } = useLocation();
+  const ref = useRef<HTMLDivElement>(null);
+  const id = 'mom-scroll:' + key;
+  useLayoutEffect(() => {
+    let y = 0;
+    try { y = Number(sessionStorage.getItem(id) ?? 0); } catch { /* storage blocked */ }
+    if (!(y > 0)) return;
+    // the list may still be loading: try again for a moment until the page is tall enough
+    let tries = 0, raf = 0;
+    const go = () => { const el = ref.current; if (!el) return; el.scrollTop = y; if (Math.abs(el.scrollTop - y) > 2 && tries++ < 60) raf = requestAnimationFrame(go); };
+    go();
+    return () => cancelAnimationFrame(raf);
+  }, [id]);
+  const onScroll = (e: React.UIEvent<HTMLDivElement>) => { try { sessionStorage.setItem(id, String(Math.round(e.currentTarget.scrollTop))); } catch { /* storage blocked */ } };
+  return { ref, onScroll };
 }
 
 export function Big({ children, onClick, tone = 'primary', disabled, className }: { children: ReactNode; onClick?: () => void; tone?: 'primary' | 'soft' | 'ghost' | 'danger'; disabled?: boolean; className?: string }) {

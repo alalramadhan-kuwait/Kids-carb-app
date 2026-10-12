@@ -13,7 +13,7 @@ import { supabase, uploadPhoto } from '../../lib/supabase';
 import { Photo, asset, cx, inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import { RESTAURANTS, cupsOf, menuOf, restaurantByKey, restaurantOf, type Restaurant } from '../../lib/restaurants';
-import { foodName } from '../../lib/foodName';
+import { foodName, untranslated, type Named } from '../../lib/foodName';
 import { Big, Choice, MomPage } from './MomUI';
 import type { HistoryEntry, Ingredient, PlanItem, Product, Recipe } from '../../lib/types';
 import { productOf } from '../../lib/mealItems';
@@ -33,7 +33,7 @@ export function useCatalog() {
   const giOfItems = (items: PlanItem[] | null) => { if (!items) return null; const m = planMeal(items, products, settings); return m.complete ? mealGi(m.lines.map((l) => ({ carbs: l.carbs, food: l.product }))) : null; };
   const mealGiOf = (items: MomItem[]) => giOfItems(planItems(items, c));
   const recipeGi = (id: string) => giOfItems(planItemsOf({ kind: 'recipe', id, portion_id: null, amount: 1, unit: 'plate' }, c));
-  const nameOf = (it: { kind: 'product' | 'recipe'; id: string }) => tMaybe((it.kind === 'product' ? products : recipes).find((x) => x.id === it.id)?.name ?? '');
+  const nameOf = (it: { kind: 'product' | 'recipe'; id: string }) => { const x = (it.kind === 'product' ? products : recipes).find((y) => y.id === it.id); return x ? shownName(x) : ''; };
   const photoOf = (it: { kind: 'product' | 'recipe'; id: string }): Product | Recipe | null => (it.kind === 'product' ? products : recipes).find((x) => x.id === it.id) ?? null;
   const firstPortion = (kind: 'product' | 'recipe', id: string) => c.portions.find((p) => (kind === 'product' ? p.product_id === id : p.recipe_id === id)) ?? null;
   /** A tile's carbs: «كوب = 45 غ كارب» by its first portion, else «28 غ / 100 غ» (a recipe: per plate). */
@@ -108,7 +108,7 @@ export function MomMeal() {
       {d.mode === 'now' && fromLog.slice(0, 4).map((h) => <Choice key={h.id} icon="🍽️" label={<><bdi>{tMaybe(h.name)}</bdi> · <span className="num">{fmt(h.total_carbs)}</span> {t('غ كارب')}</>} sub={h.lines.map((l) => tMaybe(l.name)).join(' · ')}
         onClick={() => { const r = plateFromLog(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.left); }} />)}
       <Big tone="primary" onClick={() => nav('/mom/plate')}>⚖️ {t('عيش ومرق بالميزان')}</Big>
-      <Big tone="soft" onClick={() => nav(meals.length ? '/mom/add?tab=recipes' : '/mom/add')}>+ {t('شي ثاني')}</Big>
+      <Big tone="soft" onClick={() => nav('/mom/add')}>+ {t('شي ثاني')}</Big>
       {d.mode === 'now' && <Big tone="ghost" onClick={() => nav('/mom/out')}>🍽️ {t('أكل برّا · ما أعرف الكارب')}</Big>}
     </MomPage>
   );
@@ -145,6 +145,17 @@ export function MomMeal() {
   );
 }
 
+/** A food's name in the app's language (its curated Arabic or English name), else as entered. */
+export const shownName = (x: Named) => (untranslated(x) ? tMaybe(x.name) : foodName(x));
+
+/** A search box's text kept in the address (?q=), replacing the entry as she types: Back returns to it. */
+export function useUrlQuery(): [string, (v: string) => void] {
+  const [sp, setSp] = useSearchParams();
+  const q = sp.get('q') ?? '';
+  const set = (v: string) => setSp((prev) => { const n = new URLSearchParams(prev); if (v) n.set('q', v); else n.delete('q'); return n; }, { replace: true });
+  return [q, set];
+}
+
 /** Back to where she came from; to `home` when the page was opened directly (nothing to go back to). */
 export function useBack(home: string): string | number {
   return useLocation().key === 'default' ? home : -1;
@@ -155,7 +166,7 @@ function FoodTile({ x, carbs, onClick }: { x: Product | Recipe; carbs: string | 
   return (
     <button onClick={onClick} className="flex flex-col items-center gap-1 rounded-2xl border border-slate-100 bg-white p-2 active:opacity-80">
       <Photo {...pic(x)} className="h-24 w-full rounded-xl" />
-      <span className="line-clamp-2 text-center text-[17px] font-bold leading-tight"><bdi>{tMaybe(x.name)}</bdi></span>
+      <span className="line-clamp-2 text-center text-[17px] font-bold leading-tight"><bdi>{shownName(x)}</bdi></span>
       {carbs && <span className="text-center text-[15px] font-bold leading-tight text-brand"><bdi>{carbs}</bdi></span>}
     </button>
   );
@@ -188,14 +199,15 @@ export function MomAdd({ browse = false }: { browse?: boolean }) {
   const [sp, setSp] = useSearchParams();
   const { meals } = useSavedMeals();
   // browse: the «التغذية» tab — the same food list, but a tap opens the item's nutrition values
-  const tab = (sp.get('tab') ?? (meals.length && !browse ? 'saved' : 'products')) as 'saved' | 'recipes' | 'products' | 'restaurants';
-  const [q, setQ] = useState('');
+  const tab = (sp.get('tab') ?? 'products') as 'saved' | 'recipes' | 'products' | 'restaurants';
+  // the query lives in the address, so Back from a food comes back to the same results
+  const [q, setQ] = useUrlQuery();
   const { c, mealCarbs, nameOf, products, recipes, homeFirst, tile } = useFoods(browse);
   const rec = recent().filter((r) => readyForMom(r.kind, r.id, c)).slice(0, 4);
   const find = (kind: 'product' | 'recipe', id: string) => ((kind === 'product' ? c.products : c.recipes) as (Product | Recipe)[]).find((y) => y.id === id)!;
   // searching finds every approved food in every group (restaurants, things not bought yet), what is at home first
   const found = q.trim() ? homeFirst(products.filter((p) => matches([p.name, p.name_ar, p.name_en, p.brand, p.category], q))) : [];
-  const foundRecipes = q.trim() ? recipes.filter((r) => matches([r.name, r.category], q)) : [];
+  const foundRecipes = q.trim() ? recipes.filter((r) => matches([r.name, r.name_ar, r.name_en, r.category], q)) : [];
   const groups = groupsIn(products.filter((p) => !restaurantOf(p.brand))); // restaurant food has its own tab
   const missing = q.trim() && !found.length && !foundRecipes.length;
   const base = browse ? '/mom/food' : '/mom/add';
@@ -260,7 +272,7 @@ export function RestaurantLogo({ r, size = 56 }: { r: Restaurant; size?: number 
 export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   const { key } = useParams() as { key: string };
   const [sp, setSp] = useSearchParams();
-  const [q, setQ] = useState('');
+  const [q, setQ] = useUrlQuery();
   const r = restaurantByKey(key);
   const { products, tile, pick } = useFoods(browse);
   const items = products.filter((p) => restaurantOf(p.brand)?.key === key);
@@ -432,7 +444,7 @@ export function MomPortion() {
       {prod && !each && <Choice icon="⚖️" label={prod.unit === 'ml' ? t('بالمل') : t('بالغرام')} on={sel === 'g' && amt !== pack} onClick={() => pick('g', sel === 'g' && amt !== pack ? amt : ss ?? null)} />}
       {!prod && cup !== null && <Choice icon="🥣" label={t('بالكوب')} sub={`${t('الكوب = {g}', { g: carbsText(cup) })}${pot?.cupsApprox ? ` · ${t('تقريبي')}` : ''}`} on={sel === 'cup'} onClick={() => pick('cup', sel === 'cup' ? amt : 0.5)} />}
       {!prod && per100 !== null && <Choice icon="⚖️" label={t('وزنتها بالميزان')} sub={`${t('اكتبي الرقم اللي طلع')}${pot?.gApprox ? ` · ${t('تقريبي')}` : ''}`} on={sel === 'g'} onClick={() => pick('g', sel === 'g' ? amt : null)} />}
-      {!prod && parts.length > 0 && <Choice icon="🍚" label={t('وزنت اللي فيه كارب بروحه')} sub={parts.map((x) => tMaybe(x.name)).join(' · ')} onClick={() => nav(`/mom/parts/${id}${k !== null ? `?k=${k}` : ''}`, { replace: true })} />}
+      {!prod && parts.length > 0 && <Choice icon="🍚" label={t('وزنت اللي فيه كارب بروحه')} sub={parts.map((x) => shownName(x.product)).join(' · ')} onClick={() => nav(`/mom/parts/${id}${k !== null ? `?k=${k}` : ''}`, { replace: true })} />}
       {!prod && (sel === 'cup' || sel === 'g') && (pot?.cupsApprox || pot?.gApprox) && <p className="text-center text-[14px] text-slate-500">{t('تقريبي: من مقادير الوصفة. للدقة بابا يقيس القدر مرة وحدة.')}</p>}
       {!prod && <Choice icon="🍽️" label={t('بالصحون')} on={sel === 'plate'} onClick={() => pick('plate', sel === 'plate' ? amt : 1)} />}
       {showAmt && (
@@ -593,7 +605,7 @@ export function MomParts() {
   // what else in the dish has carbs and is not weighed here (a raw-weighed grain, a sauce): said, never guessed
   const rest = (c.ingsByRecipe.get(id) ?? []).filter((i) => i.role !== 'snack' && !parts.some((x) => x.product.id === i.product_id))
     .map((i) => ({ i, p: i.product_id ? c.products.find((x) => x.id === i.product_id) ?? null : null }))
-    .filter(({ p }) => !p || Number(p.carbs_per_100) >= 5).map(({ i, p }) => tMaybe(p?.name ?? i.label ?? ''));
+    .filter(({ p }) => !p || Number(p.carbs_per_100) >= 5).map(({ i, p }) => (p ? shownName(p) : tMaybe(i.label ?? '')));
   const done = () => {
     if (k !== null) draftOps.remove(Number(k));
     items.forEach((it) => draftOps.add(it));
@@ -607,7 +619,7 @@ export function MomParts() {
       <p className="rounded-2xl bg-brand-soft px-4 py-2.5 text-center text-[16px] text-brand">⚖️ {t('صفّري الميزان قبل كل صنف')}</p>
       {parts.map((x, n) => (
         <div key={x.product.id} className="space-y-2 rounded-3xl bg-white px-4 py-3">
-          <div className="flex items-center gap-2 text-[19px] font-bold"><span className="flex-1"><bdi>{tMaybe(x.name)}</bdi> {x.cooked && <span className="text-[14px] font-normal text-slate-500">{t('مطبوخ')}</span>}</span>
+          <div className="flex items-center gap-2 text-[19px] font-bold"><span className="flex-1"><bdi>{shownName(x.product)}</bdi> {x.cooked && <span className="text-[14px] font-normal text-slate-500">{t('مطبوخ')}</span>}</span>
             <span className="num shrink-0 text-[18px] font-bold text-brand">{partCarbs(n) === null ? '' : `${fmt(partCarbs(n)!)} ${t('غ')}`}</span></div>
           <div className="flex items-center justify-center gap-3" dir="ltr">
             <input inputMode="decimal" dir="ltr" placeholder="0" className={cx(inputCls, '!w-32 !text-center !text-[30px] font-bold')} value={g[n] ?? ''}
