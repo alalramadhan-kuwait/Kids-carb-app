@@ -146,7 +146,7 @@ export interface PlannedMeal {
   recheck_at: string | null; dosed_at: string | null; eaten_at: string | null; note: string | null; created_by: string | null;
   // the permanent record (plan → what happened → review → what we learned)
   calc_units?: number | null; given_units?: number | null; dose_reason?: string | null; dose_snapshot?: DoseSnapshot | null;
-  eating_at?: string | null; part_eaten?: number | null; carbs_planned?: number | null; carbs_eaten?: number | null;
+  eating_at?: string | null; part_eaten?: number | null; part_auto?: boolean; carbs_planned?: number | null; carbs_eaten?: number | null;
   review?: Record<string, unknown> | null; review_note?: string | null; reviewed_at?: string | null; reviewed_by?: string | null;
 }
 /** Everything the doctor's-settings calculation used at approval, kept with the plan. */

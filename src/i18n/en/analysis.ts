@@ -677,4 +677,10 @@ export const analysis: Record<string, string> = {
   "كمية الكارب في نفس الوجبة تتغير كثيرًا من يوم لآخر.": "The carb amount at the same meal varies widely from day to day.",
   "{slot}: من {lo} إلى {hi} غ (الوسيط {md} غ) في {n} مرات": "{slot}: {lo} to {hi} g (median {md} g) over {n} times",
   "هل يساعد تثبيت كمية الكارب في الوجبات الرئيسية على التخطيط، مع الحفاظ على طاقة كافية للنمو؟": "Would more consistent carb amounts at main meals help planning, while keeping enough energy for growth?",
+  "كم أكلت؟ تُحسب «كلها» تلقائيًا بعد وقت الأكل، إلا إذا اخترتم غير ذلك": "How much did she eat? Counted as «All» automatically after the eating time, unless you choose otherwise",
+  "كم أكلت؟ «كلها» (تلقائيًا) · غيّروها إذا أكلت أقل": "How much did she eat? «All» (automatic) · change it if she ate less",
+  "كم أكلت؟ يمكن تغييرها": "How much did she eat? You can change it",
+  "انحسبت «كلها» تلقائيًا. غيّريها إذا أكلت أقل.": "Counted as «All» automatically. Change it if she ate less.",
+  "تنحسب «كلها» تلقائيًا": "counted as «All» automatically",
+  "تلقائيًا": "automatic",
 };

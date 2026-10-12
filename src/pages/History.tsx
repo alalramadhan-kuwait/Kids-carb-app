@@ -6,7 +6,7 @@ import { isFatty } from '../engine/iob';
 import { fmt, stateText, unitText } from '../lib/carbs';
 import { deleteEvent, deleteHistory, restoreEvent, restoreHistory } from '../lib/api';
 import { EVENT_ICON, describeEvent } from '../lib/events';
-import type { EventRow, HistoryEntry } from '../lib/types';
+import type { EventRow, HistoryEntry, PlannedMeal } from '../lib/types';
 import type { IconName } from '../icons/defs';
 import { formatGlucose, unitLabel } from '../lib/glucose';
 import { Icon, TREND_ICON, TREND_WORDS } from '../components/Icon';
@@ -332,7 +332,7 @@ function MealDetail({ h, n, unit, onEditItems }: { h: HistoryEntry; n: number; u
         <span className="ms-auto text-slate-500">{fmtTime(new Date(h.eaten_at))}</span>
       </div>
       {h.photo_path && <a href={photoUrl(h.photo_path)!} target="_blank" rel="noreferrer"><img src={photoUrl(h.photo_path)!} alt={t('صورة الأكل')} className="max-h-56 w-full rounded-xl object-cover" /></a>}
-      {h.intake === 'pending' && <PendingAte h={h} />}
+      {h.client_id && <PartEaten h={h} />}
       <DoseReview h={h} />
       {h.needs_review && <Link to="/import" className="block rounded-xl bg-near-soft p-2.5 text-sm font-medium text-near">{t('ربما سُجّل جزء منها مرتين في Gluroo، فهي مستبعدة من البحث تلقائيًا. لا يلزم شيء منكم.')}</Link>}
       <button onClick={() => setMore(!more)} aria-expanded={more} className="min-h-[44px] text-sm font-bold text-brand">{more ? t('أقل') : t('تفاصيل')}</button>
@@ -355,23 +355,30 @@ function MealDetail({ h, n, unit, onEditItems }: { h: HistoryEntry; n: number; u
 }
 
 /** Saved with its dose, how much she ate not said yet: counted nowhere until it is. One tap confirms it (same entry). */
-function PendingAte({ h }: { h: HistoryEntry }) {
+/** A planned meal: how much she ate. "All of it" unless someone says less: a meal nobody answers for is counted in
+ *  full 10 minutes after its eat time (carb.confirm_pending_meals). The part can be changed afterwards. */
+function PartEaten({ h }: { h: HistoryEntry }) {
   const { products, settings, reload } = useData();
   const [busy, setBusy] = useState(false);
+  const [p, setP] = useState<PlannedMeal | null>(null);
+  useEffect(() => { let live = true; if (h.client_id) void fetchPlan(h.client_id).then((x) => { if (live) setP(x); }); return () => { live = false; }; }, [h.client_id, h.intake, h.total_carbs]);
+  if (!p || (p.status !== 'dosed' && p.status !== 'eaten')) return null;
+  const pending = h.intake === 'pending', cur = pending ? 1 : p.part_eaten ?? 1;
   const say = async (part: number) => {
+    if (!pending && part === cur && !p.part_auto) return;
     setBusy(true);
     try {
-      const p = h.client_id ? await fetchPlan(h.client_id) : null;
-      if (!p) throw new Error(t('الوجبة ما عادت موجودة'));
       const at = p.eating_at ? Date.parse(p.eating_at) : Math.min(Date.now(), Date.parse(h.eaten_at));
-      await ate(p, part, at, products, settings); await reload(); toast(t('سُجّلت الوجبة ✓'));
+      await ate(p, part, at, products, settings, { change: !pending }); await reload(); setP(await fetchPlan(p.id)); toast(t('سُجّلت الوجبة ✓'));
     } catch (e) { toast((e as Error).message === 'already_eaten' ? t('هذه الوجبة مسجّلة من قبل') : (e as Error).message); } finally { setBusy(false); }
   };
   return (
-    <div className="space-y-2 rounded-xl bg-near-soft p-3">
-      <p className="font-bold text-near">{t('كم أكلت؟ لم يُحدَّد بعد · لا تُحسب حتى يُحدَّد')}</p>
+    <div className={cx('space-y-2 rounded-xl p-3', pending ? 'bg-near-soft' : 'bg-slate-50')}>
+      <p className={cx('font-bold', pending ? 'text-near' : 'text-slate-700')}>
+        {pending ? t('كم أكلت؟ تُحسب «كلها» تلقائيًا بعد وقت الأكل، إلا إذا اخترتم غير ذلك') : p.part_auto ? t('كم أكلت؟ «كلها» (تلقائيًا) · غيّروها إذا أكلت أقل') : t('كم أكلت؟ يمكن تغييرها')}
+      </p>
       <div className="grid grid-cols-4 gap-1.5">
-        {([[1, t('كلها')], [0.75, '¾'], [0.5, '½'], [0.25, '¼']] as const).map(([v, l]) => <Btn key={v} kind={v === 1 ? 'primary' : 'soft'} disabled={busy} onClick={() => void say(v)}>{l}</Btn>)}
+        {([[1, t('كلها')], [0.75, '¾'], [0.5, '½'], [0.25, '¼']] as const).map(([v, l]) => <Btn key={v} kind={v === cur ? 'primary' : 'soft'} disabled={busy} onClick={() => void say(v)}>{l}</Btn>)}
       </div>
     </div>
   );

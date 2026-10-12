@@ -2,7 +2,8 @@
 // and who changed it. «عدّلي» changes this same meal (foods, amounts, carbs, how much she ate); the kind of meal and
 // the time change here; a mistake is removed (and can be brought back). The dose is behind one tap, for review only.
 import { mealTitle } from '../../lib/unknownMeal';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { fetchPlan } from '../../lib/plans';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { deleteHistory, restoreHistory } from '../../lib/api';
@@ -14,7 +15,7 @@ import { TimePicker } from '../../components/TimePicker';
 import { DoseReview } from '../../components/DoseReview';
 import { toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
-import type { MealSlot } from '../../lib/types';
+import type { MealSlot, PlannedMeal } from '../../lib/types';
 import { Big, Choice, MomPage, clock, ago } from './MomUI';
 import { plateFromLog, useCatalog } from './MomMeal';
 import { draftOps } from '../../lib/mom';
@@ -82,9 +83,10 @@ export function MomMealEntry() {
       )}
       {pending && (
         <button onClick={() => nav(`/mom/ate/${h.client_id}`)} className="flex min-h-[60px] w-full items-center justify-between rounded-3xl bg-near-soft px-4 text-[18px] font-bold text-near">
-          <span>⏳ {t('كم أكلت؟')}</span><span className="text-[15px] font-normal">{t('ما انحسبت بعد')} ›</span>
+          <span>⏳ {t('كم أكلت؟')}</span><span className="text-[15px] font-normal">{t('تنحسب «كلها» تلقائيًا')} ›</span>
         </button>
       )}
+      {!pending && h.client_id && <PartLine clientId={h.client_id} />}
       {/* what was logged: each food, how much of it (weight), and its carbs */}
       {(h.lines.length > 0 || h.photo_path) && (
         <div className="space-y-2 rounded-3xl bg-white px-4 py-3">
@@ -115,5 +117,19 @@ export function MomMealEntry() {
         <button disabled={busy} className="min-h-[48px] text-[16px] font-bold text-over" onClick={remove}>🗑 {t('غلط · امسحيها')}</button>
       </div>
     </MomPage>
+  );
+}
+
+/** A planned meal already counted: how much she ate (all of it unless someone said less), and a way to change it. */
+function PartLine({ clientId }: { clientId: string }) {
+  const nav = useNavigate();
+  const [p, setP] = useState<PlannedMeal | null>(null);
+  useEffect(() => { void fetchPlan(clientId).then(setP); }, [clientId]);
+  if (!p || p.status !== 'eaten' || p.part_eaten == null) return null;
+  const word = p.part_eaten >= 1 ? t('كلها') : p.part_eaten >= 0.5 ? t('تقريبًا نصها') : t('شوي');
+  return (
+    <button onClick={() => nav(`/mom/ate/${p.id}`)} className="flex min-h-[56px] w-full items-center justify-between rounded-3xl bg-white px-4 text-[17px]">
+      <span>{t('كم أكلت؟')} <b>{word}</b>{p.part_auto ? <span className="text-[14px] text-slate-500"> · {t('تلقائيًا')}</span> : null}</span><span className="font-bold text-brand">{t('غيّري')} ›</span>
+    </button>
   );
 }

@@ -247,13 +247,16 @@ export function MomAte() {
   const recent = plans.find((x) => x.id === id);
   useEffect(() => { if (!recent && id) void fetchPlan(id).then(setOlder); }, [recent, id]);
   const p = recent ?? older;
+  // "all of it" unless said otherwise; a meal already set shows what was said
+  useEffect(() => { if (p && part === null) setPart(p.part_eaten != null && PARTS.some(([v]) => v === p.part_eaten) ? p.part_eaten : 1); }, [p, part]);
   if (!p) return <MomPage title="…" back="/mom"><span /></MomPage>;
+  const change = p.status === 'eaten';
   const done = async () => {
     if (part === null) return;
     setBusy(true);
     // when she started: as said («بدأت تاكل»), else the planned eating time (an answer given hours later keeps the meal at its time)
     const eatAt = p.eating_at ? Date.parse(p.eating_at) : p.dosed_at ? Math.min(Date.now(), Date.parse(p.dosed_at) + p.eat_after_min * 60000) : Date.now();
-    try { await ate(p, part, eatAt, products, settings); await reload(); toast(t('تم ✓')); nav('/mom', { replace: true }); }
+    try { await ate(p, part, eatAt, products, settings, { change }); await reload(); toast(t('تم ✓')); if (change) nav(-1); else nav('/mom', { replace: true }); }
     catch (e) {
       // the other parent answered first: nothing is saved twice, and she is told so
       if ((e as Error).message === 'already_eaten') { await reload(); toast(t('انحسبت من قبل ✓')); nav('/mom', { replace: true }); return; }
@@ -263,6 +266,7 @@ export function MomAte() {
   return (
     <MomPage title={t('شكثر أكلت؟')} back="/mom" foot={<Big disabled={part === null || busy} onClick={done}>{t('تم')}</Big>}>
       <div className="text-center text-[18px] text-slate-600">🍽️ <bdi>{p.name}</bdi></div>
+      {change && p.part_auto && <p className="text-center text-[15px] text-slate-500">{t('انحسبت «كلها» تلقائيًا. غيّريها إذا أكلت أقل.')}</p>}
       {PARTS.map(([v, icon, label]) => (
         <Choice key={String(v)} icon={icon} label={t(label)} on={part === v} onClick={() => setPart(v)} />
       ))}

@@ -155,11 +155,13 @@ export async function treatFromPlan(p: PlannedMeal, t: { grams: number; name: st
 }
 
 /** She ate (all or a part): the meal is logged at the time she started eating, from the plan's items scaled to what
- *  she ate; the plan keeps the part, the carbs planned and eaten, and the start of eating for its review. */
-export async function ate(p: PlannedMeal, part: number, eatingAt: number, products: Product[], settings: Settings) {
+ *  she ate; the plan keeps the part, the carbs planned and eaten, and the start of eating for its review.
+ *  Nobody answering is "all of it": the database confirms it 10 minutes after the eat time (carb.confirm_pending_meals,
+ *  part_auto). `change`: a parent corrects the part afterwards (the same meal entry is updated, never a second one). */
+export async function ate(p: PlannedMeal, part: number, eatingAt: number, products: Product[], settings: Settings, o: { change?: boolean } = {}) {
   // a second tap, or the other phone, must not log the same meal twice
   const { data: now } = await supabase.from('planned_meals').select('status').eq('id', p.id).maybeSingle();
-  if ((now as { status?: string } | null)?.status === 'eaten') throw new Error('already_eaten');
+  if (!o.change && (now as { status?: string } | null)?.status === 'eaten') throw new Error('already_eaten');
   const items = p.items.map((i, k) => ({ ...i, id: String(k), qty_confirmed: true, note: null, sort: k, quantity: i.quantity * part }));
   const meal = computeMeal(items, products, settings);
   if (!meal.complete) throw new Error('incomplete');
@@ -179,7 +181,7 @@ export async function ate(p: PlannedMeal, part: number, eatingAt: number, produc
   } else {
     r = await logMeal({ kind: p.slot === 'snack' ? 'snack' : 'meal', recipe_id: p.recipe_id, name: p.name, category: null, meal, modified: part !== 1 || !p.recipe_id, eatenAt: new Date(eatingAt).toISOString(), notes: p.note ?? undefined, client_id: p.id, meal_slot: p.slot as MealSlot });
   }  // the plan's note (a weighed plate, an item left out) stays with the meal
-  await patch(p.id, { status: 'eaten', history_id: r.id, eaten_at: new Date().toISOString(), eating_at: new Date(eatingAt).toISOString(), part_eaten: part,
+  await patch(p.id, { status: 'eaten', history_id: r.id, eaten_at: new Date().toISOString(), eating_at: new Date(eatingAt).toISOString(), part_eaten: part, part_auto: false,
     carbs_planned: p.carbs_planned ?? Math.round(full * 10) / 10, carbs_eaten: Math.round(meal.total.carbs * 10) / 10 });
 }
 
