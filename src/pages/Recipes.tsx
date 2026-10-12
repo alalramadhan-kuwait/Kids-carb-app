@@ -8,7 +8,9 @@ import { useData } from '../lib/data';
 import { Icon } from '../components/Icon';
 import { computeMeal, fmt, problemText, unitText } from '../lib/carbs';
 import { blocker } from '../lib/suggest';
-import { acceptTotal, setFavorite, setIngredientProduct, setRecipeImage } from '../lib/api';
+import { acceptTotal, setFavorite, setIngredientProduct, setRecipeImage, setRecipePot } from '../lib/api';
+import { usePortions } from '../lib/mom';
+import { recipeCups, recipePotGrams, recipeShare } from '../engine/mom';
 import { ProductPicker } from '../components/ProductPicker';
 import { uploadPhoto } from '../lib/supabase';
 import type { Ingredient } from '../lib/types';
@@ -71,6 +73,10 @@ export function RecipeView() {
     ? computeMeal(ings.filter((i) => !(i.role === 'drink' && skip.drink) && !(i.role === 'snack' && skip.snack)), products, settings)
     : shown), [skip, ings, products, settings, shown]);
   const { choose, busy } = useChoose();
+  // how much she ate: a portion, cups of the pot or grams on the scale, turned into the ingredients' amounts
+  const { portions } = usePortions();
+  const [how, setHow] = useState<{ unit: 'plate' | 'cup' | 'g'; amount: number | null; label?: string } | null>(null);
+  const [pot, setPot] = useState<{ g: number | null; cups: number | null } | null>(null);
   const [planning, setPlanning] = useState(false);
   const [linking, setLinking] = useState<Ingredient | null>(null);
   const link = async (productId: string | null) => {
@@ -81,6 +87,15 @@ export function RecipeView() {
   };
   if (!recipe) return <Page title={t('الوصفة')} back={() => nav(-1)}><Card>{t('الوصفة غير موجودة.')}</Card></Page>;
 
+  const mine = portions.filter((p) => p.recipe_id === recipe.id);
+  const potG = recipePotGrams(recipe, base, products), cups = recipeCups(recipe);
+  const eat = (unit: 'plate' | 'cup' | 'g', amount: number | null, label?: string) => {
+    setHow({ unit, amount, label });
+    const k = amount ? recipeShare(recipe, base, products, unit, amount) : null;
+    if (k === null) { setOver({}); return; }
+    // grams and cups are of the pot: what is served on the side keeps its own amount
+    setOver(Object.fromEntries(base.filter((i) => unit === 'plate' || !i.on_side).map((i) => [i.id, Math.round(Number(i.quantity) * k * 10) / 10])));
+  };
   const qtyChanged = Object.keys(over).some((k) => over[k] !== base.find((i) => i.id === k)?.quantity);
   const modified = qtyChanged || skip.drink || skip.snack;
   const drift = recipe.saved_total_carbs !== null && meal.complete && !modified && Math.abs(meal.total.carbs - recipe.saved_total_carbs) >= 0.05;
@@ -135,6 +150,35 @@ export function RecipeView() {
           <span className="grid h-9 w-9 place-items-center rounded-full bg-brand-muted/70 text-brand"><Icon name="glucose" size={19} /></span>
           <span className="flex-1 font-medium">{t('كيف يستجيب سكرها لهذه الوصفة')}</span><span className="text-sm text-slate-500">{t('{n} مرة', { n })}</span><span className="text-slate-400">{isEn() ? '›' : '‹'}</span>
         </Link>); })()}
+      <Card className="mb-3 space-y-2.5">
+        <h2 className="font-bold">{t('كم أكلت؟')}</h2>
+        <div className="flex flex-wrap gap-1.5">
+          <Chip active={how?.unit === 'plate' && how.amount === 1 && !how.label} onClick={() => eat('plate', 1)}>{t('الوصفة كاملة')}</Chip>
+          {mine.map((p) => <Chip key={p.id} active={how?.label === p.id} onClick={() => eat('plate', Number(p.amount), p.id)}>{tMaybe(p.label)}</Chip>)}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block min-w-0"><span className="mb-0.5 block text-xs font-medium text-slate-500">{t('بالكوب')}</span>
+            <NumInput value={how?.unit === 'cup' ? how.amount : null} onChange={(v) => eat('cup', v)} disabled={!cups} placeholder={cups ? '½ = 0.5' : '—'} className="!text-center" /></label>
+          <label className="block min-w-0"><span className="mb-0.5 block text-xs font-medium text-slate-500">{t('بالميزان (غرام مطبوخ)')}</span>
+            <NumInput value={how?.unit === 'g' ? how.amount : null} onChange={(v) => eat('g', v)} disabled={!potG} placeholder={potG ? '150' : '—'} className="!text-center" /></label>
+        </div>
+        {(!cups || !potG) && <p className="text-xs text-slate-500">{!potG ? t('للكوب والميزان: قيسوا القدر بعد الطبخ مرة وحدة (تحت).') : t('للكوب: عدّوا كم كوب يطلع القدر مرة وحدة (تحت).')}</p>}
+        <p className="text-xs text-slate-500">{t('أو وزنت الجزء اللي فيه كارب بروحه (مثل العيش)؟ اكتب وزنه في المكونات تحت.')}</p>
+        <details className="rounded-xl bg-slate-50 px-3 py-2">
+          <summary className="min-h-[36px] cursor-pointer text-sm font-bold text-brand">{t('قياس القدر (مرة وحدة بعد الطبخ)')}{(recipe.cooked_weight_g || cups) ? ` · ${[recipe.cooked_weight_g ? `${fmt(Number(recipe.cooked_weight_g))} ${t('غ')}` : null, cups ? t('{n} كوب', { n: fmt(cups) }) : null].filter(Boolean).join(' · ')}` : ''}</summary>
+          <p className="mb-2 text-xs text-slate-500">{t('بكميات الوصفة هذي بالضبط: صبّوا الأكل المطبوخ كله بكوب ليان وعدّوا، أو وزنوا القدر مليان ناقص وزنه فاضي. ما يدخل فيه اللي على الجنب.')}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block min-w-0"><span className="mb-0.5 block text-xs font-medium text-slate-500">{t('الوزن بعد الطبخ (غ)')}</span>
+              <NumInput value={pot ? pot.g : recipe.cooked_weight_g ?? null} onChange={(v) => setPot({ g: v, cups: pot ? pot.cups : recipe.yield_cups ?? null })} className="!text-center" /></label>
+            <label className="block min-w-0"><span className="mb-0.5 block text-xs font-medium text-slate-500">{t('عدد الأكواب')}</span>
+              <NumInput value={pot ? pot.cups : recipe.yield_cups ?? null} onChange={(v) => setPot({ g: pot ? pot.g : recipe.cooked_weight_g ?? null, cups: v })} className="!text-center" /></label>
+          </div>
+          {pot && <Btn kind="primary" block className="mt-2" onClick={async () => {
+            try { await setRecipePot(recipe.id, { cooked_weight_g: pot.g && pot.g > 0 ? pot.g : null, yield_cups: pot.cups && pot.cups > 0 ? pot.cups : null }); await reload(); setPot(null); toast(t('انحفظ ✓')); }
+            catch (e) { toast((e as Error).message); }
+          }}>{t('حفظ القياس')}</Btn>}
+        </details>
+      </Card>
       <Card className="mb-3">
         <h2 className="mb-2 font-bold">{t('المكونات')}</h2>
         {(['main', 'drink', 'snack'] as const).map((role) => {

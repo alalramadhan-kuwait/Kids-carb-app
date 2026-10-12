@@ -5,7 +5,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 import { useData } from '../../lib/data';
 import { compareOps, draftOps, saveMeal, useCompare, useDraft, usePortions, useSavedMeals } from '../../lib/mom';
 import { planMeal } from '../../lib/plans';
-import { COMPARE_MAX, planItems, planItemsOf, readyForMom, type Catalog, type MomItem } from '../../engine/mom';
+import { COMPARE_MAX, planItems, planItemsOf, readyForMom, recipeCups, type Catalog, type MomItem } from '../../engine/mom';
 import { groupByKey, groupOf, groupsIn, subgroupOf, subgroupsIn } from '../../lib/productGroups';
 import { matches } from '../../lib/search';
 import { fmt } from '../../lib/carbs';
@@ -15,7 +15,7 @@ import { t, tMaybe } from '../../i18n';
 import { RESTAURANTS, cupsOf, menuOf, restaurantByKey, restaurantOf, type Restaurant } from '../../lib/restaurants';
 import { foodName } from '../../lib/foodName';
 import { Big, Choice, MomPage } from './MomUI';
-import type { HistoryEntry, PlanItem, Product, Recipe } from '../../lib/types';
+import type { HistoryEntry, Ingredient, PlanItem, Product, Recipe } from '../../lib/types';
 import { productOf } from '../../lib/mealItems';
 import { reusable } from '../../lib/entryActions';
 import { mealGi } from '../../engine/gi';
@@ -45,7 +45,13 @@ export function useCatalog() {
     if (pr?.per_item) return t('الحبة = {g} غ كارب', { g: fmt(Number(pr.carbs_per_100)) });
     return pr ? t('{g} غ / 100 {u}', { g: fmt(Number(pr.carbs_per_100)), u: pr.unit === 'ml' ? t('مل') : t('غ') }) : null;
   };
-  return { c, carbsOf, itemCarbs, mealCarbs, mealGiOf, recipeGi, nameOf, photoOf, firstPortion, tileCarbs };
+  /** A recipe's parts that hold carbs and can be weighed on a plate by themselves: weighed cooked or as is in the
+   *  recipe (not dry before cooking), each with its product; in the recipe's order. */
+  const carbParts = (rid: string) => (ingsByRecipe.get(rid) ?? []).filter((i) => i.role !== 'snack' && i.state !== 'raw' && (i.unit === 'g' || i.unit === 'ml'))
+    .map((i) => ({ i, p: i.product_id ? products.find((x) => x.id === i.product_id) ?? null : null }))
+    .filter((x): x is { i: Ingredient; p: Product } => !!x.p && x.p.approved && Number(x.p.carbs_per_100) >= 5 && !x.p.per_item)
+    .map(({ i, p }) => ({ product: p, name: p.name, cooked: i.state === 'cooked' }));
+  return { c, carbsOf, itemCarbs, mealCarbs, mealGiOf, recipeGi, carbParts, nameOf, photoOf, firstPortion, tileCarbs };
 }
 
 /** What Photo needs for a product or recipe: its photo, its own emoji (generic foods), its category. */
@@ -89,7 +95,7 @@ export function MomMeal() {
   const sameAsSaved = d.savedId && meals.find((m) => m.id === d.savedId && JSON.stringify(m.items) === JSON.stringify(d.items));
   const portionLabel = (it: MomItem) => it.portion_id ? tMaybe(c.portions.find((p) => p.id === it.portion_id)?.label ?? '')
     : it.unit === 'g' && c.products.find((p) => p.id === it.id)?.per_item ? `× ${fmt((it.amount ?? 0) / 100)}`
-    : `${fmt(it.amount ?? 0)} ${it.unit === 'serving' ? t('حصة') : it.unit === 'plate' ? t('صحن') : c.products.find((p) => p.id === it.id)?.unit === 'ml' ? t('مل') : t('غرام')}`;
+    : `${fmt(it.amount ?? 0)} ${it.unit === 'serving' ? t('حصة') : it.unit === 'plate' ? t('صحن') : it.unit === 'cup' ? t('كوب') : c.products.find((p) => p.id === it.id)?.unit === 'ml' ? t('مل') : t('غرام')}`;
   const Left = () => d.left.length ? <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ <bdi>{d.left.join(' · ')}</bdi> {t('ما ينحسب بالإبرة · كلّمي بابا')}</p> : null;
   const title = d.mode === 'plan' ? t('خطة وجبة') : t('وجبة ليان');
   if (!d.items.length) return (
@@ -359,7 +365,7 @@ export function MomPortion() {
   const [sp] = useSearchParams();
   const k = sp.get('k');
   const d = useDraft();
-  const { c, itemCarbs, recipeGi, nameOf, photoOf } = useCatalog();
+  const { c, itemCarbs, recipeGi, carbParts, nameOf, photoOf } = useCatalog();
   const rGi = kind === 'recipe' ? recipeGi(id) : null;
   const mine = c.portions.filter((p) => (kind === 'product' ? p.product_id === id : p.recipe_id === id));
   const prod = kind === 'product' ? c.products.find((p) => p.id === id) ?? null : null;
@@ -373,9 +379,9 @@ export function MomPortion() {
   const each = !!prod?.per_item; // sold by the item: a count, never grams
   const [sel, setSel] = useState<string | null>(cur ? cur.portion_id ?? cur.unit ?? null : each ? 'serving' : null);
   const [amt, setAmt] = useState<number | null>(cur && !cur.portion_id ? cur.amount ?? null : each ? 1 : null);
-  const free = sel === 'serving' || sel === 'g' || sel === 'plate';
+  const free = sel === 'serving' || sel === 'g' || sel === 'plate' || sel === 'cup';
   const showAmt = free && !(sel === 'g' && pack !== null && amt === pack);
-  const item: MomItem | null = !sel ? null : free ? (amt && amt > 0 ? { kind, id, portion_id: null, amount: amt, unit: sel as 'serving' | 'g' | 'plate' } : null) : { kind, id, portion_id: sel };
+  const item: MomItem | null = !sel ? null : free ? (amt && amt > 0 ? { kind, id, portion_id: null, amount: amt, unit: sel as 'serving' | 'g' | 'plate' | 'cup' } : null) : { kind, id, portion_id: sel };
   const g = item ? itemCarbs(item) : null;
   const x = photoOf({ kind, id });
   const pick = (v: string, a: number | null) => { setSel(v); setAmt(a); };
@@ -390,6 +396,11 @@ export function MomPortion() {
   // a home dish can be weighed: carbs for 100 g of what is in the pot; what is served on the side is added apart
   const plate = !prod ? itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'plate' }) : null;
   const per100 = !prod ? itemCarbs({ kind, id, portion_id: null, amount: 100, unit: 'g' }) : null;
+  const rec = !prod ? c.recipes.find((r) => r.id === id) ?? null : null;
+  const cups = rec ? recipeCups(rec) : null;
+  const cup = cups ? itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'cup' }) : null;
+  // a part that holds the carbs (the rice of a machboos) can be weighed on its own when it is weighed cooked or as is
+  const parts = rec ? carbParts(rec.id) : [];
   const sides = !prod ? (c.ingsByRecipe.get(id) ?? []).filter((i) => i.on_side).map((i) => tMaybe(i.label ?? c.products.find((p) => p.id === i.product_id)?.name ?? '')).filter(Boolean) : [];
   return (
     <MomPage title={nameOf({ kind, id })} foot={<>
@@ -418,7 +429,10 @@ export function MomPortion() {
         on={sel === 'serving'} onClick={() => pick('serving', sel === 'serving' ? amt : 1)} />}
       {prod && pack && !each && <Choice icon="📦" label={t('العلبة كاملة')} sub={`${fmt(pack)} ${gUnit} · ${carbsText(itemCarbs({ kind, id, portion_id: null, amount: pack, unit: 'g' }))}`} on={sel === 'g' && amt === pack} onClick={() => pick('g', pack)} />}
       {prod && !each && <Choice icon="⚖️" label={prod.unit === 'ml' ? t('بالمل') : t('بالغرام')} on={sel === 'g' && amt !== pack} onClick={() => pick('g', sel === 'g' && amt !== pack ? amt : ss ?? null)} />}
+      {!prod && cup !== null && <Choice icon="🥣" label={t('بالكوب')} sub={t('الكوب = {g}', { g: carbsText(cup) })} on={sel === 'cup'} onClick={() => pick('cup', sel === 'cup' ? amt : 0.5)} />}
       {!prod && per100 !== null && <Choice icon="⚖️" label={t('وزنتها بالميزان')} sub={t('اكتبي الرقم اللي طلع')} on={sel === 'g'} onClick={() => pick('g', sel === 'g' ? amt : null)} />}
+      {!prod && parts.length > 0 && <Choice icon="🍚" label={t('وزنت اللي فيه كارب بروحه')} sub={parts.map((x) => tMaybe(x.name)).join(' · ')} onClick={() => nav(`/mom/parts/${id}${k !== null ? `?k=${k}` : ''}`, { replace: true })} />}
+      {!prod && (per100 === null || cup === null) && <p className="text-center text-[14px] text-slate-500">{per100 === null ? t('للوزن أو الكوب: بابا يقيس القدر بعد الطبخ مرة وحدة') : t('للكوب: بابا يعدّ كم كوب يطلع القدر مرة وحدة')}</p>}
       {!prod && <Choice icon="🍽️" label={t('بالصحون')} on={sel === 'plate'} onClick={() => pick('plate', sel === 'plate' ? amt : 1)} />}
       {showAmt && (
         <div className="flex items-center justify-center gap-4">
@@ -427,7 +441,7 @@ export function MomPortion() {
             ? <input inputMode="decimal" dir="ltr" className={cx(inputCls, '!w-28 !text-center !text-[28px] font-bold')} value={amt ?? ''} onChange={(e) => { const v = Number(e.target.value.replace(',', '.')); setAmt(e.target.value === '' || !Number.isFinite(v) ? null : v); }} />
             : <span className="num w-24 text-center text-[40px] font-extrabold">{amt === null ? '—' : fmt(amt)}</span>}
           <button aria-label="−" className="grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => setAmt(Math.max(0, Math.round(((amt ?? 0) - step) * 10) / 10))}>−</button>
-          <span className="text-[18px] text-slate-500">{sel === 'g' ? gUnit : sel === 'serving' ? (each ? t('حبة') : packIsServing ? t('علبة') : t('حصة')) : t('صحن')}</span>
+          <span className="text-[18px] text-slate-500">{sel === 'g' ? gUnit : sel === 'serving' ? (each ? t('حبة') : packIsServing ? t('علبة') : t('حصة')) : sel === 'cup' ? t('كوب') : t('صحن')}</span>
         </div>
       )}
       {sel === 'g' && <p className="rounded-2xl bg-brand-soft px-4 py-3 text-[16px] leading-relaxed text-brand">⚖️ {t('حطي الصحن فاضي على الميزان واضغطي ON لين يصير 0، بعدين حطي الأكل.')}</p>}
@@ -556,6 +570,52 @@ export function MomFoodItem() {
           </ul>
         </section>
       )}
+    </MomPage>
+  );
+}
+
+/** «وزنت اللي فيه كارب بروحه»: the parts of a home dish that hold its carbs (the rice of a machboos), each weighed
+ *  on its own and typed in; they go on the plate as those foods. The rest of the dish (meat, sauce) adds no carbs
+ *  worth counting only when it has none in the recipe, so the page says what is left out. */
+export function MomParts() {
+  const nav = useNavigate();
+  const { id = '' } = useParams();
+  const [sp] = useSearchParams();
+  const k = sp.get('k');
+  const { c, itemCarbs, carbParts, nameOf } = useCatalog();
+  const parts = carbParts(id);
+  const [g, setG] = useState<(number | null)[]>(() => parts.map(() => null));
+  const items: MomItem[] = parts.flatMap((x, n) => (g[n] ? [{ kind: 'product' as const, id: x.product.id, portion_id: null, amount: g[n]!, unit: 'g' as const, ...(x.cooked ? { cooked: true } : {}) }] : []));
+  const per = items.map((it) => itemCarbs(it));
+  const partCarbs = (n: number) => { const i = items.findIndex((it) => it.id === parts[n].product.id); return i < 0 ? null : per[i]; };
+  const total = items.length && per.every((v) => v !== null) ? Math.round(per.reduce((a, v) => a + v!, 0) * 10) / 10 : null;
+  // what else in the dish has carbs and is not weighed here (a raw-weighed grain, a sauce): said, never guessed
+  const rest = (c.ingsByRecipe.get(id) ?? []).filter((i) => i.role !== 'snack' && !parts.some((x) => x.product.id === i.product_id))
+    .map((i) => ({ i, p: i.product_id ? c.products.find((x) => x.id === i.product_id) ?? null : null }))
+    .filter(({ p }) => !p || Number(p.carbs_per_100) >= 5).map(({ i, p }) => tMaybe(p?.name ?? i.label ?? ''));
+  const done = () => {
+    if (k !== null) draftOps.remove(Number(k));
+    items.forEach((it) => draftOps.add(it));
+    nav('/mom/meal', { replace: true });
+  };
+  return (
+    <MomPage title={nameOf({ kind: 'recipe', id })} foot={<>
+      <div className="flex items-baseline justify-between px-1"><span className="text-[17px] text-slate-500">{t('الكارب')}</span><b className="num text-[26px]">{total === null ? '—' : `${fmt(total)} ${t('غ كارب')}`}</b></div>
+      <Big disabled={!items.length || total === null} onClick={done}>{t('تم')}</Big>
+    </>}>
+      <p className="rounded-2xl bg-brand-soft px-4 py-2.5 text-center text-[16px] text-brand">⚖️ {t('صفّري الميزان قبل كل صنف')}</p>
+      {parts.map((x, n) => (
+        <div key={x.product.id} className="space-y-2 rounded-3xl bg-white px-4 py-3">
+          <div className="flex items-center gap-2 text-[19px] font-bold"><span className="flex-1"><bdi>{tMaybe(x.name)}</bdi> {x.cooked && <span className="text-[14px] font-normal text-slate-500">{t('مطبوخ')}</span>}</span>
+            <span className="num shrink-0 text-[18px] font-bold text-brand">{partCarbs(n) === null ? '' : `${fmt(partCarbs(n)!)} ${t('غ')}`}</span></div>
+          <div className="flex items-center justify-center gap-3" dir="ltr">
+            <input inputMode="decimal" dir="ltr" placeholder="0" className={cx(inputCls, '!w-32 !text-center !text-[30px] font-bold')} value={g[n] ?? ''}
+              onChange={(e) => { const v = Number(e.target.value.replace(',', '.')); setG(g.map((o, m) => (m === n ? (e.target.value === '' || !Number.isFinite(v) || v <= 0 ? null : v) : o))); }} />
+            <span className="text-[18px] text-slate-500">{t('غرام')}</span>
+          </div>
+        </div>
+      ))}
+      {rest.length > 0 && <p className="rounded-2xl bg-near-soft px-4 py-3 text-center text-[15px] font-bold text-near">⚠️ {t('ما ينحسب هنا: {x}. إذا أكلت منه أضيفيه بروحه.', { x: rest.join(' · ') })}</p>}
     </MomPage>
   );
 }

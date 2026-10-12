@@ -5,7 +5,9 @@ import type { Ingredient, InjectionSite, PlanItem, Portion, Product, Recipe } fr
 
 /** One thing on her plate: a product or a recipe, in one of Dad's portions, or in an amount chosen on the spot
  *  (label servings, grams/ml, or plates of a recipe). */
-export interface MomItem { kind: 'product' | 'recipe'; id: string; portion_id: string | null; amount?: number; unit?: 'serving' | 'g' | 'plate' }
+export interface MomItem { kind: 'product' | 'recipe'; id: string; portion_id: string | null; amount?: number; unit?: 'serving' | 'g' | 'plate' | 'cup';
+  /** a product weighed after cooking (one part of a home dish, weighed on its own): its label may be for it dry */
+  cooked?: boolean }
 
 const TBSP_G = 15;
 /** What one plate of a recipe weighs in the pot (the ingredients that go in it, cooked as written), so a plate she
@@ -20,6 +22,27 @@ export function recipeMixGrams(ings: Ingredient[], products: Product[]): number 
     else { const p = i.product_id ? products.find((x) => x.id === i.product_id) : null; if (!p?.serving_size) return null; g += q * Number(p.serving_size); }
   }
   return g > 0 ? g : null;
+}
+
+/** What a plate of a recipe weighs, to turn grams on the scale into a share of the pot: the pot weighed after
+ *  cooking when Dad measured it; otherwise the ingredients' own weights, but only when none of them was weighed
+ *  before cooking (grains drink water, meat loses it, so raw weights say nothing about the cooked dish). */
+export function recipePotGrams(r: Recipe, ings: Ingredient[], products: Product[]): number | null {
+  if (r.cooked_weight_g && Number(r.cooked_weight_g) > 0) return Number(r.cooked_weight_g);
+  const pot = ings.filter((i) => i.role !== 'snack' && !i.on_side);
+  if (pot.some((i) => i.state === 'raw')) return null;
+  return recipeMixGrams(ings, products);
+}
+/** How many cups the pot fills (measured once), or null. */
+export const recipeCups = (r: Recipe) => (r.yield_cups && Number(r.yield_cups) > 0 ? Number(r.yield_cups) : null);
+
+/** A share of the recipe for an amount eaten: plates as they are, cups of the pot, grams of the cooked dish. Null
+ *  when the pot was not measured that way. Grams and cups leave out what is served on the side. */
+export function recipeShare(r: Recipe, ings: Ingredient[], products: Product[], unit: 'plate' | 'cup' | 'g', amount: number): number | null {
+  if (!(amount > 0)) return null;
+  if (unit === 'plate') return amount;
+  const base = unit === 'cup' ? recipeCups(r) : recipePotGrams(r, ings, products);
+  return base ? amount / base : null;
 }
 
 export interface Catalog {
@@ -41,17 +64,16 @@ export function planItemsOf(it: MomItem, c: Catalog): PlanItem[] | null {
     const role = pr.category === 'مشروبات' ? 'drink' as const : 'main' as const; // i18n-ok: stored value
     if (!p && it.unit === 'serving') return pr.serving_size ? [{ product_id: pr.id, slot_category: null, label: null, quantity: amount, unit: 'serving', state: 'as_is', role }] : null;
     if (!p && it.unit !== 'g') return null;
-    return [{ product_id: pr.id, slot_category: null, label: null, quantity: amount, unit: pr.unit, state: 'as_is', role }];
+    return [{ product_id: pr.id, slot_category: null, label: null, quantity: amount, unit: pr.unit, state: !p && it.cooked ? 'cooked' : 'as_is', role }];
   }
   const r = c.recipes.find((x) => x.id === it.id);
-  if (!r || (p && p.recipe_id !== r.id) || (!p && it.unit !== 'plate' && it.unit !== 'g')) return null;
+  if (!r || (p && p.recipe_id !== r.id) || (!p && it.unit !== 'plate' && it.unit !== 'g' && it.unit !== 'cup')) return null;
   const all = (c.ingsByRecipe.get(r.id) ?? []).filter((i) => i.role !== 'snack');
   if (!all.length) return null;
-  if (!p && it.unit === 'g') {
-    // a weighed plate: the pot's ingredients scaled to the grams on the scale (what is served on the side is added apart)
-    const mix = recipeMixGrams(all, c.products);
-    if (!mix) return null;
-    const k = amount / mix;
+  if (!p && (it.unit === 'g' || it.unit === 'cup')) {
+    // a weighed plate or cups of the pot: the pot's ingredients scaled to that share (what is served on the side is added apart)
+    const k = recipeShare(r, all, c.products, it.unit, amount);
+    if (k === null) return null;
     return all.filter((i) => !i.on_side).map((i) => ({ product_id: i.product_id, slot_category: i.slot_category, label: i.label, quantity: Number(i.quantity) * k, unit: i.unit, state: i.state, role: i.role }));
   }
   const ings = all;

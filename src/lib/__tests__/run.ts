@@ -2785,6 +2785,29 @@ test('Topi cheese is found by «توبي» and «جبن»', async () => {
     const noSize = { ...pasta, ingsByRecipe: new Map([['r2', [ing('bread', 2, { unit: 'serving', product_id: 'frost' })]]]) as any };
     assert.equal(M.planItemsOf({ kind: 'recipe', id: 'r2', portion_id: null, amount: 200, unit: 'g' }, noSize), null, 'a serving with no known size: no weight, never a guess');
   });
+  test('mom meal: a pot weighed dry (harees) — no weighing until the pot is measured; then grams and cups are shares of it', () => {
+    const ing = (id: string, q: number, o: Record<string, unknown> = {}) => ({ id, role: 'main', product_id: null, slot_category: null, label: id, quantity: q, unit: 'g', state: 'as_is', qty_confirmed: true, note: null, sort: 0, ...o }) as any;
+    const ings = [ing('wheat', 40, { state: 'raw' }), ing('meat', 60, { state: 'cooked' }), ing('sugar', 5)];
+    const r = { ...cat.recipes[0], id: 'h' };
+    const c3 = { ...cat, recipes: [r], ingsByRecipe: new Map([['h', ings]]) as any };
+    assert.equal(M.recipePotGrams(r, ings, []), null, 'weighed before cooking: the raw weights say nothing about the cooked pot');
+    assert.equal(M.planItemsOf({ kind: 'recipe', id: 'h', portion_id: null, amount: 150, unit: 'g' }, c3), null, 'never the raw sum');
+    assert.equal(M.planItemsOf({ kind: 'recipe', id: 'h', portion_id: null, amount: 0.5, unit: 'cup' }, c3), null, 'no cups counted yet');
+    const measured = { ...r, cooked_weight_g: 300, yield_cups: 2 };
+    const c4 = { ...c3, recipes: [measured] };
+    assert.equal(M.recipePotGrams(measured, ings, []), 300);
+    assert.equal(M.recipeShare(measured, ings, [], 'g', 150), 0.5);
+    assert.equal(M.recipeShare(measured, ings, [], 'cup', 0.5), 0.25);
+    assert.equal(M.recipeShare(measured, ings, [], 'plate', 0.5), 0.5);
+    assert.deepEqual(M.planItemsOf({ kind: 'recipe', id: 'h', portion_id: null, amount: 0.5, unit: 'cup' }, c4)!.map((i) => i.quantity), [10, 15, 1.25], 'half a cup of a two-cup pot');
+    assert.deepEqual(M.planItemsOf({ kind: 'recipe', id: 'h', portion_id: null, amount: 75, unit: 'g' }, c4)!.map((i) => i.quantity), [10, 15, 1.25]);
+    assert.equal(M.recipeShare({ ...r, cooked_weight_g: 0 }, [ing('rice', 200, { state: 'cooked' })], [], 'g', 100), 0.5, 'all weighed cooked: the ingredients\' own weight is the pot');
+  });
+  test('mom meal: one part of a dish weighed after cooking keeps its cooked state (dry pasta label, cooked on the plate)', () => {
+    const c5 = { ...cat, products: [...cat.products, prod('pasta', { carbs_per_100: 72, cooked_yield: 2.4 })] };
+    assert.equal(M.planItemsOf({ kind: 'product', id: 'pasta', portion_id: null, amount: 120, unit: 'g', cooked: true }, c5)![0].state, 'cooked');
+    assert.equal(M.planItemsOf({ kind: 'product', id: 'pasta', portion_id: null, amount: 120, unit: 'g' }, c5)![0].state, 'as_is');
+  });
   test('mom meal: an amount chosen on the spot — grams, label servings, recipe plates; nothing without a known size', () => {
     const c2 = { ...cat, products: [...cat.products, prod('toast', { serving_size: 28 })] };
     assert.deepEqual(M.planItemsOf({ kind: 'product', id: 'frost', portion_id: null, amount: 45, unit: 'g' }, c2)!.map((i) => [i.quantity, i.unit]), [[45, 'g']]);

@@ -46,6 +46,9 @@ export async function saveRecipe(recipe: Partial<Recipe> & { name: string }, ing
 
 export const deleteRecipe = async (id: string) => ok(await supabase.from('recipes').delete().eq('id', id));
 export const setFavorite = async (id: string, favorite: boolean) => ok(await supabase.from('recipes').update({ favorite }).eq('id', id));
+/** The pot measured once after cooking: its whole weight and the cups it fills (null clears either). */
+export const setRecipePot = async (id: string, pot: { cooked_weight_g: number | null; yield_cups: number | null }) =>
+  ok(await supabase.from('recipes').update(pot).eq('id', id));
 export const setRecipeImage = async (id: string, image_path: string) =>
   ok(await supabase.from('recipes').update({ image_path }).eq('id', id));
 export const acceptTotal = async (id: string, total: number) =>
