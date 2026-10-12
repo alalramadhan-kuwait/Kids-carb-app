@@ -27,7 +27,7 @@ export function ProductList() {
   const types = g ? typesIn(ofBrand, g) : [];
   const c = types.some((x) => x.cat === cat) ? cat : '';
   const pickBrand = (b: string | null) => { setBrand(b); setGroup(null); setCat(''); };
-  const rows = ofBrand.filter((p) => (!g || groupOf(p.category).key === g) && (!c || p.category === c) && (!onlyHome || p.available) && matches([p.name, p.brand, p.category], q));
+  const rows = ofBrand.filter((p) => (!g || groupOf(p.category).key === g) && (!c || p.category === c) && (!onlyHome || p.available) && matches([p.name, p.name_ar, p.name_en, p.brand, p.category], q));
 
   const nav = useNavigate();
   return (

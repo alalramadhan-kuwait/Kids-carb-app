@@ -1442,4 +1442,7 @@ export const food: Record<string, string> = {
   "مرق بدون عيش وبطاط (مغرفة)": "Stew without rice or potato (ladle)",
   "تقريبي: القطعة ≈ 20 أو 40 أو 60 غ بطاط مسلوق ({c} غ كارب لكل 100 غ)": "Approximate: a piece ≈ 20, 40 or 60 g of boiled potato ({c} g carbs per 100 g)",
   "بطاط مسلوق": "Boiled potato",
+  "بالعلبة": "By the pack",
+  "العلبة = {s} {u} · {g}": "A pack = {s} {u} · {g}",
+  "علبة": "pack",
 };

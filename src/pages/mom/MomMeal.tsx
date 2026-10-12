@@ -181,7 +181,7 @@ export function MomAdd({ browse = false }: { browse?: boolean }) {
   const rec = recent().filter((r) => readyForMom(r.kind, r.id, c)).slice(0, 4);
   const find = (kind: 'product' | 'recipe', id: string) => ((kind === 'product' ? c.products : c.recipes) as (Product | Recipe)[]).find((y) => y.id === id)!;
   // searching finds every approved food in every group (restaurants, things not bought yet), what is at home first
-  const found = q.trim() ? homeFirst(products.filter((p) => matches([p.name, p.brand, p.category], q))) : [];
+  const found = q.trim() ? homeFirst(products.filter((p) => matches([p.name, p.name_ar, p.name_en, p.brand, p.category], q))) : [];
   const foundRecipes = q.trim() ? recipes.filter((r) => matches([r.name, r.category], q)) : [];
   const groups = groupsIn(products.filter((p) => !restaurantOf(p.brand))); // restaurant food has its own tab
   const missing = q.trim() && !found.length && !foundRecipes.length;
@@ -274,7 +274,7 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   // the menu as section tiles (burgers, drinks, fruit…); a tap opens that section only; typing searches the whole menu
   const sec = sp.get('sec');
   const open = sections.find((x) => x.section.key === sec) ?? (sections.length === 1 ? sections[0] : null);
-  const found = q.trim() ? items.filter((p) => matches([p.name, p.name_ar ?? '', p.category], q)) : [];
+  const found = q.trim() ? items.filter((p) => matches([p.name, p.name_ar, p.name_en, p.category], q)) : [];
   const cupRow = (cups: (typeof sections)[number]['cups']) => cups.sizes.length > 0 && (
     <Choice icon="🍦" label={t('كوب: اختاري الحجم ثم النكهة')} sub={t('{n} نكهات', { n: new Set(cups.sizes.flatMap((z) => z.items.map((x) => x.flavour))).size })} onClick={() => setSp({ cup: 'choose' })} />
   );
@@ -357,6 +357,8 @@ export function MomPortion() {
   const prod = kind === 'product' ? c.products.find((p) => p.id === id) ?? null : null;
   const ss = prod?.serving_size ? Number(prod.serving_size) : null;
   const pack = prod?.pack_size && Number(prod.pack_size) <= 500 && Number(prod.pack_size) !== ss ? Number(prod.pack_size) : null;
+  // a small pack that is one serving (a 15 g sweet): offered as «the whole pack», which is what she eats
+  const packIsServing = !!prod && !prod.per_item && !!ss && Number(prod.pack_size) === ss;
   const gUnit = prod?.unit === 'ml' ? t('مل') : t('غرام');
   const cur = k !== null ? d.items[Number(k)] ?? null : null;
   // the choice: one of Dad's portions, or 'serving' / 'g' / 'plate' with an amount
@@ -401,7 +403,9 @@ export function MomPortion() {
       </div>
       <h2 className="text-[18px] font-bold">{t('كم؟')}</h2>
       {mine.map((p) => <Choice key={p.id} icon={p.photo_path ? <Photo path={p.photo_path} className="h-11 w-11" /> : '⭐'} label={tMaybe(p.label)} sub={carbsText(itemCarbs({ kind, id, portion_id: p.id }))} on={sel === p.id} onClick={() => pick(p.id, null)} />)}
-      {prod && ss && <Choice icon={each ? '🔢' : '🥄'} label={each ? t('بالعدد') : t('بالحصة')} sub={each ? undefined : t('حصة = {s} {u}', { s: fmt(ss), u: gUnit })} on={sel === 'serving'} onClick={() => pick('serving', sel === 'serving' ? amt : 1)} />}
+      {prod && ss && <Choice icon={each ? '🔢' : packIsServing ? '📦' : '🥄'} label={each ? t('بالعدد') : packIsServing ? t('بالعلبة') : t('بالحصة')}
+        sub={each ? undefined : packIsServing ? t('العلبة = {s} {u} · {g}', { s: fmt(ss), u: gUnit, g: carbsText(itemCarbs({ kind, id, portion_id: null, amount: 1, unit: 'serving' })) }) : t('حصة = {s} {u}', { s: fmt(ss), u: gUnit })}
+        on={sel === 'serving'} onClick={() => pick('serving', sel === 'serving' ? amt : 1)} />}
       {prod && pack && !each && <Choice icon="📦" label={t('العلبة كاملة')} sub={`${fmt(pack)} ${gUnit} · ${carbsText(itemCarbs({ kind, id, portion_id: null, amount: pack, unit: 'g' }))}`} on={sel === 'g' && amt === pack} onClick={() => pick('g', pack)} />}
       {prod && !each && <Choice icon="⚖️" label={prod.unit === 'ml' ? t('بالمل') : t('بالغرام')} on={sel === 'g' && amt !== pack} onClick={() => pick('g', sel === 'g' && amt !== pack ? amt : ss ?? null)} />}
       {!prod && per100 !== null && <Choice icon="⚖️" label={t('وزنتها بالميزان')} sub={t('اكتبي الرقم اللي طلع')} on={sel === 'g'} onClick={() => pick('g', sel === 'g' ? amt : null)} />}
@@ -413,7 +417,7 @@ export function MomPortion() {
             ? <input inputMode="decimal" dir="ltr" className={cx(inputCls, '!w-28 !text-center !text-[28px] font-bold')} value={amt ?? ''} onChange={(e) => { const v = Number(e.target.value.replace(',', '.')); setAmt(e.target.value === '' || !Number.isFinite(v) ? null : v); }} />
             : <span className="num w-24 text-center text-[40px] font-extrabold">{amt === null ? '—' : fmt(amt)}</span>}
           <button aria-label="−" className="grid h-14 w-14 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => setAmt(Math.max(0, Math.round(((amt ?? 0) - step) * 10) / 10))}>−</button>
-          <span className="text-[18px] text-slate-500">{sel === 'g' ? gUnit : sel === 'serving' ? (each ? t('حبة') : t('حصة')) : t('صحن')}</span>
+          <span className="text-[18px] text-slate-500">{sel === 'g' ? gUnit : sel === 'serving' ? (each ? t('حبة') : packIsServing ? t('علبة') : t('حصة')) : t('صحن')}</span>
         </div>
       )}
       {sel === 'g' && <p className="rounded-2xl bg-brand-soft px-4 py-3 text-[16px] leading-relaxed text-brand">⚖️ {t('حطي الصحن فاضي على الميزان واضغطي ON لين يصير 0، بعدين حطي الأكل.')}</p>}

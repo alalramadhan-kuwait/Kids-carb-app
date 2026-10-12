@@ -2175,6 +2175,7 @@ console.log('search');
     assert.ok(matches(['White Soft Bread'], 'الخبز'));
     assert.ok(!matches(['1.2.3 Full Cream Milk (Kids)', 'KDD'], 'قشطه'), 'full cream milk is milk, not قشطة');
     assert.ok(!matches(['Ritz Crackers 39.6g (12 pcs)'], '1.2.3'));
+    assert.ok(matches(['Tutti Frutti Original Fruit Flavour 15g', 'توتي فروتي', 'Tutti Frutti Fruit Gummies', 'Red Band', 'حلويات'], 'توتي'), 'the Arabic name is searched too');
   });
 }
 

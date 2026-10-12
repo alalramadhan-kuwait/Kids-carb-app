@@ -111,7 +111,7 @@ function SearchResults({ q }: { q: string }) {
   const [picked, setPicked] = useState<Product | null>(null);
   const recipeCarbs = useMemo(() => new Map(candidates.map((c) => [c.recipe.id, c.meal])), [candidates]);
   const r = recipes.filter((x) => matches([x.name, x.category], q)).slice(0, 15);
-  const pr = products.filter((x) => matches([x.name, x.brand, x.category], q)).slice(0, 25);
+  const pr = products.filter((x) => matches([x.name, x.name_ar, x.name_en, x.brand, x.category], q)).slice(0, 25);
   const qi = rankQuick(quick.items, history).filter((x) => matches([x.name, x.brand], q)).slice(0, 15);
   const logQ = async (x: QuickItem) => {
     try {

@@ -24,7 +24,7 @@ export function PortionList() {
   const count = (kind: string, id: string) => portions.filter((p) => (kind === 'products' ? p.product_id === id : p.recipe_id === id)).length;
   const waiting = products.filter((p) => !p.approved);
   const rows = useMemo(() => (tab === 'products' ? products.filter((p) => p.approved) : recipes.filter((r) => r.approved))
-    .filter((x) => matches([x.name, 'brand' in x ? x.brand : null, x.category], q))
+    .filter((x) => matches([x.name, 'name_ar' in x ? x.name_ar : null, 'name_en' in x ? x.name_en : null, 'brand' in x ? x.brand : null, x.category], q))
     .sort((a, b) => count(tab, b.id) - count(tab, a.id) || a.name.localeCompare(b.name)), [tab, products, recipes, q, portions]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Page title={t('كميات ليان')} back={() => nav('/more')}>

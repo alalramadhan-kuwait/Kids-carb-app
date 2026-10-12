@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-12",
+    "version": "2.69.1",
+    "notes": [
+      "البحث صار يلقى المنتج باسمه العربي والإنجليزي، مثل «توتي» لـ Tutti Frutti",
+      "المنتج اللي علبته حصة وحدة (مثل حلاوة 15 غ) صار يطلع «بالعلبة» في الوضع البسيط"
+    ],
+    "notes_en": [
+      "Search now finds a product by its Arabic and English names too, such as «توتي» for Tutti Frutti",
+      "A product whose pack is one serving (like a 15 g sweet) now shows «By the pack» in simple mode"
+    ]
+  },
+  {
+    "date": "2026-10-12",
     "version": "2.69.0",
     "notes": [
       "«⚖️ عيش ومرق بالميزان» في الوضع البسيط: صفحة وحدة، العيش بالوزن، المرق بالمغرفة، والبطاط بالقطعة (صغيرة، وسط، كبيرة)، والكارب يطلع على طول"

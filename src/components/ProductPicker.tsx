@@ -27,7 +27,7 @@ export function ProductPicker({ onPick, category }: { onPick: (p: Product) => vo
   const pickBrand = (b: string | null) => { setBrand(b); setGroup(null); setCat(''); };
   const rows = useMemo(() => {
     return ofBrand
-      .filter((p) => (!g || groupOf(p.category).key === g) && (!c || p.category === c) && (!home || p.available) && matches([p.name, p.brand, p.category], q))
+      .filter((p) => (!g || groupOf(p.category).key === g) && (!c || p.category === c) && (!home || p.available) && matches([p.name, p.name_ar, p.name_en, p.brand, p.category], q))
       .sort((a, b) => Number(b.category === category) - Number(a.category === category) || Number(b.available) - Number(a.available) || Number(b.approved) - Number(a.approved) || a.name.localeCompare(b.name))
       .slice(0, 60);
   }, [ofBrand, q, g, c, home, category]);
