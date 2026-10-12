@@ -1,6 +1,6 @@
 // Mom mode home: how Layan is now (big coloured box like LibreLinkUp), a large simple 12-hour graph, the last
 // injections in pen colours with the doctor's 2-hour countdown, the meal in progress, and three big buttons.
-import { useEffect, useMemo, useRef, useState, type PointerEvent as PE } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as PE } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { syncComparisons } from '../../lib/fingerprick';
@@ -16,7 +16,7 @@ import { draftOps, useSensor } from '../../lib/mom';
 import { phase } from '../../engine/mealPlan';
 import { cx } from '../../components/ui';
 import { SameMealLink, useRecentSame } from '../../components/SameMeal';
-import { isEn, t } from '../../i18n';
+import { dir, isEn, locale, t } from '../../i18n';
 import okPng from '../../assets/layan/layan-ok.png';
 import okWebp from '../../assets/layan/layan-ok.webp';
 import watchingPng from '../../assets/layan/layan-watching.png';
@@ -258,6 +258,12 @@ function lane<T extends { t: number }>(items: T[], x: (t: number) => number, rig
 }
 
 /** The 12-hour graph: simple-mode home and the share link. */
+/** "Sun 12 Oct" / "الأحد، 12 أكتوبر" */
+const shortDate = (ms: number) => new Date(ms).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
+const dayNo = (ms: number) => { const d = new Date(ms); return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000; };
+/** the day of a reading on the graph, so it is never read against the wrong day: today, yesterday and its date, or its date */
+const graphDay = (ms: number, now: number) => { const d = dayNo(now) - dayNo(ms); return d === 0 ? t('اليوم') : d === 1 ? `${t('أمس')} · ${shortDate(ms)}` : shortDate(ms); };
+
 export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, meals, treats, pricks, at, span = 12 }: { span?: number; at?: number | null; treats: number[]; pricks: number[]; aspect: number; s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: number[] }) {
   const W = 340, PL = 6, PR = 30, PT = 26, HH = Math.max(180, Math.round(W * aspect)), PH = HH - PT - 58;
   const t0 = now - span * H; // hours shown (12 at home)
@@ -307,11 +313,26 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
   const food = lane([...meals.filter(inView).map((t) => ({ t, treat: false })), ...treats.filter(inView).map((t) => ({ t, treat: true }))], x, W - PR);
   const care = lane([...shots.filter((e) => inView(e.t)), ...pricks.filter(inView).map((t) => ({ t, u: null, type: null }))] as { t: number; u: number | null; type: 'rapid' | 'long' | null }[], x, W - PR);
   // the value sits above the plot, follows the line, and never runs off either edge
+  // the reading: a purple bubble (the curve itself is dark) with the day, time and value, its point on the line;
+  // above the plot, or under the point when the point is near the top
   const val = pick ? glucoseText(pick.v, unit) : '', uLabel = unit === 'mmol' ? 'mmol/L' : 'mg/dL';
-  const lw = val.length * 12 + 4 + uLabel.length * 6.5;
-  const lx = Math.min(Math.max(px, PL + lw / 2), W - 6 - lw / 2);
+  const tone = pick ? (pick.v < low ? '--st-low' : pick.v > high ? '--st-high' : '--st-in') : '--st-in';
+  const head = pick ? `${graphDay(pick.t, now)} · ${clock(pick.t)}` : '';
+  const l1 = useRef<SVGTextElement>(null), l2 = useRef<SVGTextElement>(null);
+  const [bw, setBw] = useState(150);
+  useLayoutEffect(() => {
+    if (!pick) return;
+    try { const w = Math.ceil(Math.max(l1.current?.getComputedTextLength() ?? 0, (l2.current?.getBBox().width ?? 0) + 17)) + 22; if (Math.abs(w - bw) > 1) setBw(w); } catch { /* not laid out yet */ }
+  });
+  const BH = 50, py = pick ? y(pick.v) : 0, below = py < BH + 12;
+  const by = below ? py + 14 : 0;
+  const bx = Math.min(Math.max(px - bw / 2, below ? 2 : 40), W - 2 - bw); // clear of the ⤢ button at the top left
+  const nx = Math.min(Math.max(px, bx + 12), bx + bw - 12);
+  // midnight: a dashed line with the new day's date, so a long view shows where one day ends
+  const midnights: number[] = [];
+  for (let m = new Date(t0).setHours(24, 0, 0, 0); m < now; m = new Date(m).setHours(24, 0, 0, 0)) midnights.push(m);
   return (
-    <svg ref={svgRef} viewBox={`0 0 ${W} ${HH}`} className="h-full w-full" direction="ltr" role="img" aria-label={t('السكر آخر 12 ساعة')} style={{ touchAction: 'none' }}
+    <svg ref={svgRef} viewBox={`0 0 ${W} ${HH}`} className="h-full w-full select-none" direction="ltr" role="img" aria-label={t('السكر آخر 12 ساعة')} style={{ touchAction: 'none', WebkitUserSelect: 'none' }}
       onPointerDown={(e) => { (e.currentTarget as Element).setPointerCapture?.(e.pointerId); point(e); }} onPointerMove={point} onPointerUp={end} onPointerCancel={end} onPointerLeave={end}>
       <rect x={PL} y={y(band[1])} width={W - PL - PR} height={y(band[0]) - y(band[1])} fill="#2f8f55" opacity="0.14" />
       {ticks.map((v) => <g key={v}><line x1={PL} x2={W - PR} y1={y(v)} y2={y(v)} stroke="rgb(var(--text-3))" strokeOpacity="0.25" /><text x={W - PR + 4} y={y(v) + 4} fontSize="14" fill="#8a84a0">{glucoseText(v, unit).replace(/\.0$/, '')}</text></g>)}
@@ -319,6 +340,13 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
         ? <line x1={PL} x2={W - PR} y1={y(alarmHigh)} y2={y(alarmHigh)} stroke="#f0a020" strokeWidth="2" strokeDasharray="6 5" />
         : <text x={W - PR - 2} y={PT - 6} fontSize="12" fontWeight="700" fill="#c27a00" textAnchor="end">{glucoseText(alarmHigh, unit)} ↑</text>}
       <line x1={PL} x2={W - PR} y1={y(low)} y2={y(low)} stroke="#d6303c" strokeWidth="2" strokeDasharray="6 5" />
+      {midnights.map((m) => { const mx = x(m), lab = shortDate(m), w = lab.length * 6.4 + 14, l = mx + w + 4 > W - PR ? mx - 4 - w : mx + 4; return (
+        <g key={m} pointerEvents="none">
+          <line x1={mx} x2={mx} y1={PT} y2={PT + PH} stroke="rgb(var(--text-3))" strokeWidth="1.2" strokeDasharray="4 4" />
+          <rect x={l} y={PT + 3} width={w} height={19} rx={9.5} fill="rgb(var(--surface-2))" />
+          <text x={l + w / 2} y={PT + 16.5} fontSize="11.5" fontWeight="600" fill="rgb(var(--text))" textAnchor="middle" direction={dir()}>{lab}</text>
+        </g>
+      ); })}
       <path d={d} fill="none" stroke="rgb(var(--text))" strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" />
       {lastV !== null && <circle cx={x(lastT)} cy={y(lastV)} r="8" fill={dot} stroke="#fff" strokeWidth="3" />}
       {/* under the plot, two rows that never overlap: what she ate (meals, low treatments), then insulin and finger-pricks */}
@@ -328,10 +356,20 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
         : <g key={e.k}><circle cx={e.x} cy={rowCare} r="9" fill={PEN[e.type!]} /><text x={e.x} y={rowCare + 3.5} fontSize="10" fontWeight="700" fill="#fff" textAnchor="middle">{e.u}</text></g>)}
       {hours.map((h) => <text key={h} x={x(h)} y={HH - 3} fontSize="11" fill="#8a84a0" textAnchor="middle" opacity={pick ? 0.25 : 1}>{clock(h)}</text>)}
       {pick && <g pointerEvents="none">
-        <line x1={px} x2={px} y1={PT} y2={PT + PH} stroke="rgb(var(--text))" strokeWidth="1.5" />
-        <circle cx={px} cy={y(pick.v)} r="5" fill="none" stroke="rgb(var(--text))" strokeWidth="2" />
-        <text x={lx} y={PT - 8} textAnchor="middle" fill="rgb(var(--text))"><tspan fontSize="21" fontWeight="800">{val}</tspan><tspan fontSize="11" fill="#8a84a0" dx="4">{uLabel}</tspan></text>
-        <text x={Math.min(Math.max(px, PL + 24), W - PR - 10)} y={HH - 2} fontSize="12" fontWeight="700" fill="rgb(var(--text))" textAnchor="middle">{clock(pick.t)}</text>
+        <line x1={px} x2={px} y1={below ? py : BH} y2={PT + PH} stroke="rgb(var(--primary-strong))" strokeWidth="3" />
+        <circle cx={px} cy={py} r="9" fill="rgb(var(--surface))" stroke="rgb(var(--primary-strong))" strokeWidth="3" />
+        <circle cx={px} cy={py} r="5" fill={`rgb(var(${tone}))`} />
+        <g style={{ filter: 'drop-shadow(0 4px 8px rgb(0 0 0 / 0.25))' }}>
+          <rect x={bx} y={by} width={bw} height={BH} rx={14} fill="rgb(var(--primary-strong))" />
+          <path d={below ? `M${nx - 7} ${by} L${nx} ${by - 7} L${nx + 7} ${by} Z` : `M${nx - 7} ${by + BH} L${nx} ${by + BH + 7} L${nx + 7} ${by + BH} Z`} fill="rgb(var(--primary-strong))" />
+        </g>
+        <text ref={l1} x={dir() === 'rtl' ? bx + bw - 11 : bx + 11} y={by + 17} fontSize="12" fontWeight="600" fill="rgb(var(--surface))" fillOpacity="0.85" textAnchor="start" direction={dir()}>{head}</text>
+        <circle cx={dir() === 'rtl' ? bx + bw - 17 : bx + 17} cy={by + 34} r="6" fill={`rgb(var(${tone}))`} stroke="rgb(var(--surface))" strokeWidth="2" />
+        <text ref={l2} x={dir() === 'rtl' ? bx + bw - 28 : bx + 28} y={by + 43} textAnchor={dir() === 'rtl' ? 'end' : 'start'} direction="ltr"><tspan fontSize="25" fontWeight="800" fill="rgb(var(--surface))">{val}</tspan><tspan fontSize="11.5" fill="rgb(var(--surface))" fillOpacity="0.8" dx="5">{uLabel}</tspan></text>
+        {(() => { const lab = clock(pick.t), w = lab.length * 7 + 16, l = Math.min(Math.max(px - w / 2, 1), W - 1 - w); return <>
+          <rect x={l} y={HH - 19} width={w} height={19} rx={9.5} fill="rgb(var(--primary-strong))" />
+          <text x={l + w / 2} y={HH - 5.5} fontSize="12" fontWeight="700" fill="rgb(var(--surface))" textAnchor="middle">{lab}</text>
+        </>; })()}
       </g>}
     </svg>
   );

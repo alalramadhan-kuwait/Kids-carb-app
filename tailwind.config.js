@@ -32,6 +32,7 @@ export default {
         ok: { DEFAULT: v('st-in-text'), soft: v('st-in-soft'), fill: v('st-in') },
         near: { DEFAULT: v('st-high-text'), soft: v('st-high-soft'), fill: v('st-high') },
         over: { DEFAULT: v('st-low-text'), soft: v('st-low-soft'), fill: v('st-low') },
+        tip: { in: v('tip-in'), high: v('tip-high'), low: v('tip-low') },
       },
     },
   },

@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-12",
+    "version": "2.66.1",
+    "notes": [
+      "لما تلمسون الرسم: القراءة صارت في فقاعة واضحة فيها اليوم والتاريخ والساعة («أمس · الأحد 11 أكتوبر · 10:52 م»)، والرقم أكبر",
+      "خط القراءة أعرض وبلون مختلف عن خط السكر، والساعة تتحرك تحت إصبعكم",
+      "منتصف الليل صار مُعلّم على الرسم بتاريخ اليوم الجديد"
+    ],
+    "notes_en": [
+      "When you touch the graph, the reading shows in a clear bubble with the day, date and time («Yesterday · Sun 11 Oct · 10:52 pm»), and a bigger number",
+      "The reading line is thicker and a different colour from the glucose line, and the time moves under your finger",
+      "Midnight is marked on the graph with the new day’s date"
+    ]
+  },
+  {
+    "date": "2026-10-12",
     "version": "2.66.0",
     "notes": [
       "تقرير «أنماط الوجبات» في تقارير الطبيب: كيف يتحرك السكر قبل وبعد الفطور والغداء والعشاء والسناكات، مع الكارب والإنسولين",

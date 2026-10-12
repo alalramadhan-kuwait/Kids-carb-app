@@ -13,6 +13,8 @@
   --st-in: 70 185 138;   --st-in-text: 31 122 85;  --st-in-soft: 227 245 236;
   --st-high: 242 165 65; --st-high-text: 143 90 0; --st-high-soft: 253 241 220;
   --st-low: 233 95 104;  --st-low-text: 184 58 68; --st-low-soft: 252 230 232;
+  /* glucose colours on the graph's reading bubble, which is dark by day and light at night */
+  --tip-in: 95 211 162; --tip-high: 245 182 90; --tip-low: 255 122 131;
   --shadow-card: 0 4px 18px rgba(91, 72, 214, 0.06);
   /* kinds of entry: each has its own colour so buttons and icons are told apart at a glance (never glucose colours) */
   --k-ins: 46 124 214;  --k-ins-soft: 227 238 251;
@@ -35,6 +37,7 @@
     --st-in: 95 211 162;   --st-in-text: 95 211 162;   --st-in-soft: 27 53 52;
     --st-high: 245 182 90; --st-high-text: 245 182 90; --st-high-soft: 58 46 34;
     --st-low: 255 122 131; --st-low-text: 255 122 131; --st-low-soft: 58 32 48;
+    --tip-in: 31 122 85; --tip-high: 143 90 0; --tip-low: 184 58 68;
     --k-ins: 116 170 240;  --k-ins-soft: 36 52 84;
     --k-carb: 240 128 196; --k-carb-soft: 72 38 64;
     --k-ex: 86 203 218;    --k-ex-soft: 26 62 70;
@@ -61,6 +64,7 @@
   --st-in: 95 211 162;   --st-in-text: 95 211 162;   --st-in-soft: 27 53 52;
   --st-high: 245 182 90; --st-high-text: 245 182 90; --st-high-soft: 58 46 34;
   --st-low: 255 122 131; --st-low-text: 255 122 131; --st-low-soft: 58 32 48;
+  --tip-in: 31 122 85; --tip-high: 143 90 0; --tip-low: 184 58 68;
   --shadow-card: none;
   color-scheme: dark;
 }

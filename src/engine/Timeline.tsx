@@ -10,7 +10,7 @@ import {
 import { cx } from '../components/ui';
 import { groupLabel, groupMarks, laneLayout, type Group, type Layer, type Mark, type MarkKind } from './events';
 import { ICONS, type IconName } from '../icons/defs';
-import { dir, t } from '../i18n';
+import { dir, locale, t } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
 import { levelOf } from './trend';
 import { LevelArrow } from '../components/Trend';
@@ -46,8 +46,16 @@ const css = (name: string, a = 1) => {
   }
   return out;
 };
-const KW = 3 * 3600000;
+const KW = 3 * 3600000, DAY = 86400000;
 const clock = kwClock;
+/** "Sun 12 Oct" / "الأحد، 12 أكتوبر" in Kuwait time */
+const kwDate = (ms: number) => new Date(ms).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kuwait', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
+const kwDayNo = (ms: number) => Math.floor((ms + KW) / DAY);
+/** the day of a moment on the graph, so a reading is never read against the wrong day: today, yesterday, or its date */
+export const dayWord = (ms: number, now: number) => {
+  const d = kwDayNo(now) - kwDayNo(ms);
+  return d === 0 ? t('اليوم') : d === 1 ? `${t('أمس')} · ${kwDate(ms)}` : kwDate(ms);
+};
 
 export function Timeline({ series, view, now, onView, range, unit, height: total, marks = [], layers, onSelect, dayParts, highlight, tracks, forecasts, ahead = 0.04, night }: {
   series: Series; view: View; now: number; onView: (v: View, opts?: { animate?: boolean }) => void;
@@ -116,6 +124,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
       g.direction = 'ltr';
     }
 
+    const nightBoxes: [number, number][] = [];
     // night: the parents' night hours, a soft tint with a moon at its top, so a long view shows which part was sleep
     if (night && !dayParts && span >= 6 * 3600000) {
       const KWO = 3 * 3600000, DAY = 86400000;
@@ -127,7 +136,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
         if (to <= start || from >= end) continue;
         const a = Math.max(0, X(from)), b = Math.min(width, X(to));
         g.fillStyle = css('--primary', 0.07); g.fillRect(a, PAD_T, b - a, plotH);
-        if (b - a > 34) { g.fillStyle = css('--text-3'); g.fillText(`☾ ${t('ليل')}`, a + 4, PAD_T + 2); }
+        if (b - a > 34) { g.fillStyle = css('--text-3'); g.fillText(`☾ ${t('ليل')}`, a + 4, PAD_T + 2); nightBoxes.push([a, a + 8 + g.measureText(`☾ ${t('ليل')}`).width]); }
       }
       g.direction = 'ltr';
     }
@@ -174,6 +183,23 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
       else if (span <= 24 * 3600000) g.fillText(t('{n} د', { n: gap.minutes }), Math.min(width - 16, Math.max(16, (a + b) / 2)), PAD_T + 14); // narrow: a compact tag
     }
     g.direction = 'ltr';
+
+    // midnight: a dashed line with the new day's date, so a long or panned view always shows which day is which
+    if (span <= 14 * DAY) {
+      g.font = '600 11px Rubik, system-ui, sans-serif'; g.textBaseline = 'middle'; g.textAlign = 'left'; g.direction = dir();
+      for (let m = (kwDayNo(start) + 1) * DAY - KW; m < end; m += DAY) {
+        const x = Math.round(X(m)) + 0.5; if (x < 2 || x > width - 2) continue;
+        g.strokeStyle = css('--text-3', 0.7); g.lineWidth = 1; g.setLineDash([3, 3]);
+        g.beginPath(); g.moveTo(x, PAD_T); g.lineTo(x, PAD_T + plotH); g.stroke(); g.setLineDash([]);
+        if (span > 3 * DAY) continue;
+        const label = kwDate(m), w = g.measureText(label).width + 12;
+        const l = x + w + 4 > width - 28 ? x - 4 - w : x + 4; // keep clear of the glucose labels on the right
+        const top = nightBoxes.some(([a, b]) => l < b && l + w > a) ? PAD_T + 20 : PAD_T + 2;
+        g.fillStyle = css('--surface-2'); g.beginPath(); g.roundRect(l, top, w, 18, 9); g.fill();
+        g.fillStyle = css('--text'); g.fillText(label, dir() === 'rtl' ? l + w - 6 : l + 6, top + 9.5);
+      }
+      g.direction = 'ltr'; g.textBaseline = 'alphabetic';
+    }
 
     // sleep: a faint band behind the trace; event times: hairlines up through the plot
     if (hasRail) {
@@ -403,13 +429,23 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
       g.strokeStyle = css('--primary-strong', 0.9); g.lineWidth = 2; g.beginPath(); g.moveTo(x, PAD_T); g.lineTo(x, PAD_T + plotH); g.stroke(); g.lineWidth = 1;
     }
     // crosshair
+    // reading under the finger: a strong line down to a time pill on the axis, and a dot in the reading's colour
     if (inspect) {
-      const x = inspect.i !== null ? X(series.t[inspect.i]) : inspect.x;
-      g.strokeStyle = css('--text'); g.lineWidth = 1; g.beginPath(); g.moveTo(Math.round(x) + 0.5, PAD_T); g.lineTo(Math.round(x) + 0.5, PAD_T + plotH + TRK); g.stroke();
+      const x = Math.round(inspect.i !== null ? X(series.t[inspect.i]) : inspect.x);
+      g.fillStyle = css('--text'); g.fillRect(x - 1.25, 0, 2.5, PAD_T + plotH + TRK);
+      if (height - PAD_B > PAD_T + plotH + TRK) { g.fillStyle = css('--text', 0.3); g.fillRect(x - 0.5, PAD_T + plotH + TRK, 1, height - PAD_B - (PAD_T + plotH + TRK)); }
+      g.font = '700 12px Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.direction = 'ltr';
+      const label = clock(inspect.i !== null ? series.t[inspect.i] : inspect.t), w = g.measureText(label).width + 16;
+      const l = Math.min(width - w - 1, Math.max(1, x - w / 2));
+      g.fillStyle = css('--text'); g.beginPath(); g.roundRect(l, height - 22, w, 21, 10.5); g.fill();
+      g.fillStyle = css('--surface'); g.fillText(label, l + w / 2, height - 11);
+      g.textBaseline = 'alphabetic';
       if (inspect.i !== null) {
-        const y = Y(series.v[inspect.i]);
-        g.fillStyle = css('--surface'); g.beginPath(); g.arc(x, y, 7, 0, 7); g.fill();
-        g.strokeStyle = css('--text'); g.lineWidth = 2; g.beginPath(); g.arc(x, y, 5, 0, 7); g.stroke();
+        const v = series.v[inspect.i], y = Y(v);
+        const tone = range.low !== null && v < range.low ? '--st-low' : range.high !== null && v > range.high ? '--st-high' : '--st-in';
+        g.fillStyle = css('--surface'); g.beginPath(); g.arc(x, y, 9, 0, 7); g.fill();
+        g.strokeStyle = css('--text'); g.lineWidth = 2.5; g.beginPath(); g.arc(x, y, 8, 0, 7); g.stroke();
+        g.fillStyle = css(tone); g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill();
       }
     }
   }, [series, view, now, range.low, range.high, range.reference, unit, width, height, inspect, marks, layers, hasRail, RAIL, dayParts, highlight, tracks, TRK, forecasts, night]);
@@ -572,10 +608,9 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
   const rate = i !== null ? rateAt(series, i) : null;
   const sign = (n: number, digits: number) => { const a = Math.abs(n).toFixed(digits); return `${Number(a) === 0 ? '' : n > 0 ? '+' : '−'}${a}`; };
   const fmtDelta = (mg: number) => unit === 'mmol' ? sign(mg / 18.016, 1) : sign(mg, 0);
-  const fmtRate = (mg: number) => unit === 'mmol' ? sign(mg / 18.016, 2) : sign(mg, 1);
   const lastT = series.t.length ? series.t[series.t.length - 1] : null;
-  // the value keeps its glucose colour, as on the graph
-  const valueTone = (v: number) => (range.low !== null && v < range.low ? 'text-over' : range.high !== null && v > range.high ? 'text-near' : 'text-ok');
+  // the value keeps its glucose colour, as on the graph (in shades made for the bubble)
+  const tipTone = (v: number) => (range.low !== null && v < range.low ? 'text-tip-low' : range.high !== null && v > range.high ? 'text-tip-high' : 'text-tip-in');
 
   return (
     <div ref={wrap} className="relative select-none" style={{ height }} dir="ltr">
@@ -584,28 +619,32 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
         onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onCancel} onWheel={onWheel}
         role="img" aria-label={t('رسم السكر {from}–{to}، {state}', { from: clock(view.end - view.span), to: clock(view.end), state: freshness(lastT, now) === 'live' ? t('مباشر') : t('غير محدّث') })}
       />
-      <div className={cx('flex items-center gap-2.5 overflow-hidden px-3 text-sm', inspect && 'absolute inset-x-2 bottom-[calc(100%+6px)] z-20 h-12 rounded-2xl border border-slate-100 bg-white shadow-lg')} dir={dir()} aria-live="polite">
-        {inspect ? (
-          <>
-            <button onClick={() => setInspect(null)} aria-label={t('إغلاق')} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg text-slate-500 active:bg-slate-50">✕</button>
-            <span className="num font-bold text-slate-600">{clock(i !== null ? series.t[i] : inspect.t)}</span>
-            {i !== null ? (
-              <>
-                <b className={cx('num text-xl', valueTone(series.v[i]))} title={unitLabel(unit)}>{formatGlucose(series.v[i], unit)}</b>
-                {rate !== null && <span className="text-slate-600"><LevelArrow level={levelOf(rate)} size={18} /></span>}
-                <span className="whitespace-nowrap text-xs text-slate-500"><b className="num text-slate-800" dir="ltr">{d15 !== null ? fmtDelta(d15) : '—'}</b> {t('خلال 15 د')}</span>
-                <span className="whitespace-nowrap text-xs text-slate-500"><b className="num text-slate-800" dir="ltr">{rate !== null ? fmtRate(rate) : '—'}</b>{t('/د')}</span>
-              </>
-            ) : <span className="text-slate-500">{t('لا توجد قراءة هنا')}</span>}
-            {tracks?.act && (i !== null ? series.t[i] : inspect.t) <= now && (
-              <span className="whitespace-nowrap text-xs text-slate-500">{t('مفعول')} <b className="num text-slate-800">{t('{v} و/س', { v: tracks.act.at(i !== null ? series.t[i] : inspect.t).toFixed(1) })}</b></span>
-            )}
-            {trackList.map((k) => { const at = i !== null ? series.t[i] : inspect.t; return at <= now && (
-              <span key={k} className="whitespace-nowrap text-xs text-slate-500">{k === 'iob' ? 'IOB' : 'COB'} <b className="num text-slate-800">{k === 'iob' ? t('{v} و', { v: tracks![k]!(at).toFixed(1) }) : t('{v} غ', { v: Math.round(tracks![k]!(at)) })}</b></span>
-            ); })}
-          </>
-        ) : null /* long-press to read a point: explained behind the graph's ⓘ */}
-      </div>
+      {inspect && (() => {
+        const at = i !== null ? series.t[i] : inspect.t;
+        const p = width ? Math.min(100, Math.max(0, (inspect.x / width) * 100)) : 50; // the bubble slides with the finger, its point under it
+        return (
+          <button type="button" onClick={() => setInspect(null)} aria-label={t('إغلاق')} dir={dir()} aria-live="polite"
+            className="absolute bottom-[calc(100%-4px)] z-20 max-w-[calc(100%-8px)] rounded-2xl bg-slate-900 px-3 py-1.5 text-start text-white shadow-lg"
+            style={{ left: `${p}%`, transform: `translateX(-${p}%)` }}>
+            <span className="block whitespace-nowrap text-xs font-semibold opacity-80"><bdi>{dayWord(at, now)}</bdi> · <bdi className="num" dir="ltr">{clock(at)}</bdi></span>
+            <span className="flex items-baseline gap-2 whitespace-nowrap">
+              {i !== null ? (
+                <>
+                  <b className={cx('num text-[28px] font-extrabold leading-tight', tipTone(series.v[i]))}>{formatGlucose(series.v[i], unit)}</b>
+                  <span className="text-xs opacity-70">{unitLabel(unit)}</span>
+                  {rate !== null && <LevelArrow level={levelOf(rate)} size={18} />}
+                  <span className="text-xs opacity-80"><b className="num text-white" dir="ltr">{d15 !== null ? fmtDelta(d15) : '—'}</b> {t('خلال 15 د')}</span>
+                </>
+              ) : <span className="py-1 text-sm opacity-80">{t('لا توجد قراءة هنا')}</span>}
+              {tracks?.act && at <= now && <span className="text-xs opacity-80">{t('مفعول')} <b className="num text-white">{t('{v} و/س', { v: tracks.act.at(at).toFixed(1) })}</b></span>}
+              {trackList.map((k) => at <= now && (
+                <span key={k} className="text-xs opacity-80">{k === 'iob' ? 'IOB' : 'COB'} <b className="num text-white">{k === 'iob' ? t('{v} و', { v: tracks![k]!(at).toFixed(1) }) : t('{v} غ', { v: Math.round(tracks![k]!(at)) })}</b></span>
+              ))}
+            </span>
+            <span aria-hidden className="absolute top-full h-0 w-0 border-x-[7px] border-t-[7px] border-x-transparent border-t-slate-900" style={{ left: `calc(${p}% - 7px)` }} />
+          </button>
+        );
+      })() /* long-press to read a point: explained behind the graph's ⓘ */}
     </div>
   );
 }
