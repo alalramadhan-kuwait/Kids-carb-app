@@ -13,10 +13,10 @@ import { fmt, unitText } from '../../lib/carbs';
 import { photoUrl } from '../../lib/supabase';
 import { TimePicker } from '../../components/TimePicker';
 import { DoseReview } from '../../components/DoseReview';
-import { toast } from '../../components/ui';
+import { cx, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import type { MealSlot, PlannedMeal } from '../../lib/types';
-import { Big, Choice, MomPage, clock, ago, okToReplace } from './MomUI';
+import { Big, MomPage, clock, ago, okToReplace } from './MomUI';
 import { plateFromLog, useCatalog } from './MomMeal';
 import { draftOps } from '../../lib/mom';
 
@@ -57,64 +57,70 @@ export function MomMealEntry() {
     void run(() => deleteHistory(h.id, me), t('انمسحت'), () => restoreHistory(h.id));
   };
   const who = whoLine(h, nameOf);
+  // one food whose name is the meal's name: its weight goes on the title's line instead of a list that repeats it
+  const single = h.lines.length === 1 && tMaybe(h.lines[0].name) === mealTitle(h) ? h.lines[0] : null;
+  const amount = (l: (typeof h.lines)[number]) => `${fmt(l.unit === 'g' || l.unit === 'ml' ? Math.round(l.quantity) : l.quantity)} ${unitText(l.unit)}`;
   return (
-    <MomPage title={t('الأكل')} back="/mom/log" foot={changed ? <Big disabled={busy} onClick={() => run(() => setEntryTime({ h }, at!, me), t('تم ✓'))}>✓ {t('احفظي')}</Big> : undefined}>
-      <div className="rounded-3xl bg-white px-4 py-3">
+    <MomPage compact title={t('الأكل')} back="/mom/log" foot={changed ? <Big md disabled={busy} onClick={() => run(() => setEntryTime({ h }, at!, me), t('تم ✓'))}>✓ {t('احفظي')}</Big> : undefined}>
+      {/* the meal in one card: what, when, carbs, each food (when more than one), who, and the way to change it */}
+      <div className="space-y-2 rounded-3xl bg-white px-4 py-3">
         <div className="flex items-start gap-3">
-          <span className="text-3xl">🍽️</span>
+          <span className="text-[26px] leading-none">🍽️</span>
           <span className="min-w-0 flex-1">
-            <b className="block text-[20px] leading-snug"><bdi>{mealTitle(h)}</bdi></b>
-            <span className="text-[15px] text-slate-500">{clock(was)} · {ago(was)}</span>
+            <b className="block text-[17px] leading-snug"><bdi>{mealTitle(h)}</bdi></b>
+            <span className="text-[13px] text-slate-500">{single && <><span className="num">{amount(single)}</span> · </>}{clock(was)} · {ago(was)}</span>
           </span>
           {unknown
-            ? <span className="shrink-0 rounded-2xl bg-near-soft px-3 py-1 text-center text-[15px] font-bold leading-tight text-near">❓<br />{t('الكارب غير معروف')}</span>
-            : <span className="shrink-0 text-center"><b className="num block text-[26px] leading-none">{fmt(h.total_carbs)}</b><span className="block text-[14px] text-slate-500">{t('غ كارب')}</span></span>}
+            ? <span className="shrink-0 rounded-2xl bg-near-soft px-3 py-1 text-center text-[14px] font-bold leading-tight text-near">❓<br />{t('الكارب غير معروف')}</span>
+            : <span className="shrink-0 text-center"><b className="num block text-[24px] leading-none">{fmt(h.total_carbs)}</b><span className="block text-[12px] text-slate-500">{t('غ كارب')}</span></span>}
         </div>
-        {who && <div className="mt-2 text-[15px] text-slate-500">{who}</div>}
+        {!single && h.lines.length > 0 && (
+          <ul className="divide-y divide-slate-100 border-t border-slate-100">
+            {h.lines.map((l, i) => (
+              <li key={i} className="flex items-baseline gap-2 py-1.5 text-[15px]">
+                <span className="min-w-0 flex-1"><bdi>{tMaybe(l.name)}</bdi> <span className="num whitespace-nowrap text-[13px] text-slate-500">· {amount(l)}</span></span>
+                <span className="num shrink-0 font-bold">{fmt(l.carbs ?? 0)} <span className="text-[12px] font-normal text-slate-500">{t('غ')}</span></span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {h.photo_path && <img src={photoUrl(h.photo_path)!} alt={t('صورة الأكل')} className="max-h-32 w-full rounded-2xl object-cover" />}
+        <div className="flex items-center justify-between gap-2">
+          <span className="min-w-0 truncate text-[13px] text-slate-500">{who}</span>
+          <button disabled={busy} onClick={() => nav(`/mom/meal-edit/${h.id}`)} className="min-h-[40px] shrink-0 rounded-full bg-brand px-4 text-[15px] font-bold text-white active:opacity-80">✏️ {unknown ? t('عرفتي الكارب؟ اكتبيه') : t('عدّلي الأكل')}</button>
+        </div>
       </div>
       {unknown && (
-        <div className="space-y-1 rounded-3xl bg-white px-4 py-3 text-[17px]">
+        <div className="space-y-1 rounded-3xl bg-white px-4 py-3 text-[16px]">
           {h.place && <div className="flex justify-between gap-3"><span className="text-slate-500">{t('وين؟')}</span><b><bdi>{h.place}</bdi></b></div>}
           {h.plate_size && <div className="flex justify-between gap-3"><span className="text-slate-500">{t('حجم الصحن')}</span><b>{t(PLATE_WORD[h.plate_size])}</b></div>}
           {h.ate && <div className="flex justify-between gap-3"><span className="text-slate-500">{t('كم أكلت منه؟')}</span><b>{t(ATE_WORD[h.ate])}</b></div>}
           {h.carbs_guess != null && <div className="flex justify-between gap-3"><span className="text-slate-500">{t('تخمين')}</span><b className="num">{t('{g} غ كارب', { g: fmt(h.carbs_guess) })}</b></div>}
-          <p className="pt-1 text-[14px] text-slate-500">{t('ما انحسبت لها إبرة. لو عرفتي الكارب من المنيو، اكتبيه.')}</p>
+          <p className="pt-1 text-[13px] text-slate-500">{t('ما انحسبت لها إبرة. لو عرفتي الكارب من المنيو، اكتبيه.')}</p>
         </div>
       )}
       {pending && (
-        <button onClick={() => nav(`/mom/ate/${h.client_id}`)} className="flex min-h-[60px] w-full items-center justify-between rounded-3xl bg-near-soft px-4 text-[18px] font-bold text-near">
-          <span>⏳ {t('كم أكلت؟')}</span><span className="text-[15px] font-normal">{t('تنحسب «كلها» تلقائيًا')} ›</span>
+        <button onClick={() => nav(`/mom/ate/${h.client_id}`)} className="flex min-h-[52px] w-full items-center justify-between rounded-3xl bg-near-soft px-4 text-[16px] font-bold text-near">
+          <span>⏳ {t('كم أكلت؟')}</span><span className="text-[13px] font-normal">{t('تنحسب «كلها» تلقائيًا')} ›</span>
         </button>
       )}
       {!pending && h.client_id && <PartLine clientId={h.client_id} />}
-      {/* what was logged: each food, how much of it (weight), and its carbs */}
-      {(h.lines.length > 0 || h.photo_path) && (
-        <div className="space-y-2 rounded-3xl bg-white px-4 py-3">
-          <div className="text-[17px] font-bold">{t('شنو أكلت؟')}</div>
-          {h.lines.length > 0 && (
-            <ul className="divide-y divide-slate-100">
-              {h.lines.map((l, i) => (
-                <li key={i} className="flex items-baseline gap-2 py-2 text-[17px]">
-                  <span className="min-w-0 flex-1"><bdi>{tMaybe(l.name)}</bdi> <span className="num whitespace-nowrap text-[15px] text-slate-500">· {fmt(l.unit === 'g' || l.unit === 'ml' ? Math.round(l.quantity) : l.quantity)} {unitText(l.unit)}</span></span>
-                  <span className="num shrink-0 font-bold">{fmt(l.carbs ?? 0)} <span className="text-[14px] font-normal text-slate-500">{t('غ كارب')}</span></span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {h.photo_path && <img src={photoUrl(h.photo_path)!} alt={t('صورة الأكل')} className="max-h-48 w-full rounded-2xl object-cover" />}
-        </div>
-      )}
-      <Big disabled={busy} onClick={() => nav(`/mom/meal-edit/${h.id}`)}>✏️ {unknown ? t('عرفتي الكارب؟ اكتبيه') : t('عدّلي الأكل')}</Big>
       <DoseReview h={h} simple />
-      <div className="text-[17px] font-bold">{t('شنو هذي؟')}</div>
-      <div className="grid grid-cols-2 gap-2">
-        {SLOT_CHOICES.map(([k, w, icon]) => <Choice key={k} compact icon={icon} label={t(w)} on={h.meal_slot === k} onClick={() => void slot(k)} />)}
+      <div className="text-[15px] font-bold">{t('شنو هذي؟')}</div>
+      {/* the four kinds in one row */}
+      <div className="grid grid-cols-4 gap-1.5">
+        {SLOT_CHOICES.map(([k, w, icon]) => (
+          <button key={k} onClick={() => void slot(k)} aria-pressed={h.meal_slot === k} disabled={busy}
+            className={cx('flex min-h-[56px] flex-col items-center justify-center rounded-2xl border-2 bg-white text-[14px] font-bold leading-tight active:opacity-80', h.meal_slot === k ? 'border-brand bg-brand-soft text-brand' : 'border-slate-200')}>
+            <span aria-hidden className="text-[20px] leading-none">{icon}</span>{t(w)}
+          </button>
+        ))}
       </div>
-      <div className="text-[17px] font-bold">{t('متى أكلت؟')}</div>
-      <TimePicker value={at ?? was} onChange={setAt} />
-      <div className="flex flex-col gap-1 pt-2">
-        {h.lines.length > 0 && <button disabled={busy} className="min-h-[48px] text-[16px] font-bold text-brand" onClick={() => { if (okToReplace()) { const r = plateFromLog(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.left); } nav('/mom/meal'); }}>🍽️ {t('نفس الأكل لوجبة جديدة')}</button>}
-        <button disabled={busy} className="min-h-[48px] text-[16px] font-bold text-over" onClick={remove}>🗑 {t('غلط · امسحيها')}</button>
+      <div className="text-[15px] font-bold">{t('متى أكلت؟')}</div>
+      <TimePicker compact value={at ?? was} onChange={setAt} />
+      <div className="grid grid-cols-2 gap-1 pt-1">
+        {h.lines.length > 0 ? <button disabled={busy} className="min-h-[44px] text-[14px] font-bold text-brand" onClick={() => { if (okToReplace()) { const r = plateFromLog(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.left); } nav('/mom/meal'); }}>🍽️ {t('نفس الأكل لوجبة جديدة')}</button> : <span />}
+        <button disabled={busy} className="min-h-[44px] text-[14px] font-bold text-over" onClick={remove}>🗑 {t('غلط · امسحيها')}</button>
       </div>
     </MomPage>
   );

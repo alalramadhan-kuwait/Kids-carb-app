@@ -1,5 +1,15 @@
 [
   {
+    "version": "3.0.1",
+    "date": "2026-10-13",
+    "notes": [
+      "صفحة الأكل من السجل صارت في شاشة وحدة: الأكل وكاربه ووقته ونوعه وزر التعديل بدون نزول."
+    ],
+    "notes_en": [
+      "A meal opened from the Log now fits on one screen: the food, its carbs, time, kind and the edit button without scrolling."
+    ]
+  },
+  {
     "version": "3.0.0",
     "date": "2026-10-12",
     "notes": [

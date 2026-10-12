@@ -10,7 +10,7 @@ const startOfDay = (ms: number) => { const d = new Date(ms); d.setHours(0, 0, 0,
  * When something happened, time first (as in Gluroo): the day is a small −1 / +1 stepper, the time is big and opens
  * the phone's hour–minute wheel, and ±5 / ±15 minute nudges cover most corrections. Never later than now.
  */
-export function TimePicker({ value, onChange }: { value: number; onChange: (ms: number) => void }) {
+export function TimePicker({ value, onChange, compact }: { value: number; onChange: (ms: number) => void; /** two rows: the day steppers beside the time */ compact?: boolean }) {
   const now = Date.now(), max = now + 5 * MIN;
   const set = (ms: number) => onChange(Math.min(ms, max));
   const d = new Date(value);
@@ -21,6 +21,33 @@ export function TimePicker({ value, onChange }: { value: number; onChange: (ms: 
   const clock = new Date(value).toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit', hour12: true, numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
   const step = 'min-h-[40px] rounded-xl bg-slate-50 px-3 text-sm font-medium text-slate-700 active:bg-slate-100 disabled:opacity-40';
 
+  const wheel = (
+    <input type="time" aria-label={t('الوقت')} className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      value={`${p2(d.getHours())}:${p2(d.getMinutes())}`}
+      onChange={(e) => { const [h, m] = e.target.value.split(':').map(Number); if (Number.isNaN(h) || Number.isNaN(m)) return; const x = new Date(value); x.setHours(h, m, 0, 0); set(x.getTime()); }} />
+  );
+  const nudges = (
+    <div className="grid grid-cols-5 gap-1.5">
+      {[-15, -5].map((m) => <button key={m} type="button" className={step} onClick={() => set(value + m * MIN)} dir="ltr">{m}{t('د')}</button>)}
+      <button type="button" className={cx(step, 'bg-brand-soft text-brand')} onClick={() => set(now)}>{t('الآن')}</button>
+      {[5, 15].map((m) => <button key={m} type="button" className={step} disabled={value + m * MIN > max} onClick={() => set(value + m * MIN)} dir="ltr">+{m}{t('د')}</button>)}
+    </div>
+  );
+  if (compact) return (
+    <div className="space-y-1.5">
+      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1.5">
+        <button type="button" className={step} onClick={() => set(value - DAY)}>{t('−1 يوم')}</button>
+        <label className="relative block">
+          <span className="flex min-h-[52px] w-full flex-col items-center justify-center rounded-2xl bg-brand-soft leading-tight text-brand">
+            <span className="num text-[24px] font-bold" dir="ltr">{clock}</span><span className="text-[12px] font-medium">{dayLabel}</span>
+          </span>
+          {wheel}
+        </label>
+        <button type="button" className={step} disabled={value + DAY > max} onClick={() => set(value + DAY)}>{t('+1 يوم')}</button>
+      </div>
+      {nudges}
+    </div>
+  );
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
