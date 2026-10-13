@@ -8,6 +8,7 @@ import {
   type Series, type View,
 } from './series';
 import { cx } from '../components/ui';
+import { prickPoints } from './prick';
 import { groupLabel, groupMarks, laneLayout, type Group, type Layer, type Mark, type MarkKind } from './events';
 import { ICONS, type IconName } from '../icons/defs';
 import { dir, locale, t } from '../i18n';
@@ -15,7 +16,7 @@ import { KIND_STYLE } from '../lib/kinds';
 import { levelOf } from './trend';
 import { LevelArrow } from '../components/Trend';
 
-const MARK_ICON: Record<MarkKind, IconName> = { meal: 'meals', carbs: 'carbs', insulin: 'insulin', basal: 'insulin', treatment: 'treatment', exercise: 'activity', note: 'note', sleep: 'moon' };
+const MARK_ICON: Record<MarkKind, IconName> = { meal: 'meals', carbs: 'carbs', insulin: 'insulin', basal: 'insulin', treatment: 'treatment', exercise: 'activity', note: 'note', sleep: 'moon', bg_check: 'glucose' };
 const iconPaths = new Map<IconName, Path2D[]>();
 const pathsOf = (n: IconName) => { let p = iconPaths.get(n); if (!p) { p = (ICONS[n] as { d: string[] }).d.map((d) => new Path2D(d)); iconPaths.set(n, p); } return p; };
 
@@ -109,6 +110,9 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
     const runs = runsFor(series, start, end, width);
     let maxV: number | null = null, minV: number | null = null;
     for (const r of runs) for (const v of r.v) { if (maxV === null || v > maxV) maxV = v; if (minV === null || v < minV) minV = v; }
+    // finger-pricks in view, drawn at their own value: the scale keeps them on the graph
+    const pricks = layers?.has('pricks') ? marks.filter((m) => m.kind === 'bg_check' && m.bg && m.t >= start && m.t <= end) : [];
+    for (const m of pricks) { if (maxV === null || m.bg! > maxV) maxV = m.bg!; if (minV === null || m.bg! < minV) minV = m.bg!; }
     const [y0, y1] = yDomain(maxV, minV, range.high);
     const Y = (v: number) => PAD_T + plotH - ((Math.min(Math.max(v, y0), y1) - y0) / (y1 - y0)) * plotH;
     const X = (t: number) => ((t - start) / span) * width;
@@ -327,6 +331,23 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
         }
       }
       g.restore();
+    }
+    // finger-pricks: a diamond at the finger's value, a dotted line to the sensor's reading at that moment, the value
+    if (pricks.length) {
+      const pts = prickPoints(pricks.map((m) => ({ t: m.t, bg: m.bg! })), series.t, series.v);
+      g.font = '800 12.5px Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.direction = 'ltr';
+      for (const p of pts) {
+        const x = X(p.t), y = Y(p.bg), ly = p.libre === null ? null : Y(p.libre);
+        if (ly !== null && Math.abs(ly - y) > 8) {
+          g.strokeStyle = css('--k-bg'); g.lineWidth = 2; g.setLineDash([2, 3]); g.lineCap = 'round';
+          g.beginPath(); g.moveTo(x, ly); g.lineTo(x, y); g.stroke(); g.setLineDash([]); g.lineCap = 'butt';
+        }
+        g.fillStyle = css('--surface'); g.beginPath(); g.moveTo(x, y - 9); g.lineTo(x + 9, y); g.lineTo(x, y + 9); g.lineTo(x - 9, y); g.closePath(); g.fill();
+        g.fillStyle = css('--k-bg'); g.beginPath(); g.moveTo(x, y - 7); g.lineTo(x + 7, y); g.lineTo(x, y + 7); g.lineTo(x - 7, y); g.closePath(); g.fill();
+        const up = y > PAD_T + 20 && (ly === null || ly >= y - 4), ty = up ? y - 12 : y + 21, label = formatGlucose(p.bg, unit);
+        g.lineWidth = 3.5; g.strokeStyle = css('--surface'); g.lineJoin = 'round'; g.strokeText(label, x, ty);
+        g.fillStyle = css('--k-bg'); g.fillText(label, x, ty); g.lineWidth = 1;
+      }
     }
     // newest reading
     const n = series.t.length;

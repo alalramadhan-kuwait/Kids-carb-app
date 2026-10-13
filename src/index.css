@@ -22,6 +22,7 @@
   --k-ex: 14 141 160;   --k-ex-soft: 222 243 246;
   --k-sleep: 79 91 213; --k-sleep-soft: 230 232 251;
   --k-note: 100 116 139; --k-note-soft: 236 239 243;
+  --k-bg: 180 35 24;    --k-bg-soft: 252 232 230;
 
   color-scheme: light;
 }
@@ -43,12 +44,14 @@
     --k-ex: 86 203 218;    --k-ex-soft: 26 62 70;
     --k-sleep: 150 158 245; --k-sleep-soft: 46 48 92;
     --k-note: 170 180 196; --k-note-soft: 58 58 74;
+    --k-bg: 255 138 128;   --k-bg-soft: 70 34 40;
 
     --k-ins: 116 170 240;  --k-ins-soft: 36 52 84;
     --k-carb: 240 128 196; --k-carb-soft: 72 38 64;
     --k-ex: 86 203 218;    --k-ex-soft: 26 62 70;
     --k-sleep: 150 158 245; --k-sleep-soft: 46 48 92;
     --k-note: 170 180 196; --k-note-soft: 58 58 74;
+    --k-bg: 255 138 128;   --k-bg-soft: 70 34 40;
 
     --shadow-card: none;
     color-scheme: dark;

@@ -3,7 +3,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as PE } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
-import { syncComparisons } from '../../lib/fingerprick';
+import { useComparisons } from '../../lib/fingerprick';
+import { nightOf } from '../../lib/schedule';
+import { formatGlucose } from '../../lib/glucose';
 import { useGlucose } from '../../hooks/useGlucose';
 import { fetchSeries } from '../../engine/useSeries';
 import { mergeSeries, type Series } from '../../engine/series';
@@ -29,7 +31,8 @@ import noReadingPng from '../../assets/layan/layan-no-reading.png';
 import noReadingWebp from '../../assets/layan/layan-no-reading.webp';
 import { Big, okToReplace, PEN, PEN_NAME, PenBar, TABS_PAD, ago, clock, dayWord, glucoseText, left, sensorLeft, span } from './MomUI';
 import { Icon } from '../../components/Icon';
-import type { Settings } from '../../lib/types';
+import type { EventRow, Settings } from '../../lib/types';
+import { inNight, prickHint, prickPoints, sensorBias, type PrickPoint } from '../../engine/prick';
 
 const H = 3600000;
 const ARROW: Record<number, string> = { [-3]: '⇊', [-2]: '↓', [-1]: '↘', 0: '→', 1: '↗', 2: '↑', 3: '⇈' };
@@ -55,7 +58,7 @@ export function MomHome() {
   }, []);
   const { settings: s, events, history } = useData();
   // a finger-prick is compared with the sensor once its readings are in: done here, in the background, so nobody has to open a page for it
-  useEffect(() => { void syncComparisons(events, history).catch(() => {}); }, [events, history]);
+  const { rows: comparisons } = useComparisons(events, history);
   const { g } = useGlucose();
   const [now, setNow] = useState(Date.now());
   const [full, setFull] = useState(false);
@@ -107,6 +110,11 @@ export function MomHome() {
   const juiceDue = juice ? Date.parse(juice.occurred_at) + recheckMin * 60000 : 0;
   const ack = () => { if (!juice) return; try { localStorage.setItem('mom-juice-ack', juice.id); } catch { /* blocked */ } setAcked(juice.id); };
 
+  // finger-pricks: when one is worth taking (a low that is not urgent, a fast fall at night), and how this sensor
+  // reads against the finger. Words only: alerts, the box above and the dose stay as they are.
+  const lastPrick = events.filter((e) => e.kind === 'bg_check' && !e.deleted_at).reduce<number | null>((m, e) => Math.max(m ?? 0, Date.parse(e.occurred_at)), null);
+  const hint = prickHint({ v: latest?.mg_dl ?? null, at, rate: tr?.rate ?? null, low, urgentLow: s.alert_urgent_low_mgdl ?? 54, now, lastPrick, night: inNight(now, nightOf(s)) });
+  const bias = sensorBias(comparisons ?? [], sensor?.sn ?? null);
   const big = '!min-h-[52px] !text-[18px]', small = '!min-h-[48px] !px-1 !text-[16px]';
   return (
     // one fixed screen: nothing scrolls; the graph takes whatever room is left
@@ -132,9 +140,22 @@ export function MomHome() {
             shots={shots.map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
             meals={history.filter((h) => (h.total_carbs ?? 99) >= 5).map((h) => Date.parse(h.eaten_at))}
             treats={events.filter((e) => e.kind === 'treatment' && !e.deleted_at).map((e) => Date.parse(e.occurred_at))}
-            pricks={events.filter((e) => e.kind === 'bg_check' && !e.deleted_at).map((e) => Date.parse(e.occurred_at))} />}
+            pricks={pricksOf(events)} />}
         </div>
       </div>
+
+      {hint ? (
+        <Link to="/mom/prick" className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-2xl bg-kbg-soft px-3 py-1.5 text-kbg">
+          <span className="text-xl">🩸</span>
+          <span className="min-w-0 flex-1 leading-tight"><b className="block text-[15px]">{hint === 'check_low' ? t('تأكدي بوخزة إصبع') : t('نزول سريع بالليل: تأكدي بوخزة')}</b>
+            <span className="block text-[12.5px] opacity-90">{hint === 'check_low' ? t('إذا عليها أعراض عالجيها على طول') : t('أحيانًا يكون ضغط على الحساس')}</span></span><span>›</span>
+        </Link>
+      ) : bias && bias.gap !== 'same' ? (
+        <div className="flex shrink-0 items-center gap-2 px-3 text-[13px] leading-tight text-slate-500">
+          <span className="text-kbg">◆</span>
+          <span>{bias.gap === 'sensor_lower' ? t('هذا الحساس يقرأ أقل من الإصبع بـ ~{v}', { v: formatGlucose(bias.mgdl, unit) }) : t('هذا الحساس يقرأ أعلى من الإصبع بـ ~{v}', { v: formatGlucose(bias.mgdl, unit) })} · {t('من {n} وخزات', { n: bias.n })}</span>
+        </div>
+      ) : null}
 
       <div className="shrink-0 space-y-1.5 rounded-3xl border border-slate-100 bg-white p-1.5">
         {/* the last of each pen side by side: name and units, then how long ago */}
@@ -265,12 +286,13 @@ const dayNo = (ms: number) => { const d = new Date(ms); return Date.UTC(d.getFul
 /** the day of a reading on the graph, so it is never read against the wrong day: today, yesterday and its date, or its date */
 const graphDay = (ms: number, now: number) => { const d = dayNo(now) - dayNo(ms); return d === 0 ? t('اليوم') : d === 1 ? `${t('أمس')} · ${shortDate(ms)}` : shortDate(ms); };
 
-export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, meals, treats, pricks, at, span = 12 }: { span?: number; at?: number | null; treats: number[]; pricks: number[]; aspect: number; s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: number[] }) {
+export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, meals, treats, pricks, at, span = 12 }: { span?: number; at?: number | null; treats: number[]; pricks: { t: number; bg: number }[]; aspect: number; s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: number[] }) {
   const W = 340, PL = 6, PR = 30, PT = 26, HH = Math.max(180, Math.round(W * aspect)), PH = HH - PT - 58;
   const t0 = now - span * H; // hours shown (12 at home)
   // the scale: a few fixed steps chosen by the highest reading in these hours (see bigGraphScale)
   let maxSeen: number | null = null;
   for (let i = 0; i < s.t.length; i++) if (s.t[i] >= t0 && s.t[i] <= now + 60000 && (maxSeen === null || s.v[i] > maxSeen)) maxSeen = s.v[i];
+  for (const p of pricks) if (p.t >= t0 && p.t <= now && (maxSeen === null || p.bg > maxSeen)) maxSeen = p.bg; // a prick above the line stays on the graph
   const { top, bottom, ticks } = bigGraphScale(maxSeen, unit);
   const XR = W - PR - 9; // the newest dot stays clear of the axis numbers
   const x = (t: number) => PL + ((t - t0) / (span * H)) * (XR - PL);
@@ -298,27 +320,36 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
     let best = pts[0]; for (const p of pts) if (Math.abs(p.t - tt) < Math.abs(best.t - tt)) best = p;
     return Math.abs(best.t - tt) <= 30 * 60000 ? best : null;
   };
+  // finger-pricks at their own value, each beside the sensor's reading at that moment (engine/prick.ts)
+  const fp = prickPoints(pricks.filter((p) => p.t >= t0 && p.t <= now).sort((a, b) => a.t - b.t), s.t, s.v);
+  const pickAt = (tt: number): Pick | null => {
+    let pr: PrickPoint | null = null;
+    for (const p of fp) if (Math.abs(x(p.t) - x(tt)) <= 10 && (!pr || Math.abs(p.t - tt) < Math.abs(pr.t - tt))) pr = p; // a finger near the diamond reads the prick
+    if (pr) return { t: pr.t, v: pr.bg, prick: pr };
+    return nearest(tt);
+  };
   // opened from a "Rawan added …" push: start on the time of that entry
-  const [pick, setPick] = useState<{ t: number; v: number } | null>(() => (at && at >= t0 ? nearest(at) : null));
+  const [pick, setPick] = useState<Pick | null>(() => (at && at >= t0 ? pickAt(at) : null));
   const svgRef = useRef<SVGSVGElement>(null);
   const point = (e: PE) => {
     const r = svgRef.current?.getBoundingClientRect(); if (!r || !pts.length) return;
     const k = Math.min(r.width / W, r.height / HH); // the svg keeps its aspect, centred in its box
     const vx = (e.clientX - r.left - (r.width - W * k) / 2) / k;
-    setPick(nearest(t0 + ((vx - PL) / (XR - PL)) * span * H));
+    setPick(pickAt(t0 + ((vx - PL) / (XR - PL)) * span * H));
   };
   const end = () => setPick(null);
   const px = pick ? x(pick.t) : 0;
   const rowFood = PT + PH + 12, rowCare = PT + PH + 31;
   const inView = (t: number) => t >= t0 && t <= now;
   const food = lane([...meals.filter(inView).map((t) => ({ t, treat: false })), ...treats.filter(inView).map((t) => ({ t, treat: true }))], x, W - PR);
-  const care = lane([...shots.filter((e) => inView(e.t)), ...pricks.filter(inView).map((t) => ({ t, u: null, type: null }))] as { t: number; u: number | null; type: 'rapid' | 'long' | null }[], x, W - PR);
+  const care = lane(shots.filter((e) => inView(e.t)), x, W - PR);
   // the value sits above the plot, follows the line, and never runs off either edge
   // the reading: a purple bubble (the curve itself is dark) with the day, time and value, its point on the line;
   // above the plot, or under the point when the point is near the top
   const val = pick ? glucoseText(pick.v, unit) : '', uLabel = unit === 'mmol' ? 'mmol/L' : 'mg/dL';
   const tone = pick ? (pick.v < low ? '--st-low' : pick.v > high ? '--st-high' : '--st-in') : '--st-in';
-  const head = pick ? `${graphDay(pick.t, now)} · ${clock(pick.t)}` : '';
+  const pr = pick?.prick ?? null;
+  const head = !pick ? '' : pr ? `🩸 ${t('وخز')} ${clock(pick.t)}${pr.libre !== null ? ` · Libre ${glucoseText(pr.libre, unit)}` : ''}` : `${graphDay(pick.t, now)} · ${clock(pick.t)}`;
   const l1 = useRef<SVGTextElement>(null), l2 = useRef<SVGTextElement>(null);
   const [bw, setBw] = useState(150);
   useLayoutEffect(() => {
@@ -350,11 +381,21 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
       ); })}
       <path d={d} fill="none" stroke="rgb(var(--text))" strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" />
       {lastV !== null && <circle cx={x(lastT)} cy={y(lastV)} r="8" fill={dot} stroke="#fff" strokeWidth="3" />}
-      {/* under the plot, two rows that never overlap: what she ate (meals, low treatments), then insulin and finger-pricks */}
+      {/* finger-pricks: a diamond at the finger's value, a dotted line to the sensor's reading then, and the value */}
+      {fp.map((p) => {
+        const fx = x(p.t), fy = y(p.bg), ly = p.libre === null ? null : y(p.libre), up = fy > PT + 22 && (ly === null || ly >= fy - 4);
+        return (
+          <g key={p.t} pointerEvents="none">
+            {ly !== null && Math.abs(ly - fy) > 9 && <line x1={fx} x2={fx} y1={ly} y2={fy} stroke="rgb(var(--k-bg))" strokeWidth="2.5" strokeDasharray="2 4" strokeLinecap="round" />}
+            {ly !== null && <circle cx={fx} cy={ly} r="4" fill="rgb(var(--text))" stroke="rgb(var(--surface))" strokeWidth="2" />}
+            <path d={`M${fx} ${fy - 9}L${fx + 9} ${fy}L${fx} ${fy + 9}L${fx - 9} ${fy}Z`} fill="rgb(var(--k-bg))" stroke="rgb(var(--surface))" strokeWidth="2.5" strokeLinejoin="round" />
+            <text x={fx} y={up ? fy - 13 : fy + 23} fontSize="13" fontWeight="800" fill="rgb(var(--k-bg))" textAnchor="middle" stroke="rgb(var(--surface))" strokeWidth="3.5" paintOrder="stroke">{glucoseText(p.bg, unit)}</text>
+          </g>
+        );
+      })}
+      {/* under the plot, two rows that never overlap: what she ate (meals, low treatments), then insulin */}
       {food.map((m) => <text key={m.k} x={m.x} y={rowFood + 5} fontSize="14" textAnchor="middle">{m.treat ? '🧃' : '🍽️'}</text>)}
-      {care.map((e) => e.u == null
-        ? <text key={e.k} x={e.x} y={rowCare + 5} fontSize="14" textAnchor="middle">🩸</text>
-        : <g key={e.k}><circle cx={e.x} cy={rowCare} r="9" fill={PEN[e.type!]} /><text x={e.x} y={rowCare + 3.5} fontSize="10" fontWeight="700" fill="#fff" textAnchor="middle">{e.u}</text></g>)}
+      {care.map((e) => <g key={e.k}><circle cx={e.x} cy={rowCare} r="9" fill={PEN[e.type]} /><text x={e.x} y={rowCare + 3.5} fontSize="10" fontWeight="700" fill="#fff" textAnchor="middle">{e.u}</text></g>)}
       {hours.map((h) => <text key={h} x={x(h)} y={HH - 3} fontSize="11" fill="#8a84a0" textAnchor="middle" opacity={pick ? 0.25 : 1}>{clock(h)}</text>)}
       {pick && <g pointerEvents="none">
         <line x1={px} x2={px} y1={below ? py : BH} y2={PT + PH} stroke="rgb(var(--primary-strong))" strokeWidth="3" />
@@ -422,9 +463,12 @@ function GraphFull({ onClose, s: st, unit, low, high, band }: { onClose: () => v
           shots={events.filter((e) => e.kind === 'insulin' && !e.deleted_at && e.insulin_units).map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
           meals={history.filter((h) => (h.total_carbs ?? 99) >= 5).map((h) => Date.parse(h.eaten_at))}
           treats={events.filter((e) => e.kind === 'treatment' && !e.deleted_at).map((e) => Date.parse(e.occurred_at))}
-          pricks={events.filter((e) => e.kind === 'bg_check' && !e.deleted_at).map((e) => Date.parse(e.occurred_at))} />}
+          pricks={pricksOf(events)} />}
       </div>
     </div>
   );
 }
 const history_ = window.history;
+/** the finger-pricks to draw: time and value */
+export const pricksOf = (events: EventRow[]) => events.filter((e) => e.kind === 'bg_check' && !e.deleted_at && e.bg_mgdl).map((e) => ({ t: Date.parse(e.occurred_at), bg: e.bg_mgdl! }));
+type Pick = { t: number; v: number; prick?: PrickPoint };

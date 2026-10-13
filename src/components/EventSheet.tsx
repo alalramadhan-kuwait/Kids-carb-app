@@ -9,7 +9,7 @@ import { dir, t, tr } from '../i18n';
 
 const KW = 3 * 3600000;
 const clock = kwClock;
-const TITLE: Record<Mark['kind'], string> = tr({ meal: 'وجبة', carbs: 'كارب', insulin: 'إنسولين سريع', basal: 'إنسولين طويل', treatment: 'علاج انخفاض', exercise: 'رياضة', note: 'ملاحظة', sleep: 'نوم' }); // i18n-ok
+const TITLE: Record<Mark['kind'], string> = tr({ meal: 'وجبة', carbs: 'كارب', insulin: 'إنسولين سريع', basal: 'إنسولين طويل', treatment: 'علاج انخفاض', exercise: 'رياضة', note: 'ملاحظة', sleep: 'نوم', bg_check: 'وخز إصبع' }); // i18n-ok
 
 /** What was logged at this point of the graph, and — for a meal — what glucose did afterwards. Facts only. */
 export function EventSheet({ group, series, onClose }: { group: Group | null; series: Series; onClose: () => void }) {
@@ -69,7 +69,8 @@ function Item({ m, series, unit, events, who }: { m: Mark; series: Series; unit:
       {m.kind !== 'note' && <Row label={t('التسجيل')} value={<span dir={dir()}>{describeEvent(e)}</span>} />}
       {e.note && <Row label={t('ملاحظة')} value={<span dir="auto" className="font-normal">{e.note}</span>} />}
       {m.kind === 'insulin' && e.bolus_purpose && <Row label={t('الغرض')} value={<span dir={dir()}>{{ meal: t('لوجبة'), correction: t('تصحيح'), both: t('الاثنين') }[e.bolus_purpose]}</span>} />}
-      <Row label={t('السكر وقتها')} value={g(g0)} />
+      <Row label={m.kind === 'bg_check' ? t('Libre وقتها') : t('السكر وقتها')} value={g(g0)} />
+      {m.kind === 'bg_check' && m.bg && g0 !== null && <Row label={t('الفرق (Libre − الإصبع)')} value={delta(g0 - m.bg)} />}
       {m.kind === 'treatment' && [15, 30].map((o) => { const v = at(m.t + o * 60000); return <Row key={o} label={t('بعد {m} د', { m: o })} value={v !== null && g0 !== null ? `${g(v)} (${delta(v - g0)})` : g(v)} />; })}
       {m.kind === 'exercise' && m.end && <Row label={t('في نهايتها')} value={g(at(m.end))} />}
       {m.kind === 'sleep' && m.end && <Row label={t('عند الاستيقاظ')} value={g(at(m.end))} />}

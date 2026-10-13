@@ -1,5 +1,21 @@
 [
   {
+    "version": "3.1.0",
+    "date": "2026-10-13",
+    "notes": [
+      "وخز الإصبع صار يبين على الرسم برقمه: ◆ أحمر، وخط منقط لقراءة Libre وقتها. اضغطي عليه تشوفين الاثنين.",
+      "بعد ما تسجلين وخزة، تشوفين الإصبع وLibre جنب بعض وكم الفرق.",
+      "تحت الرسم: هذا الحساس يقرأ أقل أو أعلى من الإصبع بكم، من الوخزات.",
+      "إذا Libre واطي (مو خطير) أو نازل بسرعة بالليل، يطلع لك تذكير تتأكدين بوخزة. التنبيهات والجرعة ما تغيرت."
+    ],
+    "notes_en": [
+      "Finger-pricks now show on the graphs at their value: a red ◆ with a dotted line to Libre's reading at the time. Tap it to see both.",
+      "After logging a prick you see the finger and Libre side by side, and the difference.",
+      "Under the home graph: how much this sensor reads lower or higher than the finger, from the pricks.",
+      "When Libre shows a low that is not urgent, or a fast drop at night, a reminder suggests checking with a prick. Alerts and doses are unchanged."
+    ]
+  },
+  {
     "version": "3.0.1",
     "date": "2026-10-13",
     "notes": [

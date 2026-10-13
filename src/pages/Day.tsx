@@ -22,7 +22,7 @@ import { KIND_STYLE } from '../lib/kinds';
 
 const H = 3600000, DAY = 24 * H, KW = 3 * H;
 const clock = kwClock;
-const ICON: Record<MarkKind, IconName> = { meal: 'meals', carbs: 'carbs', insulin: 'insulin', basal: 'insulin', treatment: 'treatment', exercise: 'activity', note: 'note', sleep: 'moon' };
+const ICON: Record<MarkKind, IconName> = { meal: 'meals', carbs: 'carbs', insulin: 'insulin', basal: 'insulin', treatment: 'treatment', exercise: 'activity', note: 'note', sleep: 'moon', bg_check: 'glucose' };
 type Row = { t: number; key: string; mark?: Mark; low?: Episode };
 
 /** اليوم: what happened on one day — four numbers, the 24-hour graph, and the day's entries linked both ways. */

@@ -36,6 +36,8 @@ const loadLayers = (): Set<Layer> => {
       if (!localStorage.getItem('layers_forecast')) { set.add('forecast'); localStorage.setItem('layers_forecast', '1'); localStorage.setItem('layers', JSON.stringify([...set])); }
       // the family reads insulin as its activity (rising to a peak, then easing off), as on Now: once, the activity
       // replaces the amount left (IOB); either can be switched back in Layers
+      // finger-pricks arrived on the graph after the choice was saved: on once
+      if (!localStorage.getItem('layers_pricks')) { set.add('pricks'); localStorage.setItem('layers_pricks', '1'); localStorage.setItem('layers', JSON.stringify([...set])); }
       if (!localStorage.getItem('layers_act')) { set.add('act'); set.delete('iob'); localStorage.setItem('layers_act', '1'); localStorage.setItem('layers', JSON.stringify([...set])); }
       return set;
     }

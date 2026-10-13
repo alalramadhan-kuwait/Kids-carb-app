@@ -11,5 +11,5 @@ export const KIND_STYLE: Record<KindKey, { solid: string; soft: string; icon: st
   exercise: { solid: 'bg-kex text-white', soft: 'bg-kex-soft text-kex', icon: 'bg-kex-soft text-kex', token: '--k-ex' },
   sleep: { solid: 'bg-ksleep text-white', soft: 'bg-ksleep-soft text-ksleep', icon: 'bg-ksleep-soft text-ksleep', token: '--k-sleep' },
   note: { solid: 'bg-knote text-white', soft: 'bg-knote-soft text-knote', icon: 'bg-knote-soft text-knote', token: '--k-note' },
-  bg_check: { solid: 'bg-knote text-white', soft: 'bg-knote-soft text-knote', icon: 'bg-knote-soft text-knote', token: '--k-note' },
+  bg_check: { solid: 'bg-kbg text-white', soft: 'bg-kbg-soft text-kbg', icon: 'bg-kbg-soft text-kbg', token: '--k-bg' },
 };

@@ -6,12 +6,13 @@ import { t } from '../i18n';
 
 const MIN = 60000;
 
-export type Layer = 'meals' | 'insulin' | 'treatment' | 'basal' | 'exercise' | 'notes' | 'sleep' | 'iob' | 'act' | 'cob' | 'forecast';
+export type Layer = 'meals' | 'insulin' | 'treatment' | 'pricks' | 'basal' | 'exercise' | 'notes' | 'sleep' | 'iob' | 'act' | 'cob' | 'forecast';
 // labels stay Arabic here and are shown with t(l.label)
 export const LAYERS: { id: Layer; label: string; on: boolean }[] = [
   { id: 'meals', label: 'الوجبات والكارب', on: true }, // i18n-ok
   { id: 'insulin', label: 'الإنسولين السريع', on: true }, // i18n-ok
   { id: 'treatment', label: 'علاج الانخفاض', on: true }, // i18n-ok
+  { id: 'pricks', label: 'وخز الإصبع', on: true }, // i18n-ok
   { id: 'basal', label: 'الإنسولين الطويل', on: false }, // i18n-ok
   { id: 'exercise', label: 'الرياضة', on: false }, // i18n-ok
   { id: 'notes', label: 'الملاحظات', on: false }, // i18n-ok
@@ -23,10 +24,12 @@ export const LAYERS: { id: Layer; label: string; on: boolean }[] = [
 ];
 export const defaultLayers = () => new Set(LAYERS.filter((l) => l.on).map((l) => l.id));
 
-export type MarkKind = 'meal' | 'carbs' | 'insulin' | 'basal' | 'treatment' | 'exercise' | 'note' | 'sleep';
+export type MarkKind = 'meal' | 'carbs' | 'insulin' | 'basal' | 'treatment' | 'exercise' | 'note' | 'sleep' | 'bg_check';
 export interface Mark {
   key: string; t: number; end?: number; kind: MarkKind; layer: Layer;
   carbs?: number; units?: number; name?: string;
+  /** a finger-prick's value, mg/dL */
+  bg?: number;
   /** a meal whose carbs are not known (ate out) */
   unknown?: boolean;
   event?: EventRow; meal?: HistoryEntry;
@@ -45,6 +48,7 @@ export function buildMarks(history: HistoryEntry[], events: EventRow[]): Mark[] 
       case 'carbs': out.push({ ...base, kind: 'carbs', layer: 'meals', carbs: e.carbs_g ?? undefined }); break;
       case 'treatment': out.push({ ...base, kind: 'treatment', layer: 'treatment', carbs: e.carbs_g ?? undefined }); break;
       case 'exercise': out.push({ ...base, kind: 'exercise', layer: 'exercise', end: t + (e.activity_min ?? 0) * MIN }); break;
+      case 'bg_check': if (e.bg_mgdl) { out.push({ ...base, kind: 'bg_check', layer: 'pricks', bg: e.bg_mgdl }); break; } out.push({ ...base, kind: 'note', layer: 'notes' }); break;
       case 'sleep': out.push({ ...base, kind: 'sleep', layer: 'sleep', end: e.ends_at ? Date.parse(e.ends_at) : t }); break;
       default: out.push({ ...base, kind: 'note', layer: 'notes' });
     }
@@ -69,15 +73,16 @@ export function groupMarks(marks: Mark[], layers: Set<Layer>, start: number, end
 
 /** Short rail label: "45 غ + 3 و", with a hypo treatment kept apart ("علاج 15 غ") so it is never read as meal carbs. */
 export function groupLabel(g: Group): string {
-  let carbs = 0, units = 0, treat = 0, unknown = false;
+  let carbs = 0, units = 0, treat = 0, prick = false, unknown = false;
   for (const m of g.marks) {
     if (m.unknown) unknown = true;
     if (m.kind === 'meal' || m.kind === 'carbs') carbs += m.carbs ?? 0;
     if (m.kind === 'treatment') treat += m.carbs ?? 0;
     if (m.kind === 'insulin') units += m.units ?? 0;
+    if (m.kind === 'bg_check') prick = true;
   }
   const r = (n: number) => String(Math.round(n * 10) / 10);
-  return [carbs ? t('{v} غ', { v: r(carbs) }) + (unknown ? ' + ?' : '') : unknown ? t('كارب ؟') : '', units ? t('{v} و', { v: r(units) }) : '', treat ? t('علاج {v} غ', { v: r(treat) }) : ''].filter(Boolean).join(' + ');
+  return [carbs ? t('{v} غ', { v: r(carbs) }) + (unknown ? ' + ?' : '') : unknown ? t('كارب ؟') : '', units ? t('{v} و', { v: r(units) }) : '', treat ? t('علاج {v} غ', { v: r(treat) }) : '', prick ? t('وخز') : ''].filter(Boolean).join(' + ');
 }
 
 /**

@@ -2915,5 +2915,50 @@ console.log('food search ranking');
   });
 }
 
+console.log('finger-pricks on the graphs');
+{
+  const { prickPoints, gapOf, sensorBias, prickHint } = await import('../../engine/prick');
+  const await_inNight = await import('../../engine/prick');
+  const M = 60000;
+  test('prick: matched to the nearest sensor reading within 7 minutes; none further away', () => {
+    const st = [0, 5 * M, 10 * M, 30 * M], sv = [60, 62, 65, 90];
+    const [a, b] = prickPoints([{ t: 6 * M, bg: 112 }, { t: 20 * M, bg: 100 }], st, sv);
+    assert.deepEqual(a, { t: 6 * M, bg: 112, libre: 62, diff: -50 });
+    assert.equal(b.libre, null); assert.equal(b.diff, null);
+    assert.equal(prickPoints([{ t: 0, bg: 90 }], [], []).length, 1, 'no readings, still shown');
+  });
+  test('prick: under 0.5 mmol/L apart counts as the same', () => {
+    assert.deepEqual([gapOf(8), gapOf(-8.9), gapOf(-9), gapOf(12), gapOf(null)], ['same', 'same', 'sensor_lower', 'sensor_higher', 'none']);
+  });
+  test('sensor bias: the median over steady comparisons of this sensor only; lag, fast change and night pressure left out', () => {
+    const r = (sn: string, d: number, cause = 'sensor_bias') => ({ sensor_sn: sn, diff_mgdl: d, cause, taken_at: '' });
+    const rows = [r('A', -20), r('A', -25), r('A', -10, 'agrees'), r('A', -60, 'compression'), r('A', 30, 'cgm_lag'), r('B', 40)];
+    assert.deepEqual(sensorBias(rows, 'A'), { gap: 'sensor_lower', mgdl: 20, n: 3 });
+    assert.equal(sensorBias(rows, 'B'), null, 'one comparison is too few');
+    assert.equal(sensorBias(rows, null), null);
+    assert.equal(sensorBias([r('C', 5), r('C', -4, 'agrees'), r('C', 2), r('C', 3)], 'C')!.gap, 'same');
+  });
+  test('prick hint: a low that is not urgent, or a fast fall at night; never right after a prick or on an old reading', () => {
+    const base = { v: 65, at: 0, rate: 0, low: 70, urgentLow: 54, now: 2 * M, lastPrick: null, night: false };
+    assert.equal(prickHint(base), 'check_low');
+    assert.equal(prickHint({ ...base, v: 50 }), null, 'urgent low: treat, no hint');
+    assert.equal(prickHint({ ...base, lastPrick: -5 * M }), null, 'pricked a few minutes ago');
+    assert.equal(prickHint({ ...base, lastPrick: -30 * M }), 'check_low');
+    assert.equal(prickHint({ ...base, now: 20 * M }), null, 'reading too old');
+    assert.equal(prickHint({ ...base, v: 95, rate: -2.5, night: true }), 'night_drop');
+    assert.equal(prickHint({ ...base, v: 95, rate: -2.5, night: false }), null, 'by day a fall is not a pressure sign');
+    assert.equal(prickHint({ ...base, v: 140, rate: -3, night: true }), null, 'still well above the low');
+    assert.equal(prickHint({ ...base, v: null }), null);
+  });
+  test('night hours: a window across midnight, in Kuwait time', () => {
+    const { inNight } = await_inNight;
+    const at = (h: number, m = 0) => Date.UTC(2026, 9, 13, h - 3, m);
+    assert.equal(inNight(at(23), { start: '22:00', end: '06:00' }), true);
+    assert.equal(inNight(at(5, 59), { start: '22:00', end: '06:00' }), true);
+    assert.equal(inNight(at(6), { start: '22:00', end: '06:00' }), false);
+    assert.equal(inNight(at(14), { start: '13:00', end: '15:00' }), true);
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);

@@ -28,6 +28,7 @@ export default {
         kex: { DEFAULT: v('k-ex'), soft: v('k-ex-soft') },
         ksleep: { DEFAULT: v('k-sleep'), soft: v('k-sleep-soft') },
         knote: { DEFAULT: v('k-note'), soft: v('k-note-soft') },
+        kbg: { DEFAULT: v('k-bg'), soft: v('k-bg-soft') },
         // medical colours: DEFAULT is the readable text colour, soft is the chip background
         ok: { DEFAULT: v('st-in-text'), soft: v('st-in-soft'), fill: v('st-in') },
         near: { DEFAULT: v('st-high-text'), soft: v('st-high-soft'), fill: v('st-high') },
