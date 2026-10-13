@@ -1,5 +1,15 @@
 [
   {
+    "version": "3.2.0",
+    "date": "2026-10-13",
+    "notes": [
+      "«أضيفي وجبة» ← «الماركات»: اختاري الماركة (المطاحن، KDD، لوزين…) وتطلع لك منتجاتها، الأكثر أكلًا أول."
+    ],
+    "notes_en": [
+      "«Add a meal» → «Brands»: pick a brand (Flour Mills, KDD, Lauzin…) to see its foods, the ones she has most often first."
+    ]
+  },
+  {
     "version": "3.1.1",
     "date": "2026-10-13",
     "notes": [

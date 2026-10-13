@@ -25,7 +25,8 @@ export function MomFind() {
   const d = useDraft();
   const [sp] = useSearchParams();
   const [q, setQ] = useUrlQuery();
-  const browse = sp.get('browse') as 'recipes' | 'restaurants' | 'groups' | 'all' | null;
+  const browse = sp.get('browse') as 'recipes' | 'restaurants' | 'groups' | 'brands' | 'all' | null;
+  const brand = sp.get('b'); // one brand's foods (browse=brands)
   const { meals } = useSavedMeals();
   const { history } = useData();
   const { c, mealCarbs, carbsLine, itemCarbs, nameOf } = useCatalog();
@@ -51,6 +52,12 @@ export function MomFind() {
     : { names: [f.x.name, f.x.name_ar, f.x.name_en], others: f.kind === 'product' ? [f.x.brand, f.x.category] : [f.x.category],
       fav: fav(f.kind, f.x.id), uses: uses.get(`${f.kind}:${f.x.id}`) ?? 0, home: f.kind === 'product' ? f.x.available !== false : true, label: shownName(f.x) }) : [];
 
+  // brands from the shop (restaurants have their own page): the biggest first; one brand's foods, most eaten first
+  const brands = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of products) { const b = p.brand?.trim(); if (b && !restaurantOf(b)) m.set(b, (m.get(b) ?? 0) + 1); }
+    return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [products]);
   const open = (kind: 'product' | 'recipe', id: string) => nav(`/mom/item/${kind}/${id}`);
   const takeMeal = (m: SavedMeal) => { if (d.items.length) m.items.forEach((i) => draftOps.add({ ...i } as MomItem)); else draftOps.load(m); nav('/mom/meal'); };
   const row = (f: Food) => {
@@ -104,6 +111,23 @@ export function MomFind() {
       {recentPicks.length ? <div className="space-y-2">{recentPicks.map(pickRow)}</div> : <p className="text-[14px] text-slate-500">{t('ما في شي بعد')}</p>}
     </MomPage>
   );
+  if (browse === 'brands') {
+    const mine = brand ? products.filter((p) => p.brand?.trim() === brand).sort((a, b) => (uses.get('product:' + b.id) ?? 0) - (uses.get('product:' + a.id) ?? 0) || shownName(a).localeCompare(shownName(b))) : [];
+    return (
+      <MomPage compact title={brand ? tMaybe(brand) : t('الماركات')} back={-1}>
+        {brand ? <div className="space-y-2">{mine.map((x) => row({ kind: 'product', x }))}</div> : (
+          <div className="grid grid-cols-2 gap-2">
+            {brands.map(([b, n]) => (
+              <button key={b} onClick={() => nav(`/mom/add?browse=brands&b=${encodeURIComponent(b)}`)} className="flex min-h-[72px] flex-col items-center justify-center gap-0.5 rounded-2xl border border-slate-100 bg-white px-2 py-2 text-center active:opacity-80">
+                <bdi className="line-clamp-2 text-[16px] font-bold leading-snug">{tMaybe(b)}</bdi>
+                <span className="num text-[13px] text-slate-500">{n}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </MomPage>
+    );
+  }
   if (browse) return (
     <MomPage compact title={browse === 'recipes' ? t('طبخ البيت') : browse === 'restaurants' ? t('أكل المطاعم') : t('أقسام الأكل')} back={-1}>
       {browse === 'recipes' && (recipes.length ? [...recipes].sort((a, b) => Number(fav('recipe', b.id)) - Number(fav('recipe', a.id)) || (uses.get('recipe:' + b.id) ?? 0) - (uses.get('recipe:' + a.id) ?? 0)).map((r) => row({ kind: 'recipe', x: r }))
@@ -132,6 +156,7 @@ export function MomFind() {
     ['⚖️', t('عيش ومرق بالميزان'), t('احسبيه بالوزن'), () => nav('/mom/plate')],
     ['🍲', t('طبخ البيت'), t('وصفات البيت'), () => nav('/mom/add?browse=recipes')],
     ['🍔', t('أكل المطاعم'), t('منيو المطاعم'), () => nav('/mom/add?browse=restaurants')],
+    ...(brands.length ? [['🏷️', t('الماركات'), brands.slice(0, 3).map(([b]) => tMaybe(b)).join(isEn() ? ', ' : '، ' /* i18n-ok: list separator */) + '…', () => nav('/mom/add?browse=brands')] as [string, string, string, () => void]] : []),
     ...(d.mode === 'now' ? [['🍽️', t('أكل برّا'), t('ما أعرف الكارب'), () => nav('/mom/out')] as [string, string, string, () => void]] : []),
     ['🗂️', t('أقسام الأكل'), t('تصفّحي حسب النوع'), () => nav('/mom/add?browse=groups')],
     ['📷', t('مو موجود؟'), t('اكتبي الكارب من الملصق، أو أرسليه لبابا'), () => nav('/mom/new')],
