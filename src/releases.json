@@ -1,5 +1,15 @@
 [
   {
+    "version": "3.2.1",
+    "date": "2026-10-13",
+    "notes": [
+      "«قبل الأكل»: إذا نزّلتي الإبرة لـ 0 واخترتي السبب، يصير الزر «سجّلي الأكل بدون إبرة» وتختارين متى أكلت. وفيه سبب جديد: «ما احتاجت وقتها»."
+    ],
+    "notes_en": [
+      "«Before eating»: set the dose to 0 and pick a reason, and the button becomes «Save the food without a dose», with the time she ate. New reason: «She did not need it then»."
+    ]
+  },
+  {
     "version": "3.2.0",
     "date": "2026-10-13",
     "notes": [

@@ -18,6 +18,7 @@ import { toast, cx } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import type { DoseSnapshot, PlannedMeal } from '../../lib/types';
 import { Big, Choice, MomPage, ago, clock, glucoseText, left } from './MomUI';
+import { TimePicker } from '../../components/TimePicker';
 import { useCatalog } from './MomMeal';
 
 const slotNow = (): PlannedMeal['slot'] => { const h = new Date().getHours(); return h < 5 ? 'snack' : h < 10 ? 'breakfast' : h < 15 ? 'lunch' : h < 20 ? 'dinner' : 'snack'; };
@@ -26,7 +27,7 @@ const SLOT = { breakfast: 'فطور', lunch: 'غدا', dinner: 'عشا', snack: 
 const PARTS: [number, string, string][] = [[1, '🟢', 'كلها'], [0.5, '◐', 'تقريبًا نصها'], [0.25, '◔', 'شوي']]; // i18n-ok: translated where shown
 // why the number given differs, by direction (stored as said, shown via t())
 const REASONS = {
-  less: ['أكلت أقل', 'كانت نازلة', 'ما رضت', 'شي ثاني'], // i18n-ok
+  less: ['أكلت أقل', 'كانت نازلة', 'ما احتاجت وقتها', 'ما رضت', 'شي ثاني'], // i18n-ok
   more: ['أكلت أكثر', 'كان مرتفع', 'شي ثاني'], // i18n-ok
 };
 
@@ -58,6 +59,7 @@ export function MomDose() {
   const [reason, setReason] = useState<string | null>(null);
   const [why, setWhy] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [eatAt, setEatAt] = useState(() => Date.now()); // none given: when she ate (it may have been a while ago)
   // one submission: the same ids on a retry, so a weak connection cannot record the dose (or the plan) twice
   const [cid] = useSubmitId();
   const [planId] = useState(() => crypto.randomUUID());
@@ -128,14 +130,17 @@ export function MomDose() {
       else { toast(t('ما تسجّلت: الإبرة والوجبة مسجّلة من قبل')); nav('/mom', { replace: true }); }
     } catch (e) { toast((e as Error).message); setBusy(false); }
   };
-  const eatWithout = async () => {
-    if (!window.confirm(t('تسجلين الأكل بدون إبرة؟'))) return;
+  /** The food without a dose: asked first, unless she already chose 0 and said why (then it is saved at her time). */
+  const eatWithout = async (chosen?: { at: number; why: string }) => {
+    if (!chosen && !window.confirm(t('تسجلين الأكل بدون إبرة؟'))) return;
+    const at = chosen?.at ?? Date.now();
+    const notes = [chosen ? `بدون إبرة: ${chosen.why}` /* i18n-ok: stored note, the reason as stored */ : null, weighedNote(d.items)].filter(Boolean).join(' · ') || undefined;
     setBusy(true);
     try {
-      if (plan) { await ate(plan, 1, Date.now(), products, s); await reload(); toast(t('تم: الأكل بدون إبرة ✓')); nav('/mom', { replace: true }); return; }
+      if (plan) { await ate(plan, 1, at, products, s); await reload(); toast(t('تم: الأكل بدون إبرة ✓')); nav('/mom', { replace: true }); return; }
       const items = planItems(d.items, c)!;
       const meal = planMeal(items, products, s);
-      await logMeal({ kind: 'meal', recipe_id: null, name: d.name ?? SLOT[slotNow()], category: null, meal, modified: true, notes: weighedNote(d.items) ?? undefined, client_id: mealId });
+      await logMeal({ kind: 'meal', recipe_id: null, name: d.name ?? SLOT[slotNow()], category: null, meal, modified: true, notes, eatenAt: new Date(at).toISOString(), client_id: mealId });
       draftOps.clear(); await reload(); toast(t('تم: الأكل بدون إبرة ✓')); nav('/mom', { replace: true });
     } catch (e) { toast((e as Error).message); setBusy(false); }
   };
@@ -158,16 +163,19 @@ export function MomDose() {
       </div>
       {stop === 'missing' && <Big tone="soft" onClick={() => nav(backTo)}>{t('رجوع للوجبة')}</Big>}
       {stop === 'low' && <Big tone="danger" onClick={() => nav('/mom/juice')}>🧃 {t('عطيتها عصير')}</Big>}
-      {!correction && stop !== 'missing' && <Big tone="ghost" disabled={busy} onClick={eatWithout}>{t('سجّلي الأكل بدون إبرة')}</Big>}
+      {!correction && stop !== 'missing' && <Big tone="ghost" disabled={busy} onClick={() => eatWithout()}>{t('سجّلي الأكل بدون إبرة')}</Big>}
       <p className="mt-auto text-center text-sm text-slate-500">{t('كلّمي بابا قبل أي إبرة')}</p>
     </MomPage>
   );
   const differs = given !== null && given !== r.dose;
+  const none = !correction && given === 0 && r.dose > 0; // she chose no dose for this food: the food is saved on its own
   const reasons = given !== null && given > r.dose ? REASONS.more : REASONS.less;
   const leftNote = leftOut.length > 0 && !correction && <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ <bdi>{leftOut.join(' · ')}</bdi> {t('ما ينحسب بالإبرة · كلّمي بابا')}</p>;
   return (
     <MomPage title={correction ? t('إبرة تصحيح') : t('قبل الأكل')} back={backTo}
-      foot={<>{differs && !reason && <p className="text-center text-[16px] font-bold text-near">{t('اختاري السبب')}</p>}<Big disabled={busy || !given || given <= 0 || (differs && !reason)} onClick={() => save()}>💉 {t('سجّلي الإبرة')}</Big></>}>
+      foot={<>{differs && !reason && <p className="text-center text-[16px] font-bold text-near">{t('اختاري السبب')}</p>}
+        {none ? <Big disabled={busy || !reason} onClick={() => eatWithout({ at: eatAt, why: reason! })}>🍽️ {t('سجّلي الأكل بدون إبرة')}</Big>
+          : <Big disabled={busy || !given || given <= 0 || (differs && !reason)} onClick={() => save()}>💉 {t('سجّلي الإبرة')}</Big>}</>}>
       {leftNote}
       <UnknownMealNote meal={live.unknownMeal} big />
       <div className="space-y-1.5 rounded-3xl border border-slate-100 bg-white px-4 py-3 text-[17px]">
@@ -191,7 +199,7 @@ export function MomDose() {
         )}
       </div>
       {r.dose === 0 && !correction
-        ? <><p className="text-center text-[18px]">{t('ما تحتاج إبرة')}</p><Big tone="soft" disabled={busy} onClick={eatWithout}>{t('سجّلي الأكل')}</Big></>
+        ? <><p className="text-center text-[18px]">{t('ما تحتاج إبرة')}</p><Big tone="soft" disabled={busy} onClick={() => eatWithout()}>{t('سجّلي الأكل')}</Big></>
         : (
           <>
             <div className="text-center text-[17px] font-bold">{t('كم عطيتيها؟')}</div>
@@ -200,7 +208,8 @@ export function MomDose() {
               <span className="num w-20 text-center text-[48px] font-extrabold">{given === null ? '—' : fmt(given)}</span>
               <button aria-label="−" className="grid h-16 w-16 place-items-center rounded-full bg-brand-soft text-4xl font-bold text-brand" onClick={() => { setGiven(Math.max(0, Math.round(((given ?? 0) - step) * 10) / 10)); setReason(null); }}>−</button>
             </div>
-            <SiteRow type="rapid" site={site} suggest={suggest} />
+            {!none && <SiteRow type="rapid" site={site} suggest={suggest} />}
+            {none && <><div className="text-center text-[17px] font-bold">{t('متى أكلت؟')}</div><TimePicker compact value={eatAt} onChange={setEatAt} /></>}
             {differs && <div className="flex flex-wrap justify-center gap-2">{reasons.map((x) => <button key={x} onClick={() => setReason(x)} className={cx('min-h-[44px] rounded-full px-4 text-[16px]', reason === x ? 'bg-brand font-bold text-white' : 'bg-white border border-slate-200')}>{t(x)}</button>)}</div>}
           </>
         )}

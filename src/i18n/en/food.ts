@@ -1547,4 +1547,5 @@ export const food: Record<string, string> = {
   "اكتبي الكارب من الملصق، أو أرسليه لبابا": "Type the carbs from the label, or send it to Dad",
   "مو موجود؟ اكتبي كارب الملصق": "Not in the list? Type the label's carbs",
   "الماركات": "Brands",
+  "ما احتاجت وقتها": "She did not need it then",
 };
