@@ -16,13 +16,13 @@ import { dir, isEn, t } from '../i18n';
 
 export const GROUP_NAME: Record<Group, string> = { breakfast: 'الفطور', lunch: 'الغداء', dinner: 'العشاء', correction: 'التصحيح (إنسولين بدون أكل)' }; // i18n-ok: shown through t()
 const GROUP_ICON: Record<Group, string> = { breakfast: '🌅', lunch: '☀️', dinner: '🌙', correction: '💉' };
+const GROUP_SHORT: Record<Group, string> = { breakfast: 'الفطور', lunch: 'الغداء', dinner: 'العشاء', correction: 'تصحيح بدون أكل' }; // i18n-ok: shown through t()
 export const FLAG_NAME: Record<Flag, string> = { // i18n-ok: shown through t()
   overlap: 'إنسولين أو أكل من قبل لسه شغّال', tresiba: 'تريسيبا: السكر كان يتحرك لحاله قبلها', fatty: 'وجبة دسمة أو بروتين عالي', sensor: 'قراءات الحساس غير أكيدة', // i18n-ok
 };
 const FLAG_ICON: Record<Flag, string> = { overlap: '💉', tresiba: '🌙', fatty: '🍕', sensor: '📡' };
 export const SENSOR_WHY: Record<string, string> = { day1: 'أول يوم للحساس', last_day: 'آخر يوم للحساس', gaps: 'نقص في القراءات', bias: 'الوخز يختلف عن الحساس' }; // i18n-ok: shown through t()
 export const CONF_NAME: Record<Confidence, string> = { too_few: 'نظيفة قليلة', low: 'ثقة قليلة', moderate: 'ثقة متوسطة' }; // i18n-ok: shown through t()
-const CONF_TONE: Record<Confidence, string> = { too_few: 'bg-slate-100 text-slate-600', low: 'bg-near-soft text-near', moderate: 'bg-ok-soft text-ok' };
 
 /** A difference in the family's unit, with its sign. */
 export const fmtDiff = (mg: number, unit: GlucoseUnit) => `${mg > 0 ? '+' : mg < 0 ? '−' : '±'}${formatGlucose(Math.abs(mg), unit)}`;
@@ -42,29 +42,136 @@ export function DoctorCheck() {
   const [win, setWin] = useState<Window>(30);
   const [open, setOpen] = useState<GroupSummary | null>(null);
   const unit = settings.glucose_unit;
+  const [h, setH] = useState<'early' | 'late'>('early');
+  const [info, setInfo] = useState(false);
+  const seg = (on: boolean) => cx('min-h-[40px] flex-1 rounded-full text-sm font-bold', on ? 'bg-white text-brand shadow-sm' : 'text-slate-500');
   return (
     <div className="space-y-3">
-      <p className="px-1 text-sm text-slate-600">{t('هل مشى السكر مثل ما توقعت أرقام الطبيب وقت الجرعة؟ مقارنة للنقاش مع الطبيب، مو نصيحة ولا تغيّر أي جرعة.')}</p>
-      <div className="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1" role="radiogroup" aria-label={t('المدة')}>
-        {WINDOWS.map((w) => (
-          <button key={w} role="radio" aria-checked={win === w} onClick={() => setWin(w)}
-            className={cx('min-h-[40px] rounded-full text-sm font-bold', win === w ? 'bg-white text-brand shadow-sm' : 'text-slate-500')}>{t('{n} يوم', { n: w })}</button>
-        ))}
+      <NumbersStrip check={check} onInfo={() => setInfo(true)} />
+      <div className="flex gap-2">
+        <div className="flex flex-[3] rounded-full bg-slate-100 p-1" role="radiogroup" aria-label={t('المدة')}>
+          {WINDOWS.map((w) => <button key={w} role="radio" aria-checked={win === w} onClick={() => setWin(w)} className={seg(win === w)}>{t('{n} يوم', { n: w })}</button>)}
+        </div>
+        <div className="flex flex-[2] rounded-full bg-slate-100 p-1" role="radiogroup" aria-label={t('بعد')}>
+          <button role="radio" aria-checked={h === 'early'} onClick={() => setH('early')} className={seg(h === 'early')}>{t('٢ س')}</button>
+          <button role="radio" aria-checked={h === 'late'} onClick={() => setH('late')} className={seg(h === 'late')}>{t('٣–٥ س')}</button>
+        </div>
       </div>
-      <DoctorNumbers />
-      {check && <PeriodNotes check={check} unit={unit} />}
-      <Card className="!py-2.5 text-[13.5px] text-slate-600">
-        <b className="block text-slate-800">{t('كيف تقرون هذي الصفحة')}</b>
-        {t('بعد ساعتين = نتيجة مبكرة: الإنسولين والأكل لسه شغّالين، فهي مو حكم على النسبة. النتيجة المتأخرة (٣–٥ ساعات) تنعرض لحالها. الملاحظات «النظيفة» بس هي اللي تنحسب؛ اللي فيها إنسولين سابق أو تريسيبا أو أكل دسم أو شك في الحساس تنعرض تحت لحالها.')}
-      </Card>
       {error && <p className="px-1 text-sm text-over">{t('تعذّر تحميل البيانات: {e}', { e: error })}</p>}
       {!check && !error && <p className="px-1 py-6 text-center text-slate-500">{t('جاري التحميل…')}</p>}
-      {check?.groups.map((s) => <GroupCard key={s.group} s={s} win={win} unit={unit} onOpen={() => setOpen(s)} />)}
-      {check && <p className="px-2 pb-4 text-center text-xs text-slate-500">{t('من الجرعات والأكل المسجّل وقراءات الحساس. تقديرات للنقاش مع الطبيب: ما تقترح نسبة ولا جرعة، وما تغيّر الحاسبة.')}</p>}
+      {check && <OutcomeChart check={check} win={win} h={h} unit={unit} onOpen={setOpen} onInfo={() => setInfo(true)} />}
+      <p className="px-2 pb-4 text-center text-xs text-slate-500">{t('للنقاش مع الطبيب · ما يغيّر أي جرعة')}</p>
       <Sheet open={!!open} onClose={() => setOpen(null)} title={open ? t(GROUP_NAME[open.group]) : ''}>
         {open && <ObsList s={open} unit={unit} />}
       </Sheet>
+      <Sheet open={info} onClose={() => setInfo(false)} title={t('كيف تقرون الرسم')}>
+        <div className="space-y-3 pb-4 text-[14px] text-slate-700">
+          <ul className="space-y-1.5">
+            <li>{t('كل نقطة = وجبة أو تصحيح: يسار = السكر انتهى أقل من المتوقع، يمين = أعلى. الشريط الأخضر = قريب (±1.5).')}</li>
+            <li>{t('● نظيفة: ما في شي ثاني يأثر. ○ متأثرة (إنسولين قبلها، تريسيبا، أكل دسم، أو شك في الحساس): تنعرض بس وما تنحسب.')}</li>
+            <li>{t('الدائرة = كم وحدة نظيفة من ٥ نحتاجها. بعد ٥ يطلع المتوسط ◆.')}</li>
+            <li>{t('٢ س = نتيجة مبكرة، مو حكم على النسبة. ٣–٥ س لحالها.')}</li>
+            <li>{t('التصحيح: إذا نزل أكثر أو أقل من المتوقع، هذا بروحه مو دليل إن رقم التصحيح غلط.')}</li>
+          </ul>
+          <DoctorNumbers />
+          {check && <PeriodNotes check={check} unit={unit} />}
+        </div>
+      </Sheet>
     </div>
+  );
+}
+
+/** The doctor's numbers in one line; the warning and the changes in the period as small marks, details behind ⓘ. */
+function NumbersStrip({ check, onInfo }: { check: Check | null; onInfo: () => void }) {
+  const { settings } = useData();
+  const unit = settings.glucose_unit;
+  const ratios = [...(settings.ratios ?? [])].sort((a, b) => a.from.localeCompare(b.from));
+  const diff = discrepancy(ratios);
+  const isfs = [...new Set(ratios.map((r) => r.isf))];
+  const spans = check?.spans ?? [];
+  const total = spans.length ? Math.max(1, spans[spans.length - 1].last - spans[0].first) : 1;
+  return (
+    <button onClick={onInfo} className="block w-full rounded-2xl border border-slate-100 bg-white px-3 py-2 text-start active:bg-slate-50">
+      <span className="flex items-center gap-2">
+        <span aria-hidden>🩺</span>
+        <span className="num min-w-0 flex-1 truncate text-[15px] font-bold" dir="ltr">
+          {ratios.map((r) => `1:${fmt(r.cr)}`).join(' · ')} · ISF {isfs.map((x) => formatGlucose(x, unit)).join('/')}
+        </span>
+        {diff && <span className="shrink-0 rounded-full bg-near-soft px-2 py-0.5 text-xs font-bold text-near">⚠ {t('تأكدوا')}</span>}
+        <span aria-label={t('شرح')} className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-100 text-sm font-bold text-slate-500">i</span>
+      </span>
+      {spans.length > 1 && (
+        <span className="mt-1.5 flex h-5 gap-0.5 overflow-hidden rounded-md text-[10.5px] font-bold" dir="ltr" aria-label={t('الأرقام المحفوظة تغيّرت خلال هذي الفترة')}>
+          {spans.map((x, i) => (
+            <span key={i} className={cx('grid place-items-center text-white', ['bg-slate-400', 'bg-near-fill', 'bg-brand'][Math.min(2, spans.length - 1 - i === 0 ? 2 : i)])}
+              style={{ flex: Math.max(0.12, (x.last - x.first) / total) }}>ISF {formatGlucose(x.isf, unit)}</span>
+          ))}
+        </span>
+      )}
+    </button>
+  );
+}
+
+const RING_N = DC.minN;
+function Ring({ n, median, unit }: { n: number; median: number | null; unit: GlucoseUnit }) {
+  const r = 15, c = 2 * Math.PI * r, f = Math.min(1, n / RING_N), done = n >= RING_N && median !== null;
+  const tone = !done ? 'text-slate-400' : Math.abs(median!) <= DC.near ? 'text-ok' : median! > 0 ? 'text-near' : 'text-over';
+  return (
+    <span className={cx('relative grid h-11 w-11 shrink-0 place-items-center', tone)}>
+      <svg viewBox="0 0 36 36" className="absolute inset-0 -rotate-90" aria-hidden>
+        <circle cx="18" cy="18" r={r} fill="none" stroke="currentColor" strokeOpacity="0.18" strokeWidth="3.5" />
+        <circle cx="18" cy="18" r={r} fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeDasharray={`${f * c} ${c}`} />
+      </svg>
+      <b className="num relative text-[11.5px] leading-none" dir="ltr">{done ? fmtDiff(median!, unit) : `${n}/${RING_N}`}</b>
+    </span>
+  );
+}
+
+/** The whole picture: one strip per meal time, one dot per meal on the same scale (left lower than predicted, right
+ *  higher), the green band "near". Clean dots filled, affected hollow. The ring: clean ones so far out of 5. */
+export function OutcomeChart({ check, win, h, unit, onOpen, onInfo, print }: { check: Check; win: Window; h: 'early' | 'late'; unit: GlucoseUnit; onOpen?: (g: GroupSummary) => void; onInfo?: () => void; print?: boolean }) {
+  const W = 320, R = 108, X = (mg: number) => ((Math.max(-R, Math.min(R, mg)) + R) / (2 * R)) * (W - 16) + 8;
+  const since = check.to - win * 86400000;
+  return (
+    <Card className={cx('space-y-1 !px-3 !py-2.5', print && 'mx-auto max-w-[400px]')}>
+      <div className="flex items-center gap-3 pb-1 text-[11.5px] text-slate-500">
+        <span>● {t('نظيفة')}</span><span>○ {t('متأثرة')}</span>
+        <span className="flex items-center gap-1"><i className="inline-block h-2.5 w-4 rounded-sm bg-[rgb(var(--st-in)/0.25)]" />±1.5</span>
+        {onInfo && <button onClick={onInfo} aria-label={t('شرح')} className="ms-auto grid h-8 w-8 place-items-center rounded-full bg-slate-100 font-bold text-slate-500">i</button>}
+      </div>
+      {check.groups.map((g) => {
+        const list = g.obs.filter((o) => o.t0 >= since && o[h]).sort((a, b) => Number(a.clean) - Number(b.clean));
+        const st = g.win[win][h].clean;
+        const stack = new Map<number, number>();
+        const body = (
+          <>
+            <span className="flex items-center gap-2">
+              <span aria-hidden>{GROUP_ICON[g.group]}</span>
+              <b className="min-w-0 flex-1 truncate text-[14.5px]">{t(GROUP_SHORT[g.group])}</b>
+              <Ring n={st.n} median={st.n >= RING_N ? st.median : null} unit={unit} />
+            </span>
+            <svg viewBox={`0 0 ${W} 30`} width="100%" height={30} direction="ltr" aria-hidden className="-mt-1 block">
+              <rect x={X(-DC.near)} y={3} width={X(DC.near) - X(-DC.near)} height={24} rx={4} fill="rgb(var(--st-in))" fillOpacity={0.18} />
+              <line x1={8} x2={W - 8} y1={15} y2={15} stroke="currentColor" strokeOpacity={0.12} />
+              <line x1={X(0)} x2={X(0)} y1={1} y2={29} stroke="currentColor" strokeOpacity={0.35} strokeDasharray="2 3" />
+              {list.map((o) => {
+                const d = o[h]!.diff, k = Math.round(X(d) / 8), n = stack.get(k) ?? 0; stack.set(k, n + 1);
+                const col = Math.abs(d) <= DC.near ? 'rgb(var(--st-in))' : d > 0 ? 'rgb(var(--st-high))' : 'rgb(var(--st-low))';
+                const cy = 15 + (n % 2 ? 1 : -1) * Math.ceil(n / 2) * 7;
+                return <circle key={o.key} cx={X(d)} cy={cy} r={4.6} fill={o.clean ? col : 'rgb(var(--surface))'} stroke={o.clean ? 'rgb(var(--surface))' : 'rgb(var(--text-3))'} strokeWidth={o.clean ? 1.2 : 1.6} />;
+              })}
+              {st.n >= RING_N && st.median !== null && <path d={`M${X(st.median)} 6 l6 9 l-6 9 l-6 -9z`} fill="currentColor" />}
+            </svg>
+          </>
+        );
+        return print || !onOpen
+          ? <div key={g.group} className="border-t border-slate-100 pt-1 first-of-type:border-t-0">{body}</div>
+          : <button key={g.group} onClick={() => onOpen(g)} className="block w-full border-t border-slate-100 pt-1 text-start active:bg-slate-50">{body}</button>;
+      })}
+      <div className="flex justify-between px-1 pt-0.5 text-[11px] text-slate-500" dir="ltr">
+        <span>◀ {t('انتهى أقل')}</span><span>{t('انتهى أعلى')} ▶</span>
+      </div>
+    </Card>
   );
 }
 
@@ -132,115 +239,9 @@ export function PeriodNotes({ check, unit }: { check: Check; unit: GlucoseUnit }
   );
 }
 
-function ConfChip({ c }: { c: Confidence }) {
-  return <span className={cx('shrink-0 rounded-full px-2 py-0.5 text-[11.5px] font-bold', CONF_TONE[c])}>{t(CONF_NAME[c])}</span>;
-}
 
-/** One dot per observation: clean filled, affected hollow and grey; the ±1.5 band is "near". */
-function Dots({ obs, h }: { obs: Obs[]; h: 'early' | 'late' }) {
-  const W = 320, Hh = 44, R = 108; // ±6 mmol/L across the width
-  const rtl = dir() === 'rtl', X = (mg: number) => { const x = ((Math.max(-R, Math.min(R, mg)) + R) / (2 * R)) * (W - 16) + 8; return rtl ? W - x : x; };
-  const stack = new Map<number, number>();
-  const list = obs.filter((o) => o[h]).sort((a, b) => Number(a.clean) - Number(b.clean));
-  if (!list.length) return null;
-  return (
-    <svg viewBox={`0 0 ${W} ${Hh}`} width="100%" height={Hh} aria-hidden className="mt-1">
-      <rect x={Math.min(X(-DC.near), X(DC.near))} y={4} width={Math.abs(X(DC.near) - X(-DC.near))} height={Hh - 18} rx={4} fill="rgb(var(--st-in))" fillOpacity={0.14} />
-      <line x1={X(0)} x2={X(0)} y1={2} y2={Hh - 14} stroke="currentColor" strokeOpacity={0.35} strokeDasharray="3 3" />
-      {list.map((o) => {
-        const d = o[h]!.diff, k = Math.round(X(d) / 9), n = stack.get(k) ?? 0; stack.set(k, n + 1);
-        const col = Math.abs(d) <= DC.near ? 'rgb(var(--st-in))' : d > 0 ? 'rgb(var(--st-high))' : 'rgb(var(--st-low))';
-        return <circle key={o.key} cx={X(d)} cy={Hh - 22 - n * 8} r={4.2} fill={o.clean ? col : 'rgb(var(--surface))'} stroke={o.clean ? 'rgb(var(--surface))' : 'rgb(var(--text-3))'} strokeWidth={o.clean ? 1.2 : 1.4} />;
-      })}
-      {[-72, 0, 72].map((v) => <text key={v} x={X(v)} y={Hh - 2} fontSize={9} textAnchor="middle" fill="currentColor" fillOpacity={0.5}>{v === 0 ? '0' : v > 0 ? '+4' : '−4'}</text>)}
-    </svg>
-  );
-}
 
-function Split({ s }: { s: Stat }) {
-  if (!s.n) return null;
-  const seg = (k: number, c: string) => (k ? <i className={cx('block', c)} style={{ flex: k }} /> : null);
-  return (
-    <>
-      <div className="mt-1 flex h-2 gap-0.5 overflow-hidden rounded-full" dir="ltr">{seg(s.lower, 'bg-over-fill')}{seg(s.near, 'bg-ok-fill')}{seg(s.higher, 'bg-near-fill')}</div>
-      <div className="mt-1 flex flex-wrap gap-x-3 text-[11.5px] text-slate-600">
-        <span>{t('{n} أقل', { n: s.lower })}</span><span>{t('{n} قريب (±1.5)', { n: s.near })}</span><span>{t('{n} أعلى', { n: s.higher })}</span>
-      </div>
-    </>
-  );
-}
 
-function GroupCard({ s, win, unit, onOpen }: { s: GroupSummary; win: Window; unit: GlucoseUnit; onOpen: () => void }) {
-  const w = s.win[win], corr = s.group === 'correction';
-  const inWin = s.obs.filter((o) => o.t0 >= Date.now() - win * 86400000);
-  const early = w.early, late = w.late;
-  return (
-    <Card className="space-y-2">
-      <header className="flex items-center gap-2">
-        <span aria-hidden className="text-lg">{GROUP_ICON[s.group]}</span>
-        <h3 className="min-w-0 flex-1 text-[16.5px] font-bold">{t(GROUP_NAME[s.group])}</h3>
-        <ConfChip c={early.conf} />
-      </header>
-
-      {/* early outcome: clean only */}
-      <section>
-        <div className="text-[12.5px] font-bold text-slate-500">{t('النتيجة المبكرة (بعد ساعتين) · مو حكم نهائي')}</div>
-        {early.clean.n >= DC.minN ? (
-          <p className="mt-0.5 text-[15.5px] font-medium">{direction(early.clean.median!, unit, corr)}</p>
-        ) : (
-          <p className="mt-0.5 text-[14.5px] text-slate-600">{corr ? t('{n} تصحيحات نظيفة بس. نحتاج {need} على الأقل قبل ما نقول شي.', { n: early.clean.n, need: DC.minN }) : t('{n} وجبات نظيفة بس. نحتاج {need} على الأقل قبل ما نقول شي.', { n: early.clean.n, need: DC.minN })}</p>
-        )}
-        <p className="text-xs text-slate-500">{t('{n} نظيفة', { n: early.clean.n })}{early.affected.n ? ` · ${t('{n} متأثرة (ما انحسبت)', { n: early.affected.n })}` : ''}</p>
-        <Dots obs={inWin} h="early" />
-        {early.clean.n >= DC.minN && <Split s={early.clean} />}
-      </section>
-
-      {/* trend over 7 / 14 / 30 days, clean early outcomes */}
-      <section>
-        <div className="mb-1 text-[12.5px] font-bold text-slate-500">{t('متوسط الفرق للنظيفة ({u})', { u: unitLabel(unit) })}</div>
-        <div className="grid grid-cols-3 gap-1.5">
-          {WINDOWS.map((x) => { const c = s.win[x].early.clean; const ok = c.n >= DC.minN; return (
-            <div key={x} className={cx('rounded-xl bg-slate-50 px-2 py-1.5', x === win && 'ring-2 ring-brand')}>
-              <div className="text-[11px] text-slate-500">{t('{n} يوم', { n: x })}</div>
-              <div className="num text-[17px] font-bold" dir="ltr">{ok ? fmtDiff(c.median!, unit) : '—'}</div>
-              <div className="text-[11px] text-slate-500">{ok ? t('{n} نظيفة', { n: c.n }) : t('{n} · قليلة', { n: c.n })}</div>
-            </div>
-          ); })}
-        </div>
-      </section>
-
-      {/* later outcome, apart */}
-      <section className="rounded-xl bg-slate-50 px-3 py-2">
-        <div className="text-[12.5px] font-bold text-slate-500">{t('النتيجة المتأخرة (٣–٥ ساعات)')}</div>
-        {late.clean.n >= DC.minN ? (
-          <p className="text-[14.5px]">{direction(late.clean.median!, unit, corr)} <span className="text-xs text-slate-500">· {t('{n} نظيفة', { n: late.clean.n })}</span></p>
-        ) : (
-          <p className="text-[13.5px] text-slate-600">{t('{n} نظيفة بس (أغلب الوجبات يجي بعدها أكل أو جرعة قبل ٣ ساعات). نحتاج {need}.', { n: late.clean.n, need: DC.minN })}</p>
-        )}
-      </section>
-
-      {/* affected observations, shown apart, never in the numbers above */}
-      {early.affected.n + late.affected.n > 0 && (
-        <section>
-          <div className="text-[12.5px] font-bold text-slate-500">{t('متأثرة بأسباب ثانية (ما انحسبت فوق)')}</div>
-          <ul>
-            {FLAGS.filter((f) => s.flags[f] > 0).map((f) => (
-              <li key={f} className="flex items-center gap-2 border-t border-slate-100 py-1.5 text-[13.5px] first:border-t-0">
-                <span aria-hidden>{FLAG_ICON[f]}</span><span className="min-w-0 flex-1">{t(FLAG_NAME[f])}</span>
-                <span className="shrink-0 text-xs text-slate-500">{t('{k} من {n}', { k: s.flags[f], n: s.obs.length })}</span>
-              </li>
-            ))}
-          </ul>
-          {early.affected.n >= DC.minN && <p className="text-xs text-slate-500">{t('المتأثرة لحالها: {d} بعد ساعتين ({n})', { d: fmtDiff(early.affected.median!, unit), n: early.affected.n })}</p>}
-        </section>
-      )}
-
-      {corr && <p className="rounded-xl bg-brand-soft px-3 py-2 text-[13px] text-brand">{t('إذا نزل السكر أكثر أو أقل من المتوقع، هذا بروحه مو دليل إن رقم التصحيح غلط: النشاط، الإنسولين اللي قبله، تريسيبا، الحساس، ووقت القياس كلها تأثر. للنقاش مع الطبيب.')}</p>}
-
-      {s.obs.length > 0 && <button onClick={onOpen} className="flex min-h-[44px] w-full items-center justify-end font-bold text-brand">{t('شوفي كل وحدة ({n})', { n: s.obs.length })} {isEn() ? '›' : '‹'}</button>}
-    </Card>
-  );
-}
 
 /** Every observation of a group, newest first: what was predicted and what happened, why it is affected, and a way
  *  into that entry in the Log. */

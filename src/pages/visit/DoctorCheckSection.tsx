@@ -1,7 +1,7 @@
 // The visit report's "Doctor's numbers vs observed glucose": the same findings as Analysis → Patterns, as a table and a
 // few questions. Outcomes only: no new ratio, correction factor or dose is ever printed.
 import { DC, FLAGS, type DoctorCheck } from '../../engine/doctorCheck';
-import { DoctorNumbers, PeriodNotes, CONF_NAME, FLAG_NAME, GROUP_NAME, direction, fmtDiff } from '../DoctorCheck';
+import { DoctorNumbers, OutcomeChart, PeriodNotes, CONF_NAME, FLAG_NAME, GROUP_NAME, direction, fmtDiff } from '../DoctorCheck';
 import { unitLabel, type GlucoseUnit } from '../../lib/glucose';
 import { isEn, t } from '../../i18n';
 
@@ -21,6 +21,7 @@ export function DoctorCheckSection({ check, unit }: { check: DoctorCheck; unit: 
     <section className="space-y-3">
       <h1 className="text-xl font-bold">{t('أرقام الطبيب والسكر الفعلي (آخر ٣٠ يوم)')}</h1>
       <p className="text-sm text-slate-600">{t('عند كل جرعة يحفظ التطبيق المنحنى اللي تتوقعه أرقام الطبيب المحفوظة، ويقارنه بالحساس. بعد ساعتين = نتيجة مبكرة (مو حكم على النسبة)؛ ٣–٥ ساعات تنعرض لحالها. «نظيفة» = ما في شي ثاني معروف يحرّك السكر؛ المتأثرة تنعد لحالها وما تدخل في الأرقام. الفرق = الفعلي ناقص المتوقع، بالوسيط، {u}.', { u })}</p>
+      <OutcomeChart check={check} win={30} h="early" unit={unit} print />
       <DoctorNumbers print />
       <PeriodNotes check={check} unit={unit} />
       <table className="w-full border-collapse text-[12px]">
