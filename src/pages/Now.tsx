@@ -123,7 +123,8 @@ export default function Now() {
         </Card>
       )}
 
-      {/* 2 · the graph takes all the height that is left */}
+      {/* 2 · the graph takes all the height that is left, and never less than about half the screen: on a short phone
+          the cards below scroll instead of the graph shrinking */}
       {g?.connected ? <HomeChart live={g.readings} /> : <div className="min-h-0 flex-1" />}
 
       {/* 3 · what is still working, side by side */}
@@ -381,7 +382,7 @@ function HomeChart({ live }: { live: Reading[] }) {
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
   const hours = Math.round(view.span / 3600000);
   return (
-    <section aria-label={t('رسم السكر')} className="relative -mx-4 flex min-h-[170px] flex-1 flex-col lg:mx-0">
+    <section aria-label={t('رسم السكر')} className="relative -mx-4 flex min-h-[max(300px,42dvh)] flex-1 flex-col lg:mx-0">
       {loadError && <div className="mx-4 mb-1"><GraphLoadNotice error={loadError} empty={!series.t.length} retry={retry} /></div>}
       {/* range and full screen, in one row above the plot so nothing covers the data */}
       <div className="flex shrink-0 items-center gap-1 px-4">

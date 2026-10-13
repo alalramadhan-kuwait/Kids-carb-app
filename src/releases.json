@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.0.0",
+    "date": "2026-10-13",
+    "notes": [
+      "صفحة «الآن» صارت شاشة وحدة بدون نزول: السكر فوق، والرسم كبير في النص.",
+      "الرسم: اختاري ٣ أو ٦ أو ١٢ أو ٢٤ ساعة، اسحبي للوراء، واضغطي ⤢ لملء الشاشة.",
+      "الإنسولين النشط والكارب النشط جنب بعض، والكارب مكتوب عليه «تقدير».",
+      "آخر أكل وآخر جرعة: اضغطي على أي وحدة تفتح نفس التسجيل في السجل.",
+      "تنبيه واحد بس يطلع (الأهم)، والباقي تحت «+».",
+      "سؤال البحث انتقل لأعلى السجل. النمو في «المزيد» ونسبة اليوم في «التحليل»."
+    ],
+    "notes_en": [
+      "Now fits on one screen with no scrolling: glucose at the top, a large graph in the middle.",
+      "Graph: choose 3, 6, 12 or 24 hours, drag back in time, tap ⤢ for full screen.",
+      "Active insulin and active carbs side by side; active carbs are marked as an estimate.",
+      "Last food and last dose: tap either to open that entry in the Log.",
+      "Only the most important notice shows; the others are behind «+».",
+      "The research question moved to the top of the Log. Growth is in More; today's range is in Analysis."
+    ]
+  },
+  {
     "version": "3.5.0",
     "date": "2026-10-13",
     "notes": [
