@@ -1,5 +1,21 @@
 [
   {
+    "version": "4.2.0",
+    "date": "2026-10-13",
+    "notes": [
+      "جديد: التحليل ← الأنماط ← «أرقام الطبيب والواقع»: هل انتهى السكر بعد ساعتين حيث توقعت أرقام الطبيب؟ رسم واحد لكل وقت أكل.",
+      "«نظيفة» تعرض بس الوجبات اللي ما فيها شي ثاني يأثر، و«الملاحظ» تعرض الكل مقسوم حسب الأرقام اللي كانت محفوظة وقتها، مع السبب لكل وحدة.",
+      "اضغطي أي علامة تشوفين التفاصيل وتفتحين التسجيل في السجل. للنقاش مع الطبيب بس: ما يغيّر أي جرعة ولا يقترح أرقام.",
+      "تقرير الزيارة فيه نفس القسم، وصفحاته صارت بألوان النهار حتى لو انعمل بالليل."
+    ],
+    "notes_en": [
+      "New: Analysis → Patterns → «Doctor's numbers vs reality»: did glucose end where the doctor's numbers predicted at 2 hours? One chart per meal time.",
+      "«Clean» shows only meals with nothing else affecting them; «Observed» shows all of them, split by the numbers saved at the time, with the reason for each.",
+      "Tap any mark for its details and to open the entry in the Log. For discussion with the doctor only: it changes no dose and suggests no numbers.",
+      "The visit report has the same section, and its pages are now in day colours even when made at night."
+    ]
+  },
+  {
     "version": "4.1.0",
     "date": "2026-10-13",
     "notes": [
