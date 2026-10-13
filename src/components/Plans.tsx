@@ -453,7 +453,7 @@ function DoseTimeRow({ plan }: { plan: PlannedMeal }) {
 
 /* ---------------------------------------------------- Now line & Meals list */
 
-const phaseLine = (p: PlannedMeal, ph: Phase, now: number) =>
+export const phaseLine = (p: PlannedMeal, ph: Phase, now: number) =>
   ph === 'eat_now' ? { tone: 'bg-ok-soft text-ok', text: t('وقت الأكل الآن') }
     : ph === 'wait_to_eat' ? { tone: 'bg-brand-soft text-brand', text: t('الأكل {time}', { time: clock(eatAt(p)) }) }
       : ph === 'recheck' ? { tone: 'bg-near-soft text-near', text: t('إعادة القياس {time}', { time: clock(Date.parse(p.recheck_at!)) }) }
@@ -477,8 +477,9 @@ function PlanRow({ p, now, onOpen }: { p: PlannedMeal; now: number; onOpen: () =
   );
 }
 
-/** The planned meals on Now: one line each, only for the next 12 hours. */
-export function PlanLines() {
+/** The planned meals on Now: one line each, only for the next 12 hours. With `sheetsOnly` the lines are told
+ *  elsewhere (Now's alert row) and only the check and edit sheets stay, so a reminder's ?plan= link still opens. */
+export function PlanLines({ sheetsOnly = false }: { sheetsOnly?: boolean } = {}) {
   const { plans } = usePlans();
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(id); }, []);
@@ -491,7 +492,7 @@ export function PlanLines() {
   if (!list.length && !edit && !open) return null;
   return (
     <>
-      {list.length > 0 && <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">{list.map((p) => <li key={p.id}><PlanRow p={p} now={now} onOpen={() => setOpen(p.id)} /></li>)}</ul>}
+      {!sheetsOnly && list.length > 0 && <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">{list.map((p) => <li key={p.id}><PlanRow p={p} now={now} onOpen={() => setOpen(p.id)} /></li>)}</ul>}
       <PlanCheck plan={plans.find((p) => p.id === open) ?? null} onClose={() => setOpen(null)} onEdit={setEdit} />
       <PlanSheet open={!!edit} plan={edit} onClose={() => setEdit(null)} />
     </>

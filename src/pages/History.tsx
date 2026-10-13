@@ -1,6 +1,6 @@
 import { mealTitle } from '../lib/unknownMeal';
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { isFatty } from '../engine/iob';
 import { fmt, stateText, unitText } from '../lib/carbs';
@@ -35,6 +35,7 @@ import { episodes as toEpisodes, timeline, MAIN_KINDS, type Episode } from '../e
 
 const DAY = 86400000;
 type Kind = 'all' | 'meals' | 'insulin' | 'treatment' | 'other';
+const ResearchQuestion = lazy(() => import('../components/ResearchQuestion').then((m) => ({ default: m.ResearchQuestion })));
 type Item = { t: number; key: string; h?: HistoryEntry; e?: EventRow };
 
 /**
@@ -59,6 +60,9 @@ export default function History() {
   const [logOpen, setLogOpen] = useState(false);
   const [editing, setEditing] = useState<false | 'entry' | 'items'>(false);
   const close = () => { setOpen(null); setEditing(false); };
+  // opened from Now's «last food» / «last dose» (?open=h<id> or e<id>): that entry's sheet opens at once
+  const [sp, setSp] = useSearchParams();
+  const want = sp.get('open');
 
   const keyOf = (h: { recipe_id: string | null; name: string }) => h.recipe_id ?? `n:${h.name}`;
   const times = useMemo(() => { const m = new Map<string, number>(); for (const h of history) m.set(keyOf(h), (m.get(keyOf(h)) ?? 0) + 1); return m; }, [history]);
@@ -75,6 +79,11 @@ export default function History() {
     ...[...history, ...pendingMeals].map((h) => ({ t: Date.parse(h.eaten_at), key: 'h' + h.id, h })),
     ...events.map((e) => ({ t: Date.parse(e.occurred_at), key: 'e' + e.id, e })),
   ].sort((a, b) => b.t - a.t), [history, pendingMeals, events]);
+  useEffect(() => {
+    if (!want) return;
+    const it = all.find((x) => x.key === want);
+    if (it) { setEditing(false); setOpen(it); setSp({}, { replace: true }); }
+  }, [want, all, setSp]);
   // brands: from logged meals and frequent foods; an older entry without a brand still matches by its food's name
   const brands = useMemo(() => brandsOf([...history.map((h) => ({ brand: h.brand ?? null })), ...quick.items]), [history, quick.items]);
   const ofBrand = useMemo(() => {
@@ -124,6 +133,8 @@ export default function History() {
   const whoOf = (it: Item) => ((it.e ?? it.h)?.source ? '' : nameOf(it.e ? it.e.created_by : (it.h as unknown as { created_by?: string }).created_by));
   return (
     <Page title={t('السجل')}>
+      {/* a question about something in the log that only the parents can answer (moved here from Now) */}
+      <Suspense fallback={null}><div className="mb-3 empty:hidden"><ResearchQuestion unit={settings.glucose_unit} /></div></Suspense>
       <div className="mb-3 grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 text-sm">
         {([['all', t('الكل')], ['entries', t('المدخلات')], ['alarms', t('التنبيهات')]] as const).map(([k, l]) => (
           <button key={k} onClick={() => setView(k)} className={cx('min-h-[36px] rounded-full', view === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{l}</button>

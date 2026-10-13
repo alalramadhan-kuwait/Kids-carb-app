@@ -98,7 +98,8 @@ function Live() {
   const land = useLandscape();
   // ⤢: the graph full screen and sideways. A phone that can turn the page itself (Android) does; an iPhone cannot, so
   // the page is turned a quarter here and the graph reads the finger in its own frame
-  const [wide, setWide] = useState(false);
+  // opened from Now's ⤢ (?wide=1): straight to the full-screen graph
+  const [wide, setWide] = useState(() => new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('wide') === '1');
   const closeWide = useRef(() => setWide(false));
   useEffect(() => {
     if (!wide) return;

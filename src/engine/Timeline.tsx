@@ -58,7 +58,7 @@ export const dayWord = (ms: number, now: number) => {
   return d === 0 ? t('اليوم') : d === 1 ? `${t('أمس')} · ${kwDate(ms)}` : kwDate(ms);
 };
 
-export function Timeline({ series, view, now, onView, range, unit, height: total, marks = [], layers, onSelect, dayParts, highlight, tracks, forecasts, ahead = 0.04, night, rotated = false }: {
+export function Timeline({ series, view, now, onView, range, unit, height: total, marks = [], layers, onSelect, dayParts, highlight, tracks, forecasts, ahead = 0.04, night, rotated = false, compact = false }: {
   series: Series; view: View; now: number; onView: (v: View, opts?: { animate?: boolean }) => void;
   range: Range; unit: GlucoseUnit; height: number;
   marks?: Mark[]; layers?: Set<Layer>; onSelect?: (g: Group) => void;
@@ -69,6 +69,8 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
   /** drawn turned a quarter clockwise (the sideways view on phones that cannot turn the page themselves): the
    *  finger's screen position is turned back so every gesture works along the graph's own time axis */
   rotated?: boolean;
+  /** a short graph (Now): the events in one row of icons under it, without words; a tap still opens them */
+  compact?: boolean;
 }) {
   // the readout floats just above the plot while a point is read, so the finger on the graph never covers it;
   // the canvas keeps its full height and never moves under the finger
@@ -89,8 +91,8 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
   // ── drawing ──
   const PAD_T = 10, PAD_B = 24;
   const hasRail = !!layers && layers.size > 0;
-  const LANE = 60;
-  const RAIL = hasRail ? 8 + 2 * LANE : 0; // two lanes of events (icon, what, when); the second takes any that would touch
+  const LANE = compact ? 34 : 60;
+  const RAIL = hasRail ? 8 + (compact ? 1 : 2) * LANE : 0; // two lanes of events (icon, what, when); the second takes any that would touch
   const trackList = (['iob', 'cob'] as const).filter((k) => tracks?.[k]);
   const TRACK_H = 34, TRK = trackList.length * TRACK_H;
   const groupsRef = useRef<Group[]>([]);
@@ -398,7 +400,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
       if (layers!.has('exercise')) for (const m of marks) if (m.kind === 'exercise' && m.end! > start && m.t < end) {
         g.fillStyle = css('--primary', 0.35); g.fillRect(X(m.t), base + 2, Math.max(3, X(m.end!) - X(m.t)), 3);
       }
-      const words = span <= 12 * 3600000;
+      const words = !compact && span <= 12 * 3600000;
       const FD = '600 13px "Noto Sans Arabic", Rubik, system-ui, sans-serif', FT = '500 12px Rubik, system-ui, sans-serif';
       g.direction = dir();
       const blocks = groups.map((gr) => {
@@ -406,7 +408,9 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
         g.font = FD; const wa = a ? g.measureText(a).width : 0; g.font = FT; const wb = b ? g.measureText(b).width : 0;
         return { gr, a, b, x: gr.x, w: Math.max(30, wa, wb) + 8 };
       });
-      const place = laneLayout(blocks.map((k) => ({ x: k.x, w: k.w })), width);
+      const place = compact
+        ? blocks.map((k) => ({ lane: 0 as const, left: Math.min(Math.max(k.x - k.w / 2, 2), width - 2 - k.w) }))
+        : laneLayout(blocks.map((k) => ({ x: k.x, w: k.w })), width);
       const laneTop = (lane: number) => base + 6 + lane * LANE;
       const boxes: { g: Group; l: number; r: number; t: number; b: number }[] = [];
       // the lines first, so the lane-1 blocks sit over a line passing behind them to lane 2
@@ -472,7 +476,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
         g.fillStyle = css(tone); g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill();
       }
     }
-  }, [series, view, now, range.low, range.high, range.reference, unit, width, height, inspect, marks, layers, hasRail, RAIL, dayParts, highlight, tracks, TRK, forecasts, night]);
+  }, [series, view, now, range.low, range.high, range.reference, unit, width, height, inspect, marks, layers, hasRail, RAIL, dayParts, highlight, tracks, TRK, forecasts, night, compact]);
 
   useEffect(() => { const id = requestAnimationFrame(draw); return () => cancelAnimationFrame(id); }, [draw]);
   useEffect(() => { // redraw on light/dark change

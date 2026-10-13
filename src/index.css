@@ -116,6 +116,8 @@ html, body { overflow-x: hidden; overscroll-behavior: none; touch-action: pan-x 
 /* mom mode: the page itself never moves (no slide under the clock); only the areas inside it scroll */
 html.mom-lock, html.mom-lock body { height: 100%; overflow: hidden; }
 html.mom-lock body { position: fixed; inset: 0; width: 100%; padding-bottom: 0; }
+/* full mode's Now is one screen on a phone: only its own column may scroll (very large text) */
+html.now-lock, html.now-lock body { height: 100%; overflow: hidden; }
 
 /* Layan's face in the simple-mode card changes with a short fade (none when the phone asks for less motion) */
 @keyframes layan-in { from { opacity: 0; } to { opacity: 1; } }
