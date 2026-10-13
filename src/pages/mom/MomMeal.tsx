@@ -129,7 +129,7 @@ export function MomMeal() {
       {/* the total and both buttons stay in view however long the list (a small phone with 8 foods) */}
       <div className="flex items-baseline justify-between px-1"><span className="text-[15px] text-slate-500">{t('مجموع الكارب')}</span><b className="num text-[26px] leading-none text-slate-900">{total === null ? '—' : `${gramsText(total)} ${t('غ')}`}</b></div>
       <Big tone="soft" className="!min-h-[48px] !text-[17px]" onClick={() => nav('/mom/add')}>+ {t('إضافة أكل ثاني')}</Big>
-      <Big md disabled={total === null} onClick={() => nav(d.mode === 'plan' ? '/mom/when' : '/mom/dose')}>{d.mode === 'plan' ? `${t('التالي')} · 🕐 ${t('متى؟')}` : t('التالي')}</Big>
+      <Big md disabled={total === null} onClick={() => nav(d.mode === 'plan' ? (d.planId ? `/mom/when?plan=${d.planId}` : '/mom/when') : '/mom/dose')}>{d.mode === 'plan' ? `${t('التالي')} · 🕐 ${t('متى؟')}` : t('التالي')}</Big>
     </>}>
       {fromHome && (
         <div className="flex items-center gap-2 rounded-2xl bg-near-soft px-3 py-2 text-near">

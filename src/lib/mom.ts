@@ -86,7 +86,8 @@ export const setSimpleMode = (user: string, on: boolean) => ok(supabase.rpc('set
 const KEY = 'mom-draft-v1';
 /** left: foods sent to Dad and eaten anyway; they are not in the dose and the dose page says so. */
 /** mode: 'now' — she eats now (dose next); 'plan' — a meal planned for later (on hold until its time). */
-export interface Draft { items: MomItem[]; savedId: string | null; name: string | null; left: string[]; mode: 'now' | 'plan' }
+/** planId: a planned meal being changed (its plate was loaded here); saving it updates that plan. */
+export interface Draft { items: MomItem[]; savedId: string | null; name: string | null; left: string[]; mode: 'now' | 'plan'; planId?: string | null }
 const empty: Draft = { items: [], savedId: null, name: null, left: [], mode: 'now' };
 let draft: Draft = (() => { try { return { ...empty, ...JSON.parse(localStorage.getItem(KEY) ?? 'null') }; } catch { return empty; } })();
 const draftSubs = new Set<(d: Draft) => void>();
@@ -109,6 +110,8 @@ export const draftOps = {
   load: (m: SavedMeal) => setDraft({ items: m.items.map((i) => ({ ...i })), savedId: m.id, name: m.name, left: draft.left, mode: draft.mode }),
   leaveOut: (name: string) => setDraft({ ...draft, left: [...draft.left.filter((x) => x !== name), name] }),
   clear: () => setDraft(empty),
+  /** A planned meal's plate, to change it before its dose. */
+  editPlan: (items: MomItem[], name: string, planId: string) => setDraft({ items: items.map((i) => ({ ...i })), savedId: null, name, left: [], mode: 'plan', planId }),
   /** Start building for now or for a plan; switching between them starts a fresh plate. */
   start: (mode: Draft['mode']) => { if (draft.mode !== mode) setDraft({ ...empty, mode }); },
   get: () => draft,

@@ -147,6 +147,8 @@ export type PlanItem = Pick<Ingredient, 'product_id' | 'slot_category' | 'label'
 export interface PlannedMeal {
   id: string; for_date: string; slot: 'breakfast' | 'lunch' | 'dinner' | 'snack'; name: string; recipe_id: string | null;
   items: PlanItem[]; dose_at: string; eat_after_min: number; remind_min: number;
+  /** simple mode: the plate as she chose it (foods and portions), so the plan can be changed later */
+  mom_items?: { kind: 'product' | 'recipe'; id: string; portion_id: string | null; amount?: number; unit?: string; cooked?: boolean }[] | null;
   status: 'planned' | 'dosed' | 'eaten' | 'skipped';
   dose_event_id: string | null; treatment_event_id: string | null; history_id: string | null;
   recheck_at: string | null; dosed_at: string | null; eaten_at: string | null; note: string | null; created_by: string | null;

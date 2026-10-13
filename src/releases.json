@@ -1,5 +1,15 @@
 [
   {
+    "version": "3.5.0",
+    "date": "2026-10-13",
+    "notes": [
+      "الوجبة المخططة: زر «عدّلي الأكل» يفتح الصحن، تغيّرين الكمية أو تضيفين وتشيلين، والإبرة تنحسب على الجديد. قبل الإبرة بس."
+    ],
+    "notes_en": [
+      "Planned meal: «Edit the food» opens the plate to change amounts or add and remove foods; the dose is worked out on the new plate. Before the dose only."
+    ]
+  },
+  {
     "version": "3.4.0",
     "date": "2026-10-13",
     "notes": [

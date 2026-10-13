@@ -7,7 +7,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { draftOps, setFullModeNow, setSensorSite, useDraft, useSensor } from '../../lib/mom';
 import { planMeal, savePlan, skipPlan, usePlans } from '../../lib/plans';
-import { planItems } from '../../engine/mom';
+import { planItems, type MomItem } from '../../engine/mom';
 import { eatAt, phase } from '../../engine/mealPlan';
 import { isoDate } from '../../lib/constants';
 import { fmt } from '../../lib/carbs';
@@ -58,14 +58,16 @@ export function MomWhen() {
   const eatAfter = settings.dose_to_meal_min ?? 10;
   const doseAt = at(day, time);
   const save = async () => {
-    const items = editing ? editing.items : planItems(d.items, c);
+    // a plan whose plate was changed here takes the new plate; otherwise a plan keeps its food
+    const fromPlate = !editing || d.planId === editing.id;
+    const items = fromPlate ? planItems(d.items, c) : editing.items;
     if (!items?.length) return toast(t('في شي ناقص بالوجبة'));
     if (doseAt < now - 5 * 60000) return toast(t('الوقت مضى'));
     setBusy(true);
     try {
       const note = editing ? editing.note : d.left.length ? `${d.left.join(' · ')} ${t('ما ينحسب بالإبرة · كلّمي بابا')}` : null;
-      await savePlan({ id: editing?.id, for_date: day, slot, name: editing?.name ?? d.name ?? SLOT_NAME[slot], recipe_id: editing?.recipe_id ?? null, items, dose_at: new Date(doseAt).toISOString(), eat_after_min: eatAfter, remind_min: 10, note });
-      if (!editing) draftOps.clear();
+      await savePlan({ id: editing?.id, for_date: day, slot, name: editing?.name ?? d.name ?? SLOT_NAME[slot], recipe_id: fromPlate ? null : editing?.recipe_id ?? null, items, ...(fromPlate ? { mom_items: d.items } : {}), dose_at: new Date(doseAt).toISOString(), eat_after_min: eatAfter, remind_min: 10, note });
+      if (fromPlate) draftOps.clear();
       toast(t('انحفظت الخطة ✓'));
       nav('/mom/plans', { replace: true });
     } catch (e) { toast((e as Error).message); setBusy(false); }
@@ -115,13 +117,32 @@ export function MomPlanView() {
   const nav = useNavigate();
   const { id } = useParams();
   const { plans } = usePlans();
-  const { products, settings } = useData();
+  const { products, settings, ingsByRecipe } = useData();
   const [busy, setBusy] = useState(false);
   const p = plans.find((x) => x.id === id);
   if (!p) return <MomPage title="…" back="/mom/plans"><span /></MomPage>;
   const m = planMeal(p.items, products, settings);
   const ph = phase(p, Date.now());
   const dosed = p.status === 'dosed';
+  // the plate behind the plan: kept since 3.4.1; an older plan made of foods (not a recipe's parts) is rebuilt from them
+  const plate: MomItem[] | null = (p.mom_items as MomItem[] | null | undefined) ?? (p.recipe_id ? (() => {
+    // a recipe's plan holds its ingredients scaled by the plates eaten: the same factor on every one gives the plates back
+    const ings = (ingsByRecipe.get(p.recipe_id) ?? []).filter((i) => i.role !== 'snack');
+    if (!ings.length || ings.length !== p.items.length) return null;
+    const k = Number(p.items[0].quantity) / Number(ings[0].quantity);
+    if (!(k > 0) || p.items.some((it, n) => Math.abs(Number(it.quantity) - Number(ings[n].quantity) * k) > 0.01 * Math.max(1, Number(it.quantity)))) return null;
+    return [{ kind: 'recipe' as const, id: p.recipe_id, portion_id: null, amount: Math.round(k * 100) / 100, unit: 'plate' as const }];
+  })() : (() => {
+    const out: MomItem[] = [];
+    for (const i of p.items) {
+      if (!i.product_id) return null;
+      if (i.unit === 'serving') out.push({ kind: 'product', id: i.product_id, portion_id: null, amount: Number(i.quantity), unit: 'serving' });
+      else if (i.unit === 'g' || i.unit === 'ml') out.push({ kind: 'product', id: i.product_id, portion_id: null, amount: Number(i.quantity), unit: 'g', ...(i.state === 'cooked' ? { cooked: true } : {}) });
+      else return null;
+    }
+    return out.length ? out : null;
+  })());
+  const editFood = () => { if (!plate || !okToReplace()) return; draftOps.editPlan(plate, p.name, p.id); nav('/mom/meal'); };
   const cancel = async () => {
     if (!window.confirm(t('تلغين الخطة؟'))) return;
     setBusy(true);
@@ -131,6 +152,7 @@ export function MomPlanView() {
     <MomPage title={p.name} back="/mom/plans" foot={<>
       {dosed ? <Big onClick={() => nav(p.eating_at ? `/mom/ate/${p.id}` : `/mom/given/${p.id}`)}>🍽️ {p.eating_at ? t('شكثر أكلت؟') : t('بدأت تاكل؟')}</Big>
         : <Big tone={ph === 'later' ? 'soft' : 'primary'} onClick={() => nav(`/mom/dose?plan=${p.id}`)}>💉 {t('الإبرة الحين')}</Big>}
+      {!dosed && plate && <Big tone="soft" className="min-h-[52px] text-[17px]" onClick={editFood}>✏️ {t('عدّلي الأكل')}</Big>}
       {!dosed && <div className="grid grid-cols-2 gap-2">
         <Big tone="ghost" className="min-h-[52px] text-[17px]" onClick={() => nav(`/mom/when?plan=${p.id}`)}>🕐 {t('غيّري الوقت')}</Big>
         <Big tone="ghost" className="min-h-[52px] text-[17px] !text-over" disabled={busy} onClick={cancel}>✕ {t('ألغيها')}</Big>
