@@ -3,11 +3,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
-import { compareOps, draftOps, saveMeal, useCompare, useDraft, usePortions, useSavedMeals } from '../../lib/mom';
+import { compareOps, draftOps, saveLabelFood, saveMeal, useCompare, useDraft, usePortions, useSavedMeals } from '../../lib/mom';
 import { planMeal } from '../../lib/plans';
 import { COMPARE_MAX, planItems, planItemsOf, readyForMom, recipePot, type Catalog, type MomItem } from '../../engine/mom';
 import { groupByKey, groupOf, groupsIn, subgroupOf, subgroupsIn } from '../../lib/productGroups';
-import { matches } from '../../lib/search';
+import { matchTier, matches } from '../../lib/search';
 import { fmt } from '../../lib/carbs';
 import { supabase, uploadPhoto } from '../../lib/supabase';
 import { Photo, asset, cx, inputCls, toast } from '../../components/ui';
@@ -558,8 +558,15 @@ function PortionPage({ kind, id, k }: { kind: 'product' | 'recipe'; id: string; 
 /** Not in Layan's list: a photo and a name go to Dad; no dose is ever worked out for it. */
 export function MomNew() {
   const nav = useNavigate();
-  const { reload } = useData();
+  const { reload, products } = useData();
   const [name, setName] = useState('');
+  // the carbs for one piece, read off the label: with its photo, the food goes on the plate and counts like any other
+  const [carbsText, setCarbsText] = useState('');
+  const carbs = carbsText.trim() === '' ? null : Number(carbsText.replace(',', '.'));
+  const carbsBad = carbs !== null && !(carbs >= 0 && carbs <= 150);
+  const withCarbs = carbs !== null && !carbsBad;
+  // the same name already in the list: that one is offered, so a food is never entered twice
+  const same = name.trim().length >= 2 ? products.find((p) => p.approved && matchTier([p.name, p.name_ar, p.name_en], [], name) === 0) ?? null : null;
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
@@ -569,6 +576,15 @@ export function MomNew() {
   const send = async () => {
     setBusy(true);
     try {
+      if (withCarbs) {
+        const photo = await uploadPhoto(file!, 'products');
+        const { portionId, productId } = await saveLabelFood({ name, carbs: carbs!, photo });
+        draftOps.add({ kind: 'product', id: productId, portion_id: portionId });
+        await reload();
+        toast(t('انضاف للوجبة ✓'));
+        nav('/mom/meal', { replace: true });
+        return;
+      }
       const photo = file ? await uploadPhoto(file, 'products') : null;
       const { error } = await supabase.from('products').insert({ name: name.trim(), brand: null, category: 'أخرى', kind: 'commercial', image_path: photo, unit: 'g', carbs_per_100: 0, approved: false, available: true, // i18n-ok: stored value
         notes: 'من ماما: ينتظر بابا يكمّل الملصق والكميات' }); // i18n-ok: stored note
@@ -598,7 +614,13 @@ export function MomNew() {
       <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f); e.target.value = ''; }} />
       <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f); e.target.value = ''; }} />
       <input className={inputCls} dir="auto" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('الاسم')} maxLength={60} />
-      <Big disabled={busy || !name.trim()} onClick={send}>{t('أرسليه لبابا')}</Big>
+      {same && <button onClick={() => nav(`/mom/item/product/${same.id}`)} className="min-h-[48px] rounded-2xl bg-ok-soft px-4 text-[16px] font-bold text-ok">✓ {t('موجود عندنا: {n}', { n: tMaybe(same.name) })} ›</button>}
+      <div className="rounded-3xl bg-white p-4">
+        <div className="text-[17px] font-bold">{t('كم كارب بالحبة؟')} <span className="text-[14px] font-normal text-slate-500">({t('من الملصق · اختياري')})</span></div>
+        <input className={cx(inputCls, 'num mt-2', carbsBad && 'border-over')} inputMode="decimal" dir="ltr" value={carbsText} onChange={(e) => setCarbsText(e.target.value.replace(/[^\d.,]/g, ''))} placeholder={t('مثلًا 11')} />
+        <p className="mt-1.5 text-[14px] text-slate-500">{withCarbs ? (file ? t('ينضاف للوجبة وتشوفين الإبرة حسب خطة الدكتور') : t('صوّري الملصق عشان ينحسب')) : t('بدون رقم: ينرسل لبابا وما تنحسب له إبرة')}</p>
+      </div>
+      <Big disabled={busy || !name.trim() || carbsBad || (withCarbs && !file)} onClick={send}>{withCarbs ? `✓ ${t('أضيفيه للوجبة')}` : t('أرسليه لبابا')}</Big>
     </MomPage>
   );
 }

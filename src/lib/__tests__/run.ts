@@ -2771,6 +2771,17 @@ test('Topi cheese is found by «توبي» and «جبن»', async () => {
     assert.equal(M.readyForMom('product', 'new', cat), false, 'not approved');
     assert.equal(M.readyForMom('product', 'milk', cat), true, 'approved: shown even before Dad sets a portion');
   });
+  test('mom meal: a food from its label (11 g for one piece) counts exactly 11 g, and two pieces 22 g', async () => {
+    const { computeMeal: cm } = await import('../carbs');
+    const planMeal = (items: any[], products: any[], st: any) => cm(items.map((i, k) => ({ ...i, id: String(k), qty_confirmed: true, note: null, sort: k })), products, st); // as plans.ts planMeal
+    const ice = prod('ice', { per_item: true, carbs_per_100: 11, category: 'أخرى' });
+    const c2 = { ...cat, products: [...cat.products, ice], portions: [...cat.portions, { id: 'pi', product_id: 'ice', recipe_id: null, label: 'حبة', amount: 100, photo_path: null, sort: 0 }] };
+    const items = M.planItems([{ kind: 'product', id: 'ice', portion_id: 'pi' }], c2)!;
+    const m = planMeal(items, c2.products, S);
+    assert.equal(m.complete, true); assert.equal(Math.round(m.total.carbs * 10) / 10, 11);
+    const two = planMeal(M.planItems([{ kind: 'product', id: 'ice', portion_id: 'pi' }, { kind: 'product', id: 'ice', portion_id: 'pi' }], c2)!, c2.products, S);
+    assert.equal(Math.round(two.total.carbs * 10) / 10, 22);
+  });
   test('mom meal: a weighed home dish — the pot\'s ingredients scaled to the grams; what is served on the side is left out', () => {
     // the pasta recipe as Dad wrote it: 120 g pasta, 80 g meat, 80 g sauce in the pot; 100 g yogurt on the side
     const ing = (id: string, q: number, o: Record<string, unknown> = {}) => ({ id, role: 'main', product_id: null, slot_category: null, label: id, quantity: q, unit: 'g', state: 'cooked', qty_confirmed: true, note: null, sort: 0, ...o });

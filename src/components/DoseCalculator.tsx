@@ -21,7 +21,7 @@ const clock = (ms: number) => new Date(ms).toLocaleTimeString(locale(), { hour: 
  * the glucose now and the insulin still working. Shows every step. «أعطيتها» records the dose given in one tap;
  * «ضع الرقم فقط» fills the field to change it first.
  */
-export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'meal' | 'correction' | 'both', calc: DoseCalc, save: boolean) => void }) {
+export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'meal' | 'correction' | 'both', calc: DoseCalc, save: boolean, newCarbs: number) => void }) {
   const { settings: s, history, events } = useData();
   const [carbs, setCarbs] = useState<number | null>(null);
   const { g, now, latest, iob, ratio, target, r, unknownMeal } = useLiveDose(carbs ?? 0);
@@ -35,6 +35,9 @@ export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'mea
   const lift = () => window.setTimeout(() => box.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 350);
   useEffect(() => { setCarbs((c) => (c === null && recentCarbs > 0 ? Math.round(recentCarbs) : c)); }, [recentCarbs]);
 
+  // carbs typed here that are not logged yet are saved with the dose (as «كارب فقط»), so the food is never lost and
+  // never counted twice: what was logged in the last 30 minutes is already in the box
+  const newCarbs = carbs !== null && carbs - recentCarbs >= 1 && !r.block && r.dose > 0 ? Math.round((carbs - recentCarbs) * 10) / 10 : 0; // no dose, nothing saved with it
   const unit = s.glucose_unit, gl = (mg: number) => formatGlucose(mg, unit);
 
   const BLOCK: Record<DoseBlock, string> = {
@@ -61,6 +64,9 @@ export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'mea
         {/* the answer right next to what is being typed, visible even with the keyboard up */}
         {!r.block && <b className="num w-16 shrink-0 text-end text-lg">= {fmt(r.dose)}</b>}
       </label>
+      {(recentCarbs > 0 || newCarbs > 0) && <p className="text-xs text-slate-500">
+        {recentCarbs > 0 && t('مسجّل قبل شوي: {g} غ', { g: fmt(Math.round(recentCarbs * 10) / 10) })}{recentCarbs > 0 && newCarbs > 0 && ' · '}
+        {newCarbs > 0 && t('{g} غ تنحفظ مع الإبرة', { g: fmt(newCarbs) })}</p>}
       {r.block ? (
         <p className={cx('text-sm font-medium', r.block === 'low' || r.block === 'falling' ? 'text-over' : 'text-slate-700')}>
           {BLOCK[r.block]} {r.block === 'no_plan' && <Link to="/doctor" className="text-brand underline">{t('أرقام الطبيب')}</Link>}
@@ -89,8 +95,8 @@ export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'mea
             };
             return (
               <div className="space-y-1.5">
-                <button className={cx('min-h-[52px] w-full rounded-xl text-lg font-bold', KIND_STYLE.insulin.solid)} onClick={() => onUse(r.dose, purpose, c, true)}>{t('أعطيتها {u} وحدة · سجّل', { u: fmt(r.dose) })}</button>
-                <button className="min-h-[40px] w-full rounded-xl text-sm font-medium text-slate-600 underline" onClick={() => onUse(r.dose, purpose, c, false)}>{t('أعطيت رقمًا آخر: ضع الرقم لأعدّله')}</button>
+                <button className={cx('min-h-[52px] w-full rounded-xl text-lg font-bold', KIND_STYLE.insulin.solid)} onClick={() => onUse(r.dose, purpose, c, true, newCarbs)}>{t('أعطيتها {u} وحدة · سجّل', { u: fmt(r.dose) })}</button>
+                <button className="min-h-[40px] w-full rounded-xl text-sm font-medium text-slate-600 underline" onClick={() => onUse(r.dose, purpose, c, false, newCarbs)}>{t('أعطيت رقمًا آخر: ضع الرقم لأعدّله')}</button>
               </div>
             );
           })()

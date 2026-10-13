@@ -71,6 +71,8 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
   const [busy, setBusy] = useState(false);
   const [dupAck, setDupAck] = useState(false);
   const [calc, setCalc] = useState<DoseCalc | null>(null);
+  const [newCarbs, setNewCarbs] = useState(0);                  // carbs typed in the calculator, not logged yet: saved with the dose
+  const [carbsId, setCarbsId] = useState(() => crypto.randomUUID());
   const [saveSoon, setSaveSoon] = useState(false);               // «أعطيتها» in the calculator: save once the values are in
   const [bg, setBg] = useState<number | null>(null);          // finger-prick, in the family's unit
   const [clean, setClean] = useState(true);                     // hands washed and dried
@@ -93,7 +95,7 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
 
   const reset = () => {
     setKind(null); setClientId(crypto.randomUUID()); setUnits(null); setType('rapid'); setPurpose(null); setSite(null);
-    setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault()); setCalc(null); setBg(null); setClean(true);
+    setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault()); setCalc(null); setNewCarbs(0); setCarbsId(crypto.randomUUID()); setBg(null); setClean(true);
   };
   const close = () => { reset(); setBrandPick(null); setNewProduct(false); setFood(false); setMore(false); onClose(); };
 
@@ -137,10 +139,14 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
         if (near.some((e) => e.client_id !== draft.client_id && !events.some((x) => x.id === e.id))) { await reload(); return; } // now on the phone: the question shows
       }
       const id = await saveEvent(draft);
+      // the carbs the dose was worked out for, when they were typed in the calculator and not logged before
+      const carbsToo = draft.kind === 'insulin' && draft.insulin_type === 'rapid' && calc && newCarbs > 0 ? newCarbs : 0;
+      if (id && carbsToo) await saveEvent({ client_id: carbsId, kind: 'carbs', occurred_at: draft.occurred_at, carbs_g: carbsToo, insulin_units: null, insulin_type: null, bolus_purpose: null,
+        treatment: null, note: null, activity_min: null, activity_level: null, ends_at: null, dose_calc: null, bg_mgdl: null });
       // a finger-prick starts its comparison with Libre now; the +5 and +10 min readings complete it later
       if (id && draft.kind === 'bg_check' && draft.bg_mgdl) { await startComparison(id, Date.parse(draft.occurred_at), draft.bg_mgdl, ago, clean); void syncComparisons(events, history); }
       await reload();
-      const text = describeEvent(draft);
+      const text = describeEvent(draft) + (carbsToo ? ` + ${t('{g} غ كارب', { g: fmt(carbsToo) })}` : '');
       close();
       toast(t('تم التسجيل: {x}', { x: text }), id ? { label: t('تراجع'), run: async () => { await deleteEvent(id, me); await reload(); toast(t('أُلغي التسجيل'), { label: t('إعادة'), run: async () => { await restoreEvent(id); await reload(); } }); } } : undefined);
     } catch (e) { toast(t('تعذّر الحفظ: {e}', { e: (e as Error).message })); } finally { setBusy(false); }
@@ -266,7 +272,7 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
           {kind === 'insulin' && <>
             <Seg on={KIND_STYLE[kind!].solid} value={type} onChange={(v) => { setType(v as 'rapid' | 'long'); setSite(null); }} options={[['rapid', t('سريع المفعول')], ['long', t('طويل المفعول')]]} />
             {type === 'rapid' && <Seg on={KIND_STYLE[kind!].solid} value={purpose ?? ''} onChange={(v) => setPurpose((v || null) as typeof purpose)} options={[['meal', t('لوجبة')], ['correction', t('تصحيح')], ['both', t('الاثنين')]]} allowNone />}
-            {type === 'rapid' && ago === 0 && <DoseCalculator onUse={(u, p, c, now) => { setUnits(u); setPurpose(p); setCalc(c); if (now) setSaveSoon(true); }} />}
+            {type === 'rapid' && ago === 0 && <DoseCalculator onUse={(u, p, c, now, nc) => { setUnits(u); setPurpose(p); setCalc(c); setNewCarbs(nc); if (now) setSaveSoon(true); }} />}
             <SitePicker rot={rot} value={site} onChange={setSite} />
             {units !== null && units > 20 && <Alert tone="near">{t('رقم كبير. تأكد أنه صحيح قبل الحفظ.')}</Alert>}
           </>}
