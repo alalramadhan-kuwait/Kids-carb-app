@@ -216,6 +216,7 @@ function NightTheme() {
     const apply = () => {
       const root = document.documentElement, pref = themePref();
       if (location.hash.startsWith('#/night')) return;
+      if (document.documentElement.dataset.printing) return; // a PDF is being made in day colours (VisitReport)
       const want = pref !== 'auto' ? pref : settings.night_theme && isNight(settings) ? 'night' : null;
       if (want) root.dataset.theme = want; else delete root.dataset.theme;
     };

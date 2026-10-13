@@ -2993,5 +2993,124 @@ console.log('the dose at an earlier time');
   });
 }
 
+console.log("the doctor's numbers vs reality");
+{
+  const D = await import('../../engine/doctorCheck');
+  const M = 60000, H = 3600000, DAY = 86400000;
+  const now = Date.UTC(2026, 9, 13, 18, 0);
+  const at = (daysAgo: number, kwHour: number) => Date.UTC(2026, 9, 13 - daysAgo, kwHour - 3, 0);
+  // readings every 5 minutes for 31 days at a steady 140, so nothing is a gap and no stretch drifts
+  const T: number[] = [], V: number[] = [];
+  for (let x = now - 31 * DAY; x <= now; x += 5 * M) { T.push(x); V.push(140); }
+  const series = { t: Float64Array.from(T), v: Float64Array.from(V) };
+  const curve = (start: number, end: number, n = 17) => Array.from({ length: n }, (_, k) => Math.round(start + (end - start) * (k / (n - 1))));
+  const pred = (key: string, t0: number, o: Partial<import('../../engine/doctorCheck').PredIn> = {}): import('../../engine/doctorCheck').PredIn => ({
+    key, t0, name: key, carbs: 40, units: 3, start_mg: 140, params: { cr: 15, isf: 90, onboard_iob: 0, onboard_cob: 0 },
+    curve: curve(140, 140), end_min: 240, checks: { '120': { pred: 140, actual: 140 } }, excluded: null, ...o });
+  const base = { entries: [] as any[], makeup: new Map(), long: [], series, comparisons: [], sensor: null, lowMg: 70, now };
+  // the log as it is now: each prediction's own entry, and its dose a minute later
+  const logOf = (preds: import('../../engine/doctorCheck').PredIn[]) => preds.flatMap((p) => p.carbs > 0
+    ? [{ key: p.key, t: p.t0, kind: 'meal', grams: p.carbs, units: 0, name: null, recipe_id: null }, { key: p.key + 'd', t: p.t0 + M, kind: 'dose', grams: 0, units: p.units, name: null, recipe_id: null }]
+    : [{ key: p.key, t: p.t0, kind: 'dose', grams: 0, units: p.units, name: null, recipe_id: null }]) as any[];
+  const obsOf = (o: any): import('../../engine/doctorCheck').Obs[] => D.observe({ ...o, entries: [...logOf(o.preds), ...(o.entries ?? [])].sort((a, b) => a.t - b.t) });
+
+  test('doctor check: groups by the clock (breakfast, lunch, dinner) and corrections apart; snacks and food without insulin left out', () => {
+    assert.equal(D.groupOf({ t0: at(1, 8), carbs: 40, units: 3 }), 'breakfast');
+    assert.equal(D.groupOf({ t0: at(1, 14), carbs: 40, units: 3 }), 'lunch');
+    assert.equal(D.groupOf({ t0: at(1, 20), carbs: 40, units: 3 }), 'dinner');
+    assert.equal(D.groupOf({ t0: at(1, 20), carbs: 0, units: 1 }), 'correction');
+    assert.equal(D.groupOf({ t0: at(1, 20), carbs: 10, units: 1 }), null, 'a snack');
+    assert.equal(D.groupOf({ t0: at(1, 20), carbs: 40, units: 0 }), null, 'no insulin: says nothing about the ratio');
+  });
+  test('doctor check: the 2-hour result is the early outcome; the later one is read at the end of the curve, kept within 3–5 h', () => {
+    const [o] = obsOf({ ...base, preds: [pred('a', at(1, 8), { checks: { '120': { pred: 150, actual: 186 } }, end_min: 240 })] });
+    assert.deepEqual(o.early, { min: 120, pred: 150, actual: 186, diff: 36 });
+    assert.equal(o.late!.min, 240); assert.equal(o.late!.actual, 140);
+    const [long] = obsOf({ ...base, preds: [pred('b', at(1, 8), { end_min: 360, curve: curve(140, 140, 25) })] });
+    assert.equal(long.late!.min, 300, 'never later than 5 h');
+  });
+  test('doctor check: anything logged before the later check removes the later outcome, never guesses it', () => {
+    const t0 = at(1, 8);
+    const entries = [{ key: 'snack', t: t0 + 150 * M, kind: 'carbs', grams: 10, units: 0, name: null, recipe_id: null }] as any;
+    const [o] = obsOf({ ...base, entries, preds: [pred('a', t0)] });
+    assert.ok(o.early, 'the 2-hour check came before the snack'); assert.equal(o.late, null);
+  });
+  test('doctor check: clean and affected observations are never pooled', () => {
+    const t0 = at(2, 8);
+    const preds = [
+      pred('clean', t0, { checks: { '120': { pred: 140, actual: 150 } } }),
+      pred('iob', t0 - DAY, { params: { cr: 15, isf: 90, onboard_iob: 0.8, onboard_cob: 0 }, checks: { '120': { pred: 140, actual: 260 } } }),
+      pred('h:fat', t0 - 3 * DAY, { checks: { '120': { pred: 140, actual: 250 } } }),
+      pred('day1', t0 - 4 * DAY, { excluded: 'sensor_day1', checks: { '120': { pred: 140, actual: 20 } } }),
+    ];
+    const makeup = new Map([['h:fat', { fat: 30, protein: 20 }]]);
+    const obs = obsOf({ ...base, preds, makeup });
+    const by = Object.fromEntries(obs.map((o) => [o.key, o]));
+    assert.equal(by.clean.clean, true);
+    assert.deepEqual(by.iob.flags, ['overlap']); assert.deepEqual(by['h:fat'].flags, ['fatty']);
+    assert.deepEqual(by.day1.flags, ['sensor']); assert.deepEqual(by.day1.sensorWhy, ['day1']);
+    const g = D.summarize(obs, now).groups.find((x) => x.group === 'breakfast')!;
+    assert.equal(g.win[30].early.clean.n, 1); assert.equal(g.win[30].early.clean.median, 10, 'the clean median ignores the affected ones');
+    assert.equal(g.win[30].early.affected.n, 3);
+    assert.equal(g.flags.overlap, 1); assert.equal(g.flags.fatty, 1); assert.equal(g.flags.sensor, 1);
+  });
+  test('doctor check: sensor doubts — a hole in the data, the last day, finger-pricks disagreeing', () => {
+    const t0 = at(3, 14);
+    const holeT = T.filter((x) => x < t0 + 20 * M || x > t0 + 70 * M);
+    const holed = { t: Float64Array.from(holeT), v: Float64Array.from(holeT.map(() => 140)) };
+    assert.deepEqual(obsOf({ ...base, series: holed, preds: [pred('a', t0)] })[0].sensorWhy, ['gaps']);
+    assert.deepEqual(obsOf({ ...base, sensor: { startedAt: t0 - 13.5 * DAY, days: 14 }, preds: [pred('a', t0)] })[0].sensorWhy, ['last_day']);
+    const cmp = [-25, -30, -20].map((d) => ({ t: t0 - DAY, diff: d, cause: 'sensor_bias' }));
+    assert.deepEqual(obsOf({ ...base, comparisons: cmp, preds: [pred('a', t0)] })[0].sensorWhy, ['bias']);
+    const lag = [-25, -30, -20].map((d) => ({ t: t0 - DAY, diff: d, cause: 'cgm_lag' }));
+    assert.deepEqual(obsOf({ ...base, comparisons: lag, preds: [pred('a', t0)] })[0].sensorWhy, [], 'lag during a change is not how the sensor reads');
+  });
+  test('doctor check: Tresiba flagged when glucose drifted on its own before, not when it held steady', () => {
+    const t0 = at(2, 8);
+    const long = [{ t: t0 - 18 * H, units: 9 }];
+    assert.deepEqual(obsOf({ ...base, long, preds: [pred('a', t0)] })[0].flags, [], 'steady overnight');
+    const dt: number[] = [], dv: number[] = [];
+    for (let x = now - 31 * DAY; x <= now; x += 5 * M) { dt.push(x); dv.push(x > t0 - 18 * H && x < t0 ? 300 - ((x - (t0 - 18 * H)) / H) * 10 : 140); }
+    const drifting = { t: Float64Array.from(dt), v: Float64Array.from(dv) };
+    assert.deepEqual(obsOf({ ...base, long, series: drifting, preds: [pred('a', t0)] })[0].flags, ['tresiba'], 'fell 10 mg/dL an hour with nothing else working');
+  });
+  test('doctor check: confidence — too few under 5, low under 10 or when spread wide, never high', () => {
+    const s = (xs: number[]) => D.confidence({ n: xs.length, median: 0, q1: Math.min(...xs), q3: Math.max(...xs), near: 0, lower: 0, higher: 0 });
+    assert.equal(s([0, 0, 0, 0]), 'too_few');
+    assert.equal(s([0, 0, 0, 0, 0]), 'low');
+    assert.equal(s(Array(12).fill(10)), 'moderate');
+    assert.equal(D.confidence({ n: 12, median: 0, q1: -40, q3: 30, near: 0, lower: 0, higher: 0 }), 'low', 'middle half spread over 3 mmol/L');
+  });
+  test('doctor check: 7, 14 and 30-day windows count only their own days', () => {
+    const preds = [1, 3, 10, 20, 40].map((d, i) => pred('p' + i, at(d, 8)));
+    const g = D.summarize(obsOf({ ...base, preds }), now).groups.find((x) => x.group === 'breakfast')!;
+    assert.deepEqual([g.win[7].early.clean.n, g.win[14].early.clean.n, g.win[30].early.clean.n], [2, 3, 4]);
+  });
+  test('doctor check: a prediction that no longer matches the log is left out, never counted', () => {
+    const t0 = at(2, 8), p = pred('h:m', t0);
+    const log = logOf([p]);
+    assert.equal(D.stillMatches(p, log as any), true);
+    assert.equal(D.stillMatches(p, log.filter((e: any) => e.key !== 'h:m') as any), false, 'the meal was deleted');
+    assert.equal(D.stillMatches(p, log.map((e: any) => (e.key === 'h:m' ? { ...e, grams: 55 } : e)) as any), false, 'its carbs were edited');
+    const dose = pred('e:d', at(2, 13), { carbs: 0, units: 3 });
+    const meal10 = { key: 'h:later', t: dose.t0 + 10 * M, kind: 'meal', grams: 50, units: 0, name: null, recipe_id: null };
+    assert.equal(D.stillMatches(dose, [...logOf([dose]), meal10] as any), false, 'a meal logged later makes a pre-meal dose, not a correction');
+    const r = D.doctorCheck({ ...base, entries: [...logOf([p, dose]), meal10].sort((a: any, b: any) => a.t - b.t), preds: [p, dose] } as any);
+    assert.equal(r.dropped.n, 1); assert.equal(r.dropped.byGroup.correction, 1);
+    assert.equal(r.groups.find((g) => g.group === 'breakfast')!.obs.length, 1);
+  });
+  test('doctor check: the numbers in force at each prediction are listed, so a change in the period shows', () => {
+    const a = pred('a', at(20, 8)), b = pred('b', at(10, 8), { params: { cr: 15, isf: 72, onboard_iob: 0, onboard_cob: 0 } }), c = pred('c', at(2, 8), { params: { cr: 15, isf: 90, onboard_iob: 0, onboard_cob: 0 } });
+    const r = D.doctorCheck({ ...base, entries: logOf([a, b, c]), preds: [c, a, b] } as any);
+    assert.deepEqual(r.spans.map((x) => [x.isf, x.n]), [[90, 1], [72, 1], [90, 1]], 'a change and a change back are both shown');
+    const d = pred('d', at(1, 20), { params: { cr: 13, isf: 90, onboard_iob: 0, onboard_cob: 0 } });
+    assert.deepEqual(D.doctorCheck({ ...base, entries: logOf([c, d]), preds: [c, d] } as any).spans.map((x) => x.crs), [[15, 13]], 'the evening ratio is part of the same period');
+  });
+  test('doctor check: the saved numbers are compared with what the family reported (1:15, 4.0 mmol/L)', () => {
+    assert.deepEqual(D.discrepancy([{ from: '08:00', cr: 15, isf: 90 }, { from: '18:00', cr: 13, isf: 90 }]), { cr: [{ from: '18:00', cr: 13 }], isf: [90] });
+    assert.equal(D.discrepancy([{ from: '08:00', cr: 15, isf: 72 }]), null);
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);

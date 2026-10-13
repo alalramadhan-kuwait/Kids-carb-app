@@ -87,7 +87,7 @@ export function Patterns() {
 
       {/* deeper analyses, one level down */}
       <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
-        {([['meals', 'استجابة الوجبات', 'كيف يتغيّر السكر بعد كل وصفة'], ['compare', 'مقارنة فترتين', 'أسبوع بأسبوع، المدرسة والعطلة']] as const).map(([m, l, h]) => ( // i18n-ok
+        {([['meals', 'استجابة الوجبات', 'كيف يتغيّر السكر بعد كل وصفة'], ['compare', 'مقارنة فترتين', 'أسبوع بأسبوع، المدرسة والعطلة'], ['doctor', 'أرقام الطبيب والواقع', 'هل مشى السكر مثل ما توقعت أرقام الطبيب؟']] as const).map(([m, l, h]) => ( // i18n-ok
           <li key={m}><Link to={`/analysis?mode=${m}`} className="flex min-h-[56px] items-center gap-3 px-4 py-2 active:bg-slate-50">
             <span className="min-w-0 flex-1"><span className="block font-bold">{t(l)}</span><span className="block truncate text-xs text-slate-500">{t(h)}</span></span>
             <span className="text-slate-300">{isEn() ? '›' : '‹'}</span>

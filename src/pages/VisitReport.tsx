@@ -20,6 +20,9 @@ import { EventsPages, STARTS_KEY, SheetPage, loadDaySheets, type Ctx } from './D
 import { DailyAverage, GrowthSection, MealPatterns, Summary } from './Growth';
 import { PlanReport } from './PlanReport';
 import { ObservationsSection } from './visit/Observations';
+import { DoctorCheckSection } from './visit/DoctorCheckSection';
+import { useDoctorCheck } from '../lib/doctorCheck';
+import { useGlucose } from '../hooks/useGlucose';
 import { buildObservations, type NutritionIn } from '../engine/report/observations';
 import { nightOf } from '../lib/schedule';
 import { useGrowthNutrition } from '../lib/growth';
@@ -65,6 +68,10 @@ export default function VisitReport() {
   const make = async () => {
     if (blob) return share(blob);
     let restore: (() => void) | null = null;
+    // paper is always in day colours: at night the night theme would otherwise put light text on the white pages
+    const root0 = document.documentElement, theme0 = root0.dataset.theme;
+    root0.dataset.printing = '1'; root0.dataset.theme = 'day';
+    const unprint = () => { delete root0.dataset.printing; if (theme0) root0.dataset.theme = theme0; else delete root0.dataset.theme; };
     try {
       const now = Date.now();
       setStep(W.load);
@@ -91,13 +98,14 @@ export default function VisitReport() {
       await addHtmlPages(doc, part('growth'), { orientation: 'portrait', fit: 'flow' });
       const dietPages = Array.from(root.querySelectorAll<HTMLElement>('[data-part="diet"] .diet-page'));
       if (dietPages.length) await addHtmlPages(doc, dietPages, { orientation: 'landscape', fit: 'page' });
+      await addHtmlPages(doc, part('doctorcheck'), { orientation: 'portrait', fit: 'flow' });
       await addHtmlPages(doc, part('notes'), { orientation: 'portrait', fit: 'flow' });
       restore?.(); restore = null;
       setJob(null); setStep(null);
       await share(doc.output('blob'));
     } catch (e) {
       toast(t('تعذّر إنشاء PDF: {e}', { e: (e as Error).message }));
-    } finally { restore?.(); setJob(null); setStep(null); }
+    } finally { restore?.(); unprint(); setJob(null); setStep(null); }
   };
 
   const seg = (on: boolean) => cx('min-h-[40px] rounded-full px-3 text-sm font-bold', on ? 'bg-brand text-white' : 'text-slate-600');
@@ -132,6 +140,7 @@ export default function VisitReport() {
             <li>{t('الوجبات المخططة: الجرعة المحسوبة والمعطاة')}</li>
             <li>{t('النمو والتغذية: الوزن والطول، الطاقة، التوازن')}</li>
             <li>{t('جدول التغذية: صفحة لكل يوم')}</li>
+            <li>{t('أرقام الطبيب والسكر الفعلي: هل انتهت الوجبات والتصحيح حيث توقعت الأرقام المحفوظة، مع الأسئلة')}</li>
             <li>{t('ملاحظات وأسئلة لفريق الرعاية: ما وجده التطبيق في بياناتها، بالدليل، مع سؤال لكل ملاحظة ومكان لملاحظات الطبيب')}</li>
           </ol>
           <p className="text-xs text-slate-500">{t('ملاحظات من بياناتها، وليست توصية بجرعة.')}</p>
@@ -151,6 +160,8 @@ function VisitPages({ job, low, high, days }: { job: Job; low: number; high: num
   const { settings, products, history, events } = useData();
   const { portions } = usePortions();
   const g = useGrowthNutrition();
+  const { g: live } = useGlucose();
+  const dc = useDoctorCheck(live?.sensor?.started_at ? Date.parse(live.sensor.started_at) : null);
   // the observations, once the nutrition model is ready (it feeds the dietitian's findings)
   const obs = useMemo(() => {
     if (!g.ready) return null;
@@ -196,6 +207,7 @@ function VisitPages({ job, low, high, days }: { job: Job; low: number; high: num
           <EventsPages s={s} unit={settings.glucose_unit} low={low} high={high} child={child} ctx={ctx} />
         </div>)}
       </div>
+      <div data-part="doctorcheck" data-ready={dc.check || dc.error ? '1' : '0'} className="p-4">{dc.check && <DoctorCheckSection check={dc.check} unit={settings.glucose_unit} />}</div>
       <div data-part="notes" data-ready={obs ? '1' : '0'} className="space-y-3 p-4">{obs && <ObservationsSection obs={obs} unit={settings.glucose_unit} />}</div>
     </>
   );
