@@ -141,12 +141,14 @@ export function Alarm() {
 
   // only what was checked after the phone woke: an alert answered or ended meanwhile, or the time the phone slept, never
   // sounds by mistake. A check that fails still counts as checked: the last known alert and the lost connection then sound.
-  const server = listAt >= woke ? [...list].sort((a, b) => ORDER.indexOf(LEVEL_OF[a.kind]!) - ORDER.indexOf(LEVEL_OF[b.kind]!))[0] ?? null : null;
+  // «no reading» switched off by the parents (Alerts settings): neither the server's nor this phone's own check takes the screen
+  const nodataOn = settings.alert_nodata_on !== false;
+  const server = listAt >= woke ? [...list].filter((a) => nodataOn || a.kind !== 'no_data').sort((a, b) => ORDER.indexOf(LEVEL_OF[a.kind]!) - ORDER.indexOf(LEVEL_OF[b.kind]!))[0] ?? null : null;
   const checked = fresh.tried >= woke;
   const offline = checked && now - fresh.ok > STALE_MIN * MIN;
   const staleMin = fresh.reading === null ? null : Math.floor((now - fresh.reading) / MIN);
   // readings were coming in (within 6 hours) and stopped; a sensor that is off or not connected does not ring all day
-  const localStale = offline || (checked && staleMin !== null && staleMin >= STALE_MIN && staleMin < 6 * 60);
+  const localStale = nodataOn && (offline || (checked && staleMin !== null && staleMin >= STALE_MIN && staleMin < 6 * 60));
   const localQuiet = quiet && quiet.reading === fresh.reading && now < quiet.until;
   const level: AlarmLevel | null = server ? LEVEL_OF[server.kind]! : localStale && !localQuiet ? 'nodata' : null;
 

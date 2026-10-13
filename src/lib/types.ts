@@ -112,6 +112,8 @@ export interface Settings {
   /** one switch per optional alert (Very low, Low and No reading have none: they are always on) */
   alert_high_on: boolean; alert_predict_on: boolean; alert_fall_on: boolean; alert_rise_on: boolean;
   alert_sensor_on: boolean; alert_plan_on: boolean; alert_recheck_on: boolean;
+  /** «no reading»: the push and the full-screen alarm (the server's and this phone's own check) */
+  alert_nodata_on: boolean;
   night_start: string | null; night_end: string | null;
   night_low_mgdl: number | null; night_high_mgdl: number | null;
   night_high_silent: boolean; night_theme: boolean;
@@ -234,7 +236,7 @@ export const DEFAULT_SETTINGS: Settings = {
   alert_fall_rate: null,
   alert_rise_rate: null,
   alert_predict_low_min: null,
-  alert_high_on: true, alert_predict_on: true, alert_fall_on: false, alert_rise_on: false, alert_sensor_on: true, alert_plan_on: true, alert_recheck_on: true,
+  alert_high_on: true, alert_predict_on: true, alert_fall_on: false, alert_rise_on: false, alert_sensor_on: true, alert_plan_on: true, alert_recheck_on: true, alert_nodata_on: true,
   night_start: null, night_end: null, night_low_mgdl: null, night_high_mgdl: null, night_high_silent: false, night_theme: true,
   school_days: [0, 1, 2, 3, 4], school_start: null, school_end: null, school_low_mgdl: null, school_high_mgdl: null,
   escalate_min: 10,

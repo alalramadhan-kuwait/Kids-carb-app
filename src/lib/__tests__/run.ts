@@ -488,6 +488,10 @@ test('a stale reading neither raises nor clears; no data alerts after the set mi
   assert.equal(evaluate(at(25), [rd(4, 100)], CFG, [], false).length, 0);
   const back = evaluate(at(26), [rd(26, 100)], CFG, [open({ kind: 'no_data' })], true);
   assert.equal(back[0].op, 'resolve'); assert.equal(back[0].notify, 'resolved');
+  const off = { ...CFG, nodataOn: false };
+  assert.equal(evaluate(at(25), [rd(4, 100)], off, [], true).length, 0, 'switched off: no «no reading» alert');
+  const shut = evaluate(at(25), [rd(4, 100)], off, [open({ kind: 'no_data' })], true);
+  assert.equal(shut[0].op, 'resolve'); assert.equal(shut[0].notify, undefined, 'an open one is closed quietly');
 });
 
 test('very low and low cannot be switched off (a missing limit falls back to 54 / 70); the optional ones have switches', () => {

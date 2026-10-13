@@ -1,6 +1,7 @@
 // Alert state machine (GLUCOSE_PLAN section 6), pure so it can be tested. Runs on the server every minute.
-// Thresholds come from the parents. Very low, Low and No reading are protected: they cannot be switched off, and if a
-// threshold is ever missing the standard one (54 / 70 mg/dL) applies. Every other alert has its own switch.
+// Thresholds come from the parents. Very low and Low are protected: they cannot be switched off, and if a threshold
+// is ever missing the standard one (54 / 70 mg/dL) applies. Every other alert, No reading included (the parents
+// switched it off on 13 Oct 2026), has its own switch.
 // One glucose episode is ONE alert: "low expected", "low" and "very low" are levels of the same row, which moves up
 // (and is re-announced) when it gets worse and goes quiet when it recovers. Messages state facts only: never a dose,
 // never grams to give.
@@ -17,7 +18,7 @@ export interface AlertCfg {
   fallRate?: number | null;    // mg/dL per minute for falling fast; overrides rapidRate when set
   riseRate?: number | null;    // mg/dL per minute for rising fast; overrides rapidRate when set
   predictLowMin?: number | null; // "low expected": warn when the current fall would reach the low limit within this many minutes
-  highOn?: boolean; predictOn?: boolean; fallOn?: boolean; riseOn?: boolean; // the switches (high and low expected default on; the two fast alerts off)
+  highOn?: boolean; predictOn?: boolean; fallOn?: boolean; riseOn?: boolean; nodataOn?: boolean; // the switches (high, low expected and no reading default on; the two fast alerts off)
   escalateMin?: number;        // minutes without "I'm on it" before the backup parent is told
   night?: { start: string; end: string; low: number | null; high: number | null; highSilent: boolean } | null;
   school?: { days: number[]; start: string; end: string; low: number | null; high: number | null } | null;
@@ -307,7 +308,7 @@ export function evaluate(now: number, readings: Reading[], cfg: AlertCfg, open: 
         enabled = cfg.riseOn === true && RR !== null; delay = 2; renotify = 24 * 60;
         cond = rate !== null && rate >= RR!; clear = rate !== null && rate < RR! * 0.6; break;
       default:
-        enabled = cgmConnected; delay = 0; renotify = Math.max(cfg.renotify, 15);
+        enabled = cgmConnected && cfg.nodataOn !== false; delay = 0; renotify = Math.max(cfg.renotify, 15);
         cond = age > cfg.noDataMin; clear = !cond;
     }
     const silent = kind === 'high' && highSilent;

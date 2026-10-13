@@ -18,15 +18,16 @@ type Sub = { id: string; user_id: string; device_label: string | null; last_ok_a
 const KEYS = ['alert_urgent_low_mgdl', 'alert_low_mgdl', 'alert_high_mgdl', 'alert_low_delay_min', 'alert_high_delay_min', 'alert_nodata_min', 'alert_renotify_min',
   'alert_high_renotify_min', 'alert_rapid_rate', 'alert_fall_rate', 'alert_rise_rate', 'alert_predict_low_min', 'night_start', 'night_end', 'night_low_mgdl', 'night_high_mgdl', 'night_high_silent', 'night_theme',
   'school_days', 'school_start', 'school_end', 'school_low_mgdl', 'school_high_mgdl', 'escalate_min',
-  'alert_high_on', 'alert_predict_on', 'alert_fall_on', 'alert_rise_on', 'alert_sensor_on', 'alert_plan_on', 'alert_recheck_on'] as const;
+  'alert_high_on', 'alert_predict_on', 'alert_fall_on', 'alert_rise_on', 'alert_sensor_on', 'alert_plan_on', 'alert_recheck_on', 'alert_nodata_on'] as const;
 // Arabic labels; translated with t() where shown.
 const WEEK = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']; // i18n-ok
-type OptionalKey = 'alert_predict_on' | 'alert_high_on' | 'alert_fall_on' | 'alert_rise_on' | 'alert_sensor_on' | 'alert_plan_on' | 'alert_recheck_on';
+type OptionalKey = 'alert_nodata_on' | 'alert_predict_on' | 'alert_high_on' | 'alert_fall_on' | 'alert_rise_on' | 'alert_sensor_on' | 'alert_plan_on' | 'alert_recheck_on';
 const OPTIONAL: [OptionalKey, string, string][] = [ // i18n-ok: Arabic keys, translated with t() where shown
   ['alert_predict_on', 'منخفض متوقع', 'فقط إذا كانت تنزل الآن فعلًا وستصل حد المنخفض'], // i18n-ok
   ['alert_high_on', 'مرتفع', 'عند الوصول لحد المرتفع واستمراره'], // i18n-ok
   ['alert_fall_on', 'نزول سريع', 'إشعار منفصل · مغلق افتراضيًا'], // i18n-ok
   ['alert_rise_on', 'صعود سريع', 'إشعار منفصل · مغلق افتراضيًا'], // i18n-ok
+  ['alert_nodata_on', 'ما في قراءة', 'إذا انقطعت قراءات الحساس · الشاشة الكاملة والإشعار'], // i18n-ok
   ['alert_sensor_on', 'قرب انتهاء الحساس', 'قبل يوم وقبل ساعتين'], // i18n-ok
   ['alert_plan_on', 'تذكيرات خطة الوجبة', 'الفحص، وقت الأكل، النتيجة'], // i18n-ok
   ['alert_recheck_on', 'إعادة قياس بعد علاج الانخفاض', 'بعد ١٥ دقيقة من العلاج'], // i18n-ok

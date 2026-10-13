@@ -1,5 +1,15 @@
 [
   {
+    "version": "3.4.0",
+    "date": "2026-10-13",
+    "notes": [
+      "إنذار «ما في قراءة» صار له مفتاح في إعدادات التنبيهات، وهو الحين مقفول: لا شاشة كاملة ولا إشعار إذا انقطعت قراءات الحساس. إنذارات المنخفض والمنخفض جدًا مثل ما هي."
+    ],
+    "notes_en": [
+      "The «No reading» alarm now has a switch in Alerts settings, and it is off: no full screen and no notification when sensor readings stop. Low and very low alarms are unchanged."
+    ]
+  },
+  {
     "version": "3.3.1",
     "date": "2026-10-13",
     "notes": [

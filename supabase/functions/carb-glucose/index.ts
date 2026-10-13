@@ -190,7 +190,7 @@ async function runAlerts(db: Db, now: number) {
     rapidRate: s.alert_rapid_rate === null ? null : Number(s.alert_rapid_rate), escalateMin: s.escalate_min,
     fallRate: s.alert_fall_rate == null ? null : Number(s.alert_fall_rate), riseRate: s.alert_rise_rate == null ? null : Number(s.alert_rise_rate),
     predictLowMin: s.alert_predict_low_min ?? null,
-    highOn: s.alert_high_on !== false, predictOn: s.alert_predict_on !== false, fallOn: s.alert_fall_on === true, riseOn: s.alert_rise_on === true,
+    highOn: s.alert_high_on !== false, predictOn: s.alert_predict_on !== false, fallOn: s.alert_fall_on === true, riseOn: s.alert_rise_on === true, nodataOn: s.alert_nodata_on !== false,
     night: s.night_start && s.night_end ? { start: s.night_start, end: s.night_end, low: s.night_low_mgdl, high: s.night_high_mgdl, highSilent: s.night_high_silent } : null,
     school: s.school_start && s.school_end ? { days: s.school_days ?? [], start: s.school_start, end: s.school_end, low: s.school_low_mgdl, high: s.school_high_mgdl } : null };
   const members = (mem.data ?? []) as { user_id: string; alert_role: string }[];
