@@ -172,22 +172,22 @@ export function MomDose() {
   const reasons = given !== null && given > r.dose ? REASONS.more : REASONS.less;
   const leftNote = leftOut.length > 0 && !correction && <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ <bdi>{leftOut.join(' · ')}</bdi> {t('ما ينحسب بالإبرة · كلّمي بابا')}</p>;
   return (
-    <MomPage title={correction ? t('إبرة تصحيح') : t('قبل الأكل')} back={backTo}
-      foot={<>{differs && !reason && <p className="text-center text-[16px] font-bold text-near">{t('اختاري السبب')}</p>}
-        {none ? <Big disabled={busy || !reason} onClick={() => eatWithout({ at: eatAt, why: reason! })}>🍽️ {t('سجّلي الأكل بدون إبرة')}</Big>
-          : <Big disabled={busy || !given || given <= 0 || (differs && !reason)} onClick={() => save()}>💉 {t('سجّلي الإبرة')}</Big>}</>}>
+    <MomPage compact title={correction ? t('إبرة تصحيح') : t('قبل الأكل')} back={backTo}
+      foot={<>{differs && !reason && <p className="text-center text-[14px] font-bold text-near">{t('اختاري السبب')}</p>}
+        {none ? <Big md disabled={busy || !reason} onClick={() => eatWithout({ at: eatAt, why: reason! })}>🍽️ {t('سجّلي الأكل بدون إبرة')}</Big>
+          : <Big md disabled={busy || !given || given <= 0 || (differs && !reason)} onClick={() => save()}>💉 {t('سجّلي الإبرة')}</Big>}</>}>
       {leftNote}
       <UnknownMealNote meal={live.unknownMeal} big />
-      <div className="space-y-1.5 rounded-3xl border border-slate-100 bg-white px-4 py-3 text-[17px]">
-        {!correction && <div className="text-[16px] text-slate-600"><bdi>{names.join(' · ')}</bdi></div>}
+      <div className="space-y-1 rounded-3xl border border-slate-100 bg-white px-4 py-2.5 text-[15px]">
+        {!correction && <div className="text-[14px] text-slate-600"><bdi>{names.join(' · ')}</bdi></div>}
         {!correction && <div className="flex justify-between"><span>🍽️ {t('الكارب')}</span><b className="num">{fmt(carbs ?? 0)} {t('غرام')}</b></div>}
         {latest && <div className="flex justify-between"><span>{t('السكر الحين')}</span><b className="num" dir="ltr">{glucoseText(latest.mg_dl, unit)} {level !== null ? ARROW[level] : ''}</b></div>}
         <div className="flex justify-between"><span>{t('آخر إبرة')}</span><b>{lastRapid ? ago(Date.parse(lastRapid.occurred_at)) : '—'}</b></div>
       </div>
-      <div className="rounded-3xl bg-brand-soft px-4 py-4 text-center">
-        <div className="text-sm text-brand">{t('حسب خطة الدكتور')}</div>
-        <div className="text-brand"><span className="num text-[64px] font-extrabold leading-none">{fmt(r.dose)}</span> <span className="text-[22px] font-bold">{t('وحدة')}</span></div>
-        <button className="mt-1 min-h-[36px] text-sm font-bold text-brand underline" onClick={() => setWhy(!why)}>{t('ليش؟')}</button>
+      <div className="rounded-3xl bg-brand-soft px-4 py-2 text-center">
+        <div className="text-[13px] text-brand">{t('حسب خطة الدكتور')}</div>
+        <div className="text-brand"><span className="num text-[48px] font-extrabold leading-none">{fmt(r.dose)}</span> <span className="text-[18px] font-bold">{t('وحدة')}</span></div>
+        <button className="min-h-[32px] text-[13px] font-bold text-brand underline" onClick={() => setWhy(!why)}>{t('ليش؟')}</button>
         {why && (
           <div className="mt-1 space-y-0.5 text-start text-[15px]" dir="auto">
             <div className="flex justify-between"><span>{t('للأكل')}</span><b className="num">{fmt(Math.round(r.food * 10) / 10)}</b></div>
@@ -202,18 +202,18 @@ export function MomDose() {
         ? <><p className="text-center text-[18px]">{t('ما تحتاج إبرة')}</p><Big tone="soft" disabled={busy} onClick={() => eatWithout()}>{t('سجّلي الأكل')}</Big></>
         : (
           <>
-            <div className="text-center text-[17px] font-bold">{t('كم عطيتيها؟')}</div>
+            <div className="text-center text-[15px] font-bold">{t('كم عطيتيها؟')}</div>
             <div className="flex items-center justify-center gap-6">
-              <button aria-label="+" className="grid h-16 w-16 place-items-center rounded-full bg-brand-soft text-4xl font-bold text-brand" onClick={() => { setGiven(Math.round(((given ?? 0) + step) * 10) / 10); setReason(null); }}>+</button>
-              <span className="num w-20 text-center text-[48px] font-extrabold">{given === null ? '—' : fmt(given)}</span>
-              <button aria-label="−" className="grid h-16 w-16 place-items-center rounded-full bg-brand-soft text-4xl font-bold text-brand" onClick={() => { setGiven(Math.max(0, Math.round(((given ?? 0) - step) * 10) / 10)); setReason(null); }}>−</button>
+              <button aria-label="+" className="grid h-12 w-12 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => { setGiven(Math.round(((given ?? 0) + step) * 10) / 10); setReason(null); }}>+</button>
+              <span className="num w-16 text-center text-[38px] font-extrabold leading-none">{given === null ? '—' : fmt(given)}</span>
+              <button aria-label="−" className="grid h-12 w-12 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => { setGiven(Math.max(0, Math.round(((given ?? 0) - step) * 10) / 10)); setReason(null); }}>−</button>
             </div>
             {!none && <SiteRow type="rapid" site={site} suggest={suggest} />}
-            {none && <><div className="text-center text-[17px] font-bold">{t('متى أكلت؟')}</div><TimePicker compact value={eatAt} onChange={setEatAt} /></>}
-            {differs && <div className="flex flex-wrap justify-center gap-2">{reasons.map((x) => <button key={x} onClick={() => setReason(x)} className={cx('min-h-[44px] rounded-full px-4 text-[16px]', reason === x ? 'bg-brand font-bold text-white' : 'bg-white border border-slate-200')}>{t(x)}</button>)}</div>}
+            {none && <><div className="text-center text-[15px] font-bold">{t('متى أكلت؟')}</div><TimePicker compact value={eatAt} onChange={setEatAt} /></>}
+            {differs && <div className="flex flex-wrap justify-center gap-1.5">{reasons.map((x) => <button key={x} onClick={() => setReason(x)} className={cx('min-h-[40px] rounded-full px-3.5 text-[14px]', reason === x ? 'bg-brand font-bold text-white' : 'bg-white border border-slate-200')}>{t(x)}</button>)}</div>}
           </>
         )}
-      <p className="text-center text-xs text-slate-400">{t('الأرقام من خطة الدكتور')}</p>
+      <p className="text-center text-[11px] text-slate-400">{t('الأرقام من خطة الدكتور')}</p>
     </MomPage>
   );
 }
