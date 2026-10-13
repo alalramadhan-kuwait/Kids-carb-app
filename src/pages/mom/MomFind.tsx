@@ -134,6 +134,7 @@ export function MomFind() {
     ['🍔', t('أكل المطاعم'), t('منيو المطاعم'), () => nav('/mom/add?browse=restaurants')],
     ...(d.mode === 'now' ? [['🍽️', t('أكل برّا'), t('ما أعرف الكارب'), () => nav('/mom/out')] as [string, string, string, () => void]] : []),
     ['🗂️', t('أقسام الأكل'), t('تصفّحي حسب النوع'), () => nav('/mom/add?browse=groups')],
+    ['📷', t('مو موجود؟'), t('اكتبي الكارب من الملصق، أو أرسليه لبابا'), () => nav('/mom/new')],
   ];
   const search = (
     <div className="relative">
@@ -149,7 +150,7 @@ export function MomFind() {
         found.length ? <div className="space-y-2">{found.slice(0, 60).map(row)}</div> : (
           <div className="space-y-3 py-4 text-center">
             <p className="text-[16px] text-slate-600">{t('ما لقينا «{q}»', { q: q.trim() })}</p>
-            <Big tone="soft" md onClick={() => nav('/mom/new')}>📷 {t('مو موجود؟ أرسليه لبابا')}</Big>
+            <Big tone="soft" md onClick={() => nav(`/mom/new?name=${encodeURIComponent(q.trim())}`)}>📷 {t('مو موجود؟ اكتبي كارب الملصق')}</Big>
           </div>
         )
       ) : (
@@ -180,7 +181,6 @@ export function MomFind() {
               </button>
             ))}
           </div>
-          <button onClick={() => nav('/mom/new')} className="min-h-[44px] text-[14px] font-bold text-brand">{t('مو موجود؟')}</button>
         </>
       )}
     </MomPage>

@@ -98,7 +98,7 @@ export function MomHome() {
   const due = waiting.find((p) => phase(p, now) === 'check') ?? null;
   const next = due ? null : waiting.find((p) => Date.parse(p.dose_at) - now < 18 * H) ?? null;
   // a meal of the other kind replaces the one being built: asked first; kept, the plate opens as it is
-  const build = (mode: 'now' | 'plan') => { if (okToReplace(mode)) draftOps.start(mode); nav('/mom/meal'); };
+  const build = (mode: 'now' | 'plan') => { if (okToReplace(mode)) draftOps.start(mode); nav('/mom/meal?from=home'); };
   // the sensor: days left in the status line; its last day, or an unknown arm, gets a card
   const sensor = useSensor();
   const sensorSoon = sensor && sensor.life.state !== 'ok';

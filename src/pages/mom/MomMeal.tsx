@@ -119,6 +119,9 @@ export function MomMeal() {
     : `${fmt(it.amount ?? 0)} ${it.unit === 'serving' ? t('حصة') : it.unit === 'plate' ? t('صحن') : it.unit === 'cup' ? t('كوب') : c.products.find((p) => p.id === it.id)?.unit === 'ml' ? t('مل') : t('غرام')}`;
   const Left = () => d.left.length ? <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ <bdi>{d.left.join(' · ')}</bdi> {t('ما ينحسب بالإبرة · كلّمي بابا')}</p> : null;
   const title = d.mode === 'plan' ? t('خطة وجبة') : t('وجبة ليان');
+  // opened from home with a plate left from before: say so, and one tap starts a new meal (nothing else is lost)
+  const fromHome = useSearchParams()[0].get('from') === 'home';
+  const fresh = () => { draftOps.clear(); draftOps.start(d.mode); nav('/mom/add', { replace: true }); };
   // nothing on the plate yet: straight to the search (the summary appears with the first food)
   if (!d.items.length) return <Navigate to="/mom/add" replace />;
   return (
@@ -128,6 +131,12 @@ export function MomMeal() {
       <Big tone="soft" className="!min-h-[48px] !text-[17px]" onClick={() => nav('/mom/add')}>+ {t('إضافة أكل ثاني')}</Big>
       <Big md disabled={total === null} onClick={() => nav(d.mode === 'plan' ? '/mom/when' : '/mom/dose')}>{d.mode === 'plan' ? `${t('التالي')} · 🕐 ${t('متى؟')}` : t('التالي')}</Big>
     </>}>
+      {fromHome && (
+        <div className="flex items-center gap-2 rounded-2xl bg-near-soft px-3 py-2 text-near">
+          <span className="min-w-0 flex-1 text-[15px] font-bold leading-snug">{t('هذي وجبة ما خلصت من قبل')}</span>
+          <button onClick={fresh} className="min-h-[44px] shrink-0 rounded-full bg-white px-4 text-[15px] font-bold text-brand">{t('وجبة جديدة')}</button>
+        </div>
+      )}
       <ul className="divide-y divide-slate-100 rounded-3xl border border-slate-100 bg-white px-3">
         {d.items.map((it, k) => {
           const g = itemCarbs(it), p = photoOf(it);
@@ -559,7 +568,8 @@ function PortionPage({ kind, id, k }: { kind: 'product' | 'recipe'; id: string; 
 export function MomNew() {
   const nav = useNavigate();
   const { reload, products } = useData();
-  const [name, setName] = useState('');
+  const [sp] = useSearchParams();
+  const [name, setName] = useState(() => sp.get('name') ?? ''); // what she searched for
   // the carbs for one piece, read off the label: with its photo, the food goes on the plate and counts like any other
   const [carbsText, setCarbsText] = useState('');
   const carbs = carbsText.trim() === '' ? null : Number(carbsText.replace(',', '.'));

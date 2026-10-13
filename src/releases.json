@@ -1,5 +1,17 @@
 [
   {
+    "version": "3.1.1",
+    "date": "2026-10-13",
+    "notes": [
+      "«أضيفي وجبة»: إذا فيه وجبة ما خلصت، يطلع لك «هذي وجبة ما خلصت من قبل» وزر «وجبة جديدة».",
+      "«مو موجود؟» صار ضمن «طرق ثانية للإضافة»، وإذا ما لقيتي الأكل بالبحث يطلع لك زر «مو موجود؟ اكتبي كارب الملصق» والاسم مكتوب."
+    ],
+    "notes_en": [
+      "«Add a meal»: if a meal was left unfinished, it now says so, with a «New meal» button.",
+      "«Not in the list?» is now one of the other ways to add; when a search finds nothing, its button opens it with the name already typed."
+    ]
+  },
+  {
     "version": "3.1.0",
     "date": "2026-10-13",
     "notes": [

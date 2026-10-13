@@ -1542,4 +1542,8 @@ export const food: Record<string, string> = {
   "صوّري الملصق عشان ينحسب": "Take a photo of the label so it can be counted",
   "ينضاف للوجبة وتشوفين الإبرة حسب خطة الدكتور": "It goes on the plate and you see the dose from the doctor's plan",
   "بدون رقم: ينرسل لبابا وما تنحسب له إبرة": "Without a number: sent to Dad, and no dose is worked out for it",
+  "هذي وجبة ما خلصت من قبل": "This meal was not finished earlier",
+  "وجبة جديدة": "New meal",
+  "اكتبي الكارب من الملصق، أو أرسليه لبابا": "Type the carbs from the label, or send it to Dad",
+  "مو موجود؟ اكتبي كارب الملصق": "Not in the list? Type the label's carbs",
 };
