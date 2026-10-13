@@ -54,42 +54,60 @@ const fixHist = (h: any): HistoryEntry => ({
 /** Confirmed meals are what every calculation reads; pending ones (amount eaten not said yet) only the Logs show. */
 const splitMeals = (all: HistoryEntry[]) => ({ history: all.filter((h) => h.intake !== 'pending'), pendingMeals: all.filter((h) => h.intake === 'pending') });
 
+// The food catalogue (products, recipes, their ingredients) is large and changes rarely: the last copy is kept on
+// this phone so the app opens at once, and the fresh one replaces it a moment later. Readings, doses, meals and
+// settings are never taken from this copy: the app waits for them from the server every time.
+const CATALOG = 'data-catalog-v1';
+type Catalogue = { products: Product[]; recipes: Recipe[]; ings: Ingredient[] };
+const cachedCatalogue = (): Catalogue | null => {
+  try { const c = JSON.parse(localStorage.getItem(CATALOG) ?? 'null'); return c && Array.isArray(c.products) && c.products.length ? c : null; } catch { return null; }
+};
+
 export function DataProvider({ children }: { children: ReactNode }) {
+  const [cache] = useState(cachedCatalogue);
   const [state, setState] = useState<Omit<Data, 'reload' | 'ingsByRecipe' | 'candidates' | 'nameOf'>>({
-    loading: true, error: null, settings: DEFAULT_SETTINGS, products: [], recipes: [], history: [], pendingMeals: [],
+    loading: true, error: null, settings: DEFAULT_SETTINGS, products: cache?.products ?? [], recipes: cache?.recipes ?? [], history: [], pendingMeals: [],
     events: [], members: [], me: null,
   });
-  const [ings, setIngs] = useState<Ingredient[]>([]);
+  const [ings, setIngs] = useState<Ingredient[]>(cache?.ings ?? []);
 
   const reload = useCallback(async () => {
     const q = (t: string) => supabase.from(t).select('*');
     const since = new Date(Date.now() - 60 * 86400000).toISOString();
-    const [s, p, r, i, h, ev, mem, au] = await Promise.all([
-      q('settings').maybeSingle(), q('products').order('name'), q('recipes').order('created_at'),
-      q('recipe_ingredients').order('sort'),
+    const catalogue = Promise.all([q('products').order('name'), q('recipes').order('created_at'), q('recipe_ingredients').order('sort')]).then(([p, r, i]) => {
+      const err = [p, r, i].find((x) => x.error)?.error;
+      if (err) return err.message;
+      const c: Catalogue = { products: (p.data ?? []).map(fixProduct), recipes: (r.data ?? []).map((x: any) => ({ ...x, saved_total_carbs: num(x.saved_total_carbs) })), ings: (i.data ?? []).map(fixIng) };
+      setIngs(c.ings);
+      setState((x) => ({ ...x, products: c.products, recipes: c.recipes }));
+      try { localStorage.setItem(CATALOG, JSON.stringify(c)); } catch { /* full or blocked: next open loads it again */ }
+      return null;
+    });
+    const [s, h, ev, mem, au] = await Promise.all([
+      q('settings').maybeSingle(),
       q('meal_history').is('deleted_at', null).order('eaten_at', { ascending: false }).limit(1000),
       supabase.from('events').select('*').is('deleted_at', null).gte('occurred_at', since).order('occurred_at', { ascending: false }).limit(1000),
       supabase.from('members').select('user_id,display_name,alert_role,simple_mode,activity_push'),
       supabase.auth.getUser(),
     ]);
-    const err = [s, p, r, i, h, ev, mem].find((x) => x.error)?.error;
-    if (err) { setState((x) => ({ ...x, loading: false, error: err.message })); return; }
-    setIngs((i.data ?? []).map(fixIng));
-    setState({
-      loading: false, error: null,
+    // the first open on this phone has no catalogue yet: wait for it (a meal is never worked out without its foods)
+    const catErr = cache ? null : await catalogue;
+    const err = [s, h, ev, mem].find((x) => x.error)?.error?.message ?? catErr;
+    if (err) { setState((x) => ({ ...x, loading: false, error: err })); return; }
+    setState((x) => ({
+      ...x, loading: false, error: null,
       settings: s.data ? { ...DEFAULT_SETTINGS, ...(s.data as any),
         max_meal_carbs: Number((s.data as any).max_meal_carbs), preferred_min: Number((s.data as any).preferred_min),
         preferred_max: Number((s.data as any).preferred_max), tbsp_size: Number((s.data as any).tbsp_size),
         glucose_low_mgdl: num((s.data as any).glucose_low_mgdl), glucose_high_mgdl: num((s.data as any).glucose_high_mgdl),
         alert_rapid_rate: num((s.data as any).alert_rapid_rate), alert_fall_rate: num((s.data as any).alert_fall_rate), alert_rise_rate: num((s.data as any).alert_rise_rate), pen_step: Number((s.data as any).pen_step ?? 1) } : DEFAULT_SETTINGS,
-      products: (p.data ?? []).map(fixProduct),
-      recipes: (r.data ?? []).map((x: any) => ({ ...x, saved_total_carbs: num(x.saved_total_carbs) })),
       ...splitMeals((h.data ?? []).map(fixHist)),
       events: (ev.data ?? []).map((e: any) => ({ ...e, insulin_units: num(e.insulin_units), carbs_g: num(e.carbs_g) })),
       members: (mem.data ?? []) as Member[],
       me: au.data.user?.id ?? null,
-    });
-  }, []);
+    }));
+    await catalogue; // callers that saved a food see it in the list when reload() returns
+  }, [cache]);
 
   useEffect(() => { void reload(); }, [reload]);
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import { Timeline } from '../engine/Timeline';
 import { useSeries } from '../engine/useSeries';
 import { GraphLoadNotice } from '../components/GraphLoadNotice';
@@ -16,7 +16,6 @@ import { fmt } from '../lib/carbs';
 import type { IconName } from '../icons/defs';
 import { Icon, TREND_ICON, TREND_WORDS } from '../components/Icon';
 import { LogSheet } from '../components/LogSheet';
-import { ResearchQuestion } from '../components/ResearchQuestion';
 import { VersionTag } from '../components/Version';
 import { isNight, schoolWindow } from '../lib/schedule';
 // imported (not from /public) so every new artwork gets a new hashed file name and phones never keep an old copy
@@ -42,6 +41,8 @@ import { GrowthCard } from '../components/GrowthCard';
 import { PlanLines } from '../components/Plans';
 import { SameMealLink, useRecentSame } from '../components/SameMeal';
 import { arrowSource, shownLevel } from '../lib/arrowChoice';
+// the lab's question card brings the lab with it: loaded after the screen is up
+const ResearchQuestion = lazy(() => import('../components/ResearchQuestion').then((m) => ({ default: m.ResearchQuestion })));
 
 const TONE_DOT: Record<Tone, string> = { ok: 'bg-ok-fill', low: 'bg-over-fill', urgent: 'bg-over', high: 'bg-near-fill', warn: 'bg-near-fill', plain: 'bg-slate-300' };
 const TONE_TEXT: Record<Tone, string> = { ok: 'text-ok', low: 'text-over', urgent: 'text-over', high: 'text-near', warn: 'text-near', plain: 'text-slate-700' };
@@ -185,7 +186,7 @@ export default function Now() {
         </section>
 
         {/* 3 · Secondary: a research question only the parents can answer (at most 3 a day), then setup */}
-        <ResearchQuestion unit={unit} />
+        <Suspense fallback={null}><ResearchQuestion unit={unit} /></Suspense>
 
         {/* setup, as a single reminder line */}
         {left.length > 0 && (

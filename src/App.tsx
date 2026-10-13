@@ -1,40 +1,16 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import { openedFromRecovery, supabase } from './lib/supabase';
 import { DataProvider, useData } from './lib/data';
 import { Alert, Btn, Card, Field, Toaster, cx, inputCls } from './components/ui';
-import Today from './pages/Today';
-import { PlanHistoryPage, PlanPage } from './pages/PlanReview';
-import { PlanReport } from './pages/PlanReport';
 import Now from './pages/Now';
-import Analysis from './pages/Analysis';
-import { RecipeList, RecipeView } from './pages/Recipes';
-import RecipeEdit from './pages/RecipeEdit';
-import { ProductList } from './pages/Products';
-import ProductEdit from './pages/ProductEdit';
-import History from './pages/History';
-import { ReuseEdit, ReusePick } from './pages/Reuse';
-import Cgm from './pages/Cgm';
-import Status from './pages/Status';
-import ImportPage from './pages/Import';
-import SensorAccuracy from './pages/SensorAccuracy';
-import { useLabRunner } from './lib/lab';
-import AlertsPage from './pages/Alerts';
-import CarePlanPage from './pages/CarePlan';
-import Night from './pages/Night';
+import { useLabRunner } from './lib/labRunner';
 import Shared from './pages/Shared';
-import SharePage from './pages/Share';
-import WidgetPage from './pages/Widget';
-import DietSheetPage from './pages/DietSheet';
-import VisitReport from './pages/VisitReport';
-import GrowthPage from './pages/Growth';
-import Scan from './pages/Scan';
 import { isNight } from './lib/schedule';
 import { UpdateBanner, VersionTag } from './components/Version';
 import { Icon } from './components/Icon';
 import type { IconName } from './icons/defs';
-import { More, SettingsPage } from './pages/More';
 import { themePref } from './lib/theme';
 import { t, useLang } from './i18n';
 import { LangSwitch } from './components/LangSwitch';
@@ -45,13 +21,6 @@ import { MomPlate } from './pages/mom/MomPlate';
 import { MomCompare } from './pages/mom/MomCompare';
 import { MomAte, MomDose, MomGiven } from './pages/mom/MomDose';
 import { MomMealEdit } from './pages/mom/MomMealEdit';
-import { DeletedPage, MomDeleted } from './pages/Deleted';
-import { AgpReportPage, DoctorReports, WeeklySummaryPage } from './pages/DoctorReports';
-import { DailyLogPage } from './pages/DailyLogReport';
-import { SnapshotPage } from './pages/SnapshotReport';
-import { MealtimePage } from './pages/MealtimeReport';
-import { MonthlyPage } from './pages/MonthlyReport';
-import { SitesPage } from './pages/Sites';
 import { MomJuice, MomRecordDose, MomShot, MomSite, MomSites, MomTresiba } from './pages/mom/MomShots';
 import { MomEntry } from './pages/mom/MomEntry';
 import { Alarm } from './components/Alarm';
@@ -60,11 +29,53 @@ import { MomLog } from './pages/mom/MomLog';
 import { MomMealEntry } from './pages/mom/MomMealEntry';
 import { MomOut } from './pages/mom/MomOut';
 import { MomPrick } from './pages/mom/MomPrick';
-import { SameMealPage, MomSame } from './pages/SameMeal';
 import { MomActivity, MomMore, MomPlanView, MomPlans, MomSensor, MomWhen } from './pages/mom/MomPlan';
 import { MomTabs } from './pages/mom/MomUI';
-import { PortionEdit, PortionList } from './pages/Portions';
 import { fullModeNow } from './lib/mom';
+
+// pages that are not the first screen load when first opened, so the app starts with less to download and run
+const Today = lazy(() => import('./pages/Today'));
+const Analysis = lazy(() => import('./pages/Analysis'));
+const RecipeEdit = lazy(() => import('./pages/RecipeEdit'));
+const ProductEdit = lazy(() => import('./pages/ProductEdit'));
+const History = lazy(() => import('./pages/History'));
+const Cgm = lazy(() => import('./pages/Cgm'));
+const Status = lazy(() => import('./pages/Status'));
+const ImportPage = lazy(() => import('./pages/Import'));
+const SensorAccuracy = lazy(() => import('./pages/SensorAccuracy'));
+const AlertsPage = lazy(() => import('./pages/Alerts'));
+const CarePlanPage = lazy(() => import('./pages/CarePlan'));
+const Night = lazy(() => import('./pages/Night'));
+const SharePage = lazy(() => import('./pages/Share'));
+const WidgetPage = lazy(() => import('./pages/Widget'));
+const DietSheetPage = lazy(() => import('./pages/DietSheet'));
+const VisitReport = lazy(() => import('./pages/VisitReport'));
+const GrowthPage = lazy(() => import('./pages/Growth'));
+const Scan = lazy(() => import('./pages/Scan'));
+const PlanHistoryPage = lazy(() => import('./pages/PlanReview').then((m) => ({ default: m.PlanHistoryPage })));
+const PlanPage = lazy(() => import('./pages/PlanReview').then((m) => ({ default: m.PlanPage })));
+const PlanReport = lazy(() => import('./pages/PlanReport').then((m) => ({ default: m.PlanReport })));
+const RecipeList = lazy(() => import('./pages/Recipes').then((m) => ({ default: m.RecipeList })));
+const RecipeView = lazy(() => import('./pages/Recipes').then((m) => ({ default: m.RecipeView })));
+const ProductList = lazy(() => import('./pages/Products').then((m) => ({ default: m.ProductList })));
+const ReuseEdit = lazy(() => import('./pages/Reuse').then((m) => ({ default: m.ReuseEdit })));
+const ReusePick = lazy(() => import('./pages/Reuse').then((m) => ({ default: m.ReusePick })));
+const More = lazy(() => import('./pages/More').then((m) => ({ default: m.More })));
+const SettingsPage = lazy(() => import('./pages/More').then((m) => ({ default: m.SettingsPage })));
+const DeletedPage = lazy(() => import('./pages/Deleted').then((m) => ({ default: m.DeletedPage })));
+const MomDeleted = lazy(() => import('./pages/Deleted').then((m) => ({ default: m.MomDeleted })));
+const AgpReportPage = lazy(() => import('./pages/DoctorReports').then((m) => ({ default: m.AgpReportPage })));
+const DoctorReports = lazy(() => import('./pages/DoctorReports').then((m) => ({ default: m.DoctorReports })));
+const WeeklySummaryPage = lazy(() => import('./pages/DoctorReports').then((m) => ({ default: m.WeeklySummaryPage })));
+const DailyLogPage = lazy(() => import('./pages/DailyLogReport').then((m) => ({ default: m.DailyLogPage })));
+const SnapshotPage = lazy(() => import('./pages/SnapshotReport').then((m) => ({ default: m.SnapshotPage })));
+const MealtimePage = lazy(() => import('./pages/MealtimeReport').then((m) => ({ default: m.MealtimePage })));
+const MonthlyPage = lazy(() => import('./pages/MonthlyReport').then((m) => ({ default: m.MonthlyPage })));
+const SitesPage = lazy(() => import('./pages/Sites').then((m) => ({ default: m.SitesPage })));
+const SameMealPage = lazy(() => import('./pages/SameMeal').then((m) => ({ default: m.SameMealPage })));
+const MomSame = lazy(() => import('./pages/SameMeal').then((m) => ({ default: m.MomSame })));
+const PortionEdit = lazy(() => import('./pages/Portions').then((m) => ({ default: m.PortionEdit })));
+const PortionList = lazy(() => import('./pages/Portions').then((m) => ({ default: m.PortionList })));
 
 function Centered({ children }: { children: React.ReactNode }) {
   return <main className="mx-auto grid min-h-screen max-w-md place-items-center px-4"><div className="w-full space-y-4">{children}</div></main>;
@@ -237,6 +248,7 @@ function Shell() {
       <NightTheme />
       {/* desktop: the tabs become a side menu, so every page shifts over by its width */}
       <div className={!mom && !momTabs ? 'lg:ps-60' : undefined}>
+      <Suspense fallback={<p className="py-10 text-center text-slate-400">…</p>}>
       <Routes>
         <Route path="/" element={simple ? <Navigate to={new URLSearchParams(search).get('plan') ? `/mom/plan/${new URLSearchParams(search).get('plan')}` : new URLSearchParams(search).get('at') ? `/mom?at=${new URLSearchParams(search).get('at')}` : '/mom'} replace /> : <Now />} />
         <Route path="/mom" element={<MomHome />} />
@@ -325,6 +337,7 @@ function Shell() {
         <Route path="/more" element={<More />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
       </div>
       {momTabs && <MomTabs pathname={pathname} />}
       <Alarm />

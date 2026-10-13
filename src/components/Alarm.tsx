@@ -79,9 +79,11 @@ export function testAlarm(level: AlarmLevel = 'low') { const c = audio(); if (c 
 /** Open alerts nobody has answered yet (their own live channel, separate from the strip's). */
 function useUnanswered() {
   const [list, setList] = useState<AlertRow[]>([]);
+  const [at, setAt] = useState(0); // when the server was last asked (answered or not)
   const load = useCallback(async () => {
-    const { data } = await supabase.from('alerts').select('*').eq('state', 'active');
-    setList(((data ?? []) as AlertRow[]).filter((a) => LEVEL_OF[a.kind]));
+    const { data, error } = await supabase.from('alerts').select('*').eq('state', 'active');
+    if (!error) setList(((data ?? []) as AlertRow[]).filter((a) => LEVEL_OF[a.kind])); // no answer: the last list stands
+    setAt(Date.now());
   }, []);
   useEffect(() => {
     void load();
@@ -91,16 +93,27 @@ function useUnanswered() {
     document.addEventListener('visibilitychange', vis);
     return () => { void supabase.removeChannel(ch); clearInterval(id); document.removeEventListener('visibilitychange', vis); };
   }, [load]);
-  return { list, reload: load };
+  return { list, at, reload: load };
+}
+/** When the app last came back to the screen. A phone asleep stops every timer, so what the app knew before is
+ *  out of date for the first moment after it wakes: the alarm waits for one fresh check before it decides. */
+function useWokeAt() {
+  const [w, setW] = useState(Date.now());
+  useEffect(() => {
+    const f = () => { if (document.visibilityState === 'visible') setW(Date.now()); };
+    document.addEventListener('visibilitychange', f); window.addEventListener('pageshow', f);
+    return () => { document.removeEventListener('visibilitychange', f); window.removeEventListener('pageshow', f); };
+  }, []);
+  return w;
 }
 /** This phone's own check: when the newest reading is, and when the server last answered. */
 function useFreshness() {
-  const [s, set] = useState<{ reading: number | null; ok: number }>({ reading: null, ok: Date.now() });
+  const [s, set] = useState<{ reading: number | null; ok: number; tried: number }>({ reading: null, ok: Date.now(), tried: 0 });
   useEffect(() => {
     const check = async () => {
       const r = await supabase.from('glucose_readings').select('taken_at').order('taken_at', { ascending: false }).limit(1).maybeSingle();
-      if (r.error) return; // no connection: `ok` stays at the last good answer
-      set({ reading: r.data ? Date.parse((r.data as { taken_at: string }).taken_at) : null, ok: Date.now() });
+      if (r.error) { set((x) => ({ ...x, tried: Date.now() })); return; } // no connection: `ok` stays at the last good answer
+      set({ reading: r.data ? Date.parse((r.data as { taken_at: string }).taken_at) : null, ok: Date.now(), tried: Date.now() });
     };
     void check();
     const id = setInterval(check, 60000);
@@ -115,8 +128,9 @@ function useFreshness() {
 export function Alarm() {
   const { settings } = useData();
   const soundOn = useAlarmSound();
-  const { list, reload } = useUnanswered();
+  const { list, at: listAt, reload } = useUnanswered();
   const fresh = useFreshness();
+  const woke = useWokeAt();
   const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(soundReady());
@@ -125,11 +139,14 @@ export function Alarm() {
   useEffect(() => unlockOnTap(), []);
   useEffect(() => { const id = setInterval(() => { setNow(Date.now()); setReady(soundReady()); }, 1000); return () => clearInterval(id); }, []);
 
-  const server = [...list].sort((a, b) => ORDER.indexOf(LEVEL_OF[a.kind]!) - ORDER.indexOf(LEVEL_OF[b.kind]!))[0] ?? null;
-  const offline = now - fresh.ok > STALE_MIN * MIN;
+  // only what was checked after the phone woke: an alert answered or ended meanwhile, or the time the phone slept, never
+  // sounds by mistake. A check that fails still counts as checked: the last known alert and the lost connection then sound.
+  const server = listAt >= woke ? [...list].sort((a, b) => ORDER.indexOf(LEVEL_OF[a.kind]!) - ORDER.indexOf(LEVEL_OF[b.kind]!))[0] ?? null : null;
+  const checked = fresh.tried >= woke;
+  const offline = checked && now - fresh.ok > STALE_MIN * MIN;
   const staleMin = fresh.reading === null ? null : Math.floor((now - fresh.reading) / MIN);
   // readings were coming in (within 6 hours) and stopped; a sensor that is off or not connected does not ring all day
-  const localStale = offline || (staleMin !== null && staleMin >= STALE_MIN && staleMin < 6 * 60);
+  const localStale = offline || (checked && staleMin !== null && staleMin >= STALE_MIN && staleMin < 6 * 60);
   const localQuiet = quiet && quiet.reading === fresh.reading && now < quiet.until;
   const level: AlarmLevel | null = server ? LEVEL_OF[server.kind]! : localStale && !localQuiet ? 'nodata' : null;
 

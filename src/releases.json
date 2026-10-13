@@ -1,5 +1,17 @@
 [
   {
+    "version": "3.3.1",
+    "date": "2026-10-13",
+    "notes": [
+      "التطبيق يفتح أسرع: الصفحات اللي ما تحتاجينها على طول تنزل لما تفتحينها، وقائمة الأكل تنحفظ بالجوال.",
+      "إنذار «ما في إشارة» ما يطلع غلط لما تفتحين التطبيق بعد ما كان الجوال نايم: يتأكد من السيرفر أول. الإنذارات الحقيقية مثل ما هي."
+    ],
+    "notes_en": [
+      "The app opens faster: pages not needed straight away load when opened, and the food list is kept on the phone.",
+      "The «no signal» alarm no longer appears by mistake when the app is opened after the phone was asleep: it checks with the server first. Real alarms are unchanged."
+    ]
+  },
+  {
     "version": "3.3.0",
     "date": "2026-10-13",
     "notes": [
