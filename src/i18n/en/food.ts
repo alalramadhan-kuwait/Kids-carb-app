@@ -1548,4 +1548,10 @@ export const food: Record<string, string> = {
   "مو موجود؟ اكتبي كارب الملصق": "Not in the list? Type the label's carbs",
   "الماركات": "Brands",
   "ما احتاجت وقتها": "She did not need it then",
+  "حسب خطة الدكتور الحين": "By the doctor's plan, now",
+  "الساعة {c}: ما في حسبة وقتها ({why})": "At {c}: no calculation then ({why})",
+  "خطة الدكتور الساعة {c}: {n} وحدة": "Doctor's plan at {c}: {n} U",
+  "السكر وقتها {g}": "glucose then {g}",
+  "نفس قرارك": "Same as your decision",
+  "قرارك أقل بـ {n} وحدة": "Your decision was {n} U less",
 };

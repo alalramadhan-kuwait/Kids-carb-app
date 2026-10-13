@@ -2971,5 +2971,23 @@ console.log('finger-pricks on the graphs');
   });
 }
 
+console.log('the dose at an earlier time');
+{
+  const { doseAt } = await import('../../engine/doseAt');
+  const M = 60000, at = Date.UTC(2026, 9, 13, 6, 51); // 09:51 in Kuwait
+  const base = { carbs: 11, ratios: [{ cr: 15, isf: 90, from: '08:00' }, { cr: 13, isf: 90, from: '18:00' }] as any, target: { low: 99, high: 117 }, lowMg: 70, dia: 240, peak: 65, gapMin: 120, step: 1, sensorStartedAt: at - 3 * 86400000 };
+  const t = [0, 5, 10, 15].map((k) => at - (15 - k) * M), later = at + 30 * M;
+  test('dose at a past time: that reading and that insulin, never a later reading; the pen rounds down', () => {
+    const x = doseAt({ ...base, at, t: [...t, later], v: [130, 128, 126, 124, 250], doses: [{ t: at - 168 * M, units: 1 }] });
+    assert.equal(x.glucose, 124, 'the reading at 09:51, not the 250 after the ice cream');
+    assert.equal(x.r.block, null); assert.equal(x.r.dose, 0, '11 g at 15 g a unit is 0.73: rounded down to 0');
+    assert.ok(x.iob! > 0 && x.iob! < 0.3);
+    const high = doseAt({ ...base, at, t, v: [240, 240, 240, 240], doses: [] });
+    assert.equal(high.r.dose, 2, '0.73 + (240 − 117) ÷ 90 = 2.1 → 2');
+    assert.equal(doseAt({ ...base, at, t: [], v: [], doses: [] }).r.block, 'no_reading');
+    assert.equal(doseAt({ ...base, at, t, v: [130, 128, 126, 124], doses: [{ t: at - 60 * M, units: 2 }] }).r.block, 'recent_dose', 'a dose an hour before');
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);

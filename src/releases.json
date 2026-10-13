@@ -1,5 +1,17 @@
 [
   {
+    "version": "3.3.0",
+    "date": "2026-10-13",
+    "notes": [
+      "أكل انسجل بعد ما أكلته بدون إبرة: يطلع «خطة الدكتور الساعة …: كم وحدة» مع السكر وقتها، وهل نفس قرارك. وينحفظ مع الأكل.",
+      "أكلة وحدة تنحفظ باسمها، والوجبة تاخذ اسمها (فطور، غدا…) من وقت الأكل مو وقت التسجيل."
+    ],
+    "notes_en": [
+      "Food logged after it was eaten, with no dose: shows «Doctor's plan at …: N U» with the glucose then, and whether it matches your decision. It is saved with the food.",
+      "A single food is saved by its own name, and a meal is named (breakfast, lunch…) by when she ate, not when it was saved."
+    ]
+  },
+  {
     "version": "3.2.1",
     "date": "2026-10-13",
     "notes": [

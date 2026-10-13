@@ -19,9 +19,12 @@ import { t, tMaybe } from '../../i18n';
 import type { DoseSnapshot, PlannedMeal } from '../../lib/types';
 import { Big, Choice, MomPage, ago, clock, glucoseText, left } from './MomUI';
 import { TimePicker } from '../../components/TimePicker';
+import { fetchSeries } from '../../engine/useSeries';
+import { doseAt, type DoseAt } from '../../engine/doseAt';
+import { dosesFrom } from '../../engine/iob';
 import { useCatalog } from './MomMeal';
 
-const slotNow = (): PlannedMeal['slot'] => { const h = new Date().getHours(); return h < 5 ? 'snack' : h < 10 ? 'breakfast' : h < 15 ? 'lunch' : h < 20 ? 'dinner' : 'snack'; };
+const slotNow = (at = Date.now()): PlannedMeal['slot'] => { const h = new Date(at).getHours(); return h < 5 ? 'snack' : h < 10 ? 'breakfast' : h < 15 ? 'lunch' : h < 20 ? 'dinner' : 'snack'; };
 const ARROW: Record<number, string> = { [-3]: '⇊', [-2]: '↓', [-1]: '↘', 0: '→', 1: '↗', 2: '↑', 3: '⇈' };
 const SLOT = { breakfast: 'فطور', lunch: 'غدا', dinner: 'عشا', snack: 'سناك' } as const; // i18n-ok: stored name
 const PARTS: [number, string, string][] = [[1, '🟢', 'كلها'], [0.5, '◐', 'تقريبًا نصها'], [0.25, '◔', 'شوي']]; // i18n-ok: translated where shown
@@ -71,6 +74,22 @@ export function MomDose() {
   useEffect(() => { if (given === null && live.ready && !r.block && mealKnown) setGiven(r.dose); }, [live.ready, r.block, r.dose, mealKnown]); // eslint-disable-line react-hooks/exhaustive-deps
   const step = s.pen_step ?? 1;
   const unit = s.glucose_unit;
+  // food logged after she ate it, with no dose: what the doctor's plan said at that time (her reading, the insulin
+  // still working and the doctor's block then), so the parents see whether their choice matched it
+  const past = !correction && given === 0 && r.dose > 0 && Date.now() - eatAt > 10 * 60000;
+  const [then, setThen] = useState<DoseAt | null>(null);
+  useEffect(() => {
+    if (!past || carbs === null) { setThen(null); return; }
+    let on = true;
+    void fetchSeries(eatAt - 40 * 60000, eatAt + 60000).then((sr) => {
+      if (!on) return;
+      setThen(doseAt({ at: eatAt, carbs, t: sr.t, v: sr.v, doses: dosesFrom(events), ratios: s.ratios ?? [],
+        target: s.target_mgdl !== null && s.target_high_mgdl !== null ? { low: s.target_mgdl, high: s.target_high_mgdl } : null,
+        lowMg: s.alert_low_mgdl ?? s.glucose_low_mgdl, dia: s.iob_dia_min, peak: s.iob_peak_min, gapMin: s.dose_gap_min ?? 120, step,
+        sensorStartedAt: live.g?.sensor?.started_at ? Date.parse(live.g.sensor.started_at) : null }));
+    }).catch(() => on && setThen(null));
+    return () => { on = false; };
+  }, [past, eatAt, carbs, events]); // eslint-disable-line react-hooks/exhaustive-deps
   const lastRapid = events.filter((e) => e.kind === 'insulin' && e.insulin_type !== 'long' && !e.deleted_at).sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))[0] ?? null;
 
   // what stops the number: the doctor's rules and anything unknown
@@ -103,7 +122,7 @@ export function MomDose() {
       if (!target) {
         const items = planItems(d.items, c)!;
         const note = [d.left.length ? `${d.left.join(' · ')} ${t('ما ينحسب بالإبرة · كلّمي بابا')}` : null, weighedNote(d.items)].filter(Boolean).join(' · ') || null;
-        target = await planNow({ id: planId, name: d.name ?? SLOT[slotNow()], slot: slotNow(), items, eat_after_min: s.dose_to_meal_min ?? 10, note });
+        target = await planNow({ id: planId, name: mealName(Date.now()), slot: slotNow(), items, eat_after_min: s.dose_to_meal_min ?? 10, note });
       }
       const res = await approveDose(target, dose, cid, separate);
       if (res.status === 'already_dosed' || res.status === 'recent_dose') { setConflict({ dose: res.event, planId: target.id, mine: res.status === 'already_dosed' }); setBusy(false); return; }
@@ -130,17 +149,20 @@ export function MomDose() {
       else { toast(t('ما تسجّلت: الإبرة والوجبة مسجّلة من قبل')); nav('/mom', { replace: true }); }
     } catch (e) { toast((e as Error).message); setBusy(false); }
   };
+  /** One food is called by its name; a meal by the time she ate it (فطور، غدا…), not by the time it was saved. */
+  const mealName = (at: number) => d.name ?? (!plan && d.items.length === 1 ? nameOf(d.items[0]) : SLOT[slotNow(at)]);
   /** The food without a dose: asked first, unless she already chose 0 and said why (then it is saved at her time). */
   const eatWithout = async (chosen?: { at: number; why: string }) => {
     if (!chosen && !window.confirm(t('تسجلين الأكل بدون إبرة؟'))) return;
     const at = chosen?.at ?? Date.now();
-    const notes = [chosen ? `بدون إبرة: ${chosen.why}` /* i18n-ok: stored note, the reason as stored */ : null, weighedNote(d.items)].filter(Boolean).join(' · ') || undefined;
+    const planThen = chosen && then && !then.r.block && then.glucose !== null ? `خطة الدكتور وقتها: ${fmt(then.r.dose)} وحدة (السكر ${glucoseText(then.glucose, unit)})` : null; // i18n-ok: stored note
+    const notes = [chosen ? `بدون إبرة: ${chosen.why}` /* i18n-ok: stored note, the reason as stored */ : null, planThen, weighedNote(d.items)].filter(Boolean).join(' · ') || undefined;
     setBusy(true);
     try {
       if (plan) { await ate(plan, 1, at, products, s); await reload(); toast(t('تم: الأكل بدون إبرة ✓')); nav('/mom', { replace: true }); return; }
       const items = planItems(d.items, c)!;
       const meal = planMeal(items, products, s);
-      await logMeal({ kind: 'meal', recipe_id: null, name: d.name ?? SLOT[slotNow()], category: null, meal, modified: true, notes, eatenAt: new Date(at).toISOString(), client_id: mealId });
+      await logMeal({ kind: 'meal', recipe_id: null, name: mealName(at), category: null, meal, modified: true, notes, eatenAt: new Date(at).toISOString(), client_id: mealId });
       draftOps.clear(); await reload(); toast(t('تم: الأكل بدون إبرة ✓')); nav('/mom', { replace: true });
     } catch (e) { toast((e as Error).message); setBusy(false); }
   };
@@ -185,7 +207,7 @@ export function MomDose() {
         <div className="flex justify-between"><span>{t('آخر إبرة')}</span><b>{lastRapid ? ago(Date.parse(lastRapid.occurred_at)) : '—'}</b></div>
       </div>
       <div className="rounded-3xl bg-brand-soft px-4 py-2 text-center">
-        <div className="text-[13px] text-brand">{t('حسب خطة الدكتور')}</div>
+        <div className="text-[13px] text-brand">{past ? t('حسب خطة الدكتور الحين') : t('حسب خطة الدكتور')}</div>
         <div className="text-brand"><span className="num text-[48px] font-extrabold leading-none">{fmt(r.dose)}</span> <span className="text-[18px] font-bold">{t('وحدة')}</span></div>
         <button className="min-h-[32px] text-[13px] font-bold text-brand underline" onClick={() => setWhy(!why)}>{t('ليش؟')}</button>
         {why && (
@@ -210,6 +232,13 @@ export function MomDose() {
             </div>
             {!none && <SiteRow type="rapid" site={site} suggest={suggest} />}
             {none && <><div className="text-center text-[15px] font-bold">{t('متى أكلت؟')}</div><TimePicker compact value={eatAt} onChange={setEatAt} /></>}
+            {past && then && (
+              <div className={cx('rounded-2xl px-3 py-2 text-center text-[14px] leading-snug', !then.r.block && then.r.dose === 0 ? 'bg-ok-soft text-ok' : 'bg-white text-slate-700')}>
+                {then.r.block || then.glucose === null ? t('الساعة {c}: ما في حسبة وقتها ({why})', { c: clock(eatAt), why: t(STOP[then.r.block ?? 'no_reading'] ?? STOP.no_reading) })
+                  : <><b>{t('خطة الدكتور الساعة {c}: {n} وحدة', { c: clock(eatAt), n: fmt(then.r.dose) })}</b> · {t('السكر وقتها {g}', { g: glucoseText(then.glucose, unit) })}
+                    <span className="block font-bold">{then.r.dose === 0 ? `✓ ${t('نفس قرارك')}` : t('قرارك أقل بـ {n} وحدة', { n: fmt(then.r.dose) })}</span></>}
+              </div>
+            )}
             {differs && <div className="flex flex-wrap justify-center gap-1.5">{reasons.map((x) => <button key={x} onClick={() => setReason(x)} className={cx('min-h-[40px] rounded-full px-3.5 text-[14px]', reason === x ? 'bg-brand font-bold text-white' : 'bg-white border border-slate-200')}>{t(x)}</button>)}</div>}
           </>
         )}
