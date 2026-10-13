@@ -18,13 +18,14 @@ type Sub = { id: string; user_id: string; device_label: string | null; last_ok_a
 const KEYS = ['alert_urgent_low_mgdl', 'alert_low_mgdl', 'alert_high_mgdl', 'alert_low_delay_min', 'alert_high_delay_min', 'alert_nodata_min', 'alert_renotify_min',
   'alert_high_renotify_min', 'alert_rapid_rate', 'alert_fall_rate', 'alert_rise_rate', 'alert_predict_low_min', 'night_start', 'night_end', 'night_low_mgdl', 'night_high_mgdl', 'night_high_silent', 'night_theme',
   'school_days', 'school_start', 'school_end', 'school_low_mgdl', 'school_high_mgdl', 'escalate_min',
-  'alert_high_on', 'alert_predict_on', 'alert_fall_on', 'alert_rise_on', 'alert_sensor_on', 'alert_plan_on', 'alert_recheck_on', 'alert_nodata_on'] as const;
+  'alert_high_on', 'alert_predict_on', 'alert_fall_on', 'alert_rise_on', 'alert_sensor_on', 'alert_plan_on', 'alert_recheck_on', 'alert_nodata_on', 'alert_high_screen'] as const;
 // Arabic labels; translated with t() where shown.
 const WEEK = ['أحد', 'اثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']; // i18n-ok
-type OptionalKey = 'alert_nodata_on' | 'alert_predict_on' | 'alert_high_on' | 'alert_fall_on' | 'alert_rise_on' | 'alert_sensor_on' | 'alert_plan_on' | 'alert_recheck_on';
+type OptionalKey = 'alert_nodata_on' | 'alert_high_screen' | 'alert_predict_on' | 'alert_high_on' | 'alert_fall_on' | 'alert_rise_on' | 'alert_sensor_on' | 'alert_plan_on' | 'alert_recheck_on';
 const OPTIONAL: [OptionalKey, string, string][] = [ // i18n-ok: Arabic keys, translated with t() where shown
   ['alert_predict_on', 'منخفض متوقع', 'فقط إذا كانت تنزل الآن فعلًا وستصل حد المنخفض'], // i18n-ok
   ['alert_high_on', 'مرتفع', 'عند الوصول لحد المرتفع واستمراره'], // i18n-ok
+  ['alert_high_screen', 'المرتفع بالشاشة الكاملة', 'إذا مسكّر: إشعار بس، بدون شاشة كاملة'], // i18n-ok
   ['alert_fall_on', 'نزول سريع', 'إشعار منفصل · مغلق افتراضيًا'], // i18n-ok
   ['alert_rise_on', 'صعود سريع', 'إشعار منفصل · مغلق افتراضيًا'], // i18n-ok
   ['alert_nodata_on', 'ما في قراءة', 'إذا انقطعت قراءات الحساس · الشاشة الكاملة والإشعار'], // i18n-ok
@@ -109,8 +110,8 @@ export default function AlertsPage() {
 
         <Card className="space-y-1">
           <h2 className="font-bold">{t('أي تنبيه يصلكم')}</h2>
-          <p className="pb-1 text-sm text-slate-600">{t('كل تنبيه هنا له مفتاحه. الثلاثة الأولى للسلامة وتبقى شغّالة دائمًا.')}</p>
-          {[t('منخفض جدًا'), t('منخفض'), t('لا توجد قراءة')].map((label) => (
+          <p className="pb-1 text-sm text-slate-600">{t('كل تنبيه هنا له مفتاحه. الأول والثاني للسلامة ويبقون شغّالين دائمًا.')}</p>
+          {[t('منخفض جدًا'), t('منخفض')].map((label) => (
             <div key={label} className="flex min-h-[44px] items-center justify-between gap-3"><span>{label}</span><span className="text-sm text-slate-500" aria-label={t('دائمًا شغّال')}>🔒 {t('دائمًا شغّال')}</span></div>
           ))}
           <div className="my-1 border-t border-slate-100" />

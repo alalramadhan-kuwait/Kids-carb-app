@@ -382,4 +382,6 @@ export const settings: Record<string, string> = {
   "{n}س": "{n}h",
   "الإنسولين النشط": "Active insulin",
   "الكارب النشط": "Active carbs",
+  "المرتفع بالشاشة الكاملة": "High as a full-screen alarm",
+  "إذا مسكّر: إشعار بس، بدون شاشة كاملة": "When off: a notification only, no full screen",
 };

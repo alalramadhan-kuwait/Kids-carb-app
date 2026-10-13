@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.1.0",
+    "date": "2026-10-13",
+    "notes": [
+      "إنذار المرتفع صار إشعار بس، بدون شاشة كاملة. تقدرون ترجعونه من التنبيهات ← «المرتفع بالشاشة الكاملة». إنذار المنخفض ما تغيّر."
+    ],
+    "notes_en": [
+      "The high alert is now a notification only, without the full-screen alarm. Turn it back on in Alerts → «High as a full-screen alarm». Low alarms are unchanged."
+    ]
+  },
+  {
     "version": "4.0.0",
     "date": "2026-10-13",
     "notes": [

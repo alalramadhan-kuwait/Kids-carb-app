@@ -143,7 +143,9 @@ export function Alarm() {
   // sounds by mistake. A check that fails still counts as checked: the last known alert and the lost connection then sound.
   // «no reading» switched off by the parents (Alerts settings): neither the server's nor this phone's own check takes the screen
   const nodataOn = settings.alert_nodata_on !== false;
-  const server = listAt >= woke ? [...list].filter((a) => nodataOn || a.kind !== 'no_data').sort((a, b) => ORDER.indexOf(LEVEL_OF[a.kind]!) - ORDER.indexOf(LEVEL_OF[b.kind]!))[0] ?? null : null;
+  // the high alert can be a notification only: then it never takes the screen (lows always do)
+  const highScreen = settings.alert_high_screen !== false;
+  const server = listAt >= woke ? [...list].filter((a) => (nodataOn || a.kind !== 'no_data') && (highScreen || a.kind !== 'high')).sort((a, b) => ORDER.indexOf(LEVEL_OF[a.kind]!) - ORDER.indexOf(LEVEL_OF[b.kind]!))[0] ?? null : null;
   const checked = fresh.tried >= woke;
   const offline = checked && now - fresh.ok > STALE_MIN * MIN;
   const staleMin = fresh.reading === null ? null : Math.floor((now - fresh.reading) / MIN);

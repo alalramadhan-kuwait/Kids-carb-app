@@ -783,7 +783,7 @@ export const food: Record<string, string> = {
   "اضغط مطولًا على الرابط لنسخه": "Press and hold the link to copy it",
   "قد يصل {v} خلال ~{m} د": "May reach {v} in ~{m} min",
   "أي تنبيه يصلكم": "Which alerts you get",
-  "كل تنبيه هنا له مفتاحه. الثلاثة الأولى للسلامة وتبقى شغّالة دائمًا.": "Each alert here has its own switch. The first three are for safety and always stay on.",
+  "كل تنبيه هنا له مفتاحه. الأول والثاني للسلامة ويبقون شغّالين دائمًا.": "Each alert here has its own switch. The first two are for safety and always stay on.",
   "دائمًا شغّال": "Always on",
   "منخفض متوقع": "Low expected",
   "فقط إذا كانت تنزل الآن فعلًا وستصل حد المنخفض": "Only if she is falling right now and will reach the low limit",
