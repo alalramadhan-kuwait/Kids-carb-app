@@ -72,7 +72,17 @@ export interface GroupSummary {
 export interface SettingsSpan { isf: number; crs: number[]; first: number; last: number; n: number }
 /** Predictions that no longer match the log (food or a dose added, edited or deleted after the prediction was saved). */
 export interface Dropped { n: number; byGroup: Record<Group, number> }
-export interface DoctorCheck { groups: GroupSummary[]; from: number; to: number; spans: SettingsSpan[]; dropped: Dropped }
+/** Why a prediction is where it is in the ledger. Clean, one of the factors (affected), or why it cannot be compared. */
+export type Reason = 'clean' | Flag | Mismatch | 'other_entry' | 'no_data' | 'pending';
+/** Order in which an excluded prediction's primary reason is chosen: an invalid prediction first. */
+export const EXCLUDED: Reason[] = ['deleted', 'edited', 'food_near', 'other_entry', 'no_data', 'pending'];
+/** Every prediction of the period exactly once: its status, one primary reason, every reason that applies. */
+export interface LedgerRow {
+  key: string; t0: number; group: Group; name: string | null; carbs: number; units: number; start: number; cr: number; isf: number;
+  status: 'clean' | 'affected' | 'excluded'; primary: Reason; reasons: Reason[]; sensorWhy: SensorWhy[];
+  early: Outcome | null; late: Outcome | null;
+}
+export interface DoctorCheck { groups: GroupSummary[]; from: number; to: number; spans: SettingsSpan[]; dropped: Dropped; ledger: LedgerRow[] }
 
 export interface Inputs {
   preds: PredIn[];
@@ -96,7 +106,7 @@ export function groupOf(p: Pick<PredIn, 't0' | 'carbs' | 'units'>): Group | null
   return per === 'snack' ? null : per;
 }
 
-function stat(xs: number[]): Stat {
+export function stat(xs: number[]): Stat {
   const d = [...xs].sort((a, b) => a - b), n = d.length;
   const q = (f: number) => { if (!n) return null; const i = (n - 1) * f, lo = Math.floor(i), hi = Math.ceil(i); return d[lo] + (d[hi] - d[lo]) * (i - lo); };
   return { n, median: q(0.5), q1: q(0.25), q3: q(0.75), near: d.filter((x) => Math.abs(x) <= DC.near).length, lower: d.filter((x) => x < -DC.near).length, higher: d.filter((x) => x > DC.near).length };
@@ -126,23 +136,50 @@ function largestGap(t: ArrayLike<number>, from: number, to: number) {
 
 function median(xs: number[]) { const d = [...xs].sort((a, b) => a - b), m = d.length >> 1; return d.length % 2 ? d[m] : (d[m - 1] + d[m]) / 2; }
 
-/** Does the frozen prediction still describe what the log says now? Its own entry must still exist, and the carbs
- *  and insulin logged in its first 15 minutes must still add up to what it was made with. A correction must have no
- *  food logged around it (a meal logged later turns a pre-meal dose into something else). */
-export function stillMatches(p: PredIn, entries: Entry[]): boolean {
-  if (!entries.some((e) => e.key === p.key)) return false;
+/** Why a frozen prediction no longer describes what the log says now, or null when it still does: its own entry was
+ *  deleted; the carbs or insulin logged in its first 15 minutes were edited; or food was logged around what was saved as
+ *  a correction (food around a dose makes it a meal dose, not a correction). */
+export type Mismatch = 'deleted' | 'edited' | 'food_near';
+export function mismatch(p: PredIn, entries: Entry[]): Mismatch | null {
+  if (!entries.some((e) => e.key === p.key)) return 'deleted';
   // a minute's grace before: a stored time may be rounded (nothing is logged in the 15 minutes before a prediction's start)
   const inPlan = entries.filter((e) => e.t >= p.t0 - MIN && e.t <= p.t0 + PLAN_AFTER);
   const grams = inPlan.filter((e) => e.kind === 'meal' || e.kind === 'carbs' || e.kind === 'treatment').reduce((a, e) => a + e.grams, 0);
   const units = inPlan.filter((e) => e.kind === 'dose').reduce((a, e) => a + e.units, 0);
-  if (Math.abs(grams - p.carbs) > 2 || Math.abs(units - p.units) > 0.25) return false;
-  if (p.carbs <= 0 && entries.some((e) => (e.kind === 'meal' || e.kind === 'carbs' || e.kind === 'treatment') && e.grams > 0 && e.t > p.t0 - 30 * MIN && e.t <= p.t0 + 60 * MIN)) return false;
-  return true;
+  if (p.carbs <= 0 && entries.some((e) => (e.kind === 'meal' || e.kind === 'carbs' || e.kind === 'treatment') && e.grams > 0 && e.t > p.t0 - 30 * MIN && e.t <= p.t0 + 60 * MIN)) return 'food_near';
+  if (Math.abs(grams - p.carbs) > 2 || Math.abs(units - p.units) > 0.25) return 'edited';
+  return null;
 }
+export const stillMatches = (p: PredIn, entries: Entry[]) => mismatch(p, entries) === null;
+
+/** Everything known to move glucose besides the doctor's numbers, for one prediction (until `until`). */
+function factorsOf(p: PredIn, group: Group, inp: Inputs, marks: Mark[], until: number) {
+  const { t } = inp.series;
+  const flags = new Set<Flag>(), why = new Set<SensorWhy>();
+  if (p.params.onboard_iob >= DC.overlapIob || p.params.onboard_cob >= DC.overlapCob) flags.add('overlap');
+  const mk = inp.makeup.get(p.key);
+  if (group !== 'correction' && mk && isFatty(mk.fat, mk.protein)) flags.add('fatty');
+  // Tresiba: a long-acting-only stretch shortly before in which glucose moved on its own
+  const drift = basalStretches(inp.series, marks, inp.long, inp.lowMg, p.t0 - DC.driftLookbackH * H, p.t0)
+    .some((x) => (x.to - x.from) / MIN >= DC.driftMinMin && Math.abs(x.rate) >= DC.driftMgH);
+  if (drift) flags.add('tresiba');
+  // the sensor: first day (already set when the prediction was made), its last day, holes, or finger-pricks disagreeing
+  if (p.excluded === 'sensor_day1') why.add('day1');
+  if (inp.sensor) {
+    const end = inp.sensor.startedAt + inp.sensor.days * DAY;
+    if (p.t0 >= inp.sensor.startedAt && p.t0 < end && end - p.t0 < DC.lastDayH * H) why.add('last_day');
+  }
+  if (largestGap(t, p.t0 - 10 * MIN, until) > DC.gapMin) why.add('gaps');
+  const near = inp.comparisons.filter((x) => x.diff !== null && Math.abs(x.t - p.t0) <= DC.biasDays * DAY && (x.cause === 'agrees' || x.cause === 'sensor_bias')).map((x) => x.diff!);
+  if (near.length >= DC.biasMinN && Math.abs(median(near)) >= DC.biasMg) why.add('bias');
+  if (why.size) flags.add('sensor');
+  return { flags, why };
+}
+const marksOf = (entries: Entry[]): Mark[] => entries.filter((e) => e.kind !== 'exercise').map((e) => ({ t: e.t, kind: e.kind === 'dose' ? 'rapid' : e.kind === 'treatment' ? 'treatment' : 'food' }));
 
 export function observe(inp: Inputs, dropped?: Obs['key'][]): Obs[] {
   const { t, v } = inp.series;
-  const marks: Mark[] = inp.entries.filter((e) => e.kind !== 'exercise').map((e) => ({ t: e.t, kind: e.kind === 'dose' ? 'rapid' : e.kind === 'treatment' ? 'treatment' : 'food' }));
+  const marks = marksOf(inp.entries);
   const out: Obs[] = [];
   for (const p of inp.preds) {
     const group = groupOf(p);
@@ -154,26 +191,7 @@ export function observe(inp: Inputs, dropped?: Obs['key'][]): Obs[] {
     if (!early && !late) continue;
     if (!stillMatches(p, inp.entries)) { dropped?.push(p.key + '|' + group); continue; }
 
-    const flags = new Set<Flag>(), why = new Set<SensorWhy>();
-    if (p.params.onboard_iob >= DC.overlapIob || p.params.onboard_cob >= DC.overlapCob) flags.add('overlap');
-    const mk = inp.makeup.get(p.key);
-    if (group !== 'correction' && mk && isFatty(mk.fat, mk.protein)) flags.add('fatty');
-    // Tresiba: a long-acting-only stretch shortly before in which glucose moved on its own
-    const from = p.t0 - DC.driftLookbackH * H;
-    const drift = basalStretches(inp.series, marks, inp.long, inp.lowMg, from, p.t0)
-      .some((s) => (s.to - s.from) / MIN >= DC.driftMinMin && Math.abs(s.rate) >= DC.driftMgH);
-    if (drift) flags.add('tresiba');
-    // the sensor: first day (already set when the prediction was made), its last day, holes, or finger-pricks disagreeing
-    if (p.excluded === 'sensor_day1') why.add('day1');
-    if (inp.sensor) {
-      const end = inp.sensor.startedAt + inp.sensor.days * DAY;
-      if (p.t0 >= inp.sensor.startedAt && p.t0 < end && end - p.t0 < DC.lastDayH * H) why.add('last_day');
-    }
-    const until = p.t0 + (late?.min ?? early?.min ?? DC.earlyMin) * MIN;
-    if (largestGap(t, p.t0 - 10 * MIN, until) > DC.gapMin) why.add('gaps');
-    const near = inp.comparisons.filter((x) => x.diff !== null && Math.abs(x.t - p.t0) <= DC.biasDays * DAY && (x.cause === 'agrees' || x.cause === 'sensor_bias')).map((x) => x.diff!);
-    if (near.length >= DC.biasMinN && Math.abs(median(near)) >= DC.biasMg) why.add('bias');
-    if (why.size) flags.add('sensor');
+    const { flags, why } = factorsOf(p, group, inp, marks, p.t0 + (late?.min ?? early?.min ?? DC.earlyMin) * MIN);
 
     out.push({ key: p.key, t0: p.t0, group, name: p.name, carbs: p.carbs, units: p.units, start: p.start_mg, cr: p.params.cr, isf: p.params.isf,
       early, late, flags: FLAGS.filter((f) => flags.has(f)), sensorWhy: [...why], clean: flags.size === 0 });
@@ -208,13 +226,38 @@ export function summarize(obs: Obs[], now: number, extra: { spans?: SettingsSpan
   });
   const byGroup = Object.fromEntries(GROUPS.map((g) => [g, 0])) as Record<Group, number>;
   for (const d of extra.dropped ?? []) { const g = d.split('|')[1] as Group; if (g in byGroup) byGroup[g]++; }
-  return { groups, from: now - 30 * DAY, to: now, spans: extra.spans ?? [], dropped: { n: extra.dropped?.length ?? 0, byGroup } };
+  return { groups, from: now - 30 * DAY, to: now, spans: extra.spans ?? [], dropped: { n: extra.dropped?.length ?? 0, byGroup }, ledger: [] };
+}
+
+/** The ledger: each prediction of the last 30 days that tests the doctor's numbers (a meal with insulin, or a correction),
+ *  once. Comparable at 2 hours and still matching the log: clean or affected (its first factor primary, all kept).
+ *  Otherwise excluded, with the first reason in EXCLUDED as primary and the rest (and any factors) kept for its details. */
+export function ledgerOf(inp: Inputs): LedgerRow[] {
+  const marks = marksOf(inp.entries), { t, v } = inp.series, out: LedgerRow[] = [];
+  for (const p of inp.preds) {
+    const group = groupOf(p);
+    if (!group || p.t0 < inp.now - 30 * DAY) continue;
+    const bad = mismatch(p, inp.entries);
+    const c = p.checks['120'];
+    const early: Outcome | null = !bad && c && 'actual' in c ? { min: DC.earlyMin, pred: c.pred, actual: c.actual, diff: c.actual - c.pred } : null;
+    const lateMin = Math.min(DC.lateMax, Math.max(DC.lateMin, p.end_min));
+    const late = bad ? null : outcomeAt(p, lateMin, inp.entries, t, v);
+    const { flags, why } = factorsOf(p, group, inp, marks, p.t0 + (late?.min ?? DC.earlyMin) * MIN);
+    const f = FLAGS.filter((x) => flags.has(x));
+    const no2h: Reason | null = c && 'actual' in c ? null : c && 'skip' in c ? c.skip : inp.now < p.t0 + (DC.earlyMin + 10) * MIN ? 'pending' : 'no_data';
+    const excl = EXCLUDED.filter((r) => r === bad || r === no2h);
+    const status: LedgerRow['status'] = excl.length || !early ? 'excluded' : f.length ? 'affected' : 'clean';
+    const reasons: Reason[] = status === 'excluded' ? [...excl, ...f] : status === 'affected' ? f : ['clean'];
+    out.push({ key: p.key, t0: p.t0, group, name: p.name, carbs: p.carbs, units: p.units, start: p.start_mg, cr: p.params.cr, isf: p.params.isf,
+      status, primary: reasons[0], reasons, sensorWhy: [...why], early, late });
+  }
+  return out.sort((a, b) => b.t0 - a.t0);
 }
 
 export function doctorCheck(inp: Inputs): DoctorCheck {
   const dropped: string[] = [];
   const obs = observe(inp, dropped);
-  return summarize(obs, inp.now, { spans: spansOf(inp.preds, inp.now), dropped });
+  return { ...summarize(obs, inp.now, { spans: spansOf(inp.preds, inp.now), dropped }), ledger: ledgerOf(inp) };
 }
 
 /** The values the family reported from the doctor, kept until the doctor confirms which are current. */

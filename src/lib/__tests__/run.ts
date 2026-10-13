@@ -3106,6 +3106,44 @@ console.log("the doctor's numbers vs reality");
     const d = pred('d', at(1, 20), { params: { cr: 13, isf: 90, onboard_iob: 0, onboard_cob: 0 } });
     assert.deepEqual(D.doctorCheck({ ...base, entries: logOf([c, d]), preds: [c, d] } as any).spans.map((x) => x.crs), [[15, 13]], 'the evening ratio is part of the same period');
   });
+  test('ledger: every meal-with-insulin and correction prediction of 30 days exactly once; snacks, food without insulin and older ones not at all', () => {
+    const ps = [pred('a', at(1, 8)), pred('b', at(2, 13)), pred('snack', at(2, 16), { carbs: 8 }), pred('noins', at(3, 8), { units: 0 }), pred('old', at(40, 8))];
+    const L = D.ledgerOf({ ...base, entries: logOf(ps), preds: ps } as any);
+    assert.deepEqual(L.map((r) => r.key).sort(), ['a', 'b']);
+    assert.equal(new Set(L.map((r) => r.key)).size, L.length);
+  });
+  test('ledger: one primary reason, the rest kept — an invalid prediction first, then a missing 2-hour check', () => {
+    const t0 = at(2, 8), M2 = 60000;
+    const edited = pred('h:e', t0, { checks: { '120': { skip: 'other_entry' } } });
+    const log = logOf([edited]).map((e: any) => (e.key === 'h:e' ? { ...e, grams: 60 } : e));
+    const r1 = D.ledgerOf({ ...base, entries: log, preds: [edited] } as any)[0];
+    assert.equal(r1.status, 'excluded'); assert.equal(r1.primary, 'edited'); assert.deepEqual(r1.reasons.slice(0, 2), ['edited', 'other_entry']);
+    assert.equal(r1.early, null, 'an invalid prediction carries no outcome');
+    const corr = pred('e:c', at(3, 13), { carbs: 0, units: 2 });
+    const meal = { key: 'h:m', t: corr.t0 + 40 * M2, kind: 'meal', grams: 40, units: 0, name: null, recipe_id: null };
+    const r2 = D.ledgerOf({ ...base, entries: [...logOf([corr]), meal], preds: [corr] } as any)[0];
+    assert.equal(r2.primary, 'food_near', 'food 40 minutes later: not a correction test');
+    const gone = D.ledgerOf({ ...base, entries: [], preds: [pred('h:x', t0)] } as any)[0];
+    assert.equal(gone.primary, 'deleted');
+    const fresh = pred('f', now - 60 * M2, { checks: {} });
+    assert.equal(D.ledgerOf({ ...base, entries: logOf([fresh]), preds: [fresh] } as any)[0].primary, 'pending');
+  });
+  test('ledger: affected takes its first factor as primary and keeps every factor; clean is clean', () => {
+    const p1 = pred('h:f', at(2, 8), { params: { cr: 15, isf: 90, onboard_iob: 0.8, onboard_cob: 0 } });
+    const r = D.ledgerOf({ ...base, entries: logOf([p1]), preds: [p1], makeup: new Map([['h:f', { fat: 30, protein: 10 }]]) } as any)[0];
+    assert.equal(r.status, 'affected'); assert.equal(r.primary, 'overlap'); assert.deepEqual(r.reasons, ['overlap', 'fatty']);
+    const p2 = pred('h:c', at(2, 8));
+    assert.deepEqual(D.ledgerOf({ ...base, entries: logOf([p2]), preds: [p2] } as any)[0].reasons, ['clean']);
+  });
+  test('ledger and charts agree: an invalid prediction is in neither the clean nor the observed set', () => {
+    const ok = pred('h:ok', at(2, 8)), bad = pred('h:bad', at(3, 8));
+    const log = logOf([ok, bad]).filter((e: any) => e.key !== 'h:bad');
+    const inp = { ...base, entries: log, preds: [ok, bad] } as any;
+    assert.deepEqual(D.observe(inp).map((o) => o.key), ['h:ok']);
+    const L = D.ledgerOf(inp);
+    assert.deepEqual(L.filter((r) => r.status !== 'excluded').map((r) => r.key), ['h:ok']);
+    assert.equal(L.find((r) => r.key === 'h:bad')!.primary, 'deleted');
+  });
   test('doctor check: the saved numbers are compared with what the family reported (1:15, 4.0 mmol/L)', () => {
     assert.deepEqual(D.discrepancy([{ from: '08:00', cr: 15, isf: 90 }, { from: '18:00', cr: 13, isf: 90 }]), { cr: [{ from: '18:00', cr: 13 }], isf: [90] });
     assert.equal(D.discrepancy([{ from: '08:00', cr: 15, isf: 72 }]), null);
