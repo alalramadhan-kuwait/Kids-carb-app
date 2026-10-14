@@ -14,6 +14,7 @@ import { KIND_STYLE, type KindKey } from '../lib/kinds';
 import { usualLowTreatments } from '../lib/lowUsual';
 import { shortName } from '../lib/shortName';
 import { DoseCalculator } from './DoseCalculator';
+import { PlanSheet } from './Plans';
 import { logQuick, rankQuick, useQuickItems } from '../lib/quick';
 import { brandsOf, sameBrand } from '../lib/brand';
 import { ProductForm } from './ProductForm';
@@ -77,14 +78,14 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
   const [bg, setBg] = useState<number | null>(null);          // finger-prick, in the family's unit
   const [clean, setClean] = useState(true);                     // hands washed and dried
   const quick = useQuickItems();
-  const [brandPick, setBrandPick] = useState<string | null>(null);
+  const [plan, setPlan] = useState(false); // «خطة وجبة»: pick the food, see the carbs and the doctor's dose, keep it for when she eats
   const [food, setFood] = useState(false);                        // the food screen: products, carbs only, photo, recipe
   const [more, setMore] = useState(false);                        // note, exercise, sleep shown
   const [picked, setPicked] = useState<Product | null>(null);
   const [newProduct, setNewProduct] = useState(false);              // entering a product from the box in hand   // frequent foods of one brand only
   const brands = useMemo(() => brandsOf(quick.items), [quick.items]);
   const ranked = useMemo(() => rankQuick(quick.items, history), [quick.items, history]);
-  const quickShown = brandPick ? ranked.filter((q) => sameBrand(q.brand, brandPick)) : ranked.slice(0, 6);
+  const quickShown = ranked.slice(0, 4);
   const usualLow = useMemo(() => usualLowTreatments(history, events), [history, events]);
   // opened for a low treatment (from an alert's «عالجتها»): her usual one is chosen, one tap on Save
   useEffect(() => {
@@ -97,7 +98,7 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
     setKind(null); setClientId(crypto.randomUUID()); setUnits(null); setType('rapid'); setPurpose(null); setSite(null);
     setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault()); setCalc(null); setNewCarbs(0); setCarbsId(crypto.randomUUID()); setBg(null); setClean(true);
   };
-  const close = () => { reset(); setBrandPick(null); setNewProduct(false); setFood(false); setMore(false); onClose(); };
+  const close = () => { reset(); setNewProduct(false); setFood(false); setMore(false); onClose(); };
 
   const draft: NewEvent | null = useMemo(() => {
     if (!kind) return null;
@@ -154,7 +155,8 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
 
   return (
     <>
-    <Sheet open={open} onClose={close} title={food && !newProduct ? t('أكل') : newProduct ? t('منتج جديد') : kind ? t(KINDS.find((k) => k.kind === kind)!.label) : t('سجّل')}>
+    <PlanSheet open={plan} onClose={() => { setPlan(false); close(); }} />
+    <Sheet open={open && !plan} onClose={close} title={food && !newProduct ? t('أكل') : newProduct ? t('منتج جديد') : kind ? t(KINDS.find((k) => k.kind === kind)!.label) : t('سجّل')}>
       {food && !newProduct ? (
         <div className="space-y-3">
           <div className="flex items-start gap-2">
@@ -179,28 +181,24 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
       ) : !kind ? (
         <div className="space-y-4">
           {low && <Tile k="treatment" icon="treatment" strong wide label={t('علاج انخفاض')} sub={t('السكر منخفض: سجّلوا العصير أو الأقراص')} onClick={() => setKind('treatment')} />}
-          <div className="grid grid-cols-2 gap-3">
-            <Tile k="meal" icon="carbs" label={t('أكل')} sub={t('منتج، كارب، صورة، وصفة')} onClick={() => setFood(true)} />
-            <Tile k="insulin" icon="insulin" label={t('إنسولين')} sub={t('سريع أو طويل المفعول')} onClick={() => setKind('insulin')} />
-            {!low && <Tile k="treatment" icon="treatment" label={t('علاج انخفاض')} sub={t('عصير أو أقراص')} onClick={() => setKind('treatment')} />}
-            <Tile k="bg_check" icon="glucose" wide={low} label={t('وخز إصبع')} sub={t('قراءة من جهاز الوخز')} onClick={() => setKind('bg_check')} />
+          {/* the meal plan first: what she will eat, its carbs and the doctor's dose, kept until she eats */}
+          <button onClick={() => setPlan(true)} className={cx('flex min-h-[64px] w-full items-center gap-3 rounded-2xl px-4 text-start active:opacity-80', KIND_STYLE.meal.solid)}>
+            <Icon name="meals" size={28} />
+            <span className="min-w-0 flex-1"><b className="block text-base">{t('خطة وجبة')}</b><span className="block text-xs font-medium opacity-90">{t('الأكل ← الكارب ← الجرعة')}</span></span>
+          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <Tile k="meal" icon="carbs" label={t('أكل')} onClick={() => setFood(true)} />
+            <Tile k="insulin" icon="insulin" label={t('إنسولين')} onClick={() => setKind('insulin')} />
+            {!low && <Tile k="treatment" icon="treatment" label={t('علاج انخفاض')} onClick={() => setKind('treatment')} />}
+            <Tile k="bg_check" icon="glucose" wide={low} label={t('وخز إصبع')} onClick={() => setKind('bg_check')} />
           </div>
           {/* foods she has often: one tap logs the usual amount (undo in the toast) */}
-          {(
+          {quickShown.length > 0 && (
             <div>
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <span className="text-sm font-medium text-slate-600">{t('أكل متكرر')} <span className="text-xs font-normal text-slate-500">{t('· ضغطة واحدة تسجّل')}</span></span>
-              </div>
-              {brands.length > 0 && (
-                <div className="-mx-4 mb-2 flex gap-1.5 overflow-x-auto px-4">
-                  <Chip active={!brandPick} onClick={() => setBrandPick(null)}>{t('الأكثر')}</Chip>
-                  {brands.map((b) => <Chip key={b} active={sameBrand(brandPick, b)} onClick={() => setBrandPick(b)}><bdi>{b}</bdi></Chip>)}
-                </div>
-              )}
-              {/* an even grid, most used first: the name on up to two lines, the carbs always in the same place */}
+              <div className="mb-1 text-sm font-medium text-slate-600">{t('أكل متكرر')}</div>
               <div className="grid grid-cols-2 gap-2">
                 {quickShown.map((q) => (
-                  <button key={q.id} disabled={busy} className={cx('flex min-h-[60px] min-w-0 items-center gap-2 rounded-2xl px-3 py-2 text-start active:opacity-80', KIND_STYLE.meal.soft)}
+                  <button key={q.id} disabled={busy} className="flex min-h-[48px] min-w-0 items-center gap-2 rounded-xl border border-slate-100 bg-white px-3 text-start active:bg-slate-50"
                     onClick={async () => {
                       setBusy(true);
                       try {
@@ -208,8 +206,8 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
                         toast(t('تم التسجيل: {x}', { x: `${tMaybe(q.name)} · ${t('{g} غ', { g: fmt(q.carbs) })}` }), { label: t('تراجع'), run: async () => { await deleteHistory(id); await reload(); } });
                       } catch (e) { toast(t('تعذّر الحفظ: {e}', { e: (e as Error).message })); } finally { setBusy(false); }
                     }}>
-                    <span className="line-clamp-2 min-w-0 flex-1 text-[13px] font-medium leading-snug" title={tMaybe(q.name)}><bdi>{shortName(tMaybe(q.name))}</bdi></span>
-                    <span className="flex w-12 shrink-0 flex-col items-center leading-none"><b className="num text-lg">{fmt(q.carbs)}</b><span className="mt-0.5 text-[10px] font-medium opacity-70">{t('غ كارب')}</span></span>
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium" title={tMaybe(q.name)}><bdi>{shortName(tMaybe(q.name))}</bdi></span>
+                    <span className="num shrink-0 text-sm font-bold text-slate-600">{fmt(q.carbs)}<span className="text-[10px] font-medium"> {t('غ')}</span></span>
                   </button>
                 ))}
               </div>
@@ -317,12 +315,12 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
 const SMALL = 'flex min-h-[72px] flex-col items-center justify-center gap-1 rounded-2xl px-1 text-center text-sm font-bold';
 
 /** A big coloured choice on the first screen: what it is, and in small print when to use it. */
-function Tile({ k, icon, label, sub, onClick, strong, wide }: { k: KindKey; icon: IconName; label: string; sub: string; onClick: () => void; strong?: boolean; wide?: boolean }) {
+function Tile({ k, icon, label, sub, onClick, strong, wide }: { k: KindKey; icon: IconName; label: string; sub?: string; onClick: () => void; strong?: boolean; wide?: boolean }) {
   return (
-    <button onClick={onClick} className={cx('flex min-h-[96px] flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-center active:opacity-80', strong ? KIND_STYLE[k].solid : KIND_STYLE[k].soft, wide && 'col-span-2 w-full')}>
-      <Icon name={icon} size={28} />
+    <button onClick={onClick} className={cx('flex min-h-[64px] items-center justify-center gap-2 rounded-2xl px-2 py-2 active:opacity-80', strong ? KIND_STYLE[k].solid : KIND_STYLE[k].soft, wide && 'col-span-2 w-full', sub && 'flex-col gap-1')}>
+      <Icon name={icon} size={24} />
       <span className="text-base font-bold">{label}</span>
-      <span className="text-xs font-medium opacity-80">{sub}</span>
+      {sub && <span className="text-xs font-medium opacity-80">{sub}</span>}
     </button>
   );
 }

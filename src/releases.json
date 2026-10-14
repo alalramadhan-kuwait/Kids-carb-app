@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.3.1",
+    "date": "2026-10-14",
+    "notes": [
+      "زر + صار أبسط: «خطة وجبة» أول خيار (الأكل ← الكارب ← الجرعة، وتنحفظ لين تاكل)، وتحتها أكل، إنسولين، علاج انخفاض، ووخز إصبع.",
+      "الأكل المتكرر صار ٤ بس، بدون أزرار الماركات."
+    ],
+    "notes_en": [
+      "The + sheet is simpler: “Meal plan” comes first (food → carbs → dose, kept until she eats), then food, insulin, low treatment and finger-prick.",
+      "Frequent foods show the top 4 only, without the brand buttons."
+    ]
+  },
+  {
     "version": "4.3.0",
     "date": "2026-10-14",
     "notes": [

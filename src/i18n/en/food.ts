@@ -1559,4 +1559,5 @@ export const food: Record<string, string> = {
   "الجرعة اللي عطيتوها": "Dose you gave",
   "عطيتها إبرة؟ سجّليها": "Gave a dose? Record it",
   "سجّلي الإبرة اللي عطيتيها": "record the dose you gave",
+  "الأكل ← الكارب ← الجرعة": "Food → carbs → dose",
 };
