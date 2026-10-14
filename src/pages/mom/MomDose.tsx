@@ -61,6 +61,8 @@ export function MomDose() {
   const [given, setGiven] = useState<number | null>(null);
   const [reason, setReason] = useState<string | null>(null);
   const [why, setWhy] = useState(false);
+  // a warning (falling, low, a recent dose…) never stops her recording a dose she gave: she says so and enters it herself
+  const [override, setOverride] = useState(false);
   const [busy, setBusy] = useState(false);
   const [eatAt, setEatAt] = useState(() => Date.now()); // none given: when she ate (it may have been a while ago)
   // one submission: the same ids on a retry, so a weak connection cannot record the dose (or the plan) twice
@@ -93,12 +95,15 @@ export function MomDose() {
   const lastRapid = events.filter((e) => e.kind === 'insulin' && e.insulin_type !== 'long' && !e.deleted_at).sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))[0] ?? null;
 
   // what stops the number: the doctor's rules and anything unknown
-  const stop = !live.ready ? null : carbs === null ? 'missing' : r.block;
+  const block = !live.ready ? null : carbs === null ? 'missing' : r.block;
+  const stop = override && block !== 'missing' ? null : block;
   const STOP: Record<string, string> = {
     missing: 'في شي ناقص بالوجبة', recent_dose: 'لا تعطينها إبرة الحين', low: 'نازل · عالجيها أول', falling: 'قاعد ينزل بسرعة', // i18n-ok
     no_reading: 'ما في قراءة جديدة', warmup: 'الحساس جديد · افحصي بالإصبع', no_plan: 'خطة الدكتور ناقصة', // i18n-ok
   }; // i18n: translated where shown
 
+  /** The note saved with a dose given past a warning: the warning as it was, then her reason. */
+  const warnNote = (why: string | null) => (override && block ? [`تحذير وقتها: ${STOP[block] ?? block}`, why].filter(Boolean).join(' · ') : why) || null; // i18n-ok: stored note
   const snapshot = (): DoseSnapshot | null => { const x = live.calc(); return x ? { ...x, at: new Date().toISOString(), level, reading_at: latest?.taken_at ?? null, dia_min: s.iob_dia_min, peak_min: s.iob_peak_min, pen_step: step } : null; };
   const save = async (separate = false) => {
     if (!given || given <= 0) return;
@@ -111,13 +116,13 @@ export function MomDose() {
           if (near.length) { const e = near[0]; setConflict({ dose: { id: e.id, units: e.insulin_units ?? 0, at: e.occurred_at, by: e.created_by }, planId: null }); setBusy(false); return; }
         }
         await saveEvent({ client_id: cid, kind: 'insulin', occurred_at: new Date().toISOString(), insulin_units: given, insulin_type: 'rapid', bolus_purpose: 'correction',
-          carbs_g: null, treatment: null, note: given !== r.dose ? reason : null, activity_min: null, activity_level: null, ends_at: null, dose_calc: snapshot(), bg_mgdl: null, injection_site: site });
+          carbs_g: null, treatment: null, note: warnNote(given !== r.dose ? reason : null), activity_min: null, activity_level: null, ends_at: null, dose_calc: snapshot(), bg_mgdl: null, injection_site: site });
         await reload();
         toast(t('تم تسجيل الإبرة ✓'));
         nav('/mom', { replace: true });
         return;
       }
-      const dose = { given, calc: r.dose, reason: given !== r.dose ? reason : null, purpose: live.purpose, snapshot: snapshot(), carbs: carbs!, site };
+      const dose = { given, calc: r.dose, reason: warnNote(given !== r.dose ? reason : null), purpose: live.purpose, snapshot: snapshot(), carbs: carbs!, site };
       let target = plan;
       if (!target) {
         const items = planItems(d.items, c)!;
@@ -185,12 +190,13 @@ export function MomDose() {
       </div>
       {stop === 'missing' && <Big tone="soft" onClick={() => nav(backTo)}>{t('رجوع للوجبة')}</Big>}
       {stop === 'low' && <Big tone="danger" onClick={() => nav('/mom/juice')}>🧃 {t('عطيتها عصير')}</Big>}
+      {stop !== 'missing' && <Big tone="soft" onClick={() => { setOverride(true); setGiven(null); setReason(null); }}>💉 {t('عطيتها إبرة؟ سجّليها')}</Big>}
       {!correction && stop !== 'missing' && <Big tone="ghost" disabled={busy} onClick={() => eatWithout()}>{t('سجّلي الأكل بدون إبرة')}</Big>}
       <p className="mt-auto text-center text-sm text-slate-500">{t('كلّمي بابا قبل أي إبرة')}</p>
     </MomPage>
   );
-  const differs = given !== null && given !== r.dose;
-  const none = !correction && given === 0 && r.dose > 0; // she chose no dose for this food: the food is saved on its own
+  const differs = !override && given !== null && given !== r.dose;
+  const none = !override && !correction && given === 0 && r.dose > 0; // she chose no dose for this food: the food is saved on its own
   const reasons = given !== null && given > r.dose ? REASONS.more : REASONS.less;
   const leftNote = leftOut.length > 0 && !correction && <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ <bdi>{leftOut.join(' · ')}</bdi> {t('ما ينحسب بالإبرة · كلّمي بابا')}</p>;
   return (
@@ -199,6 +205,7 @@ export function MomDose() {
         {none ? <Big md disabled={busy || !reason} onClick={() => eatWithout({ at: eatAt, why: reason! })}>🍽️ {t('سجّلي الأكل بدون إبرة')}</Big>
           : <Big md disabled={busy || !given || given <= 0 || (differs && !reason)} onClick={() => save()}>💉 {t('سجّلي الإبرة')}</Big>}</>}>
       {leftNote}
+      {override && block && <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ {t(STOP[block] ?? STOP.recent_dose)} · {t('سجّلي الإبرة اللي عطيتيها')}</p>}
       <UnknownMealNote meal={live.unknownMeal} big />
       <div className="space-y-1 rounded-3xl border border-slate-100 bg-white px-4 py-2.5 text-[15px]">
         {!correction && <div className="text-[14px] text-slate-600"><bdi>{names.join(' · ')}</bdi></div>}
@@ -206,7 +213,7 @@ export function MomDose() {
         {latest && <div className="flex justify-between"><span>{t('السكر الحين')}</span><b className="num" dir="ltr">{glucoseText(latest.mg_dl, unit)} {level !== null ? ARROW[level] : ''}</b></div>}
         <div className="flex justify-between"><span>{t('آخر إبرة')}</span><b>{lastRapid ? ago(Date.parse(lastRapid.occurred_at)) : '—'}</b></div>
       </div>
-      <div className="rounded-3xl bg-brand-soft px-4 py-2 text-center">
+      {!override && <div className="rounded-3xl bg-brand-soft px-4 py-2 text-center">
         <div className="text-[13px] text-brand">{past ? t('حسب خطة الدكتور الحين') : t('حسب خطة الدكتور')}</div>
         <div className="text-brand"><span className="num text-[48px] font-extrabold leading-none">{fmt(r.dose)}</span> <span className="text-[18px] font-bold">{t('وحدة')}</span></div>
         <button className="min-h-[32px] text-[13px] font-bold text-brand underline" onClick={() => setWhy(!why)}>{t('ليش؟')}</button>
@@ -219,8 +226,8 @@ export function MomDose() {
             {r.raw - r.dose > 0.05 && <div className="flex justify-between"><span>{t('القلم: للأقل')}</span><b className="num">{fmt(r.dose)}</b></div>}
           </div>
         )}
-      </div>
-      {r.dose === 0 && !correction
+      </div>}
+      {r.dose === 0 && !correction && !override
         ? <><p className="text-center text-[18px]">{t('ما تحتاج إبرة')}</p><Big tone="soft" disabled={busy} onClick={() => eatWithout()}>{t('سجّلي الأكل')}</Big></>
         : (
           <>
@@ -242,7 +249,7 @@ export function MomDose() {
             {differs && <div className="flex flex-wrap justify-center gap-1.5">{reasons.map((x) => <button key={x} onClick={() => setReason(x)} className={cx('min-h-[40px] rounded-full px-3.5 text-[14px]', reason === x ? 'bg-brand font-bold text-white' : 'bg-white border border-slate-200')}>{t(x)}</button>)}</div>}
           </>
         )}
-      <p className="text-center text-[11px] text-slate-400">{t('الأرقام من خطة الدكتور')}</p>
+      {!override && <p className="text-center text-[11px] text-slate-400">{t('الأرقام من خطة الدكتور')}</p>}
     </MomPage>
   );
 }

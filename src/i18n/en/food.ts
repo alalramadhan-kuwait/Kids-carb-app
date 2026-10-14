@@ -1554,4 +1554,9 @@ export const food: Record<string, string> = {
   "السكر وقتها {g}": "glucose then {g}",
   "نفس قرارك": "Same as your decision",
   "قرارك أقل بـ {n} وحدة": "Your decision was {n} U less",
+  // ── a dose is never blocked by a warning ──
+  "ما في جرعة محسوبة الحين (التحذير فوق). إذا عطيتوها إبرة، سجّلوا كم عطيتوها.": "No calculated dose right now (see the warning above). If you gave a dose, record how much.",
+  "الجرعة اللي عطيتوها": "Dose you gave",
+  "عطيتها إبرة؟ سجّليها": "Gave a dose? Record it",
+  "سجّلي الإبرة اللي عطيتيها": "record the dose you gave",
 };

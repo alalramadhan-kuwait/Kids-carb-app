@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.2.1",
+    "date": "2026-10-14",
+    "notes": [
+      "تحذير «نازل» أو «منخفض» أو «جرعة قريبة» ما يمنع تسجيل الإبرة: يبقى التحذير ظاهر، وتقدرين تسجلين الإبرة اللي عطيتيها، وينحفظ التحذير معاها.",
+      "الإبرة المكررة خلال ١٥ دقيقة بس هي اللي ينسأل عنها: نفس الإبرة أو إبرة ثانية."
+    ],
+    "notes_en": [
+      "A “falling”, “low” or “recent dose” warning no longer stops you recording a dose: the warning stays on screen, you record the dose you gave, and the warning is saved with it.",
+      "Only a dose repeated within 15 minutes asks a question: the same dose, or a second one."
+    ]
+  },
+  {
     "version": "4.2.0",
     "date": "2026-10-13",
     "notes": [
