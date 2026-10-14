@@ -1568,4 +1568,9 @@ export const food: Record<string, string> = {
   "وجبات كاملة": "Full meals",
   "وجبات": "Meals",
   "إليفيشن برجر": "Elevation Burger",
+  "صوّر": "Photo",
+  "لحوم": "Meat",
+  "برجر كنج": "Burger King",
+  "إليفيشن": "Elevation",
+  "باسكن": "Baskin",
 };

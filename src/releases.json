@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.4.3",
+    "date": "2026-10-14",
+    "notes": [
+      "صفحة الوجبات صارت مرتبة بصفحة وحدة: كل اسم بسطر واحد، الأقسام خمسة بالصف، والمطاعم تحتها على طول."
+    ],
+    "notes_en": [
+      "The Meals page fits on one screen: every name on one line, five groups per row, the restaurants right below."
+    ]
+  },
+  {
     "version": "4.4.2",
     "date": "2026-10-14",
     "notes": [

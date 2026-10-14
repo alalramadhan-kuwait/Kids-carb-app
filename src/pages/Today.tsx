@@ -101,30 +101,35 @@ export default function Today() {
   );
 }
 
-/** The way in: the kinds of food first (home recipes, products, a photo), then the food groups, then the restaurants
- *  with their logos. Each opens its list already narrowed to it. */
+/** The way in, on one screen: recipes, products and a photo; the food groups; the restaurants with their logos. Every
+ *  label is one short line. Each opens its list already narrowed to it. */
+// short one-word names for this page (the full names stay elsewhere)
+const SHORT: Record<string, string> = { protein: 'لحوم', bread: 'خبز', grains: 'بقوليات', drinks: 'مشروبات', sauces: 'صلصات', sweets: 'حلويات' }; // i18n-ok: shown through t()
+const SHORT_REST: Record<string, string> = { mcd: 'ماكدونالدز', bk: 'برجر كنج', kfc: 'كنتاكي', canes: 'كينز', elevation: 'إليفيشن', pick: 'بيك', baskin: 'باسكن' }; // i18n-ok: shown through t()
 function Browse() {
   const { products, recipes } = useData();
   const home = products.filter((p) => !restaurantOf(p.brand));
   const groups = groupsIn(home);
   const rests = RESTAURANTS.map((r) => ({ r, n: products.filter((p) => restaurantOf(p.brand)?.key === r.key).length })).filter((x) => x.n);
-  const big = 'flex min-h-[88px] flex-col items-center justify-center gap-1 rounded-2xl p-2 text-center active:opacity-80';
+  const pill = 'flex min-h-[52px] items-center justify-center gap-1.5 rounded-2xl px-2 active:opacity-80';
+  const tile = 'relative flex h-[60px] flex-col items-center justify-center gap-0.5 rounded-xl bg-white ring-1 ring-slate-100 active:bg-slate-50';
+  const count = (n: number) => <span className="num absolute end-1 top-0.5 text-[10px] text-slate-400">{n}</span>;
   return (
-    <div className="mb-5 space-y-4">
+    <div className="mb-4 space-y-3">
       <div className="grid grid-cols-3 gap-2">
-        <Link to="/recipes" className={cx(big, 'bg-white ring-1 ring-slate-100')}><span className="text-3xl" aria-hidden>🍲</span><b className="text-[15px]">{t('الوصفات')}</b><span className="num text-xs text-slate-500">{recipes.length}</span></Link>
-        <Link to="/products" className={cx(big, 'bg-white ring-1 ring-slate-100')}><span className="text-3xl" aria-hidden>🛒</span><b className="text-[15px]">{t('المنتجات')}</b><span className="num text-xs text-slate-500">{home.length}</span></Link>
-        <Link to="/scan" className={cx(big, 'bg-brand text-white')}><Icon name="camera" size={30} /><b className="text-[15px]">{t('صوّر الأكل')}</b></Link>
+        <Link to="/recipes" className={cx(pill, 'bg-white ring-1 ring-slate-100')}><span className="text-xl" aria-hidden>🍲</span><b className="truncate text-[14px]">{t('الوصفات')}</b></Link>
+        <Link to="/products" className={cx(pill, 'bg-white ring-1 ring-slate-100')}><span className="text-xl" aria-hidden>🛒</span><b className="truncate text-[14px]">{t('المنتجات')}</b></Link>
+        <Link to="/scan" className={cx(pill, 'bg-brand text-white')}><Icon name="camera" size={20} /><b className="truncate text-[14px]">{t('صوّر')}</b></Link>
       </div>
       {groups.length > 0 && (
         <section>
-          <h2 className="mb-2 text-lg font-bold">{t('أقسام الأكل')}</h2>
-          <div className="grid grid-cols-4 gap-2">
+          <h2 className="mb-1.5 text-[15px] font-bold text-slate-600">{t('أقسام الأكل')}</h2>
+          <div className="grid grid-cols-5 gap-1.5">
             {groups.map(({ group: g, n }) => (
-              <Link key={g.key} to={`/products?group=${encodeURIComponent(g.key)}`} className="flex min-h-[80px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-white p-1.5 text-center ring-1 ring-slate-100 active:bg-slate-50">
-                <span className="text-2xl" aria-hidden>{g.emoji}</span>
-                <span className="line-clamp-2 text-[12px] font-bold leading-tight">{tMaybe(g.label)}</span>
-                <span className="num text-[11px] text-slate-500">{n}</span>
+              <Link key={g.key} to={`/products?group=${encodeURIComponent(g.key)}`} className={tile} aria-label={`${tMaybe(g.label)} ${n}`}>
+                {count(n)}
+                <span className="text-[22px] leading-none" aria-hidden>{g.emoji}</span>
+                <span className="w-full truncate px-0.5 text-center text-[12px] font-bold">{SHORT[g.key] ? t(SHORT[g.key]) : tMaybe(g.label)}</span>
               </Link>
             ))}
           </div>
@@ -132,13 +137,13 @@ function Browse() {
       )}
       {rests.length > 0 && (
         <section>
-          <h2 className="mb-2 text-lg font-bold">{t('المطاعم')}</h2>
-          <div className="grid grid-cols-3 gap-2">
+          <h2 className="mb-1.5 text-[15px] font-bold text-slate-600">{t('المطاعم')}</h2>
+          <div className="grid grid-cols-4 gap-1.5">
             {rests.map(({ r, n }) => (
-              <Link key={r.key} to={`/products?brand=${encodeURIComponent(r.brand)}`} className="flex min-h-[104px] flex-col items-center justify-center gap-1 rounded-2xl bg-white p-2 text-center ring-1 ring-slate-100 active:bg-slate-50">
-                <RestaurantLogo r={r} size={52} />
-                <span className="line-clamp-1 text-[13px] font-bold">{tMaybe(r.label)}</span>
-                <span className="num text-[11px] text-slate-500">{n}</span>
+              <Link key={r.key} to={`/products?brand=${encodeURIComponent(r.brand)}`} className={cx(tile, 'h-[76px]')} aria-label={`${tMaybe(r.label)} ${n}`}>
+                {count(n)}
+                <RestaurantLogo r={r} size={40} />
+                <span className="w-full truncate px-0.5 text-center text-[12px] font-bold">{SHORT_REST[r.key] ? t(SHORT_REST[r.key]) : tMaybe(r.label)}</span>
               </Link>
             ))}
           </div>
