@@ -1560,4 +1560,11 @@ export const food: Record<string, string> = {
   "عطيتها إبرة؟ سجّليها": "Gave a dose? Record it",
   "سجّلي الإبرة اللي عطيتيها": "record the dose you gave",
   "الأكل ← الكارب ← الجرعة": "Food → carbs → dose",
+  // ── Meals: groups first; restaurants ──
+  "ابحث: وصفة، منتج، مطعم": "Search: recipe, product, restaurant",
+  "المطاعم": "Restaurants",
+  "كينز": "Raising Cane's",
+  "باسكن روبنز": "Baskin Robbins",
+  "وجبات كاملة": "Full meals",
+  "وجبات": "Meals",
 };

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { GiBadge } from '../components/Gi';
 import { matches } from '../lib/search';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { backTo } from '../lib/nav';
 import { useData } from '../lib/data';
 import { fmt, targetMiss } from '../lib/carbs';
@@ -15,11 +15,13 @@ import type { Product } from '../lib/types';
 
 export function ProductList() {
   const { products, settings, reload } = useData();
-  const [group, setGroup] = useState<string | null>(null);   // dairy, drinks… (within the brand, when one is picked)
+  // a group or a brand can arrive from Meals (?group=dairy, ?brand=McDonald's)
+  const [sp] = useSearchParams();
+  const [group, setGroup] = useState<string | null>(() => sp.get('group'));   // dairy, drinks… (within the brand, when one is picked)
   const [cat, setCat] = useState('');                         // a type inside the group: milk, laban…
   const [q, setQ] = useState('');
   const [onlyHome, setOnlyHome] = useState(false);
-  const [brand, setBrand] = useState<string | null>(null);
+  const [brand, setBrand] = useState<string | null>(() => sp.get('brand'));
   const [picked, setPicked] = useState<Product | null>(null);
   const brands = brandsOf(products.map((p) => ({ brand: p.brand })));
   const ofBrand = products.filter((p) => !brand || sameBrand(p.brand, brand));

@@ -17,6 +17,9 @@ import { Icon } from '../components/Icon';
 import { isEn, t, tMaybe } from '../i18n';
 import { KIND_STYLE } from '../lib/kinds';
 import { QuickItemsSection } from '../components/QuickItems';
+import { groupsIn } from '../lib/productGroups';
+import { RESTAURANTS, restaurantOf } from '../lib/restaurants';
+import { RestaurantLogo } from './mom/MomMeal';
 
 const SHUFFLE_KEY = 'kc-shuffle';
 const readShuffle = () => { try { const v = JSON.parse(localStorage.getItem(SHUFFLE_KEY) ?? 'null'); return v?.day === new Date().toDateString() ? Number(v.n) : 0; } catch { return 0; } };
@@ -54,17 +57,12 @@ export default function Today() {
 
   return (
     <Page title={t('الوجبات')}>
-      <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
-        <Link to="/scan" className="flex shrink-0 items-center gap-1.5 rounded-full bg-brand px-4 py-2 text-sm font-bold text-white"><Icon name="camera" size={16} /> {t('صوّر الأكل')}</Link>
-        {[['/recipes', t('الوصفات')], ['/products', t('المنتجات')]].map(([to, l]) => (
-          <Link key={to} to={to} className="shrink-0 rounded-full bg-white px-4 py-2 text-sm font-medium ring-1 ring-slate-200">{l}</Link>
-        ))}
-      </div>
-
-      <PlannedSection />
       <input type="search" enterKeyHint="search" dir="auto" className={cx(inputCls, 'mb-4')} value={q} onChange={(e) => setQ(e.target.value)}
-        placeholder={t('ابحث: وصفة، منتج، أكل متكرر')} aria-label={t('بحث')} />
-      {q.trim() ? <SearchResults q={q} /> : <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-8">
+        placeholder={t('ابحث: وصفة، منتج، مطعم')} aria-label={t('بحث')} />
+      {q.trim() ? <SearchResults q={q} /> : <>
+      <Browse />
+      <PlannedSection />
+      <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-8">
       <div>
       <h2 className="mb-2 text-lg font-bold">{t('اقتراحات اليوم')}</h2>
       <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
@@ -98,8 +96,55 @@ export default function Today() {
       <QuickItemsSection />
       {recipes.length === 0 && <div className="mt-4"><Alert tone="info">{t('لا توجد وصفات بعد.')}</Alert></div>}
       </div>
-      </div>}
+      </div></>}
     </Page>
+  );
+}
+
+/** The way in: the kinds of food first (home recipes, products, a photo), then the food groups, then the restaurants
+ *  with their logos. Each opens its list already narrowed to it. */
+function Browse() {
+  const { products, recipes } = useData();
+  const home = products.filter((p) => !restaurantOf(p.brand));
+  const groups = groupsIn(home);
+  const rests = RESTAURANTS.map((r) => ({ r, n: products.filter((p) => restaurantOf(p.brand)?.key === r.key).length })).filter((x) => x.n);
+  const big = 'flex min-h-[88px] flex-col items-center justify-center gap-1 rounded-2xl p-2 text-center active:opacity-80';
+  return (
+    <div className="mb-5 space-y-4">
+      <div className="grid grid-cols-3 gap-2">
+        <Link to="/recipes" className={cx(big, 'bg-white ring-1 ring-slate-100')}><span className="text-3xl" aria-hidden>🍲</span><b className="text-[15px]">{t('الوصفات')}</b><span className="num text-xs text-slate-500">{recipes.length}</span></Link>
+        <Link to="/products" className={cx(big, 'bg-white ring-1 ring-slate-100')}><span className="text-3xl" aria-hidden>🛒</span><b className="text-[15px]">{t('المنتجات')}</b><span className="num text-xs text-slate-500">{home.length}</span></Link>
+        <Link to="/scan" className={cx(big, 'bg-brand text-white')}><Icon name="camera" size={30} /><b className="text-[15px]">{t('صوّر الأكل')}</b></Link>
+      </div>
+      {groups.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-lg font-bold">{t('أقسام الأكل')}</h2>
+          <div className="grid grid-cols-4 gap-2">
+            {groups.map(({ group: g, n }) => (
+              <Link key={g.key} to={`/products?group=${encodeURIComponent(g.key)}`} className="flex min-h-[80px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-white p-1.5 text-center ring-1 ring-slate-100 active:bg-slate-50">
+                <span className="text-2xl" aria-hidden>{g.emoji}</span>
+                <span className="line-clamp-2 text-[12px] font-bold leading-tight">{tMaybe(g.label)}</span>
+                <span className="num text-[11px] text-slate-500">{n}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+      {rests.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-lg font-bold">{t('المطاعم')}</h2>
+          <div className="grid grid-cols-3 gap-2">
+            {rests.map(({ r, n }) => (
+              <Link key={r.key} to={`/products?brand=${encodeURIComponent(r.brand)}`} className="flex min-h-[104px] flex-col items-center justify-center gap-1 rounded-2xl bg-white p-2 text-center ring-1 ring-slate-100 active:bg-slate-50">
+                <RestaurantLogo r={r} size={52} />
+                <span className="line-clamp-1 text-[13px] font-bold">{tMaybe(r.label)}</span>
+                <span className="num text-[11px] text-slate-500">{n}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
   );
 }
 

@@ -307,9 +307,9 @@ export function MomAdd({ browse = false }: { browse?: boolean }) {
   );
 }
 
-/** A restaurant's badge: its colours and letters, standing in for the logo. */
+/** A restaurant's logo; its colours and letters when there is no logo file. */
 export function RestaurantLogo({ r, size = 56 }: { r: Restaurant; size?: number }) {
-  if (r.logo) return <img src={asset(r.logo)} alt="" aria-hidden className="shrink-0 object-contain" style={{ width: size, height: size }} />;
+  if (r.logo) return <img src={asset(r.logo)} alt="" aria-hidden className={cx('shrink-0 object-contain', r.key !== 'pick' && 'rounded-2xl shadow-sm')} style={{ width: size, height: size }} />;
   return (
     <span aria-hidden className="grid shrink-0 place-items-center overflow-hidden rounded-2xl font-black leading-none shadow-sm" dir="ltr"
       style={{ width: size, height: size, background: r.bg, color: r.fg, fontSize: size * (r.mark.length > 3 ? 0.27 : r.mark.length > 2 ? 0.34 : r.mark.length > 1 ? 0.42 : 0.7), letterSpacing: r.mark.length > 1 ? '-0.02em' : undefined,

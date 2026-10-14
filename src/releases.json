@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.4.0",
+    "date": "2026-10-14",
+    "notes": [
+      "صفحة الوجبات تبدأ بالأقسام: الوصفات، المنتجات، أقسام الأكل، والمطاعم بشعاراتها. اضغطي أي قسم أو مطعم ويفتح أكله على طول.",
+      "مطاعم جديدة: كينز وباسكن روبنز. وشعارات المطاعم صارت الشعارات الحقيقية.",
+      "منيو المطاعم مقسوم: وجبات كاملة، سندويشات، دجاج، بطاط، حلى، آيس كريم."
+    ],
+    "notes_en": [
+      "The Meals page starts with the groups: recipes, products, food groups, and restaurants with their logos. Tap any one to open its food.",
+      "New restaurants: Raising Cane's and Baskin Robbins, and every restaurant now shows its real logo.",
+      "Restaurant menus are split into full meals, sandwiches, chicken, fries, desserts and ice cream."
+    ]
+  },
+  {
     "version": "4.3.1",
     "date": "2026-10-14",
     "notes": [

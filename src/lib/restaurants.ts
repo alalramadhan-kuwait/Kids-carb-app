@@ -3,12 +3,14 @@
 
 export interface Restaurant { key: string; brand: string; label: string; bg: string; fg: string; mark: string; lead?: string; logo?: string }
 
-// the badge colours and letters stand in for each restaurant's logo, unless the family gave us the logo itself
+// each restaurant's own logo (its app icon or website icon); the colours and letters remain if a logo cannot load
 export const RESTAURANTS: Restaurant[] = [
-  { key: 'mcd', brand: "McDonald's", label: 'ماكدونالدز', bg: '#DA291C', fg: '#FFC72C', mark: 'M' }, // i18n-ok: stored labels, shown via tMaybe
-  { key: 'bk', brand: 'Burger King', label: 'برغر كنغ', bg: '#F5EBDC', fg: '#D62300', mark: 'BK' }, // i18n-ok
-  { key: 'kfc', brand: 'KFC', label: 'كنتاكي', bg: '#E4002B', fg: '#FFFFFF', mark: 'KFC' }, // i18n-ok
+  { key: 'mcd', brand: "McDonald's", label: 'ماكدونالدز', bg: '#DA291C', fg: '#FFC72C', mark: 'M', logo: 'brands/mcd.webp' }, // i18n-ok: stored labels, shown via tMaybe
+  { key: 'bk', brand: 'Burger King', label: 'برغر كنغ', bg: '#F5EBDC', fg: '#D62300', mark: 'BK', logo: 'brands/bk.webp' }, // i18n-ok
+  { key: 'kfc', brand: 'KFC', label: 'كنتاكي', bg: '#E4002B', fg: '#FFFFFF', mark: 'KFC', logo: 'brands/kfc.webp' }, // i18n-ok
+  { key: 'canes', brand: "Raising Cane's", label: 'كينز', bg: '#C8102E', fg: '#FFFFFF', mark: 'C', logo: 'brands/canes.webp' }, // i18n-ok
   { key: 'pick', brand: 'PICK', label: 'بيك', bg: '#722C80', fg: '#FFFFFF', mark: 'PICK', lead: 'frozen', logo: 'brands/pick.webp' }, // i18n-ok: frozen yogurt first
+  { key: 'baskin', brand: 'Baskin Robbins', label: 'باسكن روبنز', bg: '#DA1884', fg: '#FFFFFF', mark: 'BR', lead: 'frozen', logo: 'brands/baskin.webp' }, // i18n-ok
 ];
 
 export const restaurantOf = (brand: string | null | undefined): Restaurant | null =>
@@ -17,6 +19,7 @@ export const restaurantByKey = (key: string | null | undefined) => RESTAURANTS.f
 
 export interface MenuSection { key: string; label: string; emoji: string; cats: string[] }
 export const MENU_SECTIONS: MenuSection[] = [
+  { key: 'meals', label: 'وجبات كاملة', emoji: '🍱', cats: ['وجبات'] }, // i18n-ok: combos (a whole meal as one item)
   { key: 'burgers', label: 'برغر وسندويشات', emoji: '🍔', cats: ['سندويشات', 'برغر لحم'] }, // i18n-ok: stored labels and categories
   { key: 'chicken', label: 'دجاج وناجت', emoji: '🍗', cats: ['دجاج', 'ناجت', 'لحوم ودجاج'] }, // i18n-ok
   { key: 'sides', label: 'بطاط وأطباق جانبية', emoji: '🍟', cats: ['نشويات', 'خضار', 'معجنات', 'رز', 'فطور'] }, // i18n-ok
