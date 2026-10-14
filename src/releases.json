@@ -3,13 +3,13 @@
     "version": "4.3.0",
     "date": "2026-10-14",
     "notes": [
-      "جديد: التحليل ← «الليل»: كل ليلة على كل جرعة تريسيبا، أدنى قراءة، العصير، والوخز جنب الحساس. اضغطي أي ليلة لمنحناها.",
-      "سرعة النزول من ١٢ لين ٦ الفجر لكل جرعة، والليالي النظيفة منفصلة عن ليالي العصير والنوفورابيد والحساس المشكوك فيه.",
+      "جديد: التحليل ← «الليل»: كل ليلة على كل جرعة تريسيبا، أدنى قراءة، والوخز جنب الحساس. اضغطي أي ليلة لمنحناها.",
+      "«قبل كل عصير»: وين كان السكر وكم كان نازل قبل العلاج، والوخز جنب الحساس. العلاج الثاني بقاعدة ١٥-١٥ ينعرض لحاله، والمشروب المسجل كأكل بالليل ينحسب علاج بس لو القراءة تبيّن، وإلا ينعرض للتأكيد.",
       "تقرير الزيارة فيه ملخص الليل: اللي يبيّنه السجل، التفسيرات المحتملة، وأسئلة لفريق الرعاية. للقراءة بس، ما يقترح جرعة."
     ],
     "notes_en": [
-      "New: Analysis → Night: every night on each Tresiba dose, its lowest reading, juices, and finger-pricks beside the sensor. Tap a night for its curve.",
-      "How fast glucose fell from 12 to 6 am on each dose, with clean nights kept apart from juice, NovoRapid and questioned-sensor nights.",
+      "New: Analysis → Night: every night on each Tresiba dose, its lowest reading, and finger-pricks beside the sensor. Tap a night for its curve.",
+      "“Before each juice”: where glucose was and how it had been falling before the treatment, with finger-pricks beside the sensor. A second treatment under the 15-15 rule is shown on its own, and a drink logged as food at night counts as a treatment only when the readings show it; otherwise it is listed for you to confirm.",
       "The visit report has a night summary: what the log shows, possible explanations, and questions for the care team. Read only; it never suggests a dose."
     ]
   },

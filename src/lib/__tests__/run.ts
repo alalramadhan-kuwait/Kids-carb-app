@@ -3199,14 +3199,41 @@ console.log('night and Tresiba');
     const n = r.nights.find((x) => x.dose?.units === 10 && x.dose.nth === 4)!;
     assert.equal(n.cls, 'insulin_food'); assert.equal(n.tags.rapid, kw(7, 22));
   });
-  test('night: a juice that interrupted a fall is shown as such; the night never counts as clean', () => {
+  test('night: before each juice: the level, the fall since the last entry and its fasting part; the rise after is never used', () => {
     const r = N.nightReport(build({ juice: kw(9, 3), extra: [{ kind: 'treatment', carbs_g: 15, treatment: 'juice', occurred_at: new Date(kw(9, 3)).toISOString() }] }) as any);
-    const n = r.nights.find((x) => x.treatments.length)!;
-    assert.equal(n.cls, 'juice'); assert.equal(n.treatments[0].interrupted, true); close(n.treatments[0].fallBefore, 15, 0.5);
+    const n = r.nights.find((x) => x.episodes.length)!, e = n.episodes[0];
+    assert.equal(n.cls, 'treated'); assert.equal(e.libre, 120); close(e.trend, -20 / 60, 0.05);
+    assert.equal(e.fall!.from, kw(9, 0)); assert.equal(e.fall!.minutes, 180); close(e.fall!.rate, -20, 1);
+    assert.equal(e.fasting!.minutes, 180, 'six hours after the 17:30 NovoRapid, the whole fall is fasting'); close(e.fasting!.rate, -20, 1);
+    assert.equal(e.evidence, 'preventive', 'the sensor was not low and there was no finger-prick');
     const g = r.groups.find((x) => x.units === 10 && !x.settling)!;
-    assert.equal(g.juice, 1);
-    close(n.rate, -20, 0.5); assert.equal(g.clean, 2, 'the juice night is not a clean night'); assert.equal(g.periods.n, 3, 'its fall before the juice is a fasting period');
-    assert.ok(!('untreated' in n.treatments[0]), 'no guess of where glucose would have gone');
+    assert.equal(g.treated, 1); assert.equal(g.clean, 2, 'a treated night is not a clean night'); assert.equal(g.before.n, 1, 'its fall before the juice is counted on its own');
+    assert.ok(!('untreated' in e), 'no guess of where glucose would have gone');
+  });
+  test('night: a drink logged as food counts as a treatment only when the readings or timing say so; others stay food, flagged', () => {
+    const b = build({ juice: kw(9, 3), extra: [{ kind: 'treatment', carbs_g: 15, treatment: 'juice', occurred_at: new Date(kw(9, 3)).toISOString() }] });
+    b.history.push({ id: 'jb', kind: 'snack', name: 'عصير علبة', recipe_id: null, total_carbs: 15, eaten_at: new Date(kw(9, 3, 20)).toISOString() });   // 20 min after a juice
+    const r = N.nightReport(b as any);
+    const e = r.nights.find((x) => x.episodes.length && x.dose?.nth === 5)!.episodes;
+    assert.equal(e.length, 1, 'one episode'); assert.equal(e[0].juices.length, 2, 'two separate treatments'); assert.equal(e[0].juices[1].why, 'after_treatment');
+    assert.equal(e[0].followUps.length, 1); assert.equal(e[0].followUps[0].afterMin, 20); assert.equal(e[0].followUps[0].lowest, 120, 'the readings between the two are kept');
+    assert.equal(e[0].fall!.minutes, 180, 'the fall is measured before the first treatment only');
+    const c = build();
+    c.history.push({ id: 'jc', kind: 'snack', name: '1.2.3 Cocktail Drink (Kids) 125ml', recipe_id: null, total_carbs: 15, eaten_at: new Date(kw(10, 5)).toISOString() }); // sensor 80
+    c.history.push({ id: 'jd', kind: 'snack', name: 'عصير', recipe_id: null, total_carbs: 15, eaten_at: new Date(kw(11, 22)).toISOString() }); // sensor 140, nothing else
+    const r2 = N.nightReport(c as any);
+    assert.equal(r2.nights.find((x) => x.dose?.nth === 6 && x.dose.units === 10)!.episodes[0].juices[0].why, 'low_reading');
+    assert.equal(r2.unsure.length, 1, 'a drink at 140 with nothing else is not assumed to be a treatment'); assert.equal(r2.unsure[0].libre, 140);
+    assert.equal(c.history.length, 15, 'the food log itself is untouched');
+    assert.equal(N.juicesOf([{ id: 'm', kind: 'meal', name: 'حليب', total_carbs: 12, eaten_at: new Date(kw(9, 7, 10)).toISOString() }, { id: 'b', kind: 'meal', name: 'توست', total_carbs: 30, eaten_at: new Date(kw(9, 7, 15)).toISOString() }] as any, [], b.series).juices.length, 0, 'milk with breakfast is food');
+  });
+  test('night: why a juice was given comes from the finger-prick when there is one; the sensor alone never confirms a low', () => {
+    const at = (bg: number | null, sensorLow: boolean) => {
+      const b = build({ juice: kw(9, sensorLow ? 5 : 3, sensorLow ? 45 : 0), extra: [{ kind: 'treatment', carbs_g: 15, treatment: 'juice', occurred_at: new Date(kw(9, sensorLow ? 5 : 3, sensorLow ? 45 : 0)).toISOString() }], pricks: bg === null ? [] : [{ d: 9, h: sensorLow ? 5 : 2, m: sensorLow ? 35 : 50, bg }] });
+      return N.nightReport(b as any).nights.find((x) => x.episodes.length)!.episodes[0].evidence;
+    };
+    assert.equal(at(null, true), 'sensor_low'); assert.equal(at(62, true), 'confirmed_low'); assert.equal(at(88, true), 'sensor_low_finger_higher');
+    assert.equal(at(null, false), 'preventive'); assert.equal(at(130, false), 'preventive_finger');
   });
   test('night: an implausibly fast dip is questioned, kept out of the rate, and its low still counts', () => {
     const r = N.nightReport(build({ dip: kw(10, 5, 30) }) as any);
