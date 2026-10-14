@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.4.1",
+    "date": "2026-10-14",
+    "notes": [
+      "زر الرجوع في منيو المطاعم صار يرجع خطوة وحدة: من البطاط للمطعم، ومن المطعم لقائمة المطاعم، بدون ما يدور بينهم. ونفس الشي لحجم الكوب والنكهة."
+    ],
+    "notes_en": [
+      "Back in restaurant menus now goes back one step: from fries to the restaurant, then to the restaurant list, without looping. The same for cup sizes and flavours."
+    ]
+  },
+  {
     "version": "4.4.0",
     "date": "2026-10-14",
     "notes": [

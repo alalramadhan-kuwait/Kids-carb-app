@@ -328,6 +328,9 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   const { products, tile, pick, grid } = useFoods(browse);
   const items = products.filter((p) => restaurantOf(p.brand)?.key === key);
   const bar = useCompareBar(browse), menuBack = useBack(browse ? '/mom/food?tab=restaurants' : '/mom/add?browse=restaurants');
+  // a section, a size or a flavour list is a step inside the menu: its back arrow steps back (never a new step to the
+  // menu, which made Back loop between the menu and the section)
+  const up = useBack(`${browse ? '/mom/food' : '/mom/add'}/r/${key}`);
   // frozen yogurt (and any food sold in sizes): size first, then the flavour
   const cup = sp.get('cup');
   const sections = menuOf(items, r?.lead).map((x) => ({ ...x, cups: cupsOf(x.items) }));
@@ -335,12 +338,11 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   const flavour = (p: Product) => foodName(p).replace(/\s*\([^)]*\)\s*$/, '');
   if (sized && cup) {
     const size = sized.cups.sizes.find((x) => x.size.key === cup);
-    const here = `${browse ? '/mom/food' : '/mom/add'}/r/${key}`, back = size ? `${here}?cup=choose` : here;
     return (
-      <MomPage compact={!browse} title={size ? `${size.size.emoji} ${tMaybe(size.size.label)}` : t('أي حجم؟')} back={back} foot={bar}>
+      <MomPage compact={!browse} title={size ? `${size.size.emoji} ${tMaybe(size.size.label)}` : t('أي حجم؟')} back={up} foot={bar}>
         {!size && sized.cups.sizes.map(({ size: z, items: xs }) => {
           const cs = xs.map((x) => Number(x.item.carbs_per_100));
-          return <Choice key={z.key} icon={z.emoji} label={tMaybe(z.label)} sub={t('{a}–{b} غ كارب', { a: `\u2066${fmt(Math.min(...cs))}`, b: `${fmt(Math.max(...cs))}\u2069` })} onClick={() => setSp({ cup: z.key }, { replace: true })} />;
+          return <Choice key={z.key} icon={z.emoji} label={tMaybe(z.label)} sub={t('{a}–{b} غ كارب', { a: `\u2066${fmt(Math.min(...cs))}`, b: `${fmt(Math.max(...cs))}\u2069` })} onClick={() => setSp({ cup: z.key })} />;
         })}
         {size && <h2 className="text-[18px] font-bold">{t('أي نكهة؟')}</h2>}
         {size && size.items.map(({ item }) => <Choice key={item.id} icon="🍦" label={flavour(item)} sub={t('{g} غ كارب', { g: fmt(Number(item.carbs_per_100)) })} onClick={() => pick('product', item.id)} />)}
@@ -354,9 +356,8 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   const cupRow = (cups: (typeof sections)[number]['cups']) => cups.sizes.length > 0 && (
     <Choice icon="🍦" label={t('كوب: اختاري الحجم ثم النكهة')} sub={t('{n} نكهات', { n: new Set(cups.sizes.flatMap((z) => z.items.map((x) => x.flavour))).size })} onClick={() => setSp({ cup: 'choose' })} />
   );
-  const here = `${browse ? '/mom/food' : '/mom/add'}/r/${key}`;
   return (
-    <MomPage compact={!browse} title={open && sections.length > 1 ? `${open.section.emoji} ${tMaybe(open.section.label)}` : r ? tMaybe(r.label) : t('مطاعم')} back={open && sections.length > 1 ? here : menuBack} foot={bar}>
+    <MomPage compact={!browse} title={open && sections.length > 1 ? `${open.section.emoji} ${tMaybe(open.section.label)}` : r ? tMaybe(r.label) : t('مطاعم')} back={open && sections.length > 1 ? up : menuBack} foot={bar}>
       {!open && r && <div className="flex justify-center"><RestaurantLogo r={r} size={64} /></div>}
       {!open && <input className={inputCls} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('ابحثي في المنيو')} />}
       {q.trim() && !open ? (
