@@ -2,6 +2,7 @@
 // her glucose does then is the long-acting insulin's own picture (with her liver and the time of day). Pure, tested in
 // Node. It describes; it never proposes a dose or a time.
 import type { Series } from './series';
+import type { Entry } from './predict';
 
 const MIN = 60000, H = 3600000;
 
@@ -23,6 +24,9 @@ export interface Stretch {
   sinceRapidMin: number | null;    // from the last rapid dose to the start
   long: { t: number; units: number | null } | null; // the last long-acting dose before it
 }
+
+/** What ends a stretch, from the logged entries (exercise does not). */
+export const basalMarks = (entries: Entry[]): Mark[] => entries.filter((e) => e.kind !== 'exercise').map((e) => ({ t: e.t, kind: e.kind === 'dose' ? 'rapid' : e.kind === 'treatment' ? 'treatment' : 'food' }));
 
 /** All stretches in [from, to) when only the long-acting insulin was working. */
 export function basalStretches(s: Series, marks: Mark[], long: { t: number; units: number | null }[], low: number, from: number, to: number, r: BasalRules = BASAL_DEFAULTS): Stretch[] {

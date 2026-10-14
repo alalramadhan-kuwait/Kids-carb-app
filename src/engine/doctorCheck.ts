@@ -10,7 +10,7 @@
 //  - a correction that fell more or less than predicted is not proof the correction factor is wrong.
 import { isFatty } from './iob';
 import { periodOf, SNACK_G } from './mealPeriod';
-import { basalStretches, type Mark } from './basal';
+import { basalMarks, basalStretches, type Mark } from './basal';
 import { PLAN_AFTER, predAt, readingNear, type Check, type CheckKey, type Entry } from './predict';
 import type { Ratio } from './status';
 import type { Series } from './series';
@@ -175,7 +175,7 @@ function factorsOf(p: PredIn, group: Group, inp: Inputs, marks: Mark[], until: n
   if (why.size) flags.add('sensor');
   return { flags, why };
 }
-const marksOf = (entries: Entry[]): Mark[] => entries.filter((e) => e.kind !== 'exercise').map((e) => ({ t: e.t, kind: e.kind === 'dose' ? 'rapid' : e.kind === 'treatment' ? 'treatment' : 'food' }));
+const marksOf = basalMarks;
 
 export function observe(inp: Inputs, dropped?: Obs['key'][]): Obs[] {
   const { t, v } = inp.series;

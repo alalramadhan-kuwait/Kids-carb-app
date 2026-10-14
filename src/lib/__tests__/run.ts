@@ -3150,5 +3150,85 @@ console.log("the doctor's numbers vs reality");
   });
 }
 
+console.log('night and Tresiba');
+{
+  const N = await import('../../engine/nightTresiba');
+  const M = 60000, H = 3600000;
+  const kw = (d: number, h: number, m = 0) => Date.UTC(2026, 9, d, h - 3, m);
+  const now = Date.UTC(2026, 9, 14, 6, 0);
+  // Tresiba 11 U to 3 Oct, 10 U 4–9 Oct, 9 U from 10 Oct, at 17:00; dinner and its NovoRapid at 17:30
+  const build = (o: { extra?: any[]; dip?: number; juice?: number; pricks?: { d: number; h: number; m: number; bg: number }[] } = {}) => {
+    const events: any[] = [], history: any[] = [];
+    let id = 0;
+    const ev = (x: any) => events.push({ id: 'e' + ++id, client_id: 'c' + id, deleted_at: null, insulin_type: null, insulin_units: null, carbs_g: null, treatment: null, ...x });
+    for (let d = 1; d <= 13; d++) {
+      ev({ kind: 'insulin', insulin_type: 'long', insulin_units: d <= 3 ? 11 : d <= 9 ? 10 : 9, occurred_at: new Date(kw(d, 17)).toISOString() });
+      ev({ kind: 'insulin', insulin_type: 'rapid', insulin_units: 3, occurred_at: new Date(kw(d, 17, 30)).toISOString() });
+      history.push({ id: 'h' + d, kind: 'meal', name: 'dinner', recipe_id: null, total_carbs: 40, eaten_at: new Date(kw(d, 17, 30)).toISOString() });
+    }
+    for (const x of o.extra ?? []) ev(x);
+    for (const p of o.pricks ?? []) ev({ kind: 'bg_check', bg_mgdl: p.bg, occurred_at: new Date(kw(p.d, p.h, p.m)).toISOString() });
+    // 140 all day; from 00:00 to 06:00 a steady fall from 180 at 20 mg/dL an hour
+    const T: number[] = [], V: number[] = [];
+    for (let x = kw(1, 0); x <= now; x += 5 * M) {
+      const k = ((x + 3 * H) % 86400000) / H;
+      let v = k < 6 ? 180 - 20 * k : 140;
+      if (o.juice && x >= o.juice && k < 6) v = 180 - 20 * ((o.juice + 3 * H) % 86400000) / H; // holds after the juice
+      if (o.dip !== undefined) { const m = (x - o.dip) / M; if (m >= 0 && m <= 25) v -= m <= 10 ? 4 * m : m <= 15 ? 40 : 40 - 4 * (m - 15); }
+      T.push(x); V.push(v);
+    }
+    return { series: { t: Float64Array.from(T), v: Float64Array.from(V) }, history, events, from: kw(4, 0), now };
+  };
+  test('night: doses counted in a row, with the dose before a change', () => {
+    const d = N.doseRows(build().events as any);
+    assert.deepEqual(d.filter((x) => x.nth === 1).map((x) => [x.units, x.prev]), [[11, null], [10, 11], [9, 10]]);
+    assert.equal(d[d.length - 1].nth, 4);
+  });
+  test('night: a clean night has its rate of fall; nights 1–3 on a new dose are settling and grouped apart', () => {
+    const r = N.nightReport(build() as any);
+    const n12 = r.nights.find((n) => n.dose?.units === 9 && n.dose.nth === 3)!;
+    assert.equal(n12.cls, 'clean'); close(n12.rate, -20, 0.5); assert.equal(n12.dose!.units, 9); assert.equal(n12.settling, true);
+    assert.ok(n12.min! < 70 && n12.below70 > 0, 'the low is counted');
+    const n13 = r.nights.find((n) => n.dose?.nth === 4 && n.dose.units === 9)!;
+    assert.equal(n13.settling, false);
+    const g9s = r.groups.find((g) => g.units === 9 && g.settling)!, g9 = r.groups.find((g) => g.units === 9 && !g.settling)!;
+    assert.equal(g9s.clean, 3); assert.equal(g9.clean, 1); assert.equal(g9.conf, 'too_few');
+  });
+  test('night: NovoRapid at 22:00 leaves too little long-acting-only time: nights affected by insulin or food', () => {
+    const r = N.nightReport(build({ extra: [{ kind: 'insulin', insulin_type: 'rapid', insulin_units: 1, occurred_at: new Date(kw(7, 22)).toISOString() }] }) as any);
+    const n = r.nights.find((x) => x.dose?.units === 10 && x.dose.nth === 4)!;
+    assert.equal(n.cls, 'insulin_food'); assert.equal(n.tags.rapid, kw(7, 22));
+  });
+  test('night: a juice that interrupted a fall is shown as such; the night never counts as clean', () => {
+    const r = N.nightReport(build({ juice: kw(9, 3), extra: [{ kind: 'treatment', carbs_g: 15, treatment: 'juice', occurred_at: new Date(kw(9, 3)).toISOString() }] }) as any);
+    const n = r.nights.find((x) => x.treatments.length)!;
+    assert.equal(n.cls, 'juice'); assert.equal(n.treatments[0].interrupted, true); close(n.treatments[0].fallBefore, 15, 0.5);
+    const g = r.groups.find((x) => x.units === 10 && !x.settling)!;
+    assert.equal(g.juice, 1);
+    close(n.rate, -20, 0.5); assert.equal(g.clean, 2, 'the juice night is not a clean night'); assert.equal(g.periods.n, 3, 'its fall before the juice is a fasting period');
+    assert.ok(!('untreated' in n.treatments[0]), 'no guess of where glucose would have gone');
+  });
+  test('night: an implausibly fast dip is questioned, kept out of the rate, and its low still counts', () => {
+    const r = N.nightReport(build({ dip: kw(10, 5, 30) }) as any);
+    const n = r.nights.find((x) => x.dose?.units === 10 && x.dose.nth === 6)!;
+    assert.equal(n.cls, 'sensor'); assert.ok(n.tags.sensor.includes('fast_fall') && n.tags.sensor.includes('v_shape'));
+    close(n.min, 180 - 20 * 5.75 - 40, 0.01); assert.equal(n.minQuestioned, true); assert.equal(n.below70, 25, 'the low minutes are kept');
+    close(n.rate, -20, 0.5);
+  });
+  test('night: a finger-prick that disagrees is shown beside the sensor value as it was, never corrected', () => {
+    const r = N.nightReport(build({ pricks: [{ d: 13, h: 0, m: 15, bg: 227 }, { d: 13, h: 3, m: 0, bg: 120 }] }) as any);
+    const n = r.nights.find((x) => x.pricks.length)!;
+    assert.equal(n.pricks[0].bg, 227); assert.equal(n.pricks[0].libre, 175); assert.equal(n.pricks[0].agrees, false);
+    assert.equal(n.pricks[1].libre, 120); assert.equal(n.pricks[1].agrees, true);
+    assert.equal(n.cls, 'sensor'); assert.ok(n.tags.sensor.includes('prick'));
+  });
+  test('night: daily insulin and carbs by Tresiba dose', () => {
+    const r = N.nightReport(build() as any);
+    const g9 = r.dayGroups.find((g) => g.units === 9)!, g10 = r.dayGroups.find((g) => g.units === 10)!;
+    assert.deepEqual([g9.days, g9.long, g9.rapid, g9.total, g9.carbs], [4, 9, 3, 12, 40]);
+    assert.equal(g10.days, 6);
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);
