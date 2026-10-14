@@ -286,7 +286,9 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
   const [conflict, setConflict] = useState<(DoseConflict & { mine?: boolean }) | null>(null);
   const give = (separate: boolean) => {
     return run(async () => {
-      const res = await approveDose(plan, { given: units ?? r.dose, calc: r.dose, reason: (units ?? r.dose) !== r.dose ? reason : null, purpose: live.purpose, snapshot: snapshot(), carbs: meal.total.carbs, site: site ?? rot.suggest }, cid, separate);
+      // a warning never stops recording a dose that was given: it is saved with the dose
+      const note = [r.block ? `تحذير وقتها: ${r.block === 'low' ? 'منخفض' : r.block === 'falling' ? 'نازل بسرعة' : r.block === 'recent_dose' ? 'جرعة قريبة' : r.block}` : null, (units ?? r.dose) !== r.dose ? reason : null].filter(Boolean).join(' · ') || null; // i18n-ok: stored note
+      const res = await approveDose(plan, { given: units ?? r.dose, calc: r.dose, reason: note, purpose: live.purpose, snapshot: snapshot(), carbs: meal.total.carbs, site: site ?? rot.suggest }, cid, separate);
       if (res.status === 'already_dosed' || res.status === 'recent_dose') { setConflict({ ...res.event, mine: res.status === 'already_dosed' }); throw new Error(t('في إبرة مسجّلة')); }
       if (res.status !== 'ok') throw new Error(t('الوجبة ما عادت موجودة'));
       await logPendingMeal(plan.id, products, settings); // in the Log now; "she ate" confirms it
@@ -340,10 +342,11 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
       )}
 
       {/* the dose: the calculator's (doctor's numbers), the parent can change it */}
-      {conflict && (dosed || r.block) && <SameDose dose={{ ...conflict, type: 'rapid' }} busy={busy} onSame={() => void sameDose()} onSeparate={() => void give(true)} />}
-      {!dosed && !r.block && (
+      {conflict && dosed && <SameDose dose={{ ...conflict, type: 'rapid' }} busy={busy} onSame={() => void sameDose()} onSeparate={() => void give(true)} />}
+      {!dosed && (
         <div className="space-y-2 rounded-2xl bg-slate-50 p-3">
-          <div className="text-sm text-slate-600">
+          {r.block && <p className="text-sm font-medium text-over">{t('ما في جرعة محسوبة الحين (التحذير فوق). إذا عطيتوها إبرة، سجّلوا كم عطيتوها.')}</p>}
+          {!r.block && <><div className="text-sm text-slate-600">
             {t('الأكل {c} ÷ {cr} = {f}', { c: fmt(Math.round(meal.total.carbs * 10) / 10), cr: fmt(live.ratio!.cr), f: (Math.round(r.food * 10) / 10).toFixed(1) })}
             {' · '}{t('التصحيح {x}', { x: (r.correction + r.iobUsed >= 0 ? '+' : '−') + (Math.round(Math.abs(r.correction + r.iobUsed) * 10) / 10).toFixed(1) })}
             {r.iobUsed > 0 && <> · {t('نشط −{x}', { x: (Math.round(r.iobUsed * 10) / 10).toFixed(1) })}</>}
@@ -351,14 +354,14 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
           <div className="flex items-baseline justify-between rounded-xl bg-white px-3 py-2">
             <span className="text-sm text-slate-600">{t('الجرعة المحسوبة (إعدادات الطبيب)')}</span>
             <b className="num text-xl">{t('{u} و', { u: fmt(r.dose) })}</b>
-          </div>
+          </div></>}
           <div className="flex items-center gap-2">
-            <span className="flex-1 text-sm font-medium">{t('الجرعة التي قررتُ إعطاءها')}</span>
+            <span className="flex-1 text-sm font-medium">{r.block ? t('الجرعة اللي عطيتوها') : t('الجرعة التي قررتُ إعطاءها')}</span>
             <button className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl shadow-sm" onClick={() => setUnits((u) => Math.max(0, (u ?? r.dose) - (settings.pen_step ?? 1)))} aria-label="−">−</button>
             <b className="num w-12 text-center text-2xl">{fmt(units ?? r.dose)}</b>
             <button className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl shadow-sm" onClick={() => setUnits((u) => (u ?? r.dose) + (settings.pen_step ?? 1))} aria-label="+">+</button>
           </div>
-          {(units ?? r.dose) !== r.dose && (
+          {(units ?? r.dose) !== r.dose && !r.block && (
             <input className={inputCls} dir="auto" maxLength={200} placeholder={t('لماذا تختلف؟ (اختياري)')} value={reason} onChange={(e) => setReason(e.target.value)} aria-label={t('لماذا تختلف؟ (اختياري)')} />
           )}
           {(units ?? r.dose) > 0 && <SitePicker rot={rot} value={site} onChange={setSite} />}
