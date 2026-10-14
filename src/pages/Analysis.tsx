@@ -17,6 +17,7 @@ import { Patterns } from './Patterns';
 import { MealResponse } from './MealResponse';
 import { Compare } from './Compare';
 import { DoctorCheck } from './DoctorCheck';
+import { NightTresiba } from './NightTresiba';
 import { EventSheet } from '../components/EventSheet';
 import { Sheet, Toggle } from '../components/ui';
 import { iobParamsOk, modelLine } from '../engine/iob';
@@ -47,16 +48,16 @@ const loadLayers = (): Set<Layer> => {
 };
 
 // labels stay Arabic here and are shown with t()
-// four tabs; the prediction lab is an icon in the header's corner (rarely used, so it gives the tabs the room);
+// five tabs; the prediction lab is an icon in the header's corner (rarely used, so it gives the tabs the room);
 // meal response and compare open from inside الأنماط, which stays selected while they are shown
-const MODES = [{ id: 'live', label: 'مباشر' }, { id: 'day', label: 'اليوم' }, { id: 'patterns', label: 'الأنماط' }, { id: 'stats', label: 'الأرقام' }] as const; // i18n-ok
+const MODES = [{ id: 'live', label: 'مباشر' }, { id: 'day', label: 'اليوم' }, { id: 'patterns', label: 'الأنماط' }, { id: 'night', label: 'الليل' }, { id: 'stats', label: 'الأرقام' }] as const; // i18n-ok
 const SUB = { meals: 'استجابة الوجبات', compare: 'مقارنة فترتين', doctor: 'أرقام الطبيب والواقع' } as const; // i18n-ok
 const FRESH = { live: { text: 'مباشر', cls: 'bg-brand-soft text-brand' }, delayed: { text: 'متأخر', cls: 'bg-near-soft text-near' }, missing: { text: 'منقطع', cls: 'bg-over-soft text-over' } }; // i18n-ok
 
 /** التحليل: Live (the timeline engine) and the numbers. More modes arrive stage by stage (GLUCOSE_PLAN 11.2). */
 export default function Analysis() {
   const [params, setParams] = useSearchParams();
-  const mode = (['day', 'patterns', 'meals', 'compare', 'doctor', 'stats', 'lab'] as const).find((m) => m === params.get('mode')) ?? 'live';
+  const mode = (['day', 'patterns', 'meals', 'compare', 'doctor', 'night', 'stats', 'lab'] as const).find((m) => m === params.get('mode')) ?? 'live';
   return (
     <Page title={t('التحليل')} wide action={
       <button onClick={() => setParams(mode === 'lab' ? {} : { mode: 'lab' }, { replace: true })} aria-label={t('مختبر التوقعات')} aria-pressed={mode === 'lab'}
@@ -64,7 +65,7 @@ export default function Analysis() {
         <Icon name="lab" size={22} />
       </button>
     }>
-      <div className="mb-3 grid grid-cols-4 gap-1 rounded-full bg-slate-50 p-1" role="tablist">
+      <div className="mb-3 grid grid-cols-5 gap-1 rounded-full bg-slate-50 p-1" role="tablist">
         {MODES.map((m) => {
           const on = mode === m.id || (m.id === 'patterns' && (mode === 'meals' || mode === 'compare' || mode === 'doctor'));
           return (
@@ -79,7 +80,7 @@ export default function Analysis() {
         </button>
       )}
       {mode === 'lab' && <h2 className="mb-2 px-1 text-lg font-bold">{t('مختبر التوقعات')}</h2>}
-      {mode === 'live' ? <Live /> : mode === 'day' ? <DayView /> : mode === 'patterns' ? <Patterns /> : mode === 'meals' ? <MealResponse /> : mode === 'compare' ? <Compare /> : mode === 'doctor' ? <DoctorCheck /> : mode === 'lab' ? <ResearchPanel /> : <StatsPanel />}
+      {mode === 'live' ? <Live /> : mode === 'day' ? <DayView /> : mode === 'patterns' ? <Patterns /> : mode === 'meals' ? <MealResponse /> : mode === 'compare' ? <Compare /> : mode === 'doctor' ? <DoctorCheck /> : mode === 'night' ? <NightTresiba /> : mode === 'lab' ? <ResearchPanel /> : <StatsPanel />}
     </Page>
   );
 }

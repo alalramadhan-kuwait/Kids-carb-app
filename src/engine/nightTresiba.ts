@@ -43,7 +43,7 @@ export interface Night {
   day: number; start: number; end: number; coreFrom: number; coreTo: number;
   dose: DoseRow | null; settling: boolean;
   cls: NightClass; tags: { rapid: number | null; food: number | null; juice: boolean; sensor: Doubt[] }; // rapid/food: when, if within reach of 00:00–06:00
-  min: number | null; minQuestioned: boolean; below70: number; below54: number; coverage: number;
+  min: number | null; lowAt: number | null; minQuestioned: boolean; below70: number; below54: number; coverage: number;
   rate: number | null; rateMin: number; rateStart: number | null; sinceRapidMin: number | null; stretches: Stretch[];
   treatments: Treatment[]; pricks: Prick[]; questioned: { from: number; to: number; why: Doubt }[];
 }
@@ -163,11 +163,11 @@ export function nightReport(inp: NightInputs): NightReport {
     };
     const cls: NightClass = tags.juice ? 'juice' : tags.sensor.length ? 'sensor' : rateMin >= NT.cleanMin ? 'clean' : tags.rapid !== null || tags.food !== null ? 'insulin_food' : 'sensor';
     if (cls === 'sensor' && !tags.sensor.length) tags.sensor.push('gaps');
-    let minQ = false;
-    for (let i = 0; i < series.t.length; i++) if (series.t[i] >= row.start && series.t[i] < row.end && series.v[i] === row.min && inSpans(series.t[i], q)) minQ = true;
+    let minQ = false, lowAt: number | null = null;
+    for (let i = 0; i < series.t.length; i++) if (series.t[i] >= row.start && series.t[i] < row.end && series.v[i] === row.min) { lowAt ??= series.t[i]; if (inSpans(series.t[i], q)) minQ = true; }
     nights.push({
       day, start: row.start, end: row.end, coreFrom, coreTo, dose, settling: !!dose && dose.prev !== null && dose.nth <= NT.settle,
-      cls, tags, min: row.min, minQuestioned: minQ, below70: row.minutesBelow, below54: rows54.get(row.start)?.minutesBelow ?? 0, coverage: round1(coverage * 100) / 100,
+      cls, tags, min: row.min, lowAt, minQuestioned: minQ, below70: row.minutesBelow, below54: rows54.get(row.start)?.minutesBelow ?? 0, coverage: round1(coverage * 100) / 100,
       rate, rateMin: Math.round(rateMin), rateStart: stretches[0]?.start ?? null, sinceRapidMin: stretches[0]?.sinceRapidMin ?? null, stretches,
       treatments, pricks, questioned: q,
     });

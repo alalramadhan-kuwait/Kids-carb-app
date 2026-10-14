@@ -22,6 +22,8 @@ import { PlanReport } from './PlanReport';
 import { ObservationsSection } from './visit/Observations';
 import { DoctorCheckSection } from './visit/DoctorCheckSection';
 import { useDoctorCheck } from '../lib/doctorCheck';
+import { useNightReport } from '../lib/nightTresiba';
+import { NightSection } from './visit/NightSection';
 import { useGlucose } from '../hooks/useGlucose';
 import { buildObservations, type NutritionIn } from '../engine/report/observations';
 import { nightOf } from '../lib/schedule';
@@ -99,6 +101,7 @@ export default function VisitReport() {
       const dietPages = Array.from(root.querySelectorAll<HTMLElement>('[data-part="diet"] .diet-page'));
       if (dietPages.length) await addHtmlPages(doc, dietPages, { orientation: 'landscape', fit: 'page' });
       await addHtmlPages(doc, part('doctorcheck'), { orientation: 'portrait', fit: 'flow' });
+      await addHtmlPages(doc, part('night'), { orientation: 'portrait', fit: 'flow' });
       await addHtmlPages(doc, part('notes'), { orientation: 'portrait', fit: 'flow' });
       restore?.(); restore = null;
       setJob(null); setStep(null);
@@ -161,6 +164,7 @@ function VisitPages({ job, low, high, days }: { job: Job; low: number; high: num
   const { portions } = usePortions();
   const g = useGrowthNutrition();
   const { g: live } = useGlucose();
+  const night = useNightReport();
   const dc = useDoctorCheck(live?.sensor?.started_at ? Date.parse(live.sensor.started_at) : null);
   // the observations, once the nutrition model is ready (it feeds the dietitian's findings)
   const obs = useMemo(() => {
@@ -208,6 +212,7 @@ function VisitPages({ job, low, high, days }: { job: Job; low: number; high: num
         </div>)}
       </div>
       <div data-part="doctorcheck" data-ready={dc.check || dc.error ? '1' : '0'} className="p-4">{dc.check && <DoctorCheckSection check={dc.check} unit={settings.glucose_unit} />}</div>
+      <div data-part="night" data-ready={night.report || night.error ? '1' : '0'} className="p-4">{night.report && <NightSection report={night.report} unit={settings.glucose_unit} />}</div>
       <div data-part="notes" data-ready={obs ? '1' : '0'} className="space-y-3 p-4">{obs && <ObservationsSection obs={obs} unit={settings.glucose_unit} />}</div>
     </>
   );
