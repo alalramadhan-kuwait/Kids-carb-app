@@ -224,8 +224,8 @@ export const sensorLeft = (leftMs: number) => {
 /** A small heading and one rounded group of rows with hairline separators. */
 export function SettingsGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="space-y-1.5">
-      <h2 className="px-4 text-[13px] font-semibold text-slate-500">{title}</h2>
+    <section className="space-y-1">
+      <h2 className="px-4 text-[12px] font-semibold text-slate-500">{title}</h2>
       <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white">{children}</div>
     </section>
   );
@@ -249,12 +249,12 @@ export function SettingsRow({ icon, tint, label, sub, onClick, end, subTone }: {
     <>
       <span aria-hidden className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-lg text-white" style={{ background: tint }}><Icon name={icon} size={19} /></span>
       <span className="min-w-0 flex-1 py-0.5">
-        <span className="block text-[17px] font-semibold leading-snug">{label}</span>
+        <span className="block text-[16px] font-semibold leading-snug">{label}</span>
         {sub && <span className={cx('block text-[13px] leading-snug', subTone === 'warn' ? 'text-over' : 'text-slate-500')}>{sub}</span>}
       </span>
       {end ?? (onClick && <span aria-hidden className="shrink-0 text-[22px] leading-none text-slate-300">{isEn() ? '›' : '‹'}</span>)}
     </>
   );
-  const cls = 'flex min-h-[52px] w-full items-center gap-3 px-4 py-2 text-start';
+  const cls = 'flex min-h-[48px] w-full items-center gap-3 px-4 py-1.5 text-start'; // More fits on one screen
   return onClick && !end ? <button onClick={onClick} className={cx(cls, 'active:bg-slate-50')}>{body}</button> : <div className={cls}>{body}</div>;
 }

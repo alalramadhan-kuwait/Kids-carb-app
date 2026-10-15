@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.9.2",
+    "date": "2026-10-15",
+    "notes": [
+      "صفحة «المزيد» صارت بصفحة وحدة بدون تمرير، والمظهر بسطر واحد، و«الوضع الكامل» تحت ظاهر."
+    ],
+    "notes_en": [
+      "More now fits on one screen without scrolling: Appearance on one line, and Full mode visible at the bottom."
+    ]
+  },
+  {
     "version": "4.9.1",
     "date": "2026-10-15",
     "notes": [

@@ -184,9 +184,10 @@ export function MomMore() {
   const TINT = { alerts: '#5b4bd5', device: '#3f7fd0', plan: '#8b5cf6', app: '#8a84a0' };
   return (
     <MomPage title={t('المزيد')} back={null} tabs>
-      <div className="space-y-5 pb-2">
+      {/* everything on one screen, no scrolling: compact rows, Appearance on one line, Full mode last */}
+      <div className="space-y-3 pb-1">
         <SettingsGroup title={t('التنبيهات والإشعارات')}>
-          <SettingsRow icon="sound" tint={TINT.alerts} label={t('صوت التنبيه')} sub={t('على هالتلفون')}
+          <SettingsRow icon="sound" tint={TINT.alerts} label={t('صوت التنبيه')}
             end={<Switch on={sound} label={t('صوت التنبيه')} onChange={(v) => { setAlarmSound(v); if (v) testAlarm('low'); }} />} />
           <PhonePushRow tint={TINT.alerts} />
           <SettingsRow icon="family" tint={TINT.alerts} label={t('أخبرني لما يسجّل غيري')} onClick={() => nav('/mom/activity')} />
@@ -298,12 +299,11 @@ function Appearance() {
   const [p, setP] = useState<ThemePref>(themePref);
   const opts: [ThemePref, string, string][] = [['auto', '◐', t('تلقائي')], ['day', '☀︎', t('فاتح')], ['night', '☾', t('داكن')]];
   return (
-    <div className="px-4 py-3">
-      <div className="flex items-center justify-between"><span className="text-[17px] font-semibold">{t('المظهر')}</span><span className="text-[13px] text-slate-400">{p === 'auto' ? t('يتبع إعداد التلفون') : ''}</span></div>
-      <div role="radiogroup" aria-label={t('المظهر')} className="mt-2 grid grid-cols-3 gap-1 rounded-2xl bg-slate-100 p-1">
-        {opts.map(([v, ic, l]) => <button key={v} role="radio" aria-checked={p === v} onClick={() => { setP(v); setThemePref(v); }}
-          className={'flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl text-[15px] font-bold ' + (p === v ? 'bg-white text-brand shadow-sm' : 'text-slate-500')}><span aria-hidden>{ic}</span>{l}</button>)}
+    <SettingsRow icon="moon" tint="#8a84a0" label={t('المظهر')} end={(
+      <div role="radiogroup" aria-label={t('المظهر')} className="flex shrink-0 gap-0.5 rounded-xl bg-slate-100 p-0.5">
+        {opts.map(([v, ic, l]) => <button key={v} role="radio" aria-checked={p === v} aria-label={l} onClick={() => { setP(v); setThemePref(v); }}
+          className={'flex min-h-[40px] items-center gap-1 rounded-lg px-2 text-[13px] font-bold ' + (p === v ? 'bg-white text-brand shadow-sm' : 'text-slate-500')}><span aria-hidden>{ic}</span>{l}</button>)}
       </div>
-    </div>
+    )} />
   );
 }
