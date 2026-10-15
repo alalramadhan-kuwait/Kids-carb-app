@@ -40,12 +40,15 @@ treatments) and NovoRapid. Between two interruptions:
 |---|---|---|
 | Clean | none of the below | yes |
 | Excluded | under 1 h, no readings, or within 4 h of NovoRapid | no, listed under "Outside the analysis" |
-| Uncertain | under 70 % coverage, a doubtful dip, a disagreeing finger-prick, no Tresiba in 30 h, or the insulin model still showing ≥ 0.1 U of NovoRapid at the start | no, listed |
+| Uncertain | under 70 % coverage, a doubtful dip, no Tresiba in 30 h, or the insulin model still showing ≥ 0.1 U of NovoRapid at the start | no, listed |
 | Affected | exercise logged within 12 h | no, listed |
 
 The residual-insulin check uses the care team's model settings. With the current setting, a duration of
 action of 240 min, the model shows nothing left at 4 h, so this check flags nothing until the setting is
 longer.
+
+A finger-prick that disagrees with the sensor is kept as a note and does not change the status: the
+analysis relies on the sensor (the family's choice, 4.7.0).
 
 Tresiba phase: doses 1–3 at new units are a **transition**, from the 4th on **stable**, and the first dose
 in the record is **unknown**.

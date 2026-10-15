@@ -197,8 +197,8 @@ export function basalCheck(inp: BasalInputs): BasalReport {
     if (!reasons.includes('rapid_recent') && iob !== null && iob >= BC.iobFlagU) reasons.push('iob_residual');
     if (ex !== null) reasons.push('exercise');
     const status: Status = reasons.some((r) => r === 'no_readings' || r === 'short' || r === 'rapid_recent') ? 'excluded'
-      : reasons.some((r) => r === 'coverage' || r === 'artifact' || r === 'prick_disagrees' || r === 'no_dose' || r === 'iob_residual') ? 'uncertain'
-        : reasons.length ? 'affected' : 'clean';
+      : reasons.some((r) => r === 'coverage' || r === 'artifact' || r === 'no_dose' || r === 'iob_residual') ? 'uncertain'
+        : reasons.includes('exercise') ? 'affected' : 'clean'; // a finger-prick that disagrees is kept as a note: the sensor is relied on (family's choice)
     return {
       id: String(a), from: a, to: b, minutes, win: nightMin * 2 >= minutes ? 'night' : 'day', nightMin, status, reasons, dose,
       start, end, low, lowAt, high, change, perHour, trend, dir,

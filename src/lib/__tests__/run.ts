@@ -3388,6 +3388,11 @@ console.log('basal check');
     assert.equal(q.status, 'uncertain'); assert.ok(q.reasons.includes('artifact')); assert.equal(q.low, 70, 'the low stays as the sensor read it');
     assert.equal(q.dir, 'stable', 'a dip that recovers is not a fall');
   });
+  test('basal check: a finger-prick that disagrees with the sensor is a note; the sensor is relied on and the period stays clean', () => {
+    const r = B.basalCheck(mk({ g: fall, extra: [{ kind: 'bg_check', bg_mgdl: 160, occurred_at: new Date(kw(6, 3)).toISOString() }] }) as any);
+    const p = r.periods.find((x) => x.from === kw(5, 22))!;
+    assert.ok(p.reasons.includes('prick_disagrees')); assert.equal(p.status, 'clean'); assert.equal(p.pricks[0].bg, 160);
+  });
   test('basal check: no Tresiba recorded in the 30 h before: dosing history incomplete, uncertain', () => {
     const b = mk({ g: fall }); b.events = b.events.filter((e: any) => !(e.insulin_type === 'long' && [kw(4, 17), kw(5, 17)].some((x) => e.occurred_at === new Date(x).toISOString())));
     const p = nightOf(B.basalCheck(b as any), 6);
