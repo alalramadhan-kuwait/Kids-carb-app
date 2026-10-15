@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.7.0",
+    "date": "2026-10-15",
+    "notes": [
+      "فحص القاعدي: أول ٤ ساعات بعد النوفورابيد ما تدخل التحليل؛ الأرقام والرسم من الفترات النظيفة بس.",
+      "الباقي تحت «خارج التحليل» مع السبب.",
+      "كل جرعة تبين الفترات النظيفة من هدف ٧ (هدف من التطبيق، مو رقم طبي)."
+    ],
+    "notes_en": [
+      "Basal Check: the first 4 hours after NovoRapid are left out; numbers and the chart use clean periods only.",
+      "Everything else is under “Outside the analysis”, with the reason.",
+      "Each dose shows clean periods out of a target of 7 (an app-defined target, not a medical number)."
+    ]
+  },
+  {
     "version": "4.6.1",
     "date": "2026-10-15",
     "notes": ["فحص القاعدي: نسبة القراءات صارت تنحسب صح في الفترات اللي تنتهي بعصير."],

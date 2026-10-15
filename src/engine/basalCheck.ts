@@ -26,8 +26,9 @@ export const BC = {
   lowMg: 70, veryLowMg: 54,       // ISPAD 2022 level 1 and level 2
   stableMg: 30,                   // ±1.7 mmol/L over the period: informal reference for "stable"
   foodGapMin: 180,                // a period starts 3 h after food, carbs or a treatment
-  rapidMinMin: 180,               // …and at least 3 h after NovoRapid; until 6 h it is "affected" (a tail may remain)
-  rapidCleanMin: 360,
+  rapidCleanMin: 240,             // …and 4 h after NovoRapid: the first 4 h are never in the analysis (listed as excluded)
+  iobFlagU: 0.1,                  // the insulin model still shows this much NovoRapid at the start: uncertain (app-defined)
+  targetN: 7,                     // clean periods per dose the app aims for (app-defined, not a medical number)
   exerciseMin: 720,               // activity in the 12 h before: its effect can be delayed (night lows after exercise)
   minLenMin: 60,                  // shorter periods are listed as excluded
   coverage: 0.7, gapMin: 20,      // less than 70 % of the period with readings, or gaps of 20 min, make it uncertain
@@ -41,12 +42,12 @@ export const BC = {
 
 export type Status = 'clean' | 'affected' | 'uncertain' | 'excluded';
 export const STATUSES: Status[] = ['clean', 'affected', 'uncertain', 'excluded'];
-export type Reason = 'short' | 'no_readings' | 'rapid_recent' | 'exercise' | 'coverage' | 'artifact' | 'prick_disagrees' | 'no_dose';
+export type Reason = 'short' | 'no_readings' | 'rapid_recent' | 'iob_residual' | 'exercise' | 'coverage' | 'artifact' | 'prick_disagrees' | 'no_dose';
 export type Win = 'night' | 'day';
 export type Filter = Win | 'all';
 export type Phase = 'stable' | 'transition' | 'unknown';
 export type Dir = 'falling' | 'stable' | 'rising';
-export type Ended = 'treatment' | 'food' | 'rapid' | 'now';
+export type Ended = 'treatment' | 'food' | 'rapid' | 'now' | 'rapid_mark'; // rapid_mark: the 4-hour mark after NovoRapid, where the analysed part begins
 /** Why a treatment was given, from what was measured then. Only a finger-prick confirms a low. */
 export type TreatEvidence = 'confirmed' | 'finger_not_low' | 'cgm_low' | 'preventive';
 
@@ -69,7 +70,8 @@ export interface Period {
 export interface LowEvent { t: number; end: number; nadir: number; minutes: number; win: Win; brief: boolean; confirmed: 'finger' | 'finger_higher' | 'cgm_only' }
 export interface DoseStat {
   units: number; phase: Phase; first: number;
-  clean: number; other: number;           // other = affected + uncertain
+  clean: number; other: number;           // other = affected + uncertain + excluded (not in the analysis)
+  target: number;                         // BC.targetN: app-defined, not a medical number
   change: number | null; perHour: number | null; // medians of clean periods
   falling: number; counted: number;       // falling among clean + affected
   lows: number; treated: number; insufficient: boolean;
@@ -118,7 +120,8 @@ export function basalCheck(inp: BasalInputs): BasalReport {
   const isFood = (m: Mark) => m.kind !== 'rapid', isRapid = (m: Mark) => m.kind === 'rapid';
   const lastSeries = s.t.length ? s.t[s.t.length - 1] : now;
 
-  // the gaps between interruptions; each gap gives at most one period
+  // the gaps between interruptions. A gap gives one analysed period from 3 h after food and 4 h after NovoRapid; the
+  // part inside the first 4 h after NovoRapid is listed as excluded when it is an hour or more, never analysed
   const bounds = [...marks.map((m) => m.t)];
   const periods: Period[] = [];
   for (let k = 0; k <= bounds.length; k++) {
@@ -126,12 +129,14 @@ export function basalCheck(inp: BasalInputs): BasalReport {
     if (gapTo <= inp.from || gapTo <= gapFrom) continue;
     const lf = lastBefore(isFood, gapFrom), lr = lastBefore(isRapid, gapFrom);
     const fromFood = lf === null ? -Infinity : lf + BC.foodGapMin * MIN;
-    const early = Math.max(fromFood, lr === null ? -Infinity : lr + BC.rapidMinMin * MIN, gapFrom, inp.from);
-    const clean = Math.max(fromFood, lr === null ? -Infinity : lr + BC.rapidCleanMin * MIN, gapFrom, inp.from);
-    const a = gapTo - clean >= BC.minLenMin * MIN ? clean : early, b = gapTo;
-    if (!isFinite(a) || b - a < 5 * MIN) continue; // touching entries are not a fasting period
-    const next = k < bounds.length ? marks[k] : null;
-    periods.push(measure(a, b, next ? next.kind : 'now', lf, lr));
+    const early = Math.max(fromFood, gapFrom, inp.from);
+    const start = Math.max(early, lr === null ? -Infinity : lr + BC.rapidCleanMin * MIN);
+    if (!isFinite(early)) continue;
+    const next = k < bounds.length ? marks[k] : null, ended = next ? next.kind : 'now';
+    if (gapTo - start >= BC.minLenMin * MIN) {
+      if (start - early >= BC.minLenMin * MIN) periods.push(measure(early, start, 'rapid_mark', lf, lr));
+      periods.push(measure(start, gapTo, ended, lf, lr));
+    } else if (gapTo - early >= 30 * MIN) periods.push(measure(early, gapTo, ended, lf, lr)); // too short, or all inside the 4 h (under 30 min is not a fasting period)
   }
 
   function measure(a: number, b: number, endedBy: Ended, lf: number | null, lr: number | null): Period {
@@ -188,9 +193,11 @@ export function basalCheck(inp: BasalInputs): BasalReport {
     if (q.some((x) => x.why === 'prick')) reasons.push('prick_disagrees');
     if (!dose) reasons.push('no_dose');
     if (lr !== null && a < lr + BC.rapidCleanMin * MIN) reasons.push('rapid_recent');
+    const iob = inp.iob ? Math.round(iobAt(a, rapidDoses, inp.iob) * 100) / 100 : null;
+    if (!reasons.includes('rapid_recent') && iob !== null && iob >= BC.iobFlagU) reasons.push('iob_residual');
     if (ex !== null) reasons.push('exercise');
-    const status: Status = reasons.includes('no_readings') || reasons.includes('short') ? 'excluded'
-      : reasons.some((r) => r === 'coverage' || r === 'artifact' || r === 'prick_disagrees' || r === 'no_dose') ? 'uncertain'
+    const status: Status = reasons.some((r) => r === 'no_readings' || r === 'short' || r === 'rapid_recent') ? 'excluded'
+      : reasons.some((r) => r === 'coverage' || r === 'artifact' || r === 'prick_disagrees' || r === 'no_dose' || r === 'iob_residual') ? 'uncertain'
         : reasons.length ? 'affected' : 'clean';
     return {
       id: String(a), from: a, to: b, minutes, win: nightMin * 2 >= minutes ? 'night' : 'day', nightMin, status, reasons, dose,
@@ -200,7 +207,7 @@ export function basalCheck(inp: BasalInputs): BasalReport {
       coverage: Math.round(coverage * 100) / 100, gaps: { n: gapN, minutes: Math.round(gapMin) },
       pricks: pr.filter((p) => p.t >= a && p.t < b), questioned: q, endedBy, treatment,
       sinceRapidMin: lr === null ? null : Math.round((a - lr) / MIN), sinceFoodMin: lf === null ? null : Math.round((a - lf) / MIN),
-      iobAtStart: inp.iob ? Math.round(iobAt(a, rapidDoses, inp.iob) * 100) / 100 : null, exerciseAt: ex,
+      iobAtStart: iob, exerciseAt: ex,
     };
   }
 
@@ -215,15 +222,15 @@ export function basalCheck(inp: BasalInputs): BasalReport {
 }
 
 export const inFilter = (w: Win, f: Filter) => f === 'all' || f === w;
-const counted = (p: Period) => p.status === 'clean' || p.status === 'affected';
+const counted = (p: Period) => p.status === 'clean'; // the main analysis uses clean periods only
 
 /** Per Tresiba dose and phase (stable / transition / unknown), in the order the doses were first given. */
 export function doseStats(r: BasalReport, f: Filter): DoseStat[] {
   const out: DoseStat[] = [];
   for (const p of r.periods) {
-    if (!p.dose || p.status === 'excluded' || !inFilter(p.win, f)) continue;
+    if (!p.dose || !inFilter(p.win, f)) continue;
     let g = out.find((x) => x.units === p.dose!.units && x.phase === p.dose!.phase);
-    if (!g) out.push(g = { units: p.dose.units, phase: p.dose.phase, first: p.from, clean: 0, other: 0, change: null, perHour: null, falling: 0, counted: 0, lows: 0, treated: 0, insufficient: true });
+    if (!g) out.push(g = { units: p.dose.units, phase: p.dose.phase, first: p.from, clean: 0, other: 0, target: BC.targetN, change: null, perHour: null, falling: 0, counted: 0, lows: 0, treated: 0, insufficient: true });
     if (p.status === 'clean') g.clean++; else g.other++;
     if (counted(p)) { g.counted++; if (p.dir === 'falling') g.falling++; }
     g.lows += p.lows.length; if (p.endedBy === 'treatment') g.treated++;
@@ -241,7 +248,7 @@ export function doseStats(r: BasalReport, f: Filter): DoseStat[] {
 
 export interface Summary {
   eligible: number; clean: number; affected: number; uncertain: number; excluded: number;
-  change: number | null; perHour: number | null; usesClean: boolean; insufficient: boolean; // typical change: clean only; else affected included, flagged
+  change: number | null; perHour: number | null; usesClean: boolean; insufficient: boolean; // typical change: clean periods only; insufficient under 3
   falling: number; rising: number; stable: number;
   start: number | null; end: number | null;
   treated: number; treatedConfirmed: number;
@@ -251,13 +258,13 @@ export function summary(r: BasalReport, f: Filter, units?: number | null): Summa
   const ps = r.periods.filter((p) => inFilter(p.win, f) && (units == null || p.dose?.units === units));
   const by = (st: Status) => ps.filter((p) => p.status === st);
   const clean = by('clean'), elig = ps.filter(counted);
-  const usesClean = clean.length >= BC.fewN, base = usesClean ? clean : elig;
+  const usesClean = true, base = clean; // affected, uncertain and excluded periods never enter the averages
   const all = r.lows.filter((l) => inFilter(l.win, f)), ls = all.filter((l) => !l.brief);
   const tr = elig.filter((p) => p.endedBy === 'treatment');
   return {
     eligible: elig.length, clean: clean.length, affected: by('affected').length, uncertain: by('uncertain').length, excluded: by('excluded').length,
     change: median(base.map((p) => p.change).filter((x): x is number => x !== null)), perHour: median(base.map((p) => p.perHour).filter((x): x is number => x !== null)),
-    usesClean, insufficient: !usesClean,
+    usesClean, insufficient: clean.length < BC.fewN,
     falling: elig.filter((p) => p.dir === 'falling').length, rising: elig.filter((p) => p.dir === 'rising').length, stable: elig.filter((p) => p.dir === 'stable').length,
     start: median(base.map((p) => p.start).filter((x): x is number => x !== null)), end: median(base.map((p) => p.end).filter((x): x is number => x !== null)),
     treated: tr.length, treatedConfirmed: tr.filter((p) => p.treatment?.evidence === 'confirmed').length,

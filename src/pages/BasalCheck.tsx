@@ -6,7 +6,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { useBasalCheck, BASAL_DAYS } from '../lib/nightTresiba';
-import { BC, STATUSES, doseStats, inFilter, summary, type BasalReport, type Filter, type Period, type Phase, type Reason, type Status } from '../engine/basalCheck';
+import { BC, doseStats, inFilter, summary, type BasalReport, type Filter, type Period, type Phase, type Reason, type Status } from '../engine/basalCheck';
 import { formatGlucose, unitLabel, type GlucoseUnit } from '../lib/glucose';
 import { fmtTime } from '../lib/constants';
 import { fmt } from '../lib/carbs';
@@ -24,7 +24,7 @@ export const STATUS: Record<Status, { icon: string; name: string; cls: string }>
   excluded: { icon: '–', name: 'مستبعدة', cls: 'bg-slate-50 text-slate-400' }, // i18n-ok
 };
 export const REASON: Record<Reason, string> = { // i18n-ok: shown through t()
-  short: 'أقل من ساعة', no_readings: 'ما في قراءات', rapid_recent: 'نوفورابيد قبل أقل من ٦ ساعات', exercise: 'نشاط خلال ١٢ ساعة', // i18n-ok
+  short: 'أقل من ساعة', no_readings: 'ما في قراءات', rapid_recent: 'خلال ٤ ساعات من النوفورابيد', iob_residual: 'نموذج الإنسولين يبين نوفورابيد باقي', exercise: 'نشاط خلال ١٢ ساعة', // i18n-ok
   coverage: 'نقص في القراءات', artifact: 'نزلة مشكوك فيها (ممكن ضغط على الحساس)', prick_disagrees: 'الوخز يختلف عن الحساس', no_dose: 'ما في تريسيبا مسجلة خلال ٣٠ ساعة', // i18n-ok
 };
 export const PHASE: Record<Phase, string> = { stable: 'ثابتة', transition: 'أول ٣ أيام', unknown: 'بداية السجل' }; // i18n-ok: shown through t()
@@ -52,7 +52,7 @@ export function BasalCheck() {
           <h2 className="text-lg font-bold leading-tight">{t('فحص القاعدي')}</h2>
           <p className="text-[12.5px] text-slate-500">
             {last ? t('تريسيبا {u} وحدة · من {d}', { u: fmt(last.units), d: change ? day(change.t) : '–' }) : t('ما في جرعة تريسيبا مسجلة')}
-            {report && <> · {t('{n} فترة صيام', { n: report.periods.filter((p) => p.status !== 'excluded').length })}</>}
+            {report && <> · {t('{n} فترة نظيفة', { n: report.periods.filter((p) => p.status === 'clean').length })}</>}
           </p>
         </div>
         <button onClick={() => setInfo(true)} aria-label={t('شرح')} className="grid h-11 w-11 shrink-0 place-items-center"><span className="grid h-7 w-7 place-items-center rounded-full bg-slate-100 text-sm font-bold text-slate-500">i</span></button>
@@ -86,13 +86,13 @@ function Headline({ report, f, unit }: { report: BasalReport; f: Filter; unit: G
   return (
     <Card className="!p-3">
       <div className="grid grid-cols-3 gap-2 text-center">
-        <div><div className="num text-[24px] font-extrabold leading-tight">{s.eligible}</div><div className="text-[11.5px] text-slate-500">{t('صالحة للتحليل')}</div></div>
+        <div><div className="num text-[24px] font-extrabold leading-tight">{s.eligible}</div><div className="text-[11.5px] text-slate-500">{t('فترة نظيفة')}</div></div>
         <div><div dir="ltr" className="num text-[24px] font-extrabold leading-tight">{s.change === null ? '–' : fmtDiff(s.change, unit)}</div>
           <div className="text-[11.5px] text-slate-500">{t('التغيّر المعتاد')}</div></div>
         <div><div className="num text-[24px] font-extrabold leading-tight">{s.lows.all}</div><div className="text-[11.5px] text-slate-500">{t('انخفاض تحت {v}', { v: formatGlucose(BC.lowMg, unit) })}</div></div>
       </div>
       <p className={cx('mt-2 rounded-xl px-2 py-1 text-center text-[12px]', s.insufficient ? 'bg-near-soft text-near' : 'bg-slate-50 text-slate-600')}>
-        {s.insufficient ? t('بيانات غير كافية: أقل من ٣ فترات نظيفة؛ الرقم من النظيفة والمتأثرة') : t('من {n} فترة نظيفة', { n: s.clean })}
+        {s.insufficient ? t('بيانات غير كافية: أقل من ٣ فترات نظيفة') : t('من الفترات النظيفة فقط')}
         {s.perHour !== null && <> · <span dir="ltr" className="num">{fmtDiff(s.perHour, unit)}</span>{t('/ساعة')}</>}
         {s.lows.all + s.lows.brief > 0 && <> · {t('مؤكد بالوخز {k}', { k: s.lows.finger })}</>}
       </p>
@@ -126,7 +126,7 @@ export function DoseCompare({ report, f, unit, selected, onPick, print }: { repo
               <text x={v === null ? mid + 6 : v < 0 ? Math.min(X(v), mid) - 4 : X(v) + 4} y={y + 20} fontSize={11} fontWeight={700} textAnchor={v !== null && v < 0 ? 'end' : 'start'} fill="currentColor" className="text-slate-800">
                 {v === null ? t('ما في نظيفة') : fmtDiff(v, unit)}
               </text>
-              <text x={W - 2} y={y + 20} fontSize={10} textAnchor="end" fill="currentColor">n={r.clean}{r.other ? `+${r.other}` : ''}</text>
+              <text x={W - 2} y={y + 20} fontSize={11} fontWeight={700} textAnchor="end" fill="currentColor">{r.clean}/{r.target}</text>
             </g>
           );
         })}
@@ -135,7 +135,7 @@ export function DoseCompare({ report, f, unit, selected, onPick, print }: { repo
         <text x={X(ref)} y={rows.length * RH + 12} fontSize={9.5} textAnchor="middle" fill="currentColor">+{formatGlucose(ref, unit)}</text>
       </svg>
       <p className="text-[11px] text-slate-500">
-        {t('n = نظيفة + متأثرة/غير أكيدة. الخط المتقطع: أقل من ٣ نظيفة (بيانات غير كافية). المنطقة الرمادية ±{v}: مرجع غير رسمي فقط.', { v: formatGlucose(ref, unit) })}
+        {t('الفترات النظيفة / الهدف {n} (هدف من التطبيق، مو رقم طبي). المتقطع: أقل من ٣ (بيانات غير كافية). الرمادي ±{v}: مرجع غير رسمي.', { n: BC.targetN, v: formatGlucose(ref, unit) })}
         {!print && onPick && ' ' + t('اضغطي على جرعة لتصفية القائمة.')}
       </p>
     </Card>
@@ -145,36 +145,48 @@ export function DoseCompare({ report, f, unit, selected, onPick, print }: { repo
 function PeriodList({ report, f, unit, dose, onOpen, onClear }: { report: BasalReport; f: Filter; unit: GlucoseUnit; dose: number | null; onOpen: (p: Period) => void; onClear: () => void }) {
   const [showEx, setShowEx] = useState(false);
   const all = report.periods.filter((p) => inFilter(p.win, f) && (dose === null || p.dose?.units === dose)).reverse();
-  const ex = all.filter((p) => p.status === 'excluded'), rows = showEx ? all : all.filter((p) => p.status !== 'excluded');
-  const g = (mg: number | null) => (mg === null ? '–' : formatGlucose(mg, unit));
+  const ex = all.filter((p) => p.status !== 'clean'), rows = all.filter((p) => p.status === 'clean');
   return (
     <Card className="space-y-1">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-bold">{t('فترات الصيام ({n})', { n: all.length - ex.length })}</h2>
+        <h2 className="font-bold">{t('الفترات النظيفة ({n})', { n: rows.length })}</h2>
         {dose !== null ? <button onClick={onClear} className="min-h-[32px] rounded-full bg-brand-soft px-2.5 text-[12px] font-bold text-brand">{fmt(dose)}U ✕</button>
           : <span className="text-[11.5px] text-slate-500">{unitLabel(unit)}</span>}
       </div>
-      {!rows.length && <p className="py-3 text-center text-sm text-slate-500">{t('ما في فترات صيام بهذا الفلتر.')}</p>}
-      <ul className="divide-y divide-slate-100">
-        {rows.map((p) => (
-          <li key={p.id}>
-            <button onClick={() => onOpen(p)} className="flex min-h-[48px] w-full items-center gap-2 py-1.5 text-start active:bg-slate-50">
-              <span className="w-[46px] shrink-0 leading-tight"><span className="num block text-[13px] font-bold">{shortDay(p.from)}</span>
-                <span className="num block text-[11px] text-slate-500">{fmtTime(new Date(p.from))}</span></span>
-              <span className="num w-9 shrink-0 text-[12px] font-bold text-brand">{p.dose ? `${fmt(p.dose.units)}U` : '–'}</span>
-              <span dir="ltr" className="num min-w-0 flex-1 text-[13px]">{g(p.start)} → {g(p.end)}</span>
-              <span dir="ltr" className="num w-12 shrink-0 text-end text-[14px] font-extrabold">{p.change === null ? '–' : fmtDiff(p.change, unit)}</span>
-              <span className="w-[52px] shrink-0 whitespace-nowrap text-end text-[11.5px] text-slate-500">{durText(p.minutes)}</span>
-              <span className={cx('grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold', STATUS[p.status].cls)} title={t(STATUS[p.status].name)}>{STATUS[p.status].icon}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-[11px] text-slate-500">
-        {STATUSES.filter((s) => s !== 'excluded').map((s) => <span key={s} className="flex items-center gap-1"><span className={cx('grid h-4 w-4 place-items-center rounded-full text-[10px] font-bold', STATUS[s].cls)}>{STATUS[s].icon}</span>{t(STATUS[s].name)}</span>)}
-        {ex.length > 0 && <button onClick={() => setShowEx(!showEx)} className="min-h-[32px] font-bold text-brand">{showEx ? t('إخفاء المستبعدة') : t('عرض المستبعدة ({n})', { n: ex.length })}</button>}
-      </div>
+      {!rows.length && <p className="py-3 text-center text-sm text-slate-500">{t('ما في فترات نظيفة بهذا الفلتر.')}</p>}
+      <ul className="divide-y divide-slate-100">{rows.map((p) => <PeriodRow key={p.id} p={p} unit={unit} onOpen={onOpen} />)}</ul>
+      {ex.length > 0 && (
+        <div className="border-t border-slate-100 pt-1">
+          <button onClick={() => setShowEx(!showEx)} aria-expanded={showEx} className="flex min-h-[44px] w-full items-center gap-2 text-start text-[13px] font-bold text-slate-600">
+            <span className="flex-1">{t('خارج التحليل ({n})', { n: ex.length })}</span><span className="text-slate-400">{showEx ? '▴' : '▾'}</span>
+          </button>
+          {showEx && <>
+            <p className="pb-1 text-[11.5px] text-slate-500">{t('ما تدخل في الأرقام ولا الرسم. باقية هنا مع السبب، وما انحذف شي.')}</p>
+            <ul className="divide-y divide-slate-100">{ex.map((p) => <PeriodRow key={p.id} p={p} unit={unit} onOpen={onOpen} why />)}</ul>
+          </>}
+        </div>
+      )}
     </Card>
+  );
+}
+
+function PeriodRow({ p, unit, onOpen, why }: { p: Period; unit: GlucoseUnit; onOpen: (p: Period) => void; why?: boolean }) {
+  const g = (mg: number | null) => (mg === null ? '–' : formatGlucose(mg, unit));
+  return (
+    <li>
+      <button onClick={() => onOpen(p)} className="w-full py-1.5 text-start active:bg-slate-50">
+        <span className="flex min-h-[36px] items-center gap-2">
+          <span className="w-[46px] shrink-0 leading-tight"><span className="num block text-[13px] font-bold">{shortDay(p.from)}</span>
+            <span className="num block text-[11px] text-slate-500">{fmtTime(new Date(p.from))}</span></span>
+          <span className="num w-9 shrink-0 text-[12px] font-bold text-brand">{p.dose ? `${fmt(p.dose.units)}U` : '–'}</span>
+          <span dir="ltr" className="num min-w-0 flex-1 text-[13px]">{g(p.start)} → {g(p.end)}</span>
+          <span dir="ltr" className="num w-12 shrink-0 text-end text-[14px] font-extrabold">{p.change === null ? '–' : fmtDiff(p.change, unit)}</span>
+          <span className="w-[52px] shrink-0 whitespace-nowrap text-end text-[11.5px] text-slate-500">{durText(p.minutes)}</span>
+          <span className={cx('grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold', STATUS[p.status].cls)} title={t(STATUS[p.status].name)}>{STATUS[p.status].icon}</span>
+        </span>
+        {why && <span className="block ps-[54px] text-[11.5px] text-slate-500">{t(STATUS[p.status].name)}: {p.reasons.map((r) => t(REASON[r])).join(isEn() ? ', ' : '، ')}</span>}{/* i18n-ok: list */}
+      </button>
+    </li>
   );
 }
 
@@ -269,12 +281,13 @@ function PeriodDetail({ p, series, report, unit }: { p: Period; series: Series; 
 export function doctorLines(report: BasalReport, f: Filter, unit: GlucoseUnit): { facts: string[]; limits: string[]; ask: string[] } {
   const g = (mg: number | null) => (mg === null ? '–' : formatGlucose(mg, unit)), d = (mg: number | null) => (mg === null ? '–' : fmtDiff(mg, unit));
   const s = summary(report, f), rows = doseStats(report, f);
+  const rapidOut = report.periods.filter((p) => inFilter(p.win, f) && p.status === 'excluded' && p.reasons.includes('rapid_recent')).length;
   const where = f === 'night' ? t('بالليل (١٢–٦ الصبح)') : f === 'day' ? t('بالنهار') : t('على مدار اليوم');
   const facts = [
-    t('{days} يوم، {w}: {n} فترة صيام (نظيفة {c}، متأثرة {a}، غير أكيدة {u})، و{x} مستبعدة.', { days: BASAL_DAYS, w: where, n: s.eligible + s.uncertain, c: s.clean, a: s.affected, u: s.uncertain, x: s.excluded }),
+    t('{days} يوم، {w}: {c} فترة صيام نظيفة. خارج التحليل: {r} خلال ٤ ساعات من النوفورابيد، {u} غير أكيدة، {o} أخرى.', { days: BASAL_DAYS, w: where, c: s.clean, r: rapidOut, u: s.uncertain, o: s.affected + s.excluded - rapidOut }),
     t('نزل السكر أكثر من {r} في {k} منها، وبقي ضمن ±{r2} في {st}، وارتفع في {up}.', { r: g(BC.stableMg), r2: g(BC.stableMg), k: s.falling, st: s.stable, up: s.rising }),
-    s.change === null ? t('ما في فترات كافية للوسيط.') : t('الوسيط{q}: من {a} إلى {b}، تغيّر {c} ({h} بالساعة).', { q: s.usesClean ? '' : t(' (بيانات غير كافية، يشمل المتأثرة)'), a: g(s.start), b: g(s.end), c: d(s.change), h: d(s.perHour) }),
-    t('حسب الجرعة (نظيفة + أخرى): {list}.', { list: rows.map((r) => `${fmt(r.units)}U ${t(PHASE[r.phase])} ${r.clean}+${r.other}${r.insufficient ? '' : ` ${d(r.change)}`}`).join(isEn() ? '; ' : '؛ ') }) // i18n-ok: list
+    s.change === null ? t('ما في فترات نظيفة للوسيط.') : t('الوسيط{q}: من {a} إلى {b}، تغيّر {c} ({h} بالساعة).', { q: s.insufficient ? t(' (بيانات غير كافية)') : '', a: g(s.start), b: g(s.end), c: d(s.change), h: d(s.perHour) }),
+    t('الفترات النظيفة / هدف التطبيق {n}: {list}.', { n: BC.targetN, list: rows.map((r) => `${fmt(r.units)}U ${t(PHASE[r.phase])} ${r.clean}/${r.target}${r.insufficient ? '' : ` (${d(r.change)})`}`).join(isEn() ? '; ' : '؛ ') }) // i18n-ok: list
       + (rows.some((r) => r.insufficient) ? ' ' + t('أقل من ٣ نظيفة = بيانات غير كافية.') : ''),
     t('انخفاض تحت {v} لـ١٥ دقيقة أو أكثر: {n} (بالوخز {f}، الوخز أعلى {h}، من الحساس فقط {o})؛ تحت {w}: {k}؛ ونزلات أقصر: {b}.', { v: g(BC.lowMg), w: g(BC.veryLowMg), n: s.lows.all, f: s.lows.finger, h: s.lows.fingerHigher, o: s.lows.cgmOnly, k: s.lows.below54, b: s.lows.brief }),
     t('{n} فترة انتهت بعلاج (عصير)؛ مؤكد بالوخز قبلها: {c}.', { n: s.treated, c: s.treatedConfirmed }),
@@ -324,8 +337,9 @@ export function BasalCompact({ report, unit, f = 'night' }: { report: BasalRepor
 function BasalInfo() {
   return (
     <div className="space-y-2 pb-4 text-[13.5px] leading-relaxed">
-      <p>{t('فترة الصيام: تبدأ بعد ٣ ساعات من آخر أكل أو عصير، وبعد ٦ ساعات من آخر نوفورابيد (إذا ما في وقت كافي، تبدأ بعد ٣ ساعات وتنعلّم «متأثرة»). تنتهي عند أول أكل أو عصير أو نوفورابيد.')}</p>
-      <p>{t('نظيفة: ما في شي يأثر. متأثرة: نوفورابيد قبل أقل من ٦ ساعات أو نشاط. غير أكيدة: نقص قراءات، نزلة مشكوك فيها، وخز يختلف، أو ما في تريسيبا مسجلة. مستبعدة: أقل من ساعة.')}</p>
+      <p>{t('فترة الصيام: تبدأ بعد ٣ ساعات من آخر أكل أو عصير، وبعد ٤ ساعات من آخر نوفورابيد، وتنتهي عند أول أكل أو عصير أو نوفورابيد. أول ٤ ساعات بعد النوفورابيد ما تدخل التحليل أبدًا، وإذا كانت ساعة أو أكثر تنعرض «خارج التحليل».')}</p>
+      <p>{t('الأرقام والرسم من الفترات النظيفة بس. خارج التحليل: مستبعدة (أقل من ساعة أو خلال ٤ ساعات من النوفورابيد)، غير أكيدة (نقص قراءات، نزلة مشكوك فيها، وخز يختلف، ما في تريسيبا، أو نموذج الإنسولين يبين نوفورابيد باقي ٠٫١ وحدة أو أكثر)، متأثرة (نشاط خلال ١٢ ساعة).')}</p>
+      <p>{t('الهدف {n} فترات نظيفة لكل جرعة: رقم من التطبيق عشان تكون المقارنة أوضح، مو رقم طبي.', { n: BC.targetN })}</p>
       <p>{t('الليل = الفترات اللي أغلبها بين ١٢ و٦ الصبح؛ كل فترة تنحسب مرة وحدة.')}</p>
       <p>{t('التغيّر = النهاية − البداية (بعد تنعيم بسيط). بالساعة = التغيّر ÷ المدة. الاتجاه العام = ميل مقاوم للقراءات الشاذة.')}</p>
       <p>{t('±1.7: مرجع غير رسمي لاختبار القاعدي، مو حد طبي. ما في حد معتمد لسرعة النزول عند الأطفال.')}</p>

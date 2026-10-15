@@ -23,21 +23,29 @@ the dose check still use.
 ## Fasting periods
 
 Interruptions are food, carbs and treatments (including drinks logged as food that `juicesOf` infers to be
-treatments) and NovoRapid. Between two interruptions there is at most one period.
+treatments) and NovoRapid. Between two interruptions:
 
-- Starts 3 h after the last food or treatment, and 6 h after the last NovoRapid. If that leaves under an
-  hour, it starts 3 h after NovoRapid instead and is marked **affected**. The model's insulin still active at
-  the start is shown as an estimate.
-- Ends at the next interruption. A juice ends it. Readings up to 5 min after the juice still count, because
-  the juice is given on the reading that prompted it. Nothing later is used.
+- The analysed period starts 3 h after the last food or treatment **and 4 h after the last NovoRapid**
+  (changed from 6 h in 4.7.0, at the family's request), and ends at the next interruption.
+- The first 4 h after NovoRapid are never analysed. When a gap crosses the 4-hour mark, only the part
+  after it is analysed. The part before it is listed as excluded ("within 4 h of NovoRapid") when it is an
+  hour or more.
+- If no hour after the mark remains, the whole gap is listed as excluded. Gaps under 30 min are not fasting
+  periods and are not listed.
+- A juice ends a period. Readings up to 5 min after it still count, because the juice is given on the
+  reading that prompted it. Nothing later is used.
 - **Night** = the period lies mostly between 12 and 6 AM; otherwise **Day**. Each period counts once.
 
-| Status | When |
-|---|---|
-| Excluded | under 1 h, or no readings (listed, with the reason, never dropped) |
-| Uncertain | under 70 % coverage, a doubtful dip (fast fall or V-shape, from `questioned`), a disagreeing finger-prick, or no Tresiba in the 30 h before |
-| Affected | NovoRapid less than 6 h before, or exercise logged within 12 h |
-| Clean | none of these |
+| Status | When | In the numbers? |
+|---|---|---|
+| Clean | none of the below | yes |
+| Excluded | under 1 h, no readings, or within 4 h of NovoRapid | no, listed under "Outside the analysis" |
+| Uncertain | under 70 % coverage, a doubtful dip, a disagreeing finger-prick, no Tresiba in 30 h, or the insulin model still showing ≥ 0.1 U of NovoRapid at the start | no, listed |
+| Affected | exercise logged within 12 h | no, listed |
+
+The residual-insulin check uses the care team's model settings. With the current setting, a duration of
+action of 240 min, the model shows nothing left at 4 h, so this check flags nothing until the setting is
+longer.
 
 Tresiba phase: doses 1–3 at new units are a **transition**, from the 4th on **stable**, and the first dose
 in the record is **unknown**.
@@ -62,6 +70,8 @@ in the record is **unknown**.
 
 Grouped by units and phase, in order of first use.
 - Medians come from clean periods only.
+- Each dose shows **clean X / 7**. The target of 7 is app-defined (enough nights for a steadier median),
+  not a medical number.
 - Fewer than 3 clean periods: **insufficient evidence** (dashed bar).
 - Colours are neutral, so no dose is shown as approved.
 

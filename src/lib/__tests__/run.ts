@@ -3311,20 +3311,34 @@ console.log('basal check');
   const fall = (x: number) => { const k = clock(x); return k < 7 ? 160 - 20 * k : 140; };
   const nightOf = (r: any, d: number) => r.periods.find((p: any) => p.from >= kw(d - 1, 20) && p.from < kw(d, 7) && p.win === 'night');
 
-  test('basal check: a fasting night after dinner NovoRapid starts 6 h after it, is clean, and its change is measured', () => {
+  test('basal check: a fasting night after dinner NovoRapid starts 4 h after it, is clean, and its change is measured', () => {
     const r = B.basalCheck(mk({ g: fall }) as any);
-    const p = nightOf(r, 6);
-    assert.equal(p.from, kw(6, 0), '18:00 NovoRapid + 6 h'); assert.equal(p.to, kw(6, 7), 'ends at breakfast');
-    assert.equal(p.status, 'clean'); assert.equal(p.win, 'night'); assert.equal(p.endedBy, 'food');
-    close(p.perHour, -20, 1.5); close(p.trend, -20, 0.5); assert.equal(p.dir, 'falling');
-    assert.ok(p.change < -100 && p.low < 30 + 5);
-    assert.equal(p.dose.units, 9); assert.equal(p.dose.phase, 'stable');
+    const p = r.periods.find((x) => x.from === kw(5, 22))!;
+    assert.equal(p.to, kw(6, 7), '18:00 NovoRapid + 4 h, ends at breakfast'); assert.equal(p.win, 'night', 'most of 22:00–07:00 is in 00–06');
+    assert.equal(p.status, 'clean'); assert.equal(p.endedBy, 'food');
+    assert.ok(p.trend! < -10 && p.perHour! < -10); assert.equal(p.dir, 'falling');
+    assert.ok(p.change! < -100 && p.low! < 30 + 5);
+    assert.equal(p.dose!.units, 9); assert.equal(p.dose!.phase, 'stable');
   });
-  test('basal check: NovoRapid at 02:00 leaves no 6-hour window before breakfast: affected, never clean', () => {
-    const r = B.basalCheck(mk({ g: fall, extra: [{ kind: 'insulin', insulin_type: 'rapid', insulin_units: 1, occurred_at: new Date(kw(6, 2)).toISOString() }] }) as any);
-    const p = r.periods.find((x: any) => x.from === kw(6, 5))!;
-    assert.equal(p.status, 'affected'); assert.ok(p.reasons.includes('rapid_recent')); assert.equal(p.sinceRapidMin, 180);
-    assert.ok(p.iobAtStart !== null && p.iobAtStart >= 0);
+  test('basal check: the first 4 h after NovoRapid are never analysed; only the part after the mark is, and the rest stays listed', () => {
+    const corr = (h: number, m = 0) => [{ kind: 'insulin', insulin_type: 'rapid', insulin_units: 1, occurred_at: new Date(kw(6, h, m)).toISOString() }];
+    const r = B.basalCheck(mk({ g: fall, extra: corr(1) }) as any);
+    const after = r.periods.find((x: any) => x.from === kw(6, 5))!;
+    assert.equal(after.status, 'clean', '01:00 correction + 4 h = 05:00, two hours to breakfast'); assert.equal(after.to, kw(6, 7));
+    const inside = r.periods.find((x: any) => x.from === kw(6, 1))!;
+    assert.equal(inside.status, 'excluded'); assert.ok(inside.reasons.includes('rapid_recent')); assert.equal(inside.to, kw(6, 5)); assert.equal(inside.endedBy, 'rapid_mark');
+    assert.ok(!r.periods.some((x: any) => x.status === 'clean' && x.from < kw(6, 5) && x.to > kw(6, 1)), 'nothing clean overlaps the first 4 h');
+    const r2 = B.basalCheck(mk({ g: fall, extra: corr(2, 30) }) as any);
+    const p2 = r2.periods.find((x: any) => x.from === kw(6, 2, 30))!;
+    assert.equal(p2.status, 'excluded', 'only 30 min after the mark before breakfast: all of it excluded'); assert.ok(p2.reasons.includes('rapid_recent'));
+    assert.ok(!B.doseStats(r2, 'all').some((g) => g.clean && r2.periods.filter((x) => x.status === 'clean').some((x) => x.from === kw(6, 2, 30))));
+  });
+  test('basal check: when the insulin model still shows NovoRapid after 4 h, the period is uncertain, not clean', () => {
+    const b = mk({ g: fall }); (b as any).iob = { dia: 420, peak: 90 };
+    const p = B.basalCheck(b as any).periods.find((x) => x.from === kw(5, 22))!;
+    assert.ok(p.iobAtStart! >= 0.1); assert.equal(p.status, 'uncertain'); assert.ok(p.reasons.includes('iob_residual'));
+    const q = B.basalCheck(mk({ g: fall }) as any).periods.find((x) => x.from === kw(5, 22))!;
+    assert.ok(q.iobAtStart! < 0.1, 'a 5-hour model has almost nothing left at 4 h'); assert.equal(q.status, 'clean');
   });
   test('basal check: a juice ends the period; the finger-prick before it confirms the low, or the low is CGM-only', () => {
     const juice = { kind: 'treatment', carbs_g: 15, treatment: 'juice', occurred_at: new Date(kw(6, 4)).toISOString() };
@@ -3344,10 +3358,10 @@ console.log('basal check');
     const st = B.doseStats(r, 'night');
     assert.deepEqual(st.map((g) => `${g.units}${g.phase[0]}`), ['10u', '10s', '9t', '9s'], 'the record\'s first dose is unknown history; doses in order of first use');
     const s9 = st.find((g) => g.units === 9 && g.phase === 'stable')!;
-    assert.equal(s9.clean, 2); assert.equal(s9.insufficient, true, 'under 3 clean periods: insufficient evidence');
+    assert.equal(s9.clean, 2); assert.equal(s9.target, 7, 'app-defined target'); assert.equal(s9.insufficient, true, 'under 3 clean periods: insufficient evidence');
   });
   test('basal check: rising and stable periods count too; the night/day split never counts a period twice', () => {
-    const g = (x: number) => { const k = clock(x); return k < 7 ? 100 + 10 * k : k >= 21 ? 150 : 140; };
+    const g = (x: number) => { const k = clock(x); return k < 7 ? 100 + 10 * k : k >= 21 ? 100 : 140; };
     const r = B.basalCheck(mk({ g }) as any);
     const p = nightOf(r, 6); assert.equal(p.dir, 'rising');
     const s = B.summary(r, 'all'), n = B.summary(r, 'night'), d = B.summary(r, 'day');
@@ -3368,7 +3382,7 @@ console.log('basal check');
     assert.equal(q.dir, 'stable', 'a dip that recovers is not a fall');
   });
   test('basal check: no Tresiba recorded in the 30 h before: dosing history incomplete, uncertain', () => {
-    const b = mk({ g: fall }); b.events = b.events.filter((e: any) => !(e.insulin_type === 'long' && e.occurred_at === new Date(kw(5, 17)).toISOString()));
+    const b = mk({ g: fall }); b.events = b.events.filter((e: any) => !(e.insulin_type === 'long' && [kw(4, 17), kw(5, 17)].some((x) => e.occurred_at === new Date(x).toISOString())));
     const p = nightOf(B.basalCheck(b as any), 6);
     assert.equal(p.status, 'uncertain'); assert.ok(p.reasons.includes('no_dose'));
   });
