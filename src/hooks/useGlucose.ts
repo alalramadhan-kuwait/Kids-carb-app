@@ -36,8 +36,10 @@ export function useGlucose() {
     const age = window.setInterval(() => tick((n) => n + 1), 20_000); // keeps "2 min ago" honest
     const vis = () => { if (document.visibilityState === 'visible') void load(); };
     document.addEventListener('visibilitychange', vis);
+    // its own channel name: two screens open at once (home and the full graph) each have their own subscription;
+    // with one shared name the second one throws ("cannot add callbacks after subscribe") and the page goes blank
     const channel = supabase
-      .channel('glucose-live')
+      .channel(`glucose-live-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'carb', table: 'glucose_readings' }, (msg) => {
         const r = msg.new as Partial<Reading>;
         if (r?.taken_at && typeof r.mg_dl === 'number') {

@@ -50,8 +50,7 @@ const MOOD: Record<Mood, { bg: string; word: string; todo: string }> = {
 /** The graph's readings: the last 24 h (refetched each minute when `tick` is given), older days loaded one at a time as
  *  the graph is swiped back (up to 14 days), and, opened at an older entry, the hours around it in one go. Live
  *  readings newer than the series are added (one source per moment: no zigzags). Shared by home and the full graph. */
-function useGraphReadings(focusAt: number | null, tick?: (now: number) => void) {
-  const { g } = useGlucose();
+function useGraphReadings(focusAt: number | null, g: ReturnType<typeof useGlucose>['g'], tick?: (now: number) => void) {
   const [now] = useState(Date.now());
   const [recent, setRecent] = useState<Series | null>(null);
   useEffect(() => {
@@ -103,7 +102,7 @@ export function MomHome() {
   const [full, setFull] = useState(false);
   const [hours, setHours] = useState(6), [picking, setPicking] = useState(false);
   const dark = useIsDark();
-  const { merged, loadOlder } = useGraphReadings(focusAt, setNow);
+  const { merged, loadOlder } = useGraphReadings(focusAt, g, setNow);
   const unit = s.glucose_unit;
   const range = effectiveRange(s.glucose_low_mgdl, s.glucose_high_mgdl);
   const low = s.alert_low_mgdl ?? range.low ?? 70, high = range.high ?? 180;
@@ -507,7 +506,8 @@ function GraphFull({ onClose, s: st, unit, low, high, band, at = null, page = fa
   const { events, history } = useData();
   const [hours, setHours] = useState(12);
   const [now] = useState(Date.now());
-  const { merged, loadOlder } = useGraphReadings(at);
+  const { g } = useGlucose();
+  const { merged, loadOlder } = useGraphReadings(at, g);
   const box = useRef<HTMLDivElement>(null);
   const [aspect, setAspect] = useState(0.6);
   useEffect(() => {
