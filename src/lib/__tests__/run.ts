@@ -3411,5 +3411,23 @@ console.log('basal check');
   });
 }
 
+console.log('simple-mode graph');
+{
+  const G = await import('../../engine/mom');
+  const M = 60000;
+  test('simple-mode graph: Libre\'s 15-minute history after a streaming pause draws as one line; only a real 20-minute gap breaks it', () => {
+    const T: number[] = [];
+    for (let m = 0; m <= 18; m++) T.push(m * M);           // streaming every minute to 00:18 (that average sits at 00:16)
+    T.push(38 * M, 53 * M);                               // then Libre's 15-minute history: 20 and 15 min apart
+    for (let m = 54; m <= 70; m++) T.push(m * M);          // streaming again
+    T.push(100 * M);                                      // 30 minutes with nothing: a real gap
+    const s = { t: Float64Array.from(T), v: Float64Array.from(T.map(() => 120)) };
+    const p = G.librePoints(s as any, 0, 100 * M);
+    assert.deepEqual(p.map((x) => x.brk), p.map((x) => x.t === 100 * M), 'the only break is after the 30-minute gap');
+    assert.ok(p.some((x, i) => i > 0 && x.t - p[i - 1].t > 20 * M && !x.brk), 'averages more than 20 min apart are still joined');
+    assert.equal(p[p.length - 1].t, 100 * M, 'the newest reading is the last point');
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);

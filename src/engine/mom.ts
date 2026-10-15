@@ -1,6 +1,7 @@
 // Mom mode, the pure parts: a meal built from portions (household measures set by a parent), turned into the plan
 // items the rest of the app already understands; the status word for the home screen; injection-site rotation.
 // Tested in Node. Nothing here proposes a dose; the dose always comes from engine/dose.ts and the care plan.
+import type { Series } from './series';
 import type { Ingredient, InjectionSite, PlanItem, Portion, Product, Recipe } from '../lib/types';
 
 /** One thing on her plate: a product or a recipe, in one of Dad's portions, or in an amount chosen on the spot
@@ -228,4 +229,22 @@ export function nextRapidAllowed(lastRapidAt: number | null, gapMin: number, now
   if (lastRapidAt === null) return null;
   const at = lastRapidAt + gapMin * 60000;
   return at > now ? at : null;
+}
+
+/** The points the simple-mode graph draws: one per 15 minutes (their average, at their mean time) and the newest
+ *  reading. brk marks a point after readings stopped for more than 20 minutes: the only place the line breaks. */
+export function librePoints(s: Series, t0: number, now: number): { t: number; v: number; brk: boolean }[] {
+  let lastV: number | null = null, lastT = 0, prevT: number | null = null;
+  const pts: { t: number; v: number; brk: boolean }[] = [];
+  let bucket = -1, sum = 0, n = 0, bt = 0, brk = false;
+  const flush = () => { if (n) pts.push({ t: bt / n, v: sum / n, brk }); sum = 0; n = 0; bt = 0; brk = false; };
+  for (let i = 0; i < s.t.length; i++) {
+    const t = s.t[i]; if (t < t0 || t > now + 60000) continue;
+    const b = Math.floor(t / (15 * 60000));
+    if (b !== bucket) { flush(); bucket = b; brk = prevT !== null && t - prevT > 20 * 60000; }
+    sum += s.v[i]; bt += t; n++; lastV = s.v[i]; lastT = t; prevT = t;
+  }
+  flush();
+  if (lastV !== null && pts.length) pts[pts.length - 1] = { ...pts[pts.length - 1], t: lastT, v: lastV };
+  return pts;
 }

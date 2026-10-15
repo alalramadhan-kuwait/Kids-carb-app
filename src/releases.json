@@ -1,5 +1,11 @@
 [
   {
+    "version": "4.7.1",
+    "date": "2026-10-15",
+    "notes": ["رسم السكر بالرئيسية ما يتقطع إلا إذا فعلًا ما في قراءات لأكثر من ٢٠ دقيقة."],
+    "notes_en": ["The home graph only breaks where readings are really missing for more than 20 minutes."]
+  },
+  {
     "version": "4.7.0",
     "date": "2026-10-15",
     "notes": [

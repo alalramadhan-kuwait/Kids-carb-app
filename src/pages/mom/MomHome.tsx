@@ -11,7 +11,7 @@ import { fetchSeries } from '../../engine/useSeries';
 import { mergeSeries, type Series } from '../../engine/series';
 import { levelFromLibre, trendFrom } from '../../engine/trend';
 import { effectiveRange } from '../../lib/glucose';
-import { bigGraphScale, layanFace, moodOf, nextRapidAllowed, type LayanFace, type Mood } from '../../engine/mom';
+import { bigGraphScale, librePoints, layanFace, moodOf, nextRapidAllowed, type LayanFace, type Mood } from '../../engine/mom';
 import { useAlerts } from '../../hooks/useAlerts';
 import { usePlans } from '../../lib/plans';
 import { draftOps, useSensor } from '../../lib/mom';
@@ -249,11 +249,11 @@ function LayanCorner({ face }: { face: LayanFace | null }) {
 
 /** LibreLinkUp-style graph: last 12 h, fixed axis, target band, dashed low (red) and high (orange) lines, big last dot. */
 /** A monotone cubic curve (Fritsch–Carlson) through the points: smooth, and never above or below the real values
- *  between two of them. Breaks into separate pieces where readings are missing for longer than `gap`. */
-function smoothPath(p: { x: number; y: number; t: number }[], gap: number): string {
+ *  between two of them. Breaks into separate pieces at the points marked `brk`: readings were missing before them. */
+export function smoothPath(p: { x: number; y: number; t: number; brk?: boolean }[]): string {
   let d = '';
   const runs: typeof p[] = [];
-  for (const q of p) { const r = runs[runs.length - 1]; if (r && q.t - r[r.length - 1].t <= gap) r.push(q); else runs.push([q]); }
+  for (const q of p) { const r = runs[runs.length - 1]; if (r && !q.brk) r.push(q); else runs.push([q]); }
   for (const r of runs) {
     d += `M${r[0].x.toFixed(1)},${r[0].y.toFixed(1)}`;
     if (r.length < 2) continue;
@@ -300,20 +300,11 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
   const x = (t: number) => PL + ((t - t0) / (span * H)) * (XR - PL);
   const y = (v: number) => PT + PH - ((Math.min(Math.max(v, bottom), top) - bottom) / (top - bottom)) * PH;
   // like Libre's graph: one point per 15 minutes (their average) and the newest reading, joined by a smooth curve
-  // that never overshoots the real values; a gap of more than 20 minutes stays a gap
-  let lastV: number | null = null, lastT = 0;
-  const pts: { t: number; v: number }[] = [];
-  let bucket = -1, sum = 0, n = 0, bt = 0;
-  const flush = () => { if (n) pts.push({ t: bt / n, v: sum / n }); sum = 0; n = 0; bt = 0; };
-  for (let i = 0; i < s.t.length; i++) {
-    const t = s.t[i]; if (t < t0 || t > now + 60000) continue;
-    const b = Math.floor(t / (15 * 60000));
-    if (b !== bucket) { flush(); bucket = b; }
-    sum += s.v[i]; bt += t; n++; lastV = s.v[i]; lastT = t;
-  }
-  flush();
-  if (lastV !== null && pts.length) pts[pts.length - 1] = { t: lastT, v: lastV };
-  const d = smoothPath(pts.map((p) => ({ x: x(p.t), y: y(p.v), t: p.t })), 20 * 60000);
+  // that never overshoots the real values. The line breaks only where the readings themselves stop for more than
+  // 20 minutes: the 15-minute averages sit at their own mean time, so two of them can be 25 minutes apart with no
+  // reading missing (Libre's 15-minute history after the phone stopped streaming), and that is not a gap
+  const pts = librePoints(s, t0, now), lastV = pts.length ? pts[pts.length - 1].v : null, lastT = pts.length ? pts[pts.length - 1].t : 0;
+  const d = smoothPath(pts.map((p) => ({ x: x(p.t), y: y(p.v), t: p.t, brk: p.brk })));
   const dot = lastV === null ? '#64748b' : lastV < low ? '#c62f3a' : lastV > high ? '#c27a00' : '#2f8f55'; // the newest reading drawn, same as the box
   const step = span <= 4 ? 1 : 3; const first = Math.ceil(t0 / (step * H)) * step * H; const hours = [0, 1, 2, 3, 4].map((k) => first + k * step * H).filter((h) => h <= now);
   // touch the graph to read it, like Libre: a thin line at that time, a dot on the curve, the value above and the time below
