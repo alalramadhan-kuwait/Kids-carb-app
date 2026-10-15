@@ -165,7 +165,6 @@ export default function AlertsPage() {
             <Field label={t('مرتفع بالليل')} hint={t('فارغ = مثل النهار')}><NumInput value={g('night_high_mgdl')} onChange={setG('night_high_mgdl')} /></Field>
           </div>
           <label className="flex min-h-[44px] items-center justify-between"><span>{t('المرتفع بدون إشعار بالليل')}</span><Toggle on={s.night_high_silent} onChange={(v) => setS({ ...s, night_high_silent: v })} label={t('المرتفع بدون إشعار بالليل')} /></label>
-          <label className="flex min-h-[44px] items-center justify-between"><span>{t('ألوان الليل في وقته')}</span><Toggle on={s.night_theme} onChange={(v) => setS({ ...s, night_theme: v })} label={t('ألوان الليل في وقته')} /></label>
         </Card>
 
         <Card className="space-y-3">

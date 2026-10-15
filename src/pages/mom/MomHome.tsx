@@ -1,17 +1,17 @@
 // Mom mode home: how Layan is now (big coloured box like LibreLinkUp), a large simple 12-hour graph, the last
 // injections in pen colours with the doctor's 2-hour countdown, the meal in progress, and three big buttons.
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as PE } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as PE } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { useComparisons } from '../../lib/fingerprick';
 import { nightOf } from '../../lib/schedule';
 import { formatGlucose } from '../../lib/glucose';
 import { useGlucose } from '../../hooks/useGlucose';
-import { fetchSeries } from '../../engine/useSeries';
+import { fetchGraphSeries } from '../../engine/useSeries';
 import { mergeSeries, type Series } from '../../engine/series';
 import { levelFromLibre, trendFrom } from '../../engine/trend';
 import { effectiveRange } from '../../lib/glucose';
-import { bigGraphScale, librePoints, layanFace, moodOf, nextRapidAllowed, type LayanFace, type Mood } from '../../engine/mom';
+import { bigGraphScale, curvePoints, layanFace, moodOf, nextRapidAllowed, type LayanFace, type Mood } from '../../engine/mom';
 import { useAlerts } from '../../hooks/useAlerts';
 import { usePlans } from '../../lib/plans';
 import { draftOps, useSensor } from '../../lib/mom';
@@ -37,6 +37,7 @@ import { inNight, prickHint, prickPoints, sensorBias, type PrickPoint } from '..
 
 const H = 3600000;
 const ARROW: Record<number, string> = { [-3]: '⇊', [-2]: '↓', [-1]: '↘', 0: '→', 1: '↗', 2: '↑', 3: '⇈' };
+const MOOD_DARK: Record<Mood, string> = { ok: '#1F7A4D', falling: '#9A6206', high: '#9A6206', low: '#B02A3A', stale: '#46536A' };
 const MOOD: Record<Mood, { bg: string; word: string; todo: string }> = {
   ok: { bg: '#2f8f55', word: 'زين', todo: 'ما يحتاج شي الحين' }, // i18n-ok
   falling: { bg: '#c27a00', word: 'قاعد ينزل', todo: 'انتبهي وافحصيها' }, // i18n-ok
@@ -63,11 +64,24 @@ export function MomHome() {
   const { g } = useGlucose();
   const [now, setNow] = useState(Date.now());
   const [full, setFull] = useState(false);
-  const [series, setSeries] = useState<Series | null>(null);
+  const [hours, setHours] = useState(6), [picking, setPicking] = useState(false);
+  const dark = useIsDark();
+  const [recent, setRecent] = useState<Series | null>(null);
   useEffect(() => {
-    const load = () => { setNow(Date.now()); void fetchSeries(Date.now() - 12 * H, Date.now() + 60000).then(setSeries).catch(() => undefined); };
+    const load = () => { setNow(Date.now()); void fetchGraphSeries(Date.now() - 24 * H, Date.now() + 60000).then(setRecent).catch(() => undefined); };
     load(); const id = setInterval(load, 60000); return () => clearInterval(id);
   }, []);
+  // older days, one at a time, when the graph is swiped back near the oldest loaded reading (at most 14 days back)
+  const [older, setOlder] = useState<{ from: number; s: Series } | null>(null);
+  const loadingOlder = useRef(false);
+  const loadOlder = () => {
+    if (loadingOlder.current) return;
+    const to = older?.from ?? now - 24 * H; if (to <= now - 14 * 24 * H) return;
+    loadingOlder.current = true;
+    void fetchGraphSeries(to - 24 * H, to).then((o) => setOlder((p) => ({ from: to - 24 * H, s: p ? mergeSeries(o, p.s.t, p.s.v) : o })))
+      .catch(() => undefined).finally(() => { loadingOlder.current = false; });
+  };
+  const series = useMemo(() => (recent && older ? mergeSeries(older.s, recent.t, recent.v) : recent), [recent, older]);
   const merged = useMemo(() => {
     if (!series) return null;
     // the graph's own readings, plus only the live ones newer than them (one source per moment: no zigzags)
@@ -120,7 +134,7 @@ export function MomHome() {
   return (
     // one fixed screen: nothing scrolls; the graph takes whatever room is left
     <main className={cx('mx-auto flex h-[100dvh] max-w-md flex-col gap-2 overflow-hidden px-4 pt-[calc(8px+env(safe-area-inset-top))]', TABS_PAD)}>
-      <div className="relative flex shrink-0 overflow-hidden rounded-3xl" style={{ color: '#fff', background: m.bg }}>
+      <div className="relative flex shrink-0 overflow-hidden rounded-3xl" style={{ color: '#fff', background: dark ? MOOD_DARK[mood] : m.bg }}>
         <div className="min-w-0 flex-1 py-2.5 ps-4 pe-1">
           <div className="truncate text-[13px] leading-snug opacity-90">{t('ليان')} · {at ? ago(at, now) : ''}{sensor ? ` · 📡 ${sensorLeft(sensor.life.left)}` : ''}</div>
           <div className="mt-0.5 flex items-center gap-3">
@@ -132,14 +146,17 @@ export function MomHome() {
         <LayanCorner face={face} />
       </div>
 
-      <div className="relative flex max-h-[50dvh] min-h-[120px] flex-1 flex-col rounded-3xl border border-slate-100 bg-white px-1 pt-1">
+      <div className="relative flex max-h-[50dvh] min-h-[120px] flex-1 flex-col rounded-3xl bg-white px-1 pt-1 shadow-[0_1px_3px_rgba(40,30,80,0.06)]">
         <button onClick={() => setFull(true)} aria-label={t('كبّري الرسم')} className="absolute left-0 top-0 z-10 grid h-[44px] w-[44px] place-items-center">
           <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-[15px] text-slate-600">⤢</span>
         </button>
+        {!picking && <div role="radiogroup" aria-label={t('المدة')} dir="ltr" className="absolute left-[46px] top-[7px] z-10 flex rounded-full bg-slate-100/90 p-[3px] text-[12px] font-bold text-slate-500">
+          {[3, 6, 12, 24].map((h) => <button key={h} role="radio" aria-checked={hours === h} onClick={() => setHours(h)} className={cx('h-[26px] min-w-[34px] rounded-full px-2', hours === h ? (dark ? 'bg-white text-[#4AC6CA] shadow-sm' : 'bg-white text-[#17707A] shadow-sm') : '')}>{h}h</button>)}
+        </div>}
         <div ref={box} className="min-h-0 flex-1">
-          {merged && <BigGraph key={focusAt ?? 0} at={focusAt} aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} alarmHigh={s.alert_high_mgdl ?? 240}
+          {merged && <BigGraph key={`${focusAt ?? 0}-${hours}`} span={hours} onPick={setPicking} onOlder={loadOlder} at={focusAt} aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} alarmHigh={s.alert_high_mgdl ?? 240}
             shots={shots.map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
-            meals={history.filter((h) => (h.total_carbs ?? 99) >= 5).map((h) => Date.parse(h.eaten_at))}
+            meals={history.filter((h) => (h.total_carbs ?? 99) >= 5).map((h) => ({ t: Date.parse(h.eaten_at), name: h.name, g: h.total_carbs }))}
             treats={events.filter((e) => e.kind === 'treatment' && !e.deleted_at).map((e) => Date.parse(e.occurred_at))}
             pricks={pricksOf(events)} />}
         </div>
@@ -247,7 +264,6 @@ function LayanCorner({ face }: { face: LayanFace | null }) {
   );
 }
 
-/** LibreLinkUp-style graph: last 12 h, fixed axis, target band, dashed low (red) and high (orange) lines, big last dot. */
 /** A monotone cubic curve (Fritsch–Carlson) through the points: smooth, and never above or below the real values
  *  between two of them. Breaks into separate pieces at the points marked `brk`: readings were missing before them. */
 export function smoothPath(p: { x: number; y: number; t: number; brk?: boolean }[]): string {
@@ -281,129 +297,184 @@ function lane<T extends { t: number }>(items: T[], x: (t: number) => number, rig
   return out;
 }
 
-/** The 12-hour graph: simple-mode home and the share link. */
+/** The graph: simple-mode home (6 h by default, swipe for older hours), full screen and the share link. */
 /** "Sun 12 Oct" / "الأحد، 12 أكتوبر" */
 const shortDate = (ms: number) => new Date(ms).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
 const dayNo = (ms: number) => { const d = new Date(ms); return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000; };
 /** the day of a reading on the graph, so it is never read against the wrong day: today, yesterday and its date, or its date */
 const graphDay = (ms: number, now: number) => { const d = dayNo(now) - dayNo(ms); return d === 0 ? t('اليوم') : d === 1 ? `${t('أمس')} · ${shortDate(ms)}` : shortDate(ms); };
 
-export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, meals, treats, pricks, at, span = 12 }: { span?: number; at?: number | null; treats: number[]; pricks: { t: number; bg: number }[]; aspect: number; s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: number[] }) {
-  const W = 340, PL = 6, PR = 30, PT = 26, HH = Math.max(180, Math.round(W * aspect)), PH = HH - PT - 58;
-  const t0 = now - span * H; // hours shown (12 at home)
-  // the scale: a few fixed steps chosen by the highest reading in these hours (see bigGraphScale)
+type GPal = { curve: string; band: string; latest: string; meal: string; ins: string; insText: string; prick: string; high: string; low: string; highText: string; lowText: string; onCurve: string; ink: string; fillA: number; fill?: boolean; w?: number };
+// deep teal by day; in dark mode the same meanings in softer, lighter tones on navy. Each warning also has a shape or
+// a word (▼ low, ▲ high, line patterns), never colour alone
+const GPAL0: GPal = { curve: '#17707A', band: '#E6F3EC', latest: '#169A60', meal: '#EFA055', ins: '#7A62CF', insText: '#fff', prick: '#64748B', high: '#E9A23B', low: '#DC4658', highText: '#9a6410', lowText: '#b3273a', onCurve: '#fff', ink: '#1f2937', fillA: 0.16, fill: true, w: 2.4 };
+const GPAL_DARK: GPal = { curve: '#4AC6CA', band: 'rgba(61,214,140,0.10)', latest: '#3DD68C', meal: '#F2A65A', ins: '#B7A6F6', insText: '#1E2638', prick: '#94A3B8', high: '#F2B44F', low: '#FF6B7A', highText: '#F5C878', lowText: '#FF9AA4', onCurve: '#10202A', ink: '#EEF2F8', fillA: 0.13, fill: true, w: 2.4 };
+export const isDark = () => { const th = document.documentElement.dataset.theme; return th === 'night' || (th !== 'day' && matchMedia('(prefers-color-scheme: dark)').matches); };
+/** re-renders when the appearance changes (the setting on this phone, or the phone's own light/dark mode) */
+function useIsDark() {
+  const [d, setD] = useState(isDark);
+  useEffect(() => {
+    const upd = () => setD(isDark()); const mo = new MutationObserver(upd); mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    const mq = matchMedia('(prefers-color-scheme: dark)'); mq.addEventListener('change', upd); upd();
+    return () => { mo.disconnect(); mq.removeEventListener('change', upd); };
+  }, []);
+  return d;
+}
+const gpal = (): GPal => isDark() ? GPAL_DARK : GPAL0;
+
+export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, meals, treats, pricks, at, span = 6, onPick, onOlder }: { span?: number; at?: number | null; onPick?: (on: boolean) => void; onOlder?: () => void; treats: number[]; pricks: { t: number; bg: number }[]; aspect: number; s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: { t: number; name?: string | null; g?: number | null }[] }) {
+  const P = gpal(), uid = useId().replace(/:/g, ''); // ids for the clip and fill: two graphs can be on screen at once
+  const W = 340, PL = 6, PR = 30, PT = 30, HH = Math.max(180, Math.round(W * aspect)), PH = HH - PT - 50;
+  // the window: `span` hours ending at `endAt` (null: now, following new readings). Swiping moves it; it never jumps
+  // back by itself. It stops at the oldest loaded reading and at now.
+  // opened from a "Rawan added …" push for an older entry: start with that entry in the middle of the window
+  const [endAt, setEndAt] = useState<number | null>(() => (at && at < now - span * H * 0.8 ? at + (span * H) / 2 : null));
+  const first = s.t.length ? s.t[0] : now;
+  const minEnd = Math.min(now, first + span * H);
+  const end = endAt === null ? now : Math.min(now, Math.max(minEnd, endAt));
+  const live = endAt === null;
+  const t0 = end - span * H;
+  // the scale: fixed steps chosen by the highest reading loaded, so it does not change while swiping (see bigGraphScale)
   let maxSeen: number | null = null;
-  for (let i = 0; i < s.t.length; i++) if (s.t[i] >= t0 && s.t[i] <= now + 60000 && (maxSeen === null || s.v[i] > maxSeen)) maxSeen = s.v[i];
-  for (const p of pricks) if (p.t >= t0 && p.t <= now && (maxSeen === null || p.bg > maxSeen)) maxSeen = p.bg; // a prick above the line stays on the graph
+  for (let i = 0; i < s.t.length; i++) if (s.t[i] <= now + 60000 && (maxSeen === null || s.v[i] > maxSeen)) maxSeen = s.v[i];
+  for (const p of pricks) if (p.t <= now && (maxSeen === null || p.bg > maxSeen)) maxSeen = p.bg;
   const { top, bottom, ticks } = bigGraphScale(maxSeen, unit);
-  const XR = W - PR - 9; // the newest dot stays clear of the axis numbers
+  const XR = W - PR - 9;
   const x = (t: number) => PL + ((t - t0) / (span * H)) * (XR - PL);
   const y = (v: number) => PT + PH - ((Math.min(Math.max(v, bottom), top) - bottom) / (top - bottom)) * PH;
-  // like Libre's graph: one point per 15 minutes (their average) and the newest reading, joined by a smooth curve
-  // that never overshoots the real values. The line breaks only where the readings themselves stop for more than
-  // 20 minutes: the 15-minute averages sit at their own mean time, so two of them can be 25 minutes apart with no
-  // reading missing (Libre's 15-minute history after the phone stopped streaming), and that is not a gap
-  const pts = librePoints(s, t0, now), lastV = pts.length ? pts[pts.length - 1].v : null, lastT = pts.length ? pts[pts.length - 1].t : 0;
+  // every real reading at its own time, a little past both edges so the line runs off the edge (clipped), never invented
+  const pts = curvePoints(s, t0 - 10 * 60000, end + 10 * 60000);
+  const newest = s.t.length ? { t: s.t[s.t.length - 1], v: s.v[s.v.length - 1] } : null;
   const d = smoothPath(pts.map((p) => ({ x: x(p.t), y: y(p.v), t: p.t, brk: p.brk })));
-  const dot = lastV === null ? '#64748b' : lastV < low ? '#c62f3a' : lastV > high ? '#c27a00' : '#2f8f55'; // the newest reading drawn, same as the box
-  const step = span <= 4 ? 1 : 3; const first = Math.ceil(t0 / (step * H)) * step * H; const hours = [0, 1, 2, 3, 4].map((k) => first + k * step * H).filter((h) => h <= now);
-  // touch the graph to read it, like Libre: a thin line at that time, a dot on the curve, the value above and the time below
+  const lastV = newest?.v ?? null, lastT = newest?.t ?? 0;
+  const dot = lastV === null ? '#64748b' : lastV < low ? P.low : lastV > high ? P.high : P.latest;
+  // the real clock on the axis: every hour up to 6 h, every 3 h at 12 h, every 4 h at 24 h
+  const step = span <= 6 ? 1 : span <= 12 ? 3 : 4;
+  const firstH = Math.ceil(t0 / (step * H)) * step * H; const hours: number[] = [];
+  for (let h = firstH; h <= end; h += step * H) if (x(h) > PL + 10 && x(h) < XR - 6) hours.push(h);
+  const inView = (t: number) => t >= t0 && t <= end;
+  const rowFood = PT + PH + 12, rowCare = PT + PH + 28;
+  const food = lane([...meals.filter((m) => inView(m.t)).map((m) => ({ ...m, treat: false, kind: 'meal' as const })), ...treats.filter(inView).map((t) => ({ t, treat: true, kind: 'treat' as const }))], x, W - PR, 15);
+  const care = lane(shots.filter((e) => inView(e.t)).map((e) => ({ ...e, kind: 'shot' as const })), x, W - PR, 25);
   const nearest = (tt: number) => {
     if (!pts.length) return null;
     let best = pts[0]; for (const p of pts) if (Math.abs(p.t - tt) < Math.abs(best.t - tt)) best = p;
-    return Math.abs(best.t - tt) <= 30 * 60000 ? best : null;
+    return Math.abs(best.t - tt) <= 10 * 60000 && inView(best.t) ? best : null; // a real reading near the finger, or nothing
   };
-  // finger-pricks at their own value, each beside the sensor's reading at that moment (engine/prick.ts)
-  const fp = prickPoints(pricks.filter((p) => p.t >= t0 && p.t <= now).sort((a, b) => a.t - b.t), s.t, s.v);
-  const pickAt = (tt: number): Pick | null => {
+  const fp = prickPoints(pricks.filter((p) => inView(p.t)).sort((a, b) => a.t - b.t), s.t, s.v);
+  const pickAt = (tt: number, vy = 0): Pick | null => {
+    if (vy > PT + PH + 3) {
+      const row = vy < (rowFood + rowCare) / 2 ? food : care; let mk: (typeof row)[number] | null = null;
+      for (const m of row) if (Math.abs(m.x - x(tt)) <= 11 && (!mk || Math.abs(m.x - x(tt)) < Math.abs(mk.x - x(tt)))) mk = m;
+      if (mk) { const c = nearest(mk.t); return { t: mk.t, v: c?.v ?? NaN, mark: mk as MarkT }; }
+    }
     let pr: PrickPoint | null = null;
-    for (const p of fp) if (Math.abs(x(p.t) - x(tt)) <= 10 && (!pr || Math.abs(p.t - tt) < Math.abs(pr.t - tt))) pr = p; // a finger near the diamond reads the prick
+    for (const p of fp) if (Math.abs(x(p.t) - x(tt)) <= 10 && (!pr || Math.abs(p.t - tt) < Math.abs(pr.t - tt))) pr = p;
     if (pr) return { t: pr.t, v: pr.bg, prick: pr };
     return nearest(tt);
   };
-  // opened from a "Rawan added …" push: start on the time of that entry
-  const [pick, setPick] = useState<Pick | null>(() => (at && at >= t0 ? pickAt(at) : null));
+  const [pick, setPickRaw] = useState<Pick | null>(null);
+  const setPick = (p: Pick | null) => { setPickRaw(p); onPick?.(!!p); };
+  useEffect(() => { if (at && at >= t0 && at <= end) setPick(pickAt(at)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // near the oldest loaded reading: ask for the day before
+  useEffect(() => { if (onOlder && t0 - first < 2 * H) onOlder(); }, [t0, first, onOlder]);
   const svgRef = useRef<SVGSVGElement>(null);
-  const point = (e: PE) => {
-    const r = svgRef.current?.getBoundingClientRect(); if (!r || !pts.length) return;
-    const k = Math.min(r.width / W, r.height / HH); // the svg keeps its aspect, centred in its box
-    const vx = (e.clientX - r.left - (r.width - W * k) / 2) / k;
-    setPick(pickAt(t0 + ((vx - PL) / (XR - PL)) * span * H));
+  const toView = (cx: number, cy: number) => {
+    const r = svgRef.current?.getBoundingClientRect(); if (!r) return null;
+    const k = Math.min(r.width / W, r.height / HH);
+    return { vx: (cx - r.left - (r.width - W * k) / 2) / k, vy: (cy - r.top - (r.height - HH * k) / 2) / k, k };
   };
-  const end = () => setPick(null);
-  const px = pick ? x(pick.t) : 0;
-  const rowFood = PT + PH + 12, rowCare = PT + PH + 31;
-  const inView = (t: number) => t >= t0 && t <= now;
-  const food = lane([...meals.filter(inView).map((t) => ({ t, treat: false })), ...treats.filter(inView).map((t) => ({ t, treat: true }))], x, W - PR);
-  const care = lane(shots.filter((e) => inView(e.t)), x, W - PR);
-  // the value sits above the plot, follows the line, and never runs off either edge
-  // the reading: a purple bubble (the curve itself is dark) with the day, time and value, its point on the line;
-  // above the plot, or under the point when the point is near the top
-  const val = pick ? glucoseText(pick.v, unit) : '', uLabel = unit === 'mmol' ? 'mmol/L' : 'mg/dL';
-  const tone = pick ? (pick.v < low ? '--st-low' : pick.v > high ? '--st-high' : '--st-in') : '--st-in';
-  const pr = pick?.prick ?? null;
-  const head = !pick ? '' : pr ? `🩸 ${t('وخز')} ${clock(pick.t)}${pr.libre !== null ? ` · Libre ${glucoseText(pr.libre, unit)}` : ''}` : `${graphDay(pick.t, now)} · ${clock(pick.t)}`;
-  const l1 = useRef<SVGTextElement>(null), l2 = useRef<SVGTextElement>(null);
-  const [bw, setBw] = useState(150);
-  useLayoutEffect(() => {
-    if (!pick) return;
-    try { const w = Math.ceil(Math.max(l1.current?.getComputedTextLength() ?? 0, (l2.current?.getBBox().width ?? 0) + 17)) + 22; if (Math.abs(w - bw) > 1) setBw(w); } catch { /* not laid out yet */ }
-  });
-  const BH = 50, py = pick ? y(pick.v) : 0, below = py < BH + 12;
-  const by = below ? py + 14 : 0;
-  const bx = Math.min(Math.max(px - bw / 2, below ? 2 : 40), W - 2 - bw); // clear of the ⤢ button at the top left
-  const nx = Math.min(Math.max(px, bx + 12), bx + bw - 12);
-  // midnight: a dashed line with the new day's date, so a long view shows where one day ends
+  const read = (cx: number, cy: number) => { const v = toView(cx, cy); if (v) setPick(pickAt(t0 + ((v.vx - PL) / (XR - PL)) * span * H, v.vy)); };
+  // one finger: a quick sideways swipe moves the window; a touch that stays (or a tap) reads the graph and the
+  // reading stays until the next tap. Up-and-down is left to the page (touch-action: pan-y).
+  const g = useRef<{ x: number; y: number; mode: 'wait' | 'pan' | 'read'; end0: number; timer: number } | null>(null);
+  const down = (e: PE) => {
+    const st = { x: e.clientX, y: e.clientY, mode: 'wait' as 'wait' | 'pan' | 'read', end0: end, timer: 0 };
+    st.timer = window.setTimeout(() => { if (st.mode === 'wait') { st.mode = 'read'; (svgRef.current as Element | null)?.setPointerCapture?.(e.pointerId); read(st.x, st.y); } }, 220);
+    g.current = st;
+  };
+  const move = (e: PE) => {
+    const st = g.current; if (!st) return;
+    const dx = e.clientX - st.x, dy = e.clientY - st.y;
+    if (st.mode === 'wait') {
+      if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) { st.mode = 'pan'; clearTimeout(st.timer); (e.currentTarget as Element).setPointerCapture?.(e.pointerId); setPick(null); }
+      else if (Math.abs(dy) > 8) { clearTimeout(st.timer); g.current = null; return; } // the page scrolls
+    }
+    if (st.mode === 'pan') {
+      const v = toView(e.clientX, e.clientY); if (!v) return;
+      const ms = (dx / v.k) * ((span * H) / (XR - PL));
+      const e2 = st.end0 - ms;
+      setEndAt(e2 >= now - 60000 ? null : Math.max(minEnd, e2));
+    } else if (st.mode === 'read') read(e.clientX, e.clientY);
+  };
+  const up = (e: PE) => { const st = g.current; if (!st) return; clearTimeout(st.timer); if (st.mode === 'wait') read(e.clientX, e.clientY); g.current = null; };
+  const cancel = () => { const st = g.current; if (st) clearTimeout(st.timer); g.current = null; };
+  // the reading: one line in the strip above the plot, so it never covers the curve
+  const mk = pick?.mark ?? null, pr = pick?.prick ?? null;
+  const tone = pick?.mark ? '#94a3b8' : pick ? (pick.v < low ? P.low : pick.v > high ? P.high : P.latest) : P.latest;
+  const warn = pick && !mk ? (pick.v < low ? ' ▼' : pick.v > high ? ' ▲' : '') : '';
+  const val = !pick ? '' : mk ? (mk.kind === 'shot' ? `${mk.u} U` : mk.kind === 'meal' && mk.g ? `${Math.round(mk.g)} g` : '🧃') : glucoseText(pick.v, unit);
+  const sub = !pick ? '' : mk ? `${mk.kind === 'shot' ? PEN_NAME[mk.type!] : mk.kind === 'meal' ? (mk.name ?? t('وجبة')) : t('علاج هبوط')} · ${clock(pick.t)}`
+    : pr ? `${t('وخز')}${pr.libre !== null ? ` · Libre ${glucoseText(pr.libre, unit)}` : ''} · ${clock(pick.t)}` : `${unit === 'mmol' ? 'mmol/L' : 'mg/dL'} · ${graphDay(pick.t, now)} ${clock(pick.t)}`;
+  const px = pick ? x(pick.t) : 0, py = pick && Number.isFinite(pick.v) ? y(pick.v) : PT + PH;
   const midnights: number[] = [];
-  for (let m = new Date(t0).setHours(24, 0, 0, 0); m < now; m = new Date(m).setHours(24, 0, 0, 0)) midnights.push(m);
+  for (let m = new Date(t0).setHours(24, 0, 0, 0); m < end; m = new Date(m).setHours(24, 0, 0, 0)) midnights.push(m);
+  const delayed = live && lastV !== null && now - lastT >= 5 * 60000;
   return (
-    <svg ref={svgRef} viewBox={`0 0 ${W} ${HH}`} className="h-full w-full select-none" direction="ltr" role="img" aria-label={t('السكر آخر 12 ساعة')} style={{ touchAction: 'none', WebkitUserSelect: 'none' }}
-      onPointerDown={(e) => { (e.currentTarget as Element).setPointerCapture?.(e.pointerId); point(e); }} onPointerMove={point} onPointerUp={end} onPointerCancel={end} onPointerLeave={end}>
-      <rect x={PL} y={y(band[1])} width={W - PL - PR} height={y(band[0]) - y(band[1])} fill="#2f8f55" opacity="0.14" />
-      {ticks.map((v) => <g key={v}><line x1={PL} x2={W - PR} y1={y(v)} y2={y(v)} stroke="rgb(var(--text-3))" strokeOpacity="0.25" /><text x={W - PR + 4} y={y(v) + 4} fontSize="14" fill="#8a84a0">{glucoseText(v, unit).replace(/\.0$/, '')}</text></g>)}
-      {alarmHigh <= top
-        ? <line x1={PL} x2={W - PR} y1={y(alarmHigh)} y2={y(alarmHigh)} stroke="#f0a020" strokeWidth="2" strokeDasharray="6 5" />
-        : <text x={W - PR - 2} y={PT - 6} fontSize="12" fontWeight="700" fill="#c27a00" textAnchor="end">{glucoseText(alarmHigh, unit)} ↑</text>}
-      <line x1={PL} x2={W - PR} y1={y(low)} y2={y(low)} stroke="#d6303c" strokeWidth="2" strokeDasharray="6 5" />
-      {midnights.map((m) => { const mx = x(m), lab = shortDate(m), w = lab.length * 6.4 + 14, l = mx + w + 4 > W - PR ? mx - 4 - w : mx + 4; return (
-        <g key={m} pointerEvents="none">
-          <line x1={mx} x2={mx} y1={PT} y2={PT + PH} stroke="rgb(var(--text-3))" strokeWidth="1.2" strokeDasharray="4 4" />
-          <rect x={l} y={PT + 3} width={w} height={19} rx={9.5} fill="rgb(var(--surface-2))" />
-          <text x={l + w / 2} y={PT + 16.5} fontSize="11.5" fontWeight="600" fill="rgb(var(--text))" textAnchor="middle" direction={dir()}>{lab}</text>
-        </g>
-      ); })}
-      <path d={d} fill="none" stroke="rgb(var(--text))" strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" />
-      {lastV !== null && <circle cx={x(lastT)} cy={y(lastV)} r="8" fill={dot} stroke="#fff" strokeWidth="3" />}
-      {/* finger-pricks: a diamond at the finger's value, a dotted line to the sensor's reading then, and the value */}
+    <svg ref={svgRef} viewBox={`0 0 ${W} ${HH}`} className="h-full w-full select-none" direction="ltr" role="img" aria-label={t('السكر')} style={{ touchAction: 'pan-y', WebkitUserSelect: 'none' }}
+      onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={cancel}>
+      <defs>
+        <clipPath id={`plot${uid}`}><rect x={PL} y={PT - 8} width={XR - PL + 12} height={PH + 16} /></clipPath>
+        <linearGradient id={`gfill${uid}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={P.curve} stopOpacity={P.fillA} /><stop offset="1" stopColor={P.curve} stopOpacity="0" /></linearGradient>
+      </defs>
+      <rect x={PL} y={y(band[1])} width={W - PL - PR} height={y(band[0]) - y(band[1])} fill={P.band} />
+      {ticks.map((v) => <g key={v}><line x1={PL} x2={W - PR} y1={y(v)} y2={y(v)} stroke="rgb(var(--text-3))" strokeOpacity="0.12" strokeWidth="0.8" /><text x={W - PR + 5} y={y(v) + 4} fontSize="12.5" fill="rgb(var(--text-3))">{glucoseText(v, unit).replace(/\.0$/, '')}</text></g>)}
+      {hours.map((h) => <line key={'g' + h} x1={x(h)} x2={x(h)} y1={PT} y2={PT + PH} stroke="rgb(var(--text-3))" strokeOpacity="0.07" strokeWidth="0.8" />)}
+      {alarmHigh <= top && <g><line x1={PL} x2={W - PR} y1={y(alarmHigh)} y2={y(alarmHigh)} stroke={P.high} strokeWidth="1.5" strokeDasharray="1.5 3.5" strokeLinecap="round" /><text x={PL + 2} y={y(alarmHigh) - 4} fontSize="9.5" fontWeight="700" fill={P.highText} direction="ltr">▲ {t('مرتفع')}</text></g>}
+      <line x1={PL} x2={W - PR} y1={y(low)} y2={y(low)} stroke={P.low} strokeWidth="1.7" strokeDasharray="7 4" /><text x={PL + 2} y={y(low) + 12} fontSize="9.5" fontWeight="700" fill={P.lowText} direction="ltr">▼ {t('منخفض')}</text>
+      {midnights.map((m) => <g key={m} pointerEvents="none"><line x1={x(m)} x2={x(m)} y1={PT} y2={PT + PH} stroke="rgb(var(--text-3))" strokeWidth="1" strokeDasharray="3 4" /><text x={x(m) + 4} y={PT + PH - 5} fontSize="10" fontWeight="700" fill="#8a84a0" direction={dir()}>{shortDate(m)}</text></g>)}
+      <g clipPath={`url(#plot${uid})`}>
+        {P.fill && <path d={d.split('M').filter(Boolean).map((seg) => { const xs = [...seg.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)]; const a = xs[0], b = xs[xs.length - 1]; return `M${a[1]},${PT + PH}L${seg}L${b[1]},${PT + PH}Z`; }).join('')} fill={`url(#gfill${uid})`} stroke="none" />}
+        <path d={d} fill="none" stroke={P.curve} strokeWidth={P.w ?? 2.6} strokeLinejoin="round" strokeLinecap="round" />
+      </g>
+      {/* the oldest reading loaded: the edge is marked, nothing is drawn before it */}
+      {first >= t0 - 60000 && <g pointerEvents="none"><line x1={x(first)} x2={x(first)} y1={PT} y2={PT + PH} stroke="rgb(var(--text-3))" strokeOpacity="0.35" strokeDasharray="2 3" /><text x={x(first) + 5} y={PT + PH - 6} fontSize="9.5" fontWeight="600" fill="rgb(var(--text-3))" textAnchor="start" direction="ltr">{'⇤ ' + t('أقدم قراءة محمّلة')}</text></g>}
+      {delayed && <g pointerEvents="none">
+        <rect x={x(lastT)} y={PT} width={Math.max(0, x(now) - x(lastT))} height={PH} fill="rgb(var(--text-3))" opacity="0.04" />
+        <line x1={x(now)} x2={x(now)} y1={PT} y2={PT + PH} stroke="rgb(var(--text-3))" strokeOpacity="0.3" strokeWidth="1" strokeDasharray="2 3" />
+        {!pick && <text x={x(lastT) - 6} y={PT + 12} fontSize="10" fontWeight="600" fill="rgb(var(--text-3))" textAnchor="start" direction="rtl" stroke="rgb(var(--surface))" strokeWidth="3" paintOrder="stroke">{t('الحين · آخر قراءة قبل {m} د', { m: Math.round((now - lastT) / 60000) })}</text>}
+      </g>}
+      {live && lastV !== null && <><circle cx={x(lastT)} cy={y(lastV)} r="10" fill={dot} opacity="0.16" /><circle cx={x(lastT)} cy={y(lastV)} r="6.5" fill={dot} stroke="rgb(var(--surface))" strokeWidth="2.5" />
+        {lastV < low && <text x={x(lastT)} y={y(lastV) + 3} fontSize="8" fontWeight="900" fill="#fff" textAnchor="middle">▼</text>}{lastV > high && <text x={x(lastT)} y={y(lastV) + 3} fontSize="8" fontWeight="900" fill="#fff" textAnchor="middle">▲</text>}</>}
       {fp.map((p) => {
-        const fx = x(p.t), fy = y(p.bg), ly = p.libre === null ? null : y(p.libre), up = fy > PT + 22 && (ly === null || ly >= fy - 4);
+        const fx = x(p.t), fy = y(p.bg), ly = p.libre === null ? null : y(p.libre);
+        const c = p.bg < low ? P.low : p.bg > high ? P.high : P.prick;
         return (
           <g key={p.t} pointerEvents="none">
-            {ly !== null && Math.abs(ly - fy) > 9 && <line x1={fx} x2={fx} y1={ly} y2={fy} stroke="rgb(var(--k-bg))" strokeWidth="2.5" strokeDasharray="2 4" strokeLinecap="round" />}
-            {ly !== null && <circle cx={fx} cy={ly} r="4" fill="rgb(var(--text))" stroke="rgb(var(--surface))" strokeWidth="2" />}
-            <path d={`M${fx} ${fy - 9}L${fx + 9} ${fy}L${fx} ${fy + 9}L${fx - 9} ${fy}Z`} fill="rgb(var(--k-bg))" stroke="rgb(var(--surface))" strokeWidth="2.5" strokeLinejoin="round" />
-            <text x={fx} y={up ? fy - 13 : fy + 23} fontSize="13" fontWeight="800" fill="rgb(var(--k-bg))" textAnchor="middle" stroke="rgb(var(--surface))" strokeWidth="3.5" paintOrder="stroke">{glucoseText(p.bg, unit)}</text>
+            {ly !== null && Math.abs(ly - fy) > 7 && <line x1={fx} x2={fx} y1={ly} y2={fy} stroke={c} strokeOpacity="0.5" strokeWidth="1.2" strokeDasharray="1.5 2.5" strokeLinecap="round" />}
+            <path d={`M${fx} ${fy - 7}C${fx + 1.5} ${fy - 4.5} ${fx + 4.5} ${fy - 1.5} ${fx + 4.5} ${fy + 1}A4.5 4.5 0 0 1 ${fx - 4.5} ${fy + 1}C${fx - 4.5} ${fy - 1.5} ${fx - 1.5} ${fy - 4.5} ${fx} ${fy - 7}Z`} fill={c} stroke="rgb(var(--surface))" strokeWidth="1.8" strokeLinejoin="round" />
           </g>
         );
       })}
-      {/* under the plot, two rows that never overlap: what she ate (meals, low treatments), then insulin */}
-      {food.map((m) => <text key={m.k} x={m.x} y={rowFood + 5} fontSize="14" textAnchor="middle">{m.treat ? '🧃' : '🍽️'}</text>)}
-      {care.map((e) => <g key={e.k}><circle cx={e.x} cy={rowCare} r="9" fill={PEN[e.type]} /><text x={e.x} y={rowCare + 3.5} fontSize="10" fontWeight="700" fill="#fff" textAnchor="middle">{e.u}</text></g>)}
-      {hours.map((h) => <text key={h} x={x(h)} y={HH - 3} fontSize="11" fill="#8a84a0" textAnchor="middle" opacity={pick ? 0.25 : 1}>{clock(h)}</text>)}
+      {[...food, ...care].filter((m) => Math.abs(m.x - x(m.t)) > 2).map((m) => <circle key={'tick' + m.k} cx={x(m.t)} cy={PT + PH + 2} r="1.6" fill="rgb(var(--text-3))" opacity="0.5" />)}
+      {food.map((m) => m.treat ? <text key={m.k} x={m.x} y={rowFood + 4} fontSize="11" textAnchor="middle">🧃</text> : <g key={m.k}>
+        <circle cx={m.x} cy={rowFood} r="7" fill={P.meal} stroke="rgb(var(--surface))" strokeWidth="1.5" />
+        <path d={`M${m.x - 2.3} ${rowFood - 3.6}v7.2M${m.x - 3.6} ${rowFood - 3.6}v2.2a1.3 1.3 0 0 0 2.6 0v-2.2M${m.x + 2.4} ${rowFood + 3.6}v-7.2c-1.4 .6 -1.6 2.6 -1.3 4.2h1.3`} stroke="#fff" strokeWidth="1.1" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </g>)}
+      {care.map((e) => { const lab = `${e.u}U`, w = lab.length * 5.6 + 9; return <g key={e.k}><rect x={e.x - w / 2} y={rowCare - 7} width={w} height={14} rx={7} fill={e.type === 'rapid' ? P.ins : 'rgb(var(--surface))'} stroke={P.ins} strokeWidth="1.4" /><text x={e.x} y={rowCare + 3.5} fontSize="9.5" fontWeight="800" fill={e.type === 'rapid' ? P.insText : P.ins} textAnchor="middle" direction="ltr">{lab}</text></g>; })}
+      {hours.map((h) => <text key={h} x={x(h)} y={HH - 3} fontSize="10.5" fill="rgb(var(--text-3))" textAnchor="middle" opacity={pick ? 0.3 : 1}>{clock(h)}</text>)}
+      {/* back to the newest readings: only while looking at older hours */}
+      {!live && <g style={{ cursor: 'pointer' }} onPointerDown={(e) => { e.stopPropagation(); }} onClick={() => { setEndAt(null); setPick(null); }} role="button" aria-label={t('الحين')}>
+        <rect x={XR - 52} y={PT + PH - 30} width={56} height={24} rx={12} fill={P.curve} style={{ filter: 'drop-shadow(0 2px 4px rgb(0 0 0 / 0.18))' }} />
+        <text x={XR - 24} y={PT + PH - 14} fontSize="11.5" fontWeight="800" fill={P.onCurve} textAnchor="middle" direction="rtl">{t('الحين')} ⇥</text>
+      </g>}
       {pick && <g pointerEvents="none">
-        <line x1={px} x2={px} y1={below ? py : BH} y2={PT + PH} stroke="rgb(var(--primary-strong))" strokeWidth="3" />
-        <circle cx={px} cy={py} r="9" fill="rgb(var(--surface))" stroke="rgb(var(--primary-strong))" strokeWidth="3" />
-        <circle cx={px} cy={py} r="5" fill={`rgb(var(${tone}))`} />
-        <g style={{ filter: 'drop-shadow(0 4px 8px rgb(0 0 0 / 0.25))' }}>
-          <rect x={bx} y={by} width={bw} height={BH} rx={14} fill="rgb(var(--primary-strong))" />
-          <path d={below ? `M${nx - 7} ${by} L${nx} ${by - 7} L${nx + 7} ${by} Z` : `M${nx - 7} ${by + BH} L${nx} ${by + BH + 7} L${nx + 7} ${by + BH} Z`} fill="rgb(var(--primary-strong))" />
-        </g>
-        <text ref={l1} x={dir() === 'rtl' ? bx + bw - 11 : bx + 11} y={by + 17} fontSize="12" fontWeight="600" fill="rgb(var(--surface))" fillOpacity="0.85" textAnchor="start" direction={dir()}>{head}</text>
-        <circle cx={dir() === 'rtl' ? bx + bw - 17 : bx + 17} cy={by + 34} r="6" fill={`rgb(var(${tone}))`} stroke="rgb(var(--surface))" strokeWidth="2" />
-        <text ref={l2} x={dir() === 'rtl' ? bx + bw - 28 : bx + 28} y={by + 43} textAnchor={dir() === 'rtl' ? 'end' : 'start'} direction="ltr"><tspan fontSize="25" fontWeight="800" fill="rgb(var(--surface))">{val}</tspan><tspan fontSize="11.5" fill="rgb(var(--surface))" fillOpacity="0.8" dx="5">{uLabel}</tspan></text>
-        {(() => { const lab = clock(pick.t), w = lab.length * 7 + 16, l = Math.min(Math.max(px - w / 2, 1), W - 1 - w); return <>
-          <rect x={l} y={HH - 19} width={w} height={19} rx={9.5} fill="rgb(var(--primary-strong))" />
-          <text x={l + w / 2} y={HH - 5.5} fontSize="12" fontWeight="700" fill="rgb(var(--surface))" textAnchor="middle">{lab}</text>
+        <line x1={px} x2={px} y1={PT - 4} y2={PT + PH} stroke={P.curve} strokeOpacity="0.55" strokeWidth="1.5" />
+        {Number.isFinite(pick.v) && <><circle cx={px} cy={py} r="8" fill="rgb(var(--surface))" stroke={P.curve} strokeWidth="2.5" /><circle cx={px} cy={py} r="4" fill={tone} /></>}
+        {(() => { const txt = `${val}${warn}`, w = Math.min(W - 52, txt.length * 9.5 + sub.length * 5.6 + 34), l = Math.min(Math.max(px - w / 2, 44), W - 2 - w); return <>
+          <rect x={l} y={2} width={w} height={24} rx={12} fill="rgb(var(--surface))" stroke={P.curve} strokeOpacity="0.35" />
+          <circle cx={l + 13} cy={14} r="4.5" fill={tone} />
+          <text x={l + 23} y={19} direction="ltr"><tspan fontSize="15" fontWeight="800" fill={P.ink}>{txt}</tspan><tspan dx="6" fontSize="11" fill="rgb(var(--text-2))" direction={dir()}>{sub}</tspan></text>
         </>; })()}
       </g>}
     </svg>
@@ -420,7 +491,7 @@ function GraphFull({ onClose, s: st, unit, low, high, band }: { onClose: () => v
   const [now] = useState(Date.now());
   const box = useRef<HTMLDivElement>(null);
   const [aspect, setAspect] = useState(0.6);
-  useEffect(() => { void fetchSeries(now - 24 * H, now + 60000).then(setSeries).catch(() => undefined); }, [now]);
+  useEffect(() => { void fetchGraphSeries(now - 24 * H, now + 60000).then(setSeries).catch(() => undefined); }, [now]);
   useEffect(() => {
     const el = box.current; if (!el) return;
     const ro = new ResizeObserver(() => { const r = el.getBoundingClientRect(); if (r.width > 0 && r.height > 0) setAspect(r.height / r.width); });
@@ -454,7 +525,7 @@ function GraphFull({ onClose, s: st, unit, low, high, band }: { onClose: () => v
       <div ref={box} className="min-h-0 flex-1">
         {merged && <BigGraph key={hours} span={hours} aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={band} alarmHigh={st.alert_high_mgdl ?? 240}
           shots={events.filter((e) => e.kind === 'insulin' && !e.deleted_at && e.insulin_units).map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
-          meals={history.filter((h) => (h.total_carbs ?? 99) >= 5).map((h) => Date.parse(h.eaten_at))}
+          meals={history.filter((h) => (h.total_carbs ?? 99) >= 5).map((h) => ({ t: Date.parse(h.eaten_at), name: h.name, g: h.total_carbs }))}
           treats={events.filter((e) => e.kind === 'treatment' && !e.deleted_at).map((e) => Date.parse(e.occurred_at))}
           pricks={pricksOf(events)} />}
       </div>
@@ -464,4 +535,5 @@ function GraphFull({ onClose, s: st, unit, low, high, band }: { onClose: () => v
 const history_ = window.history;
 /** the finger-pricks to draw: time and value */
 export const pricksOf = (events: EventRow[]) => events.filter((e) => e.kind === 'bg_check' && !e.deleted_at && e.bg_mgdl).map((e) => ({ t: Date.parse(e.occurred_at), bg: e.bg_mgdl! }));
-type Pick = { t: number; v: number; prick?: PrickPoint };
+type MarkT = { t: number; x: number; k: string; kind: 'meal' | 'treat' | 'shot'; u?: number; type?: 'rapid' | 'long'; name?: string | null; g?: number | null };
+type Pick = { t: number; v: number; prick?: PrickPoint; mark?: MarkT };

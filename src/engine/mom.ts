@@ -231,20 +231,15 @@ export function nextRapidAllowed(lastRapidAt: number | null, gapMin: number, now
   return at > now ? at : null;
 }
 
-/** The points the simple-mode graph draws: one per 15 minutes (their average, at their mean time) and the newest
- *  reading. brk marks a point after readings stopped for more than 20 minutes: the only place the line breaks. */
-export function librePoints(s: Series, t0: number, now: number): { t: number; v: number; brk: boolean }[] {
-  let lastV: number | null = null, lastT = 0, prevT: number | null = null;
+/** The points the simple-mode graph draws: every reading at its own time, nothing averaged or added, so peaks and lows
+ *  keep their real values (history rows beside minute readings are dropped before this: withoutHistoryTwins). `brk`
+ *  marks a reading after more than 20 minutes with none: the line breaks there and never bridges the gap. */
+export function curvePoints(s: Series, t0: number, now: number): { t: number; v: number; brk: boolean }[] {
   const pts: { t: number; v: number; brk: boolean }[] = [];
-  let bucket = -1, sum = 0, n = 0, bt = 0, brk = false;
-  const flush = () => { if (n) pts.push({ t: bt / n, v: sum / n, brk }); sum = 0; n = 0; bt = 0; brk = false; };
+  let prevT: number | null = null;
   for (let i = 0; i < s.t.length; i++) {
     const t = s.t[i]; if (t < t0 || t > now + 60000) continue;
-    const b = Math.floor(t / (15 * 60000));
-    if (b !== bucket) { flush(); bucket = b; brk = prevT !== null && t - prevT > 20 * 60000; }
-    sum += s.v[i]; bt += t; n++; lastV = s.v[i]; lastT = t; prevT = t;
+    pts.push({ t, v: s.v[i], brk: prevT !== null && t - prevT > 20 * 60000 }); prevT = t;
   }
-  flush();
-  if (lastV !== null && pts.length) pts[pts.length - 1] = { ...pts[pts.length - 1], t: lastT, v: lastV };
   return pts;
 }

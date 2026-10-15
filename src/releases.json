@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.8.0",
+    "date": "2026-10-15",
+    "notes": [
+      "رسم السكر يبين آخر ٦ ساعات، واسحبي يمين ويسار تشوفين الساعات اللي قبل؛ زر «الحين» يرجعج.",
+      "اختاري ٣ أو ٦ أو ١٢ أو ٢٤ ساعة من فوق الرسم.",
+      "الرسم يبين كل قراءة بقيمتها ووقتها: القمم والهبوطات ما تنقص.",
+      "الأكل والإبر والوخز لكل واحد شكل: الإبرة تبين الوحدات «3U»، والوخز تبين قيمته لما تلمسينه.",
+      "لمسة على الوجبة أو الإبرة تبين تفاصيلها، والقراءة تطلع فوق الرسم بدون ما تغطيه.",
+      "الوضع الداكن: المزيد ← المظهر (تلقائي يتبع التلفون، فاتح، داكن)."
+    ],
+    "notes_en": [
+      "The glucose graph shows the last 6 hours; swipe sideways for earlier hours, and “Now” brings you back.",
+      "Choose 3, 6, 12 or 24 hours above the graph.",
+      "The graph shows every reading at its own value and time: peaks and lows are no longer flattened.",
+      "Meals, insulin and finger-pricks each have their own marker: insulin shows units (“3U”), a finger-prick shows its value when tapped.",
+      "Tap a meal or an insulin dose for its details; the reading appears above the graph without covering it.",
+      "Dark mode: More → Appearance (Auto follows the phone, Light, Dark)."
+    ]
+  },
+  {
     "version": "4.7.1",
     "date": "2026-10-15",
     "notes": ["رسم السكر بالرئيسية ما يتقطع إلا إذا فعلًا ما في قراءات لأكثر من ٢٠ دقيقة."],

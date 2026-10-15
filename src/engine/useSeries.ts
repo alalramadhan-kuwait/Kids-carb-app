@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Reading } from '../lib/glucose';
-import { emptySeries, mergeSeries, type Series } from './series';
+import { emptySeries, mergeSeries, withoutHistoryTwins, type Series } from './series';
 
 /** One fetch of readings in [from, to) as a Series (epoch ms, mg/dL). */
 export async function fetchSeries(from: number, to: number): Promise<Series> {
@@ -9,6 +9,14 @@ export async function fetchSeries(from: number, to: number): Promise<Series> {
   if (error) throw new Error(error.message);
   const d = data as { t: number[]; v: number[] };
   return { t: Float64Array.from(d.t, (s) => s * 1000), v: Float64Array.from(d.v) };
+}
+
+/** Readings for the home graph: as fetchSeries, without the history rows that have a minute reading beside them. */
+export async function fetchGraphSeries(from: number, to: number): Promise<Series> {
+  const { data, error } = await supabase.rpc('glucose_series', { p_from: new Date(from).toISOString(), p_to: new Date(to).toISOString() });
+  if (error) throw new Error(error.message);
+  const d = data as { t: number[]; v: number[]; h?: number[] };
+  return withoutHistoryTwins(d.t.map((s) => s * 1000), d.v, d.h);
 }
 
 /**

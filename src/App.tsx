@@ -7,7 +7,6 @@ import { Alert, Btn, Card, Field, Toaster, cx, inputCls } from './components/ui'
 import Now from './pages/Now';
 import { useLabRunner } from './lib/labRunner';
 import Shared from './pages/Shared';
-import { isNight } from './lib/schedule';
 import { UpdateBanner, VersionTag } from './components/Version';
 import { Icon } from './components/Icon';
 import type { IconName } from './icons/defs';
@@ -208,23 +207,22 @@ const TABS: { to: string; label: string; icon: IconName; match: string[] }[] = [
   { to: '/more', label: 'المزيد', icon: 'more', match: ['/more', '/settings', '/cgm', '/alerts', '/care-plan', '/share', '/widget', '/diet-sheet', '/reports', '/visit', '/portions', '/import', '/deleted'] }, // i18n-ok
 ];
 
-/** Appearance: a fixed day or night choice on this phone, or automatic (night colours in the parents' night window
- *  if they turned it on, else the phone's dark mode). The full-screen night view always uses night colours. */
+/** Appearance: a fixed light or dark choice on this phone, or automatic: the phone's own light/dark setting (CSS
+ *  prefers-color-scheme). The full-screen night view always uses night colours. */
 function NightTheme() {
-  const { settings } = useData();
   useEffect(() => {
     const apply = () => {
       const root = document.documentElement, pref = themePref();
       if (location.hash.startsWith('#/night')) return;
       if (document.documentElement.dataset.printing) return; // a PDF is being made in day colours (VisitReport)
-      const want = pref !== 'auto' ? pref : settings.night_theme && isNight(settings) ? 'night' : null;
+      const want = pref !== 'auto' ? pref : null; // automatic: index.css follows the phone
       if (want) root.dataset.theme = want; else delete root.dataset.theme;
     };
     apply();
     const timer = setInterval(apply, 60000);
     window.addEventListener('themepref', apply);
     return () => { clearInterval(timer); window.removeEventListener('themepref', apply); };
-  }, [settings]);
+  }, []);
   return null;
 }
 

@@ -24,11 +24,11 @@ import { ratioOk, type Ratio } from '../engine/status';
 /** Puts values into a translated sentence as bold numbers: rich(t('… {a} …'), { a: 5 }). */
 const rich = (s: string, v: Record<string, ReactNode>) => s.split(/\{(\w+)\}/).map((x, i) => (i % 2 ? <b key={i} className="num">{v[x]}</b> : x));
 
-/** المظهر: per phone. Automatic follows the phone's dark mode and the night window. */
+/** المظهر: per phone. Automatic follows the phone's light/dark setting. */
 function Appearance() {
   const [p, setP] = useState<ThemePref>(themePref);
   const pick = (v: ThemePref) => { setP(v); setThemePref(v); };
-  const opts: [ThemePref, string][] = [['auto', t('تلقائي')], ['day', t('نهاري')], ['night', t('ليلي')]];
+  const opts: [ThemePref, string][] = [['auto', t('تلقائي')], ['day', t('فاتح')], ['night', t('داكن')]];
   return (
     <div className="space-y-1.5">
       <div className="text-sm font-medium text-slate-600">{t('المظهر')}</div>
@@ -38,7 +38,7 @@ function Appearance() {
             className={cx('min-h-[44px] rounded-full text-sm font-bold', p === v ? 'bg-brand text-white' : 'text-slate-600')}>{l}</button>
         ))}
       </div>
-      {p === 'auto' && <p className="text-xs text-slate-500">{t('يتبع الوضع الداكن في الجوال، وألوان الليل في وقت النوم إن كانت مفعّلة في التنبيهات.')}</p>}
+      {p === 'auto' && <p className="text-xs text-slate-500">{t('يتبع إعداد التلفون')}</p>}
     </div>
   );
 }

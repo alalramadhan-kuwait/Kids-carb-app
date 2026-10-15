@@ -286,4 +286,7 @@ export const core: Record<string, string> = {
   "الدخول بحساب آخر": "Sign in with another account",
   "إذا كان بريدك جديد: اطلب من الأم أو الأب إضافته من المزيد ← إضافة أحد الوالدين.": "If your email is new: ask Mum or Dad to add it in More → Add a parent.",
   "أول تفعيل للتطبيق (رمز التفعيل)": "First-time setup (activation code)",
+  "علاج هبوط": "Low treatment",
+  "أقدم قراءة محمّلة": "Oldest reading loaded",
+  "الحين · آخر قراءة قبل {m} د": "Now · last reading {m} min ago",
 };

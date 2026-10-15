@@ -3414,18 +3414,27 @@ console.log('basal check');
 console.log('simple-mode graph');
 {
   const G = await import('../../engine/mom');
+  const S = await import('../../engine/series');
   const M = 60000;
-  test('simple-mode graph: Libre\'s 15-minute history after a streaming pause draws as one line; only a real 20-minute gap breaks it', () => {
-    const T: number[] = [];
-    for (let m = 0; m <= 18; m++) T.push(m * M);           // streaming every minute to 00:18 (that average sits at 00:16)
-    T.push(38 * M, 53 * M);                               // then Libre's 15-minute history: 20 and 15 min apart
-    for (let m = 54; m <= 70; m++) T.push(m * M);          // streaming again
-    T.push(100 * M);                                      // 30 minutes with nothing: a real gap
-    const s = { t: Float64Array.from(T), v: Float64Array.from(T.map(() => 120)) };
-    const p = G.librePoints(s as any, 0, 100 * M);
-    assert.deepEqual(p.map((x) => x.brk), p.map((x) => x.t === 100 * M), 'the only break is after the 30-minute gap');
-    assert.ok(p.some((x, i) => i > 0 && x.t - p[i - 1].t > 20 * M && !x.brk), 'averages more than 20 min apart are still joined');
-    assert.equal(p[p.length - 1].t, 100 * M, 'the newest reading is the last point');
+  test('simple-mode graph: every reading at its own time, peaks and lows kept; only a real 20-minute gap breaks the line', () => {
+    const T: number[] = [], V: number[] = [];
+    for (let m = 0; m <= 30; m++) { T.push(m * M); V.push(200 - Math.abs(m - 15) * 4); } // a sharp 200 peak at 00:15
+    T.push(45 * M, 60 * M); V.push(150, 69);              // Libre's 15-minute history while the phone was not streaming, a 69 low
+    T.push(95 * M); V.push(110);                          // 35 minutes with nothing: a real gap
+    const p = G.curvePoints({ t: Float64Array.from(T), v: Float64Array.from(V) } as any, 0, 100 * M);
+    assert.equal(p.length, T.length, 'no reading averaged away or added');
+    assert.equal(Math.max(...p.map((x) => x.v)), 200, 'the peak is drawn at its real value');
+    assert.equal(Math.min(...p.map((x) => x.v)), 69, 'the low is drawn at its real value');
+    assert.deepEqual(p.map((x) => x.t), T, 'each at its own time');
+    assert.deepEqual(p.map((x) => x.brk), T.map((t) => t === 95 * M), 'the only break is after the 35-minute gap');
+  });
+  test('simple-mode graph: a history row beside a minute reading is left out; one with no minute reading near is kept', () => {
+    const { withoutHistoryTwins } = S;
+    const t = [0, 60, 71, 120, 1200, 2100, 2160].map((x) => x * 1000), v = [100, 101, 137, 102, 120, 130, 131];
+    const h = [0, 0, 1, 0, 1, 0, 0];                      // 71 s: a twin of the minute reading at 60 s; 1200 s: alone
+    const r = withoutHistoryTwins(t, v, h);
+    assert.deepEqual(Array.from(r.v), [100, 101, 102, 120, 130, 131]);
+    assert.deepEqual(Array.from(withoutHistoryTwins(t, v, undefined).v), v, 'without the flag nothing is dropped');
   });
 }
 

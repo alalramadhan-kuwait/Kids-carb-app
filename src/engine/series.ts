@@ -31,6 +31,24 @@ export function mergeSeries(a: Series, times: ArrayLike<number>, values: ArrayLi
   return { t: t.subarray(0, k), v: v.subarray(0, k) };
 }
 
+/** For the graph: Libre's 15-minute history rows (`h` = 1: no trend arrow) sit beside the minute readings and can differ
+ *  from them by up to 36 mg/dL at the same moment. Keep a history row only where no minute reading lies within 8
+ *  minutes (the phone stopped streaming), so the line never zigzags between the two. Nothing is changed or invented. */
+export function withoutHistoryTwins(t: ArrayLike<number>, v: ArrayLike<number>, h: ArrayLike<number> | null | undefined, winMs = 8 * MIN): Series {
+  const n = t.length;
+  if (!h || h.length !== n) return { t: Float64Array.from(t), v: Float64Array.from(v) };
+  const keep: number[] = [];
+  let prevMin = -Infinity, j = 0; // the last minute reading at or before i, and a cursor for the next one
+  for (let i = 0; i < n; i++) {
+    if (!h[i]) { prevMin = t[i]; keep.push(i); continue; }
+    if (j <= i) j = i + 1;
+    while (j < n && h[j]) j++;
+    const next = j < n ? t[j] : Infinity;
+    if (t[i] - prevMin > winMs && next - t[i] > winMs) keep.push(i);
+  }
+  return { t: Float64Array.from(keep, (k) => t[k]), v: Float64Array.from(keep, (k) => v[k]) };
+}
+
 /** First index with t[i] >= x. */
 export function lowerBound(t: Float64Array, x: number) {
   let lo = 0, hi = t.length;

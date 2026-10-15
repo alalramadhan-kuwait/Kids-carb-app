@@ -1,3 +1,4 @@
+import { setThemePref, themePref, type ThemePref } from '../../lib/theme';
 // Mom mode, a meal planned for later — the same planned meals as the full app (on hold until its time; reminders go to
 // both parents): «متى؟» (which meal, today or tomorrow, the injection time), the planned list, one plan (injection
 // now, change the time, cancel), and the «المزيد» tab.
@@ -203,6 +204,7 @@ export function MomMore() {
           <SettingsRow icon="trash" tint={TINT.plan} label={t('المحذوفة مؤخرًا')} onClick={() => nav('/mom/deleted')} />
         </SettingsGroup>
         <SettingsGroup title={t('إعدادات التطبيق')}>
+          <Appearance />
           <SettingsRow icon="unlock" tint={TINT.app} label={t('الوضع الكامل')} onClick={() => { if (window.confirm(t('تفتحين الوضع الكامل؟'))) { setFullModeNow(true); nav('/'); } }} />
         </SettingsGroup>
       </div>
@@ -288,5 +290,20 @@ export function MomSensor() {
       {SPOTS.map((x) => <Choice key={x} icon={sensor.site === x ? '📡' : '○'} label={t(SITE_NAME[x])} on={sensor.site === x} onClick={() => { if (!busy) void pick(x); }} />)}
       <p className="text-center text-[15px] text-slate-500">{t('مكان الحساس ما تنعطى فيه إبرة')}</p>
     </MomPage>
+  );
+}
+
+/** Appearance on this phone: Auto follows the phone (iPhone Settings → Display), or always light / always dark. */
+function Appearance() {
+  const [p, setP] = useState<ThemePref>(themePref);
+  const opts: [ThemePref, string, string][] = [['auto', '◐', t('تلقائي')], ['day', '☀︎', t('فاتح')], ['night', '☾', t('داكن')]];
+  return (
+    <div className="px-4 py-3">
+      <div className="flex items-center justify-between"><span className="text-[17px] font-semibold">{t('المظهر')}</span><span className="text-[13px] text-slate-400">{p === 'auto' ? t('يتبع إعداد التلفون') : ''}</span></div>
+      <div role="radiogroup" aria-label={t('المظهر')} className="mt-2 grid grid-cols-3 gap-1 rounded-2xl bg-slate-100 p-1">
+        {opts.map(([v, ic, l]) => <button key={v} role="radio" aria-checked={p === v} onClick={() => { setP(v); setThemePref(v); }}
+          className={'flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl text-[15px] font-bold ' + (p === v ? 'bg-white text-brand shadow-sm' : 'text-slate-500')}><span aria-hidden>{ic}</span>{l}</button>)}
+      </div>
+    </div>
   );
 }

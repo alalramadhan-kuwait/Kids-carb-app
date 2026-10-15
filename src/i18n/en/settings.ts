@@ -384,4 +384,7 @@ export const settings: Record<string, string> = {
   "الكارب النشط": "Active carbs",
   "المرتفع بالشاشة الكاملة": "High as a full-screen alarm",
   "إذا مسكّر: إشعار بس، بدون شاشة كاملة": "When off: a notification only, no full screen",
+  "فاتح": "Light",
+  "داكن": "Dark",
+  "يتبع إعداد التلفون": "Follows the phone setting",
 };
