@@ -6,7 +6,7 @@ import { useData } from '../../lib/data';
 import { compareOps, draftOps, saveLabelFood, saveMeal, useCompare, useDraft, usePortions, useSavedMeals } from '../../lib/mom';
 import { planMeal } from '../../lib/plans';
 import { COMPARE_MAX, planItems, planItemsOf, readyForMom, recipePot, type Catalog, type MomItem } from '../../engine/mom';
-import { groupByKey, groupOf, groupsIn, subgroupOf, subgroupsIn } from '../../lib/productGroups';
+import { GROUP_TITLE, groupByKey, groupOf, groupsIn, subgroupOf, subgroupsIn } from '../../lib/productGroups';
 import { matchTier, matches } from '../../lib/search';
 import { fmt } from '../../lib/carbs';
 import { supabase, uploadPhoto } from '../../lib/supabase';
@@ -397,25 +397,26 @@ export function GroupTile({ emoji, label, sub, n, onClick, dense }: { emoji: str
 export function MomGroup({ browse = false }: { browse?: boolean }) {
   const nav = useNavigate();
   const { key, sub } = useParams() as { key: string; sub?: string };
-  const gr = groupByKey(key);
+  // a key may join groups («rice+pasta+grains»): one page for all of them, their sub-groups side by side
+  const keys = key.split('+');
+  const gr = groupByKey(keys[0]);
   const { products, homeFirst, tile, grid } = useFoods(browse);
-  const inGroup = products.filter((p) => groupOf(p.category).key === key);
-  const subs = subgroupsIn(inGroup, key);
+  const inGroup = products.filter((p) => keys.includes(groupOf(p.category).key));
+  const subs = keys.flatMap((k) => subgroupsIn(inGroup.filter((p) => groupOf(p.category).key === k), k));
   const base = `${browse ? '/mom/food' : '/mom/add'}/g/${key}`;
   const one = subs.find((x) => x.sub.key === sub)?.sub ?? null;
-  const list = homeFirst(one ? inGroup.filter((p) => subgroupOf(p)?.key === one.key) : inGroup);
-  const bar = useCompareBar(browse), back = useBack(one || sub === 'all' ? base : browse ? '/mom/food' : '/mom/add?browse=groups');
-  const title = one ? `${one.emoji} ${tMaybe(one.label)}` : gr ? `${gr.emoji} ${tMaybe(gr.label)}` : t('أكل');
-  if (!one && sub !== 'all' && subs.length > 1) return (
-    <MomPage compact={!browse} title={title} back={back} foot={bar}>
-      <div className="grid grid-cols-2 gap-2">
-        {subs.map(({ sub: x, n }) => <GroupTile dense={!browse} key={x.key} emoji={x.emoji} label={tMaybe(x.label)} n={n} onClick={() => nav(`${base}/${x.key}`)} />)}
-      </div>
-      <button className="min-h-[48px] text-[16px] font-bold text-brand" onClick={() => nav(`${base}/all`)}>{t('الكل')} ({inGroup.length})</button>
-    </MomPage>
+  // what is at home first (homeFirst), restaurant food (Big Mac, PICK ice cream) after the rest
+  const list = homeFirst(one ? inGroup.filter((p) => subgroupOf(p)?.key === one.key) : inGroup).sort((a, b) => Number(!!restaurantOf(a.brand)) - Number(!!restaurantOf(b.brand)));
+  const bar = useCompareBar(browse), back = useBack(browse ? '/mom/food' : '/mom/add');
+  const title = one ? `${one.emoji} ${tMaybe(one.label)}` : gr ? `${gr.emoji} ${tMaybe(GROUP_TITLE[key] ?? gr.label)}` : t('أكل');
+  // the group's foods at once, its sub-groups as one row of chips above them (each chip replaces the page, so Back
+  // goes straight back to where the group was opened)
+  const chip = (on: boolean, label: string, to: string) => (
+    <button key={to} onClick={() => nav(to, { replace: true })} aria-pressed={on} className={cx('min-h-[40px] shrink-0 rounded-full px-4 text-[15px] font-bold', on ? 'bg-brand text-white' : 'bg-white text-slate-600')}>{label}</button>
   );
   return (
-    <MomPage compact={!browse} title={title} back={back} foot={bar}>
+    <MomPage compact={!browse} title={title} back={back} foot={bar}
+      top={subs.length > 1 ? <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">{chip(!one, t('الكل'), base)}{subs.map(({ sub: x }) => chip(one?.key === x.key, tMaybe(x.label), `${base}/${x.key}`))}</div> : undefined}>
       {list.length ? grid(list.map((p) => tile('product', p))) : <p className="text-center text-slate-500">{t('ما في شي هني بعد')}</p>}
     </MomPage>
   );

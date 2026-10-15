@@ -40,6 +40,23 @@ export function typesIn(products: { category: string | null }[], key: string): {
   return [...n].map(([cat, k]) => ({ cat, n: k })).sort((a, b) => b.n - a.n || a.cat.localeCompare(b.cat));
 }
 
+/** Groups shown together on one page (the key joins them with «+»), and its title. */
+export const GROUP_TITLE: Record<string, string> = { 'rice+pasta+grains': 'رز ومعكرونة', 'fruit+veg': 'فواكه وخضار' }; // i18n-ok
+
+/** The add-food page's nine tiles: the groups a parent reaches for, then restaurants and brands, then the rest. `to` is
+ *  under /mom/add. Fixed, so each tile is always in the same place. */
+export const ADD_TILES: { label: string; emoji: string; to: string }[] = [ // i18n-ok: shown via t()
+  { label: 'خبز', emoji: '🍞', to: '/g/bread' }, // i18n-ok: shown via t()
+  { label: 'رز ومعكرونة', emoji: '🍚', to: '/g/rice+pasta+grains' }, // i18n-ok: shown via t()
+  { label: 'مشروبات', emoji: '🥤', to: '/g/drinks' }, // i18n-ok: shown via t()
+  { label: 'ألبان', emoji: '🥛', to: '/g/dairy' }, // i18n-ok: shown via t()
+  { label: 'فواكه وخضار', emoji: '🍎', to: '/g/fruit+veg' }, // i18n-ok: shown via t()
+  { label: 'حلويات', emoji: '🍪', to: '/g/sweets' }, // i18n-ok: shown via t()
+  { label: 'آيس كريم', emoji: '🍦', to: '/g/sweets/icecream' }, // i18n-ok: shown via t()
+  { label: 'مطاعم وماركات', emoji: '🍔', to: '?browse=restaurants' }, // i18n-ok: shown via t()
+  { label: 'المزيد', emoji: '➕', to: '?browse=groups' }, // i18n-ok: shown via t()
+];
+
 /* ------------------------------------------------------------ sub-groups: one more level inside each group */
 
 export interface SubGroup { key: string; label: string; emoji: string; cats?: string[]; words?: string[] }

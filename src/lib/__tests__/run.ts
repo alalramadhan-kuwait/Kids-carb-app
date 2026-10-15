@@ -3470,5 +3470,19 @@ console.log('repeat meal');
   });
 }
 
+console.log('add food tiles');
+{
+  const G = await import('../productGroups');
+  test('add food: each of the nine tiles opens a group (or groups joined with +) and sub-group that exist, or a browse page', () => {
+    assert.equal(G.ADD_TILES.length, 9);
+    for (const x of G.ADD_TILES) {
+      if (x.to.startsWith('?browse=')) continue;
+      const [, , keys, sub] = x.to.split('/');
+      for (const k of keys.split('+')) assert.ok(G.groupByKey(k), `${x.label}: group ${k}`);
+      if (sub) assert.ok(G.SUB_GROUPS[keys.split('+')[0]].some((s) => s.key === sub), `${x.label}: sub-group ${sub}`);
+    }
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);

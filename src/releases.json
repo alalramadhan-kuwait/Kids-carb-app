@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.10.0",
+    "date": "2026-10-15",
+    "notes": [
+      "إضافة الأكل صارت أبسط: بحث، «المعتاد» و«وجبة سابقة»، و٩ مربعات للمجموعات (خبز، رز ومعكرونة، مشروبات، ألبان، فواكه وخضار، حلويات، آيس كريم، مطاعم وماركات، المزيد).",
+      "داخل المجموعة يطلع الأكل على طول، والأقسام الصغيرة سطر واحد فوقه."
+    ],
+    "notes_en": [
+      "Adding food is simpler: search, “Usual” and “Earlier meal”, and 9 group tiles (Bread, Rice & pasta, Drinks, Dairy, Fruit & veg, Sweets, Ice cream, Restaurants & brands, More).",
+      "Inside a group the foods show at once, with its smaller sections as one row above them."
+    ]
+  },
+  {
     "version": "4.9.2",
     "date": "2026-10-15",
     "notes": [

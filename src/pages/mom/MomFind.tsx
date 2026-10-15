@@ -7,7 +7,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { draftOps, useDraft, useSavedMeals } from '../../lib/mom';
 import { readyForMom, type MomItem } from '../../engine/mom';
-import { groupsIn } from '../../lib/productGroups';
+import { ADD_TILES, groupsIn } from '../../lib/productGroups';
 import { rankFoods } from '../../lib/search';
 import { RESTAURANTS, restaurantOf } from '../../lib/restaurants';
 import { productOf } from '../../lib/mealItems';
@@ -26,7 +26,7 @@ export function MomFind() {
   const d = useDraft();
   const [sp] = useSearchParams();
   const [q, setQ] = useUrlQuery();
-  const browse = sp.get('browse') as 'recipes' | 'restaurants' | 'groups' | 'brands' | 'all' | null;
+  const browse = sp.get('browse') as 'recipes' | 'restaurants' | 'groups' | 'brands' | 'all' | 'log' | null;
   const brand = sp.get('b'); // one brand's foods (browse=brands)
   const { meals } = useSavedMeals();
   const { history } = useData();
@@ -103,6 +103,12 @@ export function MomFind() {
     go: () => { const r = repeatPlate(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.review); nav('/mom/meal'); } });
   const pickRow = (p: Pick) => <FoodRow key={p.key} x={p.x} icon={p.icon} title={p.title} sub={p.sub} carbs={p.carbs} per={p.per} onClick={p.go} />;
 
+  const ways: [string, string, string, () => void][] = [
+    ['⚖️', t('عيش ومرق بالميزان'), t('احسبيه بالوزن'), () => nav('/mom/plate')],
+    ['🍲', t('طبخ البيت'), t('وصفات البيت'), () => nav('/mom/add?browse=recipes')],
+    ...(d.mode === 'now' ? [['🍽️', t('أكل برّا'), t('ما أعرف الكارب'), () => nav('/mom/out')] as [string, string, string, () => void]] : []),
+    ['📷', t('مو موجود؟'), t('اكتبي الكارب من الملصق، أو أرسليه لبابا'), () => nav('/mom/new')],
+  ];
   // browsing: everything she likes, home cooking, restaurants, or the food groups (Back returns to the search)
   if (browse === 'all') return (
     <MomPage compact title={t('المفضلة والأخيرة')} back={-1}>
@@ -110,6 +116,13 @@ export function MomFind() {
       {favPicks.length ? <div className="space-y-2">{favPicks.map(pickRow)}</div> : <p className="text-[14px] text-slate-500">{t('ما في مفضلة بعد: احفظي وجبة ⭐ من صفحة الوجبة')}</p>}
       <h2 className="pt-2 text-[14px] font-bold text-slate-500">🕘 {t('الأخيرة')}</h2>
       {recentPicks.length ? <div className="space-y-2">{recentPicks.map(pickRow)}</div> : <p className="text-[14px] text-slate-500">{t('ما في شي بعد')}</p>}
+    </MomPage>
+  );
+  // «وجبة سابقة»: meals from the log, newest first; one tap puts the same foods on a new plate (lib/repeatMeal)
+  if (browse === 'log') return (
+    <MomPage compact title={t('وجبة سابقة')} back={-1}>
+      <div className="space-y-2">{reusable(history).slice(0, 40).map((h) => <FoodRow key={h.id} icon="🍽️" title={tMaybe(h.name)} sub={h.lines.map((l) => tMaybe(l.name)).join(' · ')} carbs={h.total_carbs} per={t('الوجبة')}
+        onClick={() => { const r = repeatPlate(h, c.products, itemCarbs); draftOps.loadItems([...d.items, ...r.items], r.review); nav('/mom/meal'); }} />)}</div>
     </MomPage>
   );
   if (browse === 'brands') {
@@ -130,7 +143,7 @@ export function MomFind() {
     );
   }
   if (browse) return (
-    <MomPage compact title={browse === 'recipes' ? t('طبخ البيت') : browse === 'restaurants' ? t('أكل المطاعم') : t('أقسام الأكل')} back={-1}>
+    <MomPage compact title={browse === 'recipes' ? t('طبخ البيت') : browse === 'restaurants' ? t('مطاعم وماركات') : t('المزيد')} back={-1}>
       {browse === 'recipes' && (recipes.length ? [...recipes].sort((a, b) => Number(fav('recipe', b.id)) - Number(fav('recipe', a.id)) || (uses.get('recipe:' + b.id) ?? 0) - (uses.get('recipe:' + a.id) ?? 0)).map((r) => row({ kind: 'recipe', x: r }))
         : <p className="text-center text-slate-500">{t('بابا ما جهّز وصفات بعد')}</p>)}
       {browse === 'restaurants' && (
@@ -144,24 +157,37 @@ export function MomFind() {
           ))}
         </div>
       )}
+      {browse === 'restaurants' && brands.length > 0 && (
+        <>
+          <h2 className="pt-2 text-[16px] font-bold">{t('الماركات')}</h2>
+          <div className="grid grid-cols-2 gap-2">
+            {brands.map(([b, n]) => (
+              <button key={b} onClick={() => nav(`/mom/add?browse=brands&b=${encodeURIComponent(b)}`)} className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 rounded-2xl border border-slate-100 bg-white px-2 py-2 text-center active:opacity-80">
+                <bdi className="line-clamp-2 text-[16px] font-bold leading-snug">{tMaybe(b)}</bdi><span className="num text-[13px] text-slate-500">{n}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       {browse === 'groups' && (
-        <div className="grid grid-cols-3 gap-2">
-          {groupsIn(products.filter((p) => !restaurantOf(p.brand))).map(({ group: gr, n }) => <GroupTile dense key={gr.key} emoji={gr.emoji} label={tMaybe(gr.label)} n={n} onClick={() => nav(`/mom/add/g/${gr.key}`)} />)}
-        </div>
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            {groupsIn(products.filter((p) => !restaurantOf(p.brand))).map(({ group: gr, n }) => <GroupTile dense key={gr.key} emoji={gr.emoji} label={tMaybe(gr.label)} n={n} onClick={() => nav(`/mom/add/g/${gr.key}`)} />)}
+          </div>
+          <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-sm">
+            {ways.map(([icon, label, sub, go]) => (
+              <button key={label} onClick={go} className="flex min-h-[58px] w-full items-center gap-3 px-3 py-2 text-start active:bg-slate-50">
+                <span aria-hidden className="w-8 shrink-0 text-center text-[24px] leading-none">{icon}</span>
+                <span className="min-w-0 flex-1"><b className="block text-[16px] leading-snug">{label}</b><span className="block text-[13px] leading-snug text-slate-500">{sub}</span></span>
+                <span aria-hidden className="shrink-0 text-[22px] leading-none text-slate-300">{isEn() ? '›' : '‹'}</span>
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </MomPage>
   );
 
-  const cards = [favPicks[0], recentPicks[0], favPicks[1], recentPicks[1]].filter(Boolean).slice(0, 2) as Pick[];
-  const ways: [string, string, string, () => void][] = [
-    ['⚖️', t('عيش ومرق بالميزان'), t('احسبيه بالوزن'), () => nav('/mom/plate')],
-    ['🍲', t('طبخ البيت'), t('وصفات البيت'), () => nav('/mom/add?browse=recipes')],
-    ['🍔', t('أكل المطاعم'), t('منيو المطاعم'), () => nav('/mom/add?browse=restaurants')],
-    ...(brands.length ? [['🏷️', t('الماركات'), brands.slice(0, 3).map(([b]) => tMaybe(b)).join(isEn() ? ', ' : '، ' /* i18n-ok: list separator */) + '…', () => nav('/mom/add?browse=brands')] as [string, string, string, () => void]] : []),
-    ...(d.mode === 'now' ? [['🍽️', t('أكل برّا'), t('ما أعرف الكارب'), () => nav('/mom/out')] as [string, string, string, () => void]] : []),
-    ['🗂️', t('أقسام الأكل'), t('تصفّحي حسب النوع'), () => nav('/mom/add?browse=groups')],
-    ['📷', t('مو موجود؟'), t('اكتبي الكارب من الملصق، أو أرسليه لبابا'), () => nav('/mom/new')],
-  ];
   const search = (
     <div className="relative">
       <svg aria-hidden viewBox="0 0 24 24" className="pointer-events-none absolute start-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
@@ -181,31 +207,22 @@ export function MomFind() {
         )
       ) : (
         <>
-          {cards.length > 0 && (
-            <>
-              <div className="flex items-center justify-between pt-1">
-                <h2 className="text-[16px] font-bold">{t('المفضلة')}</h2>
-                <button onClick={() => nav('/mom/add?browse=all')} className="min-h-[40px] px-1 text-[15px] font-bold text-brand">{t('الكل')} {isEn() ? '›' : '‹'}</button>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {cards.map((p) => (
-                  <button key={p.key} onClick={p.go} className="flex min-h-[68px] min-w-0 flex-col justify-center rounded-2xl bg-white px-3 py-2 text-start shadow-sm active:opacity-80">
-                    <span className="line-clamp-2 text-[15px] font-bold leading-snug"><bdi>{p.title}</bdi></span>
-                    <span className="truncate text-[12px] text-slate-500">{p.sub}{p.carbs !== null && <> · <span className="num">{gramsText(p.carbs)}</span> {t('غ')}</>}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-          <h2 className="pt-2 text-[16px] font-bold">{t('طرق ثانية للإضافة')}</h2>
-          <div className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-sm">
-            {ways.map(([icon, label, sub, go]) => (
-              <button key={label} onClick={go} className="flex min-h-[58px] w-full items-center gap-3 px-3 py-2 text-start active:bg-slate-50">
-                <span aria-hidden className="w-8 shrink-0 text-center text-[24px] leading-none">{icon}</span>
-                <span className="min-w-0 flex-1"><b className="block text-[16px] leading-snug">{label}</b><span className="block text-[13px] leading-snug text-slate-500">{sub}</span></span>
-                <span aria-hidden className="shrink-0 text-[22px] leading-none text-slate-300">{isEn() ? '›' : '‹'}</span>
+          {/* her usual foods and an earlier meal, then nine groups; everything else is under «More» */}
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => nav('/mom/add?browse=all')} className="min-h-[52px] rounded-2xl bg-brand-soft text-[16px] font-bold text-brand active:opacity-80">⭐ {t('المعتاد')}</button>
+            <button onClick={() => nav('/mom/add?browse=log')} className="min-h-[52px] rounded-2xl bg-brand-soft text-[16px] font-bold text-brand active:opacity-80">🔁 {t('وجبة سابقة')}</button>
+          </div>
+          <div className="grid grid-cols-3 gap-2.5 pt-1">
+            {ADD_TILES.map((x) => (
+              <button key={x.to} onClick={() => nav('/mom/add' + x.to)} className="flex min-h-[96px] flex-col items-center justify-center gap-1.5 rounded-2xl bg-white px-1 text-center shadow-sm active:opacity-80">
+                <span aria-hidden className="text-[32px] leading-none">{x.emoji}</span>
+                <span className="text-[14px] font-bold leading-tight">{t(x.label)}</span>
               </button>
             ))}
+          </div>
+          <div className="flex justify-center gap-2 pt-1 text-[14px] font-bold text-brand">
+            {d.mode === 'now' && <button className="min-h-[44px] px-2" onClick={() => nav('/mom/out')}>🍽️ {t('أكل برّا')}</button>}
+            <button className="min-h-[44px] px-2" onClick={() => nav('/mom/new')}>📷 {t('مو موجود؟')}</button>
           </div>
         </>
       )}

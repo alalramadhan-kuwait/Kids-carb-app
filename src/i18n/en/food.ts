@@ -1573,4 +1573,8 @@ export const food: Record<string, string> = {
   "برجر كنج": "Burger King",
   "إليفيشن": "Elevation",
   "باسكن": "Baskin",
+  "وجبة سابقة": "Earlier meal",
+  "المعتاد": "Usual",
+  "مطاعم وماركات": "Restaurants & brands",
+  "رز ومعكرونة": "Rice & pasta",
 };
