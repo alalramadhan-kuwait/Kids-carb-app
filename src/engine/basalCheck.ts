@@ -272,3 +272,17 @@ export function summary(r: BasalReport, f: Filter, units?: number | null): Summa
       cgmOnly: ls.filter((l) => l.confirmed === 'cgm_only').length, below54: ls.filter((l) => l.nadir < BC.veryLowMg).length },
   };
 }
+
+export interface Overview { total: number; clean: number; affected: number; uncertain: number; excluded: number; cleanStable: number; change: number | null; below: number }
+/** Night, Day and All side by side. Each period belongs to exactly one of Night or Day, so their counts add up to All.
+ *  change: median of clean periods; below: periods (any status) with a sensor reading under 3.9. */
+export function overview(r: BasalReport): Record<Filter, Overview> {
+  const one = (f: Filter): Overview => {
+    const ps = r.periods.filter((p) => inFilter(p.win, f)), n = (s: Status) => ps.filter((p) => p.status === s).length;
+    const clean = ps.filter((p) => p.status === 'clean');
+    return { total: ps.length, clean: clean.length, affected: n('affected'), uncertain: n('uncertain'), excluded: n('excluded'),
+      cleanStable: clean.filter((p) => p.dose?.phase === 'stable').length,
+      change: median(clean.map((p) => p.change).filter((x): x is number => x !== null)), below: ps.filter((p) => p.low !== null && p.low < BC.lowMg).length };
+  };
+  return { night: one('night'), day: one('day'), all: one('all') };
+}

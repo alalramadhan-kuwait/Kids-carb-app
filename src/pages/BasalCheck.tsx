@@ -6,7 +6,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { useBasalCheck, BASAL_DAYS } from '../lib/nightTresiba';
-import { BC, doseStats, inFilter, summary, type BasalReport, type Filter, type Period, type Phase, type Reason, type Status } from '../engine/basalCheck';
+import { BC, doseStats, overview, inFilter, summary, type BasalReport, type Filter, type Period, type Phase, type Reason, type Status } from '../engine/basalCheck';
 import { formatGlucose, unitLabel, type GlucoseUnit } from '../lib/glucose';
 import { fmtTime } from '../lib/constants';
 import { fmt } from '../lib/carbs';
@@ -67,6 +67,7 @@ export function BasalCheck() {
       {!report && !error && <p className="px-1 py-6 text-center text-slate-500">{t('جاري التحميل…')}</p>}
       {report && <>
         <Headline report={report} f={f} unit={unit} />
+        <Overview24 report={report} unit={unit} />
         <DoseCompare report={report} f={f} unit={unit} selected={dose} onPick={(u) => setDose(dose === u ? null : u)} />
         <PeriodList report={report} f={f} unit={unit} dose={dose} onOpen={setOpen} onClear={() => setDose(null)} />
         <DoctorSummary report={report} f={f} unit={unit} />
@@ -96,6 +97,43 @@ function Headline({ report, f, unit }: { report: BasalReport; f: Filter; unit: G
         {s.perHour !== null && <> · <span dir="ltr" className="num">{fmtDiff(s.perHour, unit)}</span>{t('/ساعة')}</>}
         {s.lows.all + s.lows.brief > 0 && <> · {t('مؤكد بالوخز {k}', { k: s.lows.finger })}</>}
       </p>
+    </Card>
+  );
+}
+
+/** The whole day at a glance: Night and Day add up to All (each period belongs to one of them); clean periods per
+ *  dose, first 3 days apart from steady days. Folded by default to keep the page short. */
+function Overview24({ report, unit }: { report: BasalReport; unit: GlucoseUnit }) {
+  const o = overview(report), cols: Filter[] = ['night', 'day', 'all'];
+  const rows: [string, (x: ReturnType<typeof overview>['all']) => string][] = [
+    [t('كل الفترات'), (x) => String(x.total)],
+    [t('نظيفة'), (x) => String(x.clean)],
+    [t('نظيفة على جرعة ثابتة'), (x) => String(x.cleanStable)],
+    [t('متأثرة / غير أكيدة / مستبعدة'), (x) => `${x.affected} / ${x.uncertain} / ${x.excluded}`],
+    [t('وسيط التغيّر (نظيفة)'), (x) => (x.change === null ? '–' : fmtDiff(x.change, unit))],
+    [t('فيها قراءة تحت {v}', { v: formatGlucose(BC.lowMg, unit) }), (x) => String(x.below)],
+  ];
+  const doses = [...new Set(report.doses.map((d) => d.units))];
+  const cnt = (u: number, ph: 'transition' | 'stable', f: Filter) => report.periods.filter((p) => p.status === 'clean' && p.dose?.units === u && (ph === 'stable' ? p.dose.phase === 'stable' : p.dose.phase !== 'stable') && inFilter(p.win, f)).length;
+  return (
+    <Card className="!p-0">
+      <details>
+        <summary className="flex min-h-[48px] cursor-pointer items-center px-3 font-bold">{t('٢٤ ساعة: الليل والنهار')}</summary>
+        <div className="space-y-3 px-3 pb-3">
+          <table className="w-full text-[12.5px]">
+            <thead><tr className="text-slate-500"><th className="py-1 text-start font-medium" />{cols.map((c) => <th key={c} className="py-1 text-center font-bold">{t(FILTERS.find((x) => x.id === c)!.label)}</th>)}</tr></thead>
+            <tbody>{rows.map(([k, fn]) => <tr key={k} className="border-t border-slate-100"><td className="py-1.5">{k}</td>{cols.map((c) => <td key={c} className="py-1.5 text-center font-bold"><span dir="ltr" className="num">{fn(o[c])}</span></td>)}</tr>)}</tbody>
+          </table>
+          <table className="w-full text-[12.5px]">
+            <thead><tr className="text-slate-500"><th className="py-1 text-start font-medium">{t('نظيفة حسب الجرعة')}</th><th className="py-1 text-center font-bold">{t(PHASE.transition)}</th><th className="py-1 text-center font-bold">{t(PHASE.stable)}</th></tr></thead>
+            <tbody>{doses.map((u) => (
+              <tr key={u} className="border-t border-slate-100"><td className="py-1.5 font-bold text-brand"><span className="num">{fmt(u)}U</span></td>
+                {(['transition', 'stable'] as const).map((ph) => <td key={ph} className="py-1.5 text-center"><b className="num">{cnt(u, ph, 'all')}</b><span className="text-[11px] text-slate-500"> ({t('ل')} {cnt(u, ph, 'night')} · {t('ن')} {cnt(u, ph, 'day')})</span></td>)}
+              </tr>))}</tbody>
+          </table>
+          <p className="text-[11.5px] text-slate-500">{t('الليل + النهار = الكل: كل فترة تنحسب مرة وحدة، حسب وين أغلبها. «أول ٣ أيام» يشمل بداية السجل. ل = ليل، ن = نهار.')} {t('بالنهار أغلب الوقت ما يكون صيام: الأكل كل كم ساعة والنوفورابيد معه، والفترة تحتاج ٣ ساعات بعد الأكل و٤ بعد النوفورابيد.')}</p>
+        </div>
+      </details>
     </Card>
   );
 }

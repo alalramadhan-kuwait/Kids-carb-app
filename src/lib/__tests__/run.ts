@@ -3368,6 +3368,13 @@ console.log('basal check');
     assert.equal(n.eligible + d.eligible, s.eligible); assert.ok(s.rising > 0);
     assert.ok(r.periods.filter((x) => x.status !== 'excluded').every((x) => (x.win === 'night') === (x.nightMin * 2 >= x.minutes)));
   });
+  test('basal check: the 24-hour overview: Night + Day = All for every count, no period counted twice', () => {
+    const r = B.basalCheck(mk({ g: fall, extra: [{ kind: 'insulin', insulin_type: 'rapid', insulin_units: 1, occurred_at: new Date(kw(6, 1)).toISOString() }] }) as any);
+    const o = B.overview(r);
+    for (const k of ['total', 'clean', 'affected', 'uncertain', 'excluded', 'cleanStable', 'below'] as const) assert.equal(o.night[k] + o.day[k], o.all[k], k);
+    assert.equal(new Set(r.periods.map((p) => p.id)).size, r.periods.length);
+    assert.ok(o.day.total > 0 && o.night.total > 0);
+  });
   test('basal check: a period under an hour is listed as excluded with its reason, not dropped', () => {
     const r = B.basalCheck(mk({ g: fall, hist: [{ id: 'snack', kind: 'snack', name: 'snack', recipe_id: null, total_carbs: 10, eaten_at: new Date(kw(5, 21, 30)).toISOString() }] }) as any);
     const p = r.periods.find((x) => x.from === kw(5, 21))!;
