@@ -212,7 +212,7 @@ function VisitPages({ job, low, high, days }: { job: Job; low: number; high: num
         </div>)}
       </div>
       <div data-part="doctorcheck" data-ready={dc.check || dc.error ? '1' : '0'} className="p-4">{dc.check && <DoctorCheckSection check={dc.check} unit={settings.glucose_unit} />}</div>
-      <div data-part="night" data-ready={night.report || night.error ? '1' : '0'} className="p-4">{night.report && <NightSection report={night.report} unit={settings.glucose_unit} />}</div>
+      <div data-part="night" data-ready={night.report || night.error ? '1' : '0'} className="p-4">{night.report && <NightSection report={night.report} series={night.series} unit={settings.glucose_unit} />}</div>
       <div data-part="notes" data-ready={obs ? '1' : '0'} className="space-y-3 p-4">{obs && <ObservationsSection obs={obs} unit={settings.glucose_unit} />}</div>
     </>
   );

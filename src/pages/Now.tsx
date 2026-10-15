@@ -34,6 +34,7 @@ import { GraphHelp } from '../components/ForecastKey';
 import { TrendArrow, TrendLine } from '../components/Trend';
 import { dur } from '../components/OnBoardLanes';
 import { PlanLines, phaseLine } from '../components/Plans';
+import { LastNightLine } from '../components/LastNightLine';
 import { useRecentSame } from '../components/SameMeal';
 import { ALERT_NAME } from '../components/AlertStrip';
 import { doseGap } from '../engine/dose';
@@ -145,6 +146,7 @@ export default function Now() {
 
       {/* 5 · one notice at most, the most important; the rest one tap away */}
       <NoticeRow now={now} open={alerts.open} sensor={sensor} error={g?.error ?? null} onRetry={reload} />
+      <LastNightLine unit={unit} />
       {/* planned meals are told in the notice row; the sheets stay so a reminder's ?plan= link still opens its check */}
       <PlanLines sheetsOnly />
 

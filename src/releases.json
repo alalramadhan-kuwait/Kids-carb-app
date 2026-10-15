@@ -1,5 +1,21 @@
 [
   {
+    "version": "4.5.0",
+    "date": "2026-10-15",
+    "notes": [
+      "التحليل ← الليل: شبكة لكل ليلة من ١٢ لين ٧ الصبح، فيها العصير والوخز.",
+      "متى يبدأ النزول بالليل، وكم ليلة نزلت على كل جرعة تريسيبا.",
+      "سطر «الليلة» بالرئيسية من ٧ الصبح لين ١ الظهر.",
+      "تقرير الزيارة فيه نفس الشبكة للدكتور."
+    ],
+    "notes_en": [
+      "Analysis → Night: one strip per night from midnight to 7 am, with juices and finger-pricks.",
+      "When the night-time fall starts, and how many nights went low on each Tresiba dose.",
+      "A “Last night” line on the home screen from 7 am to 1 pm.",
+      "The visit report shows the same grid for the doctor."
+    ]
+  },
+  {
     "version": "4.4.3",
     "date": "2026-10-14",
     "notes": [

@@ -18,6 +18,7 @@ import type { Series } from '../engine/series';
 import { Card, Sheet, cx } from '../components/ui';
 import { CONF_NAME, fmtDiff } from './DoctorCheck';
 import { isEn, t } from '../i18n';
+import { NightGrid, NightOnset } from './NightGrid';
 
 const H = 3600000, MIN = 60000;
 export const CLASS: Record<NightClass, { icon: string; name: string; short: string }> = { // i18n-ok: names shown through t()
@@ -65,6 +66,8 @@ export function NightTresiba() {
       {error && <p className="px-1 text-sm text-over">{t('تعذّر تحميل البيانات: {e}', { e: error })}</p>}
       {!report && !error && <p className="px-1 py-6 text-center text-slate-500">{t('جاري التحميل…')}</p>}
       {report && <>
+        {series && <NightGrid report={report} series={series} unit={unit} onNight={setOpen} />}
+        {series && <NightOnset report={report} series={series} unit={unit} last={14} />}
         <NightsChart report={report} unit={unit} onNight={setOpen} />
         <BeforeJuice report={report} unit={unit} onNight={setOpen} />
         <RatesChart report={report} unit={unit} onInfo={() => setInfo(true)} />

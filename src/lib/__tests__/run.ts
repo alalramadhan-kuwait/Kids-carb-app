@@ -3255,6 +3255,32 @@ console.log('night and Tresiba');
     assert.deepEqual([g9.days, g9.long, g9.rapid, g9.total, g9.carbs], [4, 9, 3, 12, 40]);
     assert.equal(g10.days, 6);
   });
+  const G = await import('../../engine/nightGrid');
+  test('night grid: 00:00–07:00 in 15-minute strips, oldest first; the first reading under 3.9 by hour and by dose', () => {
+    const b = build({ juice: kw(9, 3), extra: [{ kind: 'treatment', carbs_g: 15, treatment: 'juice', occurred_at: new Date(kw(9, 3)).toISOString() }], pricks: [{ d: 9, h: 2, m: 40, bg: 125 }] });
+    const r = N.nightReport(b as any), g = G.nightGrid(r, b.series as any);
+    assert.equal(g.nights.length, r.nights.length);
+    assert.ok(g.nights.every((n, i) => i === 0 || n.from > g.nights[i - 1].from), 'oldest first');
+    const n = g.nights[0];
+    assert.equal(n.bins.length, 28); close(n.bins[0], 180 - 20 * 10 / 60, 0.1);
+    assert.equal(n.firstLow, n.from + 5 * H + 35 * M, 'the sensor as it read: first under 70 at 05:35');
+    const held = g.nights.find((x) => x.juices.length)!;
+    assert.deepEqual(held.juices, [kw(9, 3)]); assert.equal(held.prickBefore, true); assert.equal(held.pricks[0].bg, 125);
+    assert.equal(held.firstLow, null, 'held at 120 after the juice: no low that night');
+    assert.ok(g.onset[5] > 0); assert.equal(g.onset.reduce((a, k) => a + k, 0), g.nights.filter((x) => x.firstLow !== null).length);
+    assert.equal(g.byDose.reduce((a, d) => a + d.nights, 0), g.nights.filter((x) => x.units !== null).length);
+    assert.equal(g.byDose[g.byDose.length - 1].units, 9);
+  });
+  test('last night on the home screens: 07:00–13:00 only; lowest reading, treatments, finger-prick first', () => {
+    const b = build({ extra: [{ kind: 'treatment', carbs_g: 15, treatment: 'juice', occurred_at: new Date(kw(13, 5, 40)).toISOString() }, { kind: 'treatment', carbs_g: 15, treatment: 'juice', occurred_at: new Date(kw(13, 5, 58)).toISOString() }] });
+    const L = G.lastNight(b.series as any, b.events as any, kw(13, 9))!;
+    close(L.min, 180 - 20 * (5 + 55 / 60), 0.1); assert.equal(L.firstLow, kw(13, 5, 35)); assert.equal(L.units, 9);
+    assert.equal(L.juices, 2); assert.equal(L.prickBefore, false, 'no finger-prick before the first; the 15-minute repeat is not asked for one');
+    assert.equal(G.lastNight(b.series as any, b.events as any, kw(13, 6)), null);
+    assert.equal(G.lastNight(b.series as any, b.events as any, kw(13, 14)), null);
+    const p = build({ pricks: [{ d: 13, h: 5, m: 30, bg: 80 }], extra: [{ kind: 'treatment', carbs_g: 15, treatment: 'juice', occurred_at: new Date(kw(13, 5, 40)).toISOString() }] });
+    assert.equal(G.lastNight(p.series as any, p.events as any, kw(13, 9))!.prickBefore, true);
+  });
 }
 
 await Promise.all(pending);

@@ -9,9 +9,11 @@ import { formatGlucose, unitLabel, type GlucoseUnit } from '../../lib/glucose';
 import { fmtTime } from '../../lib/constants';
 import { fmt } from '../../lib/carbs';
 import { isEn, t } from '../../i18n';
+import { NightGrid, NightOnset } from '../NightGrid';
+import type { Series } from '../../engine/series';
 
 
-export function NightSection({ report, unit }: { report: NightReport; unit: GlucoseUnit }) {
+export function NightSection({ report, unit, series }: { report: NightReport; unit: GlucoseUnit; series?: Series | null }) {
   const g = (mg: number) => formatGlucose(mg, unit), u = unitLabel(unit);
   const ns = report.nights, list = (xs: string[]) => xs.join(isEn() ? ', ' : '، '); // i18n-ok: list commas
   const count = (c: string) => ns.filter((n) => n.cls === c).length;
@@ -73,6 +75,10 @@ export function NightSection({ report, unit }: { report: NightReport; unit: Gluc
         <h1 className="text-xl font-bold">{t('الليل وجرعة التريسيبا (آخر ٣٠ يوم)')}</h1>
         <p className="text-sm text-slate-600">{t('من سجل العائلة والحساس. الليل ٩ م – ٧ ص؛ سرعة النزول من ١٢ لين ٦ الفجر في الفترات اللي ما فيها نوفورابيد لـ {h} ساعات ولا أكل أو عصير لـ {f} ساعات. أول ٣ ليالي بعد تغيير الجرعة تنعرض لحالها.', { h: BASAL_DEFAULTS.rapid_gap_min / 60, f: BASAL_DEFAULTS.food_gap_min / 60 })}</p>
       </div>
+      {series && <div className="grid grid-cols-[3fr_2fr] items-start gap-3 pb-3">
+        <NightGrid report={report} series={series} unit={unit} print />
+        <NightOnset report={report} series={series} unit={unit} />
+      </div>}
       <div className="grid grid-cols-2 items-start gap-3 pb-3">
         <NightsChart report={report} unit={unit} print />
         <RatesChart report={report} unit={unit} print />

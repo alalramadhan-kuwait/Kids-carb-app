@@ -972,4 +972,11 @@ export const analysis: Record<string, string> = {
   "{n} علاج أول بالليل، و{f} علاج ثاني (متابعة بقاعدة ١٥-١٥ لأن السكر كان يبين إنه لسه نازل). وخز قبل العلاج الأول في {k} منها.": "{n} first treatments at night, and {f} second treatments (15-15 follow-ups because glucose still appeared to be falling). A finger-prick before the first treatment in {k} of them.",
   "استنتاج من القراءات، مو مسجل كعلاج: {k} مشروب مسجل كأكل انحسب علاج لأن الحساس كان تحت {v} أو لأنه جا بعد علاج. {u} مشروب ثاني ما انحسب ويحتاج تأكيد. السجل الأصلي ما تغيّر.": "Inferred from readings, not logged as treatment: {k} drinks logged as food were counted as treatments because the sensor was below {v} or they came after a treatment. Other drinks not counted, needing confirmation: {u}. The original log is unchanged.",
   "علاج ثاني بعد {m} د": "Second treatment {m} min later",
+  "من ١٢ لين ٧ الصبح": "Midnight to 7 am",
+  "آخر {n} ليلة": "last {n} nights",
+  "كل ليلة من ١٢ لين ٧ الصبح": "Each night from midnight to 7 am",
+  "متى يبدأ النزول؟": "When does the fall start?",
+  "أول قراءة تحت {v}": "first reading under {v}",
+  "ليالي نزل فيها الحساس تحت {v} / كل الليالي، على كل جرعة": "Nights the sensor went under {v} / all nights, on each dose",
+  "ليالي العلاج فيها وخز قبل العصير": "treated nights with a finger-prick before the juice",
 };

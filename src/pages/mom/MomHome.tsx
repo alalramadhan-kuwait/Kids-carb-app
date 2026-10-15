@@ -31,6 +31,7 @@ import noReadingPng from '../../assets/layan/layan-no-reading.png';
 import noReadingWebp from '../../assets/layan/layan-no-reading.webp';
 import { Big, okToReplace, PEN, PEN_NAME, PenBar, TABS_PAD, ago, clock, dayWord, glucoseText, left, sensorLeft, span } from './MomUI';
 import { Icon } from '../../components/Icon';
+import { LastNightLine } from '../../components/LastNightLine';
 import type { EventRow, Settings } from '../../lib/types';
 import { inNight, prickHint, prickPoints, sensorBias, type PrickPoint } from '../../engine/prick';
 
@@ -156,6 +157,7 @@ export function MomHome() {
           <span>{bias.gap === 'sensor_lower' ? t('هذا الحساس يقرأ أقل من الإصبع بـ ~{v}', { v: formatGlucose(bias.mgdl, unit) }) : t('هذا الحساس يقرأ أعلى من الإصبع بـ ~{v}', { v: formatGlucose(bias.mgdl, unit) })} · {t('من {n} وخزات', { n: bias.n })}</span>
         </div>
       ) : null}
+      {!hint && <LastNightLine unit={unit} />}
 
       <div className="shrink-0 space-y-1.5 rounded-3xl border border-slate-100 bg-white p-1.5">
         {/* the last of each pen side by side: name and units, then how long ago */}
