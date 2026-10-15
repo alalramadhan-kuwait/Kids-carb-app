@@ -22,7 +22,7 @@ import { PlanReport } from './PlanReport';
 import { ObservationsSection } from './visit/Observations';
 import { DoctorCheckSection } from './visit/DoctorCheckSection';
 import { useDoctorCheck } from '../lib/doctorCheck';
-import { useNightReport } from '../lib/nightTresiba';
+import { useBasalCheck, useNightReport } from '../lib/nightTresiba';
 import { NightSection } from './visit/NightSection';
 import { useGlucose } from '../hooks/useGlucose';
 import { buildObservations, type NutritionIn } from '../engine/report/observations';
@@ -165,6 +165,7 @@ function VisitPages({ job, low, high, days }: { job: Job; low: number; high: num
   const g = useGrowthNutrition();
   const { g: live } = useGlucose();
   const night = useNightReport();
+  const basal = useBasalCheck();
   const dc = useDoctorCheck(live?.sensor?.started_at ? Date.parse(live.sensor.started_at) : null);
   // the observations, once the nutrition model is ready (it feeds the dietitian's findings)
   const obs = useMemo(() => {
@@ -212,7 +213,7 @@ function VisitPages({ job, low, high, days }: { job: Job; low: number; high: num
         </div>)}
       </div>
       <div data-part="doctorcheck" data-ready={dc.check || dc.error ? '1' : '0'} className="p-4">{dc.check && <DoctorCheckSection check={dc.check} unit={settings.glucose_unit} />}</div>
-      <div data-part="night" data-ready={night.report || night.error ? '1' : '0'} className="p-4">{night.report && <NightSection report={night.report} series={night.series} unit={settings.glucose_unit} />}</div>
+      <div data-part="night" data-ready={(night.report || night.error) && (basal.report || basal.error) ? '1' : '0'} className="p-4">{night.report && <NightSection report={night.report} series={night.series} basal={basal.report} unit={settings.glucose_unit} />}</div>
       <div data-part="notes" data-ready={obs ? '1' : '0'} className="space-y-3 p-4">{obs && <ObservationsSection obs={obs} unit={settings.glucose_unit} />}</div>
     </>
   );

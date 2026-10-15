@@ -7,6 +7,8 @@ import { nightReport, type NightReport } from '../engine/nightTresiba';
 import type { Series } from '../engine/series';
 import { lastNight, type LastNight } from '../engine/nightGrid';
 import { dayStartOf } from '../engine/day';
+import { basalCheck, type BasalReport } from '../engine/basalCheck';
+import { iobParamsOk } from '../engine/iob';
 
 const DAY = 86400000, HOUR = 3600000;
 export const NIGHT_DAYS = 30;
@@ -39,4 +41,22 @@ export function useLastNight(): LastNight | null {
     return () => { live = false; };
   }, [from, show]);
   return useMemo(() => (show && series ? lastNight(series, events, now) : null), [show, series, events, now]);
+}
+
+export const BASAL_DAYS = 45;
+/** Basal Check: the readings of the last 45 days and the log, analysed for fasting periods. Read only. */
+export function useBasalCheck(): { report: BasalReport | null; series: Series | null; error: string | null } {
+  const { history, events, settings } = useData();
+  const [series, setSeries] = useState<Series | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [now] = useState(() => Date.now());
+  useEffect(() => {
+    let live = true;
+    fetchSeries(now - (BASAL_DAYS + 2) * DAY, now).then((s) => { if (live) setSeries(s); }, (e) => { if (live) setError((e as Error).message); });
+    return () => { live = false; };
+  }, [now]);
+  const iob = settings.iob_dia_min && settings.iob_peak_min ? { dia: settings.iob_dia_min, peak: settings.iob_peak_min } : null;
+  const report = useMemo(() => (series ? basalCheck({ series, history, events, from: now - BASAL_DAYS * DAY, now, iob: iobParamsOk(iob) ? iob : null }) : null),
+    [series, history, events, now, iob?.dia, iob?.peak]); // eslint-disable-line react-hooks/exhaustive-deps
+  return { report, series, error };
 }

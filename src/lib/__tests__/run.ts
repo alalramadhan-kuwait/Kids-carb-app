@@ -3283,5 +3283,107 @@ console.log('night and Tresiba');
   });
 }
 
+console.log('basal check');
+{
+  const B = await import('../../engine/basalCheck');
+  const M = 60000, H = 3600000;
+  const kw = (d: number, h: number, m = 0) => Date.UTC(2026, 9, d, h - 3, m); // Kuwait clock
+  // a log: Tresiba at 17:00 every day (units by day), breakfast 07:00, lunch 13:00, dinner 18:00 with NovoRapid; glucose from a function
+  const mk = (o: { units?: (d: number) => number; g?: (t: number) => number; extra?: any[]; hist?: any[]; skip?: (t: number) => boolean; days?: number } = {}) => {
+    const events: any[] = [], history: any[] = []; let id = 0;
+    const ev = (x: any) => events.push({ id: 'e' + ++id, client_id: 'c' + id, deleted_at: null, insulin_type: null, insulin_units: null, carbs_g: null, treatment: null, bg_mgdl: null, ...x });
+    const days = o.days ?? 10;
+    for (let d = 1; d <= days; d++) {
+      ev({ kind: 'insulin', insulin_type: 'long', insulin_units: o.units ? o.units(d) : 9, occurred_at: new Date(kw(d, 17)).toISOString() });
+      for (const [h, c] of [[7, 30], [13, 40], [18, 40]]) {
+        history.push({ id: `h${d}-${h}`, kind: 'meal', name: 'meal', recipe_id: null, total_carbs: c, eaten_at: new Date(kw(d, h)).toISOString() });
+        ev({ kind: 'insulin', insulin_type: 'rapid', insulin_units: 2, occurred_at: new Date(kw(d, h)).toISOString() });
+      }
+    }
+    for (const x of o.extra ?? []) ev(x);
+    history.push(...(o.hist ?? []));
+    const T: number[] = [], V: number[] = [];
+    for (let x = kw(1, 0); x <= kw(days, 23, 55); x += 5 * M) { if (o.skip?.(x)) continue; T.push(x); V.push(o.g ? o.g(x) : 140); }
+    return { series: { t: Float64Array.from(T), v: Float64Array.from(V) }, history, events, from: kw(2, 0), now: kw(days, 23, 59), iob: { dia: 300, peak: 75 } };
+  };
+  const clock = (x: number) => ((x + 3 * H) % 86400000) / H;
+  // glucose falls 20 mg/dL an hour from midnight to 07:00, otherwise 140
+  const fall = (x: number) => { const k = clock(x); return k < 7 ? 160 - 20 * k : 140; };
+  const nightOf = (r: any, d: number) => r.periods.find((p: any) => p.from >= kw(d - 1, 20) && p.from < kw(d, 7) && p.win === 'night');
+
+  test('basal check: a fasting night after dinner NovoRapid starts 6 h after it, is clean, and its change is measured', () => {
+    const r = B.basalCheck(mk({ g: fall }) as any);
+    const p = nightOf(r, 6);
+    assert.equal(p.from, kw(6, 0), '18:00 NovoRapid + 6 h'); assert.equal(p.to, kw(6, 7), 'ends at breakfast');
+    assert.equal(p.status, 'clean'); assert.equal(p.win, 'night'); assert.equal(p.endedBy, 'food');
+    close(p.perHour, -20, 1.5); close(p.trend, -20, 0.5); assert.equal(p.dir, 'falling');
+    assert.ok(p.change < -100 && p.low < 30 + 5);
+    assert.equal(p.dose.units, 9); assert.equal(p.dose.phase, 'stable');
+  });
+  test('basal check: NovoRapid at 02:00 leaves no 6-hour window before breakfast: affected, never clean', () => {
+    const r = B.basalCheck(mk({ g: fall, extra: [{ kind: 'insulin', insulin_type: 'rapid', insulin_units: 1, occurred_at: new Date(kw(6, 2)).toISOString() }] }) as any);
+    const p = r.periods.find((x: any) => x.from === kw(6, 5))!;
+    assert.equal(p.status, 'affected'); assert.ok(p.reasons.includes('rapid_recent')); assert.equal(p.sinceRapidMin, 180);
+    assert.ok(p.iobAtStart !== null && p.iobAtStart >= 0);
+  });
+  test('basal check: a juice ends the period; the finger-prick before it confirms the low, or the low is CGM-only', () => {
+    const juice = { kind: 'treatment', carbs_g: 15, treatment: 'juice', occurred_at: new Date(kw(6, 4)).toISOString() };
+    const r1 = B.basalCheck(mk({ g: fall, extra: [juice, { kind: 'bg_check', bg_mgdl: 65, occurred_at: new Date(kw(6, 3, 55)).toISOString() }] }) as any);
+    const p1 = nightOf(r1, 6);
+    assert.equal(p1.to, kw(6, 4)); assert.equal(p1.endedBy, 'treatment'); assert.equal(p1.treatment.evidence, 'confirmed');
+    assert.ok(!r1.periods.some((x: any) => x.from > kw(6, 4) && x.from < kw(6, 7)), 'nothing after the juice until breakfast + 3 h');
+    const low = (x: number) => { const k = clock(x); return k < 7 ? 120 - 20 * k : 140; }; // 60 at 03:00
+    const r2 = B.basalCheck(mk({ g: low, extra: [juice] }) as any);
+    assert.equal(nightOf(r2, 6).treatment.evidence, 'cgm_low');
+    const r3 = B.basalCheck(mk({ g: fall, extra: [juice, { kind: 'bg_check', bg_mgdl: 110, occurred_at: new Date(kw(6, 3, 55)).toISOString() }] }) as any);
+    assert.equal(nightOf(r3, 6).treatment.evidence, 'finger_not_low');
+  });
+  test('basal check: Tresiba doses 1–3 at new units are a transition; the 4th is stable; comparison keeps them apart', () => {
+    const r = B.basalCheck(mk({ g: fall, units: (d) => (d <= 4 ? 10 : 9) }) as any);
+    assert.deepEqual([6, 7, 8, 9].map((d) => nightOf(r, d).dose.phase), ['transition', 'transition', 'transition', 'stable']);
+    const st = B.doseStats(r, 'night');
+    assert.deepEqual(st.map((g) => `${g.units}${g.phase[0]}`), ['10u', '10s', '9t', '9s'], 'the record\'s first dose is unknown history; doses in order of first use');
+    const s9 = st.find((g) => g.units === 9 && g.phase === 'stable')!;
+    assert.equal(s9.clean, 2); assert.equal(s9.insufficient, true, 'under 3 clean periods: insufficient evidence');
+  });
+  test('basal check: rising and stable periods count too; the night/day split never counts a period twice', () => {
+    const g = (x: number) => { const k = clock(x); return k < 7 ? 100 + 10 * k : k >= 21 ? 150 : 140; };
+    const r = B.basalCheck(mk({ g }) as any);
+    const p = nightOf(r, 6); assert.equal(p.dir, 'rising');
+    const s = B.summary(r, 'all'), n = B.summary(r, 'night'), d = B.summary(r, 'day');
+    assert.equal(n.eligible + d.eligible, s.eligible); assert.ok(s.rising > 0);
+    assert.ok(r.periods.filter((x) => x.status !== 'excluded').every((x) => (x.win === 'night') === (x.nightMin * 2 >= x.minutes)));
+  });
+  test('basal check: a period under an hour is listed as excluded with its reason, not dropped', () => {
+    const r = B.basalCheck(mk({ g: fall, hist: [{ id: 'snack', kind: 'snack', name: 'snack', recipe_id: null, total_carbs: 10, eaten_at: new Date(kw(5, 21, 30)).toISOString() }] }) as any);
+    const p = r.periods.find((x) => x.from === kw(5, 21))!;
+    assert.equal(p.minutes, 30); assert.equal(p.status, 'excluded'); assert.ok(p.reasons.includes('short'));
+  });
+  test('basal check: missing readings or a dip that comes straight back make a period uncertain; readings are never changed', () => {
+    const r = B.basalCheck(mk({ g: fall, skip: (x) => x > kw(6, 1) && x < kw(6, 4) }) as any);
+    const p = nightOf(r, 6); assert.equal(p.status, 'uncertain'); assert.ok(p.reasons.includes('coverage')); assert.ok(p.gaps.n >= 1);
+    const dip = (x: number) => { const m = (x - kw(6, 3)) / M; const base = 120; return m >= 0 && m <= 25 ? base - (m <= 10 ? 5 * m : m <= 15 ? 50 : 50 - 5 * (m - 15)) : x >= kw(5, 20) && x < kw(6, 7) ? base : 140; };
+    const b = mk({ g: dip }), r2 = B.basalCheck(b as any), q = nightOf(r2, 6);
+    assert.equal(q.status, 'uncertain'); assert.ok(q.reasons.includes('artifact')); assert.equal(q.low, 70, 'the low stays as the sensor read it');
+    assert.equal(q.dir, 'stable', 'a dip that recovers is not a fall');
+  });
+  test('basal check: no Tresiba recorded in the 30 h before: dosing history incomplete, uncertain', () => {
+    const b = mk({ g: fall }); b.events = b.events.filter((e: any) => !(e.insulin_type === 'long' && e.occurred_at === new Date(kw(5, 17)).toISOString()));
+    const p = nightOf(B.basalCheck(b as any), 6);
+    assert.equal(p.status, 'uncertain'); assert.ok(p.reasons.includes('no_dose'));
+  });
+  test('basal check: CGM lows of 15 minutes or more, confirmed by a finger-prick or CGM-only', () => {
+    const low = (x: number) => { const k = clock(x); return k >= 3 && k < 4 ? 60 : 140; };
+    const r = B.basalCheck(mk({ g: low, extra: [{ kind: 'bg_check', bg_mgdl: 62, occurred_at: new Date(kw(6, 3, 30)).toISOString() }] }) as any);
+    const s = B.summary(r, 'night');
+    assert.equal(s.lows.finger, 1); assert.equal(s.lows.cgmOnly, s.lows.all - 1); assert.equal(B.summary(r, 'day').lows.all, 0);
+  });
+  test('basal check: the robust slope ignores one wild reading', () => {
+    const t = Array.from({ length: 30 }, (_, i) => i * 5 * M), v = t.map((x) => 150 - 12 * (x / H));
+    v[15] = 40;
+    close(B.robustSlope(t, v), -12, 0.01);
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);

@@ -2,14 +2,13 @@
 // ratios used, start, interval, outcome), the comparable patterns, repeated differences and the evidence worth a
 // look together. It reports; it never proposes a dose or a setting.
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { usePlanFacts } from '../lib/planFacts';
 import { evidenceOf, groupsOf, patternOf, type PlanFacts } from '../engine/planCompare';
 import { rulesOf } from '../engine/planReview';
 import { EvidenceList, FINDING, OutcomePill, PatternCard, gOf, whyText } from '../components/PlanCompare';
 import { OUTCOME, dur } from './PlanReview';
-import { OvernightBasal } from '../components/Overnight';
 import { fmt } from '../lib/carbs';
 import { fmtTime, relDay } from '../lib/constants';
 import { unitLabel } from '../lib/glucose';
@@ -54,7 +53,8 @@ export function PlanReport({ print, fixedDays }: { print?: boolean; fixedDays?: 
       {!print && <div className="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 text-sm print:hidden">
         {[14, 30, 90].map((d) => <button key={d} onClick={() => setDays(d)} className={cx('min-h-[40px] rounded-full', days === d ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{t('{n} يومًا', { n: d })}</button>)}
       </div>}
-      <OvernightBasal from={from} pattern={rules.pattern_min} />
+      {/* the overnight, long-acting-only view moved to Basal Check (one analysis); the visit report carries it in its night part */}
+      {!print && <Link to="/analysis?mode=basal" className="flex min-h-[48px] items-center gap-2 rounded-2xl bg-white px-4 font-bold shadow-sm print:hidden">🌙 <span className="flex-1">{t('فحص القاعدي: التريسيبا والصيام')}</span><span className="text-slate-400">{isEn() ? '›' : '‹'}</span></Link>}
       {!loaded ? <p className="text-slate-500">…</p> : list.length === 0 ? <Card><p className="text-sm text-slate-500">{t('لا توجد وجبات مخططة بمراجعة نهائية في هذه الفترة.')}</p></Card> : (
         <Card className="space-y-3">
           <h2 className="font-bold">🍽️ {t('الوجبات المخططة ({n})', { n: list.length })}</h2>

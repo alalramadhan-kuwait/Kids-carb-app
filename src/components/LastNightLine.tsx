@@ -1,4 +1,4 @@
-// One line on the home screens from 07:00 to 13:00: last night's 00:00–07:00 at a glance, opening Analysis → Night.
+// One line on the home screens from 07:00 to 13:00: last night's 00:00–07:00 at a glance, opening Basal Check.
 // Read only: the lowest sensor reading as it read, the treatments as logged, and whether a finger-prick came first.
 import { Link } from 'react-router-dom';
 import { useLastNight } from '../lib/nightTresiba';
@@ -14,7 +14,7 @@ export function LastNightLine({ unit, className }: { unit: GlucoseUnit; classNam
   if (!n || n.min === null) return null;
   const low = n.min < NT.lowMg;
   return (
-    <Link to="/analysis?mode=night" className={cx('flex min-h-[44px] shrink-0 items-center gap-2 rounded-2xl border border-slate-100 bg-white px-3 py-1.5 text-[14.5px]', className)}>
+    <Link to="/analysis?mode=basal" className={cx('flex min-h-[44px] shrink-0 items-center gap-2 rounded-2xl border border-slate-100 bg-white px-3 py-1.5 text-[14.5px]', className)}>
       <span aria-hidden>🌙</span>
       <span className="min-w-0 flex-1 truncate">
         <b>{t('الليلة')}</b>

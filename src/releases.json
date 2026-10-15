@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.6.0",
+    "date": "2026-10-15",
+    "notes": [
+      "التحليل ← «القاعدي» بدل «الليل»: كل فترة صيام بالليل والنهار، كم نزل أو ارتفع السكر، على كل جرعة تريسيبا.",
+      "كل فترة لها رسم حساس فيه الوخز والإبر والأكل والعصير، مع تكبير.",
+      "ملخص للدكتور تقدرين تنسخينه، وصار بتقرير الزيارة بعد."
+    ],
+    "notes_en": [
+      "Analysis → “Basal” replaces “Night”: every fasting period, day and night, how much glucose fell or rose, on each Tresiba dose.",
+      "Each period opens its sensor curve with finger-pricks, insulin, food and juice, and can be zoomed.",
+      "A summary for the doctor you can copy; it is in the visit report too."
+    ]
+  },
+  {
     "version": "4.5.0",
     "date": "2026-10-15",
     "notes": [

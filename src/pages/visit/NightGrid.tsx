@@ -2,14 +2,14 @@
 // under the low line came. Graphs first; read only; the sensor as it read (nothing corrected or called false); a juice
 // is a safety action, never read as Tresiba failing; no dose is ever proposed.
 import { useMemo } from 'react';
-import { NT, type Night as NightRow, type NightReport } from '../engine/nightTresiba';
-import { NG, nightGrid } from '../engine/nightGrid';
-import { formatGlucose, type GlucoseUnit } from '../lib/glucose';
-import { fmt } from '../lib/carbs';
-import type { Series } from '../engine/series';
-import { Card } from '../components/ui';
-import { hourLabel } from './NightTresiba';
-import { t } from '../i18n';
+import { NT, type Night as NightRow, type NightReport } from '../../engine/nightTresiba';
+import { NG, nightGrid } from '../../engine/nightGrid';
+import { formatGlucose, type GlucoseUnit } from '../../lib/glucose';
+import { fmt } from '../../lib/carbs';
+import type { Series } from '../../engine/series';
+import { Card } from '../../components/ui';
+import { hourLabel } from './nightParts';
+import { t } from '../../i18n';
 
 const H = 3600000;
 const shortDay = (ms: number) => { const d = new Date(ms + 3 * H); return `${d.getUTCDate()}/${d.getUTCMonth() + 1}`; };

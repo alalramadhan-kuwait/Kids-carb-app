@@ -4,16 +4,18 @@
 // woken when glucose is low or about to be); the report studies the fall before it and never reads it as Tresiba failing.
 import { NT, changesOf, clockOf, fastingBefore, type NightReport } from '../../engine/nightTresiba';
 import { BASAL_DEFAULTS } from '../../engine/basal';
-import { BeforeJuice, DailyInsulin, NightsChart, PerDose, Pricks, RatesChart, dayLabel, hourLabel, } from '../NightTresiba';
+import { BeforeJuice, DailyInsulin, NightsChart, Pricks, dayLabel, hourLabel, } from './nightParts';
+import { DoseCompare, doctorLines } from '../BasalCheck';
+import type { BasalReport } from '../../engine/basalCheck';
 import { formatGlucose, unitLabel, type GlucoseUnit } from '../../lib/glucose';
 import { fmtTime } from '../../lib/constants';
 import { fmt } from '../../lib/carbs';
 import { isEn, t } from '../../i18n';
-import { NightGrid, NightOnset } from '../NightGrid';
+import { NightGrid, NightOnset } from './NightGrid';
 import type { Series } from '../../engine/series';
 
 
-export function NightSection({ report, unit, series }: { report: NightReport; unit: GlucoseUnit; series?: Series | null }) {
+export function NightSection({ report, unit, series, basal }: { report: NightReport; unit: GlucoseUnit; series?: Series | null; basal?: BasalReport | null }) {
   const g = (mg: number) => formatGlucose(mg, unit), u = unitLabel(unit);
   const ns = report.nights, list = (xs: string[]) => xs.join(isEn() ? ', ' : '، '); // i18n-ok: list commas
   const count = (c: string) => ns.filter((n) => n.cls === c).length;
@@ -81,18 +83,16 @@ export function NightSection({ report, unit, series }: { report: NightReport; un
       </div>}
       <div className="grid grid-cols-2 items-start gap-3 pb-3">
         <NightsChart report={report} unit={unit} print />
-        <RatesChart report={report} unit={unit} print />
+        {basal && <DoseCompare report={basal} f="night" unit={unit} print />}
       </div>
+      {basal && <div className="pb-3">{block(t('فحص القاعدي: الصيام بالليل (١٢–٦ الصبح)'), doctorLines(basal, 'night', unit).facts, 'border-brand-soft')}</div>}
       {/* each block is its own piece, so the PDF flows them onto the page under the charts */}
       <div className="pb-3">{block(t('١. اللي يبيّنه السجل والحساس'), seen, 'border-slate-200')}</div>
       <div className="pb-3">{block(t('٢. تفسيرات محتملة (ما انثبت شي منها)'), maybe, 'border-slate-200 bg-slate-50')}</div>
       <div className="pb-3">{block(t('٣. أسئلة لفريق الرعاية'), ask, 'border-slate-300')}
         <p className="mt-2 text-xs text-slate-500">{t('النزول بالليل بروحه مو دليل إن جرعة التريسيبا زايدة. التطبيق ما يقترح جرعة، وما يصحح قراءات الحساس، وما يخمّن وين كان السكر بيوصل بدون العصير.')} {t('العصير إجراء أمان، مو دليل إن التريسيبا فشل.')}</p>
       </div>
-      <div className="grid grid-cols-2 items-start gap-3 pb-3">
-        <PerDose report={report} />
-        <DailyInsulin report={report} />
-      </div>
+      <div className="pb-3"><DailyInsulin report={report} /></div>
       <div className="pb-3"><BeforeJuice report={report} unit={unit} print /></div>
       <div className="pb-3"><Pricks report={report} unit={unit} print /></div>
     </>
