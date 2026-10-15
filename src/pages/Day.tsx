@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { kwClock } from '../lib/constants';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { useGlucose } from '../hooks/useGlucose';
 import { glucoseStats, type GlucoseStats } from '../lib/api';
@@ -38,6 +38,7 @@ export function DayView() {
   // opened from a meal in the log (?at=<ms>): that day, 12 hours centred on the meal (the 6 hours after it in view, even
   // past midnight), the meal highlighted
   const at0 = Number(params.get('at')) || null;
+  const nav = useNavigate();
   const spill = at0 && dayStartOf(at0) === day ? 6 * H : 0;
   const [view, setView] = useState<View>(() => (at0 && spill ? { end: Math.min(Date.now(), at0 + 6 * H), span: 12 * H } : { end: today + DAY, span: DAY }));
   const [focus, setFocus] = useState<number | null>(at0);
@@ -108,6 +109,8 @@ export function DayView() {
 
   return (
     <div className="space-y-3 pb-4">
+      {/* opened from a meal in the log: back to that meal (its sheet opens again) */}
+      {at0 && <button onClick={() => nav(-1)} className="flex min-h-[44px] items-center gap-1.5 rounded-full bg-brand-soft px-4 text-sm font-bold text-brand">{isEn() ? '←' : '→'} {t('رجوع للوجبة')}</button>}
       {/* day picker: previous (→) · title, tap for a date · next (←) */}
       <div className="flex items-center gap-2">
         <button aria-label={t('اليوم السابق')} onClick={() => setDay(day - DAY)} className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl shadow-sm">{isEn() ? '←' : '→'}</button>

@@ -55,7 +55,7 @@ export default function History() {
   const [openEp, setOpenEp] = useState<Episode | null>(null);
   const [brand, setBrand] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
-  const [q, setQ] = useState('');
+
   const quick = useQuickItems();
   const [days, setDays] = useState(7);
   const [open, setOpen] = useState<Item | null>(null);
@@ -65,6 +65,9 @@ export default function History() {
   // opened from Now's «last food» / «last dose» (?open=h<id> or e<id>): that entry's sheet opens at once
   const [sp, setSp] = useSearchParams();
   const want = sp.get('open');
+  // the search is kept in the address, so coming back from a meal's graph shows the same results
+  const q = sp.get('q') ?? '';
+  const setQ = (v: string) => setSp((p) => { const n = new URLSearchParams(p); if (v) n.set('q', v); else n.delete('q'); return n; }, { replace: true });
 
   const keyOf = (h: { recipe_id: string | null; name: string }) => h.recipe_id ?? `n:${h.name}`;
   const times = useMemo(() => { const m = new Map<string, number>(); for (const h of history) m.set(keyOf(h), (m.get(keyOf(h)) ?? 0) + 1); return m; }, [history]);
@@ -84,7 +87,7 @@ export default function History() {
   useEffect(() => {
     if (!want) return;
     const it = all.find((x) => x.key === want);
-    if (it) { setEditing(false); setOpen(it); setSp({}, { replace: true }); }
+    if (it) { setEditing(false); setOpen(it); setSp((p) => { const n = new URLSearchParams(p); n.delete('open'); return n; }, { replace: true }); }
   }, [want, all, setSp]);
   // brands: from logged meals and frequent foods; an older entry without a brand still matches by its food's name
   const brands = useMemo(() => brandsOf([...history.map((h) => ({ brand: h.brand ?? null })), ...quick.items]), [history, quick.items]);

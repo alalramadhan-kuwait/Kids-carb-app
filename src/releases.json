@@ -5,12 +5,14 @@
     "notes": [
       "البحث في السجل يلقى أي وجبة قديمة بالعربي أو الإنجليزي وبأي كتابة: ماك، McDonald's، ماكدونالدز… باسم المطعم أو الوجبة أو أي أكل فيها.",
       "نتايج البحث تبين التاريخ والوقت والأكل.",
-      "زر «عرض في الرسم» في الوجبة يفتح رسم السكر على يومها ووقتها، والوجبة مبينة، مع الساعات اللي بعدها."
+      "زر «عرض في الرسم» في الوجبة يفتح رسم السكر على يومها ووقتها، والوجبة مبينة، مع الساعات اللي بعدها.",
+      "صفحة الوجبة فيها ٣ أزرار: عرض في الرسم، كرري الوجبة، عدّلي الأكل. «رجوع للوجبة» يرجعج لنفس الوجبة، والبحث يبقى."
     ],
     "notes_en": [
       "Log search finds any past meal in Arabic or English and any spelling: ماك, McDonald's, McDonalds… by restaurant, meal or any food in it.",
       "Search results show the date, time and food.",
-      "“Go to graph” on a meal opens the glucose graph at that day and time, with the meal highlighted and the hours after it."
+      "“Go to graph” on a meal opens the glucose graph at that day and time, with the meal highlighted and the hours after it.",
+      "The meal page has three buttons: Go to graph, Repeat meal, Edit. “Back to the meal” returns to the same meal, and your search is kept."
     ]
   },
   {

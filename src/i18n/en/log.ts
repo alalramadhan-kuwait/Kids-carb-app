@@ -44,7 +44,6 @@ export const log: Record<string, string> = {
   "ما انحسبت بعد": "not counted yet",
   "ما لقيت شي": "Nothing found",
   "نصها": "½",
-  "نفس الأكل لوجبة جديدة": "Same food as a new meal",
   "انحسبت من قبل ✓": "Already answered ✓",
   "وجبة جديدة منها": "New meal from this",
   "يمكن إرجاعه: «تراجع» بعد الحذف، أو المزيد › المحذوفة مؤخرًا.": "Can be brought back: Undo right after, or More › Recently deleted.",

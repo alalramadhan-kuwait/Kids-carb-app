@@ -154,6 +154,8 @@ export function MomHome() {
         <LayanCorner face={face} />
       </div>
 
+      {/* opened from a meal in the log: back to that meal */}
+      {fromLog && <button onClick={() => nav(-1)} className="flex min-h-[36px] shrink-0 items-center gap-1.5 self-start rounded-full bg-brand-soft px-4 text-[14px] font-bold text-brand">{isEn() ? '←' : '→'} {t('رجوع للوجبة')}</button>}
       <div className="relative flex max-h-[50dvh] min-h-[120px] flex-1 flex-col rounded-3xl bg-white px-1 pt-1 shadow-[0_1px_3px_rgba(40,30,80,0.06)]">
         <button onClick={() => setFull(true)} aria-label={t('كبّري الرسم')} className="absolute left-0 top-0 z-10 grid h-[44px] w-[44px] place-items-center">
           <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-[15px] text-slate-600">⤢</span>

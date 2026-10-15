@@ -292,4 +292,6 @@ export const core: Record<string, string> = {
   "ابحث عن أكلة أو مطعم…": "Search a food or restaurant…",
   "{n} نتيجة": "1 result|{n} results",
   "عرض في الرسم": "Go to graph",
+  "كرري الوجبة": "Repeat meal",
+  "رجوع للوجبة": "Back to the meal",
 };

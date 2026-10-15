@@ -4,7 +4,7 @@
 // or meal opens to change or delete it.
 import { mealTitle } from '../../lib/unknownMeal';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { dayStartOf, dayTitle } from '../../engine/day';
 import { matches, mealHay } from '../../lib/search';
@@ -21,7 +21,10 @@ export function MomLog() {
   const nav = useNavigate();
   const { events, history, pendingMeals, settings, nameOf } = useData();
   const [days, setDays] = useState(2);
-  const [q, setQ] = useState('');
+  // the search is kept in the address, so coming back from a meal (or its graph) shows the same results
+  const [sp, setSp] = useSearchParams();
+  const q = sp.get('q') ?? '';
+  const setQ = (v: string) => setSp(v ? { q: v } : {}, { replace: true });
   const all: Row[] = useMemo(() => {
     const g = (n: number) => `${fmt(n)} ${t('غ كارب')}`;
     return [

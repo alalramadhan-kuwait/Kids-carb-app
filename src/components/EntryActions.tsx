@@ -67,8 +67,8 @@ export function EntryActions({ e, h, onEdit, onRemove, onOpenOther, onClose }: {
         </div>
       )}
 
-      {/* a meal: its day's graph, centred on it, the 6 hours after it in view */}
-      {h && <Btn kind="soft" block className="flex min-h-[52px] items-center justify-center gap-2 text-base" onClick={() => { onClose(); nav(`/analysis?mode=day&day=${dayStartOf(at)}&at=${at}`); }}><Icon name="glucose" size={20} />{t('عرض في الرسم')}</Btn>}
+      {/* a meal: its day's graph, centred on it, the 6 hours after it in view; Back reopens this meal */}
+      {h && <Btn kind="soft" block className="flex min-h-[52px] items-center justify-center gap-2 text-base" onClick={() => { onClose(); if (location.hash.startsWith('#/timeline')) { const p = new URLSearchParams(location.hash.split('?')[1] ?? ''); p.set('open', `h${h.id}`); nav(`/timeline?${p}`, { replace: true }); } nav(`/analysis?mode=day&day=${dayStartOf(at)}&at=${at}`); }}><Icon name="glucose" size={20} />{t('عرض في الرسم')}</Btn>}
       <Btn kind="primary" block className="flex min-h-[52px] items-center justify-center gap-2 text-base" disabled={busy} onClick={onEdit}><Icon name="edit" size={20} />{t('تعديل')}</Btn>
       <div className={cx('grid gap-2', shown.length === 3 ? 'grid-cols-3' : shown.length === 2 ? 'grid-cols-2' : 'grid-cols-1')}>
         {shown.map((x) => (

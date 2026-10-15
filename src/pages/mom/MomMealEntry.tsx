@@ -85,12 +85,14 @@ export function MomMealEntry() {
           </ul>
         )}
         {h.photo_path && <img src={photoUrl(h.photo_path)!} alt={t('صورة الأكل')} className="max-h-32 w-full rounded-2xl object-cover" />}
-        {/* the home graph at this meal: 12 hours centred on it, the meal highlighted */}
-        <button onClick={() => nav(`/mom?at=${was}&from=log`)} className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full bg-brand-soft text-[15px] font-bold text-brand active:opacity-80">📈 {t('عرض في الرسم')}</button>
-        <div className="flex items-center justify-between gap-2">
-          <span className="min-w-0 truncate text-[13px] text-slate-500">{who}</span>
-          <button disabled={busy} onClick={() => nav(`/mom/meal-edit/${h.id}`)} className="min-h-[40px] shrink-0 rounded-full bg-brand px-4 text-[15px] font-bold text-white active:opacity-80">✏️ {unknown ? t('عرفتي الكارب؟ اكتبيه') : t('عدّلي الأكل')}</button>
-        </div>
+        {who && <div className="truncate text-[13px] text-slate-500">{who}</div>}
+      </div>
+      {/* three actions: the graph at this meal (home graph, 12 h centred on it; Back returns here), the same food as a
+          new meal (a new plate from it: the original and its insulin are not touched), and edit */}
+      <div className={cx('grid gap-2', h.lines.length > 0 ? 'grid-cols-3' : 'grid-cols-2')}>
+        <button onClick={() => nav(`/mom?at=${was}&from=log`)} className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-white text-[14px] font-bold leading-tight text-brand active:opacity-80"><span aria-hidden className="text-[20px]">📈</span>{t('عرض في الرسم')}</button>
+        {h.lines.length > 0 && <button disabled={busy} onClick={() => { if (okToReplace()) { const r = plateFromLog(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.left); } nav('/mom/meal'); }} className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-white text-[14px] font-bold leading-tight text-brand active:opacity-80"><span aria-hidden className="text-[20px]">🔁</span>{t('كرري الوجبة')}</button>}
+        <button disabled={busy} onClick={() => nav(`/mom/meal-edit/${h.id}`)} className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-brand px-1 text-[14px] font-bold leading-tight text-white active:opacity-80"><span aria-hidden className="text-[20px]">✏️</span>{unknown ? t('عرفتي الكارب؟ اكتبيه') : t('عدّلي الأكل')}</button>
       </div>
       {unknown && (
         <div className="space-y-1 rounded-3xl bg-white px-4 py-3 text-[16px]">
@@ -120,10 +122,7 @@ export function MomMealEntry() {
       </div>
       <div className="text-[15px] font-bold">{t('متى أكلت؟')}</div>
       <TimePicker compact value={at ?? was} onChange={setAt} />
-      <div className="grid grid-cols-2 gap-1 pt-1">
-        {h.lines.length > 0 ? <button disabled={busy} className="min-h-[44px] text-[14px] font-bold text-brand" onClick={() => { if (okToReplace()) { const r = plateFromLog(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.left); } nav('/mom/meal'); }}>🍽️ {t('نفس الأكل لوجبة جديدة')}</button> : <span />}
-        <button disabled={busy} className="min-h-[44px] text-[14px] font-bold text-over" onClick={remove}>🗑 {t('غلط · امسحيها')}</button>
-      </div>
+      <button disabled={busy} className="min-h-[44px] w-full text-[14px] font-bold text-over" onClick={remove}>🗑 {t('غلط · امسحيها')}</button>
     </MomPage>
   );
 }
