@@ -1,5 +1,11 @@
 [
   {
+    "version": "4.6.1",
+    "date": "2026-10-15",
+    "notes": ["فحص القاعدي: نسبة القراءات صارت تنحسب صح في الفترات اللي تنتهي بعصير."],
+    "notes_en": ["Basal Check: reading coverage is now counted correctly for periods that end with a juice."]
+  },
+  {
     "version": "4.6.0",
     "date": "2026-10-15",
     "notes": [

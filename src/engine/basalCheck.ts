@@ -146,10 +146,10 @@ export function basalCheck(inp: BasalInputs): BasalReport {
     const edges = [a, ...idx.map((i) => s.t[i]), b];
     for (let e = 1; e < edges.length; e++) { const d = edges[e] - edges[e - 1]; if (d >= BC.gapMin * MIN) { gapN++; gapMin += d / MIN; } }
     for (const i of idx) {
-      const span = Math.min(15 * MIN, (i + 1 < s.t.length ? s.t[i + 1] : s.t[i] + 5 * MIN) - s.t[i], b - s.t[i]);
+      const span = Math.max(0, Math.min(15 * MIN, (i + 1 < s.t.length ? s.t[i + 1] : s.t[i] + 5 * MIN) - s.t[i], until - s.t[i]));
       seen += span; if (s.v[i] < BC.lowMg) belowMs += span;
     }
-    const coverage = Math.min(1, seen / (b - a));
+    const coverage = Math.min(1, seen / (until - a));
     const pr = pricks.filter((p) => p.t >= a - 15 * MIN && p.t <= b + 15 * MIN);
     const q = idx.length ? questioned(s, eats, pr, a, b) : [];
     const ex = [...exercise].reverse().find((x) => x <= b && x >= a - BC.exerciseMin * MIN) ?? null;
