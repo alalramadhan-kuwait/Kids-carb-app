@@ -14,6 +14,7 @@ import type { EventRow, HistoryEntry } from '../lib/types';
 import { Icon } from './Icon';
 import type { IconName } from '../icons/defs';
 import { Btn, cx, toast } from './ui';
+import { dayStartOf } from '../engine/day';
 import { locale, t, tMaybe, tr } from '../i18n';
 
 const SLOT: Record<string, string> = tr({ breakfast: 'فطور', lunch: 'غداء', dinner: 'عشاء', late: 'ليلي' }); // i18n-ok: values translated when read
@@ -66,6 +67,8 @@ export function EntryActions({ e, h, onEdit, onRemove, onOpenOther, onClose }: {
         </div>
       )}
 
+      {/* a meal: its day's graph, centred on it, the 6 hours after it in view */}
+      {h && <Btn kind="soft" block className="flex min-h-[52px] items-center justify-center gap-2 text-base" onClick={() => { onClose(); nav(`/analysis?mode=day&day=${dayStartOf(at)}&at=${at}`); }}><Icon name="glucose" size={20} />{t('عرض في الرسم')}</Btn>}
       <Btn kind="primary" block className="flex min-h-[52px] items-center justify-center gap-2 text-base" disabled={busy} onClick={onEdit}><Icon name="edit" size={20} />{t('تعديل')}</Btn>
       <div className={cx('grid gap-2', shown.length === 3 ? 'grid-cols-3' : shown.length === 2 ? 'grid-cols-2' : 'grid-cols-1')}>
         {shown.map((x) => (

@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.9.0",
+    "date": "2026-10-15",
+    "notes": [
+      "البحث في السجل يلقى أي وجبة قديمة بالعربي أو الإنجليزي وبأي كتابة: ماك، McDonald's، ماكدونالدز… باسم المطعم أو الوجبة أو أي أكل فيها.",
+      "نتايج البحث تبين التاريخ والوقت والأكل.",
+      "زر «عرض في الرسم» في الوجبة يفتح رسم السكر على يومها ووقتها، والوجبة مبينة، مع الساعات اللي بعدها."
+    ],
+    "notes_en": [
+      "Log search finds any past meal in Arabic or English and any spelling: ماك, McDonald's, McDonalds… by restaurant, meal or any food in it.",
+      "Search results show the date, time and food.",
+      "“Go to graph” on a meal opens the glucose graph at that day and time, with the meal highlighted and the hours after it."
+    ]
+  },
+  {
     "version": "4.8.0",
     "date": "2026-10-15",
     "notes": [

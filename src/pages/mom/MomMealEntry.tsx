@@ -85,6 +85,8 @@ export function MomMealEntry() {
           </ul>
         )}
         {h.photo_path && <img src={photoUrl(h.photo_path)!} alt={t('صورة الأكل')} className="max-h-32 w-full rounded-2xl object-cover" />}
+        {/* the home graph at this meal: 12 hours centred on it, the meal highlighted */}
+        <button onClick={() => nav(`/mom?at=${was}&from=log`)} className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-full bg-brand-soft text-[15px] font-bold text-brand active:opacity-80">📈 {t('عرض في الرسم')}</button>
         <div className="flex items-center justify-between gap-2">
           <span className="min-w-0 truncate text-[13px] text-slate-500">{who}</span>
           <button disabled={busy} onClick={() => nav(`/mom/meal-edit/${h.id}`)} className="min-h-[40px] shrink-0 rounded-full bg-brand px-4 text-[15px] font-bold text-white active:opacity-80">✏️ {unknown ? t('عرفتي الكارب؟ اكتبيه') : t('عدّلي الأكل')}</button>

@@ -289,4 +289,7 @@ export const core: Record<string, string> = {
   "علاج هبوط": "Low treatment",
   "أقدم قراءة محمّلة": "Oldest reading loaded",
   "الحين · آخر قراءة قبل {m} د": "Now · last reading {m} min ago",
+  "ابحث عن أكلة أو مطعم…": "Search a food or restaurant…",
+  "{n} نتيجة": "1 result|{n} results",
+  "عرض في الرسم": "Go to graph",
 };

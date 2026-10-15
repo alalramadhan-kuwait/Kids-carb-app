@@ -35,8 +35,13 @@ export function DayView() {
   const [params] = useSearchParams();
   // a pattern card can open a given day: ?mode=day&day=<Kuwait midnight ms>
   const [day, setDay] = useState(() => { const d = Number(params.get('day')); return d && dayStartOf(d) === d && d <= today ? d : today; });
-  const [view, setView] = useState<View>({ end: today + DAY, span: DAY });
-  const [focus, setFocus] = useState<number | null>(null);
+  // opened from a meal in the log (?at=<ms>): that day, 12 hours centred on the meal (the 6 hours after it in view, even
+  // past midnight), the meal highlighted
+  const at0 = Number(params.get('at')) || null;
+  const spill = at0 && dayStartOf(at0) === day ? 6 * H : 0;
+  const [view, setView] = useState<View>(() => (at0 && spill ? { end: Math.min(Date.now(), at0 + 6 * H), span: 12 * H } : { end: today + DAY, span: DAY }));
+  const [focus, setFocus] = useState<number | null>(at0);
+  const first = useRef(true);
   const [picked, setPicked] = useState<Group | null>(null);
   const [more, setMore] = useState(false);
   const [stats, setStats] = useState<GlucoseStats | null>(null);
@@ -46,14 +51,14 @@ export function DayView() {
   const height = useMemo(() => Math.round(Math.min(440, Math.max(250, window.innerHeight * 0.4)) + 52), []);
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
 
-  useEffect(() => { setView({ end: day + DAY, span: DAY }); setFocus(null); }, [day]);
+  useEffect(() => { if (first.current && spill) { first.current = false; return; } first.current = false; setView({ end: day + DAY, span: DAY }); setFocus(null); }, [day]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     setStats(null);
     glucoseStats(new Date(day), new Date(Math.min(day + DAY, Date.now())), settings.glucose_low_mgdl, settings.glucose_high_mgdl).then(setStats).catch(() => setStats(null));
   }, [day, g?.latest?.taken_at, settings.glucose_low_mgdl, settings.glucose_high_mgdl]);
 
   // the view stays inside the chosen day
-  const clamp = (v: View): View => { const span = Math.min(DAY, Math.max(30 * 60000, v.span)); return { span, end: Math.min(day + DAY, Math.max(day + span, v.end)) }; };
+  const clamp = (v: View): View => { const span = Math.min(DAY, Math.max(30 * 60000, v.span)); return { span, end: Math.min(day + DAY + spill, Math.max(day - spill + span, v.end)) }; };
   const animateTo = (target: View) => {
     cancelAnimationFrame(anim.current);
     const from = viewRef.current, t0 = performance.now();

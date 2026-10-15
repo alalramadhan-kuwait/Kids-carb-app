@@ -2130,7 +2130,18 @@ console.log('low treatments');
 
 console.log('search');
 {
-  const { matches } = await import('../search');
+  const { matches, mealHay } = await import('../search');
+  test('log search: a logged meal is found by its restaurant in any spelling or language, and by a food inside it', () => {
+    const mc = { name: 'Big Mac + Fries', brand: "McDonald's", place: null, notes: null, lines: [{ name: 'Big Mac' }, { name: 'Fries (Small)' }] };
+    for (const q of ["McDonald's", 'McDonalds', 'mcdonald', 'ماكدونالدز', 'ماك', 'مكدونالدز']) assert.ok(matches(mealHay(mc), q), q);
+    assert.ok(matches(mealHay(mc), 'فرايز'), 'a food inside, typed in Arabic');
+    const home = { name: 'عيش وكباب إيراني', brand: null, place: null, notes: null, lines: [{ name: 'رز أبيض مطبوخ' }, { name: 'كباب إيراني' }] };
+    assert.ok(matches(mealHay(home), 'rice'), 'rice (عيش/رز) in English');
+    assert.ok(matches(mealHay(home), 'كباب'));
+    assert.ok(!matches(mealHay(home), 'ماك'), 'not every meal');
+    const place = { name: 'غدا', brand: null, place: 'ماكدونالدز', notes: null, lines: [] };
+    assert.ok(matches(mealHay(place), 'mcdonalds'), 'the place of a meal eaten out');
+  });
   test('search: every word must match; Arabic letter forms, diacritics and case do not matter', () => {
     assert.ok(matches(['شاورما دجاج (لحم فقط)', null], 'شاورما'));
     assert.ok(matches(['أرز أبيض مطبوخ'], 'ارز'));

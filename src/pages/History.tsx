@@ -28,6 +28,7 @@ import { DoseReview } from '../components/DoseReview';
 import { ate, fetchPlan } from '../lib/plans';
 import { useQuickItems } from '../lib/quick';
 import { brandsOf, sameBrand } from '../lib/brand';
+import { matches, mealHay } from '../lib/search';
 import type { PredictionRow } from '../lib/predictions';
 import type { AlertRow } from '../lib/types';
 import { ALERT_NAME } from '../components/AlertStrip';
@@ -54,6 +55,7 @@ export default function History() {
   const [openEp, setOpenEp] = useState<Episode | null>(null);
   const [brand, setBrand] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [q, setQ] = useState('');
   const quick = useQuickItems();
   const [days, setDays] = useState(7);
   const [open, setOpen] = useState<Item | null>(null);
@@ -94,9 +96,12 @@ export default function History() {
   }, [brand, quick.items]);
   const match = (it: Item) => (ofBrand ? !!it.h && ofBrand(it.h) : true) && (kind === 'all' || (kind === 'meals' ? !!it.h
     : !!it.e && (kind === 'insulin' ? it.e.kind === 'insulin' : kind === 'treatment' ? it.e.kind === 'treatment' : it.e.kind !== 'insulin' && it.e.kind !== 'treatment')));
-  const shown = view === 'alarms' ? [] : all.filter((it) => it.t >= since && match(it));
-  const shownEps = view === 'entries' ? [] : eps;
-  const older = all.some((it) => it.t < since && match(it));
+  // search: entries on any day, in either language and spelling (lib/search)
+  const s = q.trim();
+  const found = (it: Item) => matches(it.h ? mealHay(it.h, mealTitle(it.h), ...it.h.lines.map((l) => tMaybe(l.name))) : [describeEvent(it.e!), it.e!.note, it.e!.treatment], s);
+  const shown = s ? all.filter((it) => match(it) && found(it)) : view === 'alarms' ? [] : all.filter((it) => it.t >= since && match(it));
+  const shownEps = s || view === 'entries' ? [] : eps;
+  const older = !s && all.some((it) => it.t < since && match(it));
 
   // one list, newest first: entries and alarm episodes (list), or episodes holding their entries (timeline)
   type Row = { t: number; key: string; it?: Item; ep?: Episode; inner?: Item[] };
@@ -140,6 +145,9 @@ export default function History() {
           <button key={k} onClick={() => setView(k)} className={cx('min-h-[36px] rounded-full', view === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{l}</button>
         ))}
       </div>
+      <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={`🔍 ${t('ابحث عن أكلة أو مطعم…')}`} aria-label={t('ابحث عن أكلة أو مطعم…')}
+        className="mb-3 min-h-[44px] w-full rounded-full border border-slate-200 bg-white px-4 text-base" />
+      {s && <p className="mb-2 text-center text-sm text-slate-500">{shown.length ? t('{n} نتيجة', { n: shown.length }) : t('ما لقيت شي')}</p>}
       <div className="mb-4 flex items-center gap-2">
         <div className="-ms-4 flex min-w-0 flex-1 gap-2 overflow-x-auto ps-4">
           {view !== 'alarms' && KINDS.map(([k, l]) => <Chip key={k} active={kind === k} onClick={() => { setKind(k); if (k !== 'all' && k !== 'meals') setBrand(null); }}>{l}</Chip>)}

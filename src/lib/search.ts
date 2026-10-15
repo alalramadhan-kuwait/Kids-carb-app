@@ -144,3 +144,9 @@ export function rankFoods<T>(items: T[], query: string, of: (x: T) => Rankable):
   return scored.sort((a, b) => a.tier - b.tier || Number(!!b.r.fav) - Number(!!a.r.fav) || (b.r.uses ?? 0) - (a.r.uses ?? 0)
     || Number(b.r.home !== false) - Number(a.r.home !== false) || a.r.label.localeCompare(b.r.label)).map((s) => s.x);
 }
+
+/** What a logged meal can be found by: its name, restaurant or brand, place, note and every food in it. With matches()
+ *  it finds «ماك», "McDonald's", "mcdonalds" or «ماكدونالدز» alike, in either language. */
+export function mealHay(h: { name: string; brand?: string | null; place?: string | null; notes?: string | null; lines: { name: string; brand?: string | null }[] }, ...more: (string | null | undefined)[]): (string | null | undefined)[] {
+  return [h.name, h.brand, h.place, h.notes, ...h.lines.flatMap((l) => [l.name, l.brand]), ...more];
+}

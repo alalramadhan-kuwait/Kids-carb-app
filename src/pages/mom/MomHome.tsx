@@ -48,7 +48,9 @@ const MOOD: Record<Mood, { bg: string; word: string; todo: string }> = {
 
 export function MomHome() {
   const nav = useNavigate();
-  const focusAt = Number(useSearchParams()[0].get('at')) || null; // a tapped "Rawan added …" push
+  const [sp] = useSearchParams();
+  const focusAt = Number(sp.get('at')) || null; // a tapped "Rawan added …" push, or «عرض في الرسم» on a meal in the log
+  const fromLog = sp.get('from') === 'log';
   const same = useRecentSame();
   // the graph fills its box: its drawing height follows the box's shape (no empty bands on tall phones)
   const box = useRef<HTMLDivElement>(null);
@@ -64,7 +66,7 @@ export function MomHome() {
   const { g } = useGlucose();
   const [now, setNow] = useState(Date.now());
   const [full, setFull] = useState(false);
-  const [hours, setHours] = useState(6), [picking, setPicking] = useState(false);
+  const [hours, setHours] = useState(fromLog ? 12 : 6), [picking, setPicking] = useState(false); // from a meal: 6 h before and after it
   const dark = useIsDark();
   const [recent, setRecent] = useState<Series | null>(null);
   useEffect(() => {
@@ -81,6 +83,12 @@ export function MomHome() {
     void fetchGraphSeries(to - 24 * H, to).then((o) => setOlder((p) => ({ from: to - 24 * H, s: p ? mergeSeries(o, p.s.t, p.s.v) : o })))
       .catch(() => undefined).finally(() => { loadingOlder.current = false; });
   };
+  // opened at an older meal: load from 13 hours before it in one go (swiping back loads a day at a time)
+  useEffect(() => {
+    if (!focusAt || focusAt > Date.now() - 22 * H) return;
+    const from = focusAt - 13 * H, to = Date.now() - 24 * H;
+    void fetchGraphSeries(from, to).then((o) => setOlder({ from, s: o })).catch(() => undefined);
+  }, [focusAt]);
   const series = useMemo(() => (recent && older ? mergeSeries(older.s, recent.t, recent.v) : recent), [recent, older]);
   const merged = useMemo(() => {
     if (!series) return null;
@@ -328,9 +336,10 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
   // the window: `span` hours ending at `endAt` (null: now, following new readings). Swiping moves it; it never jumps
   // back by itself. It stops at the oldest loaded reading and at now.
   // opened from a "Rawan added …" push for an older entry: start with that entry in the middle of the window
-  const [endAt, setEndAt] = useState<number | null>(() => (at && at < now - span * H * 0.8 ? at + (span * H) / 2 : null));
+  const [endAt, setEndAt] = useState<number | null>(() => (at && at < now - span * H / 2 ? at + (span * H) / 2 : null));
   const first = s.t.length ? s.t[0] : now;
-  const minEnd = Math.min(now, first + span * H);
+  // opened at an entry: it can always be reached, even with no readings around it (the graph is then empty there)
+  const minEnd = Math.min(now, Math.min(first, at ? at - (span * H) / 2 : Infinity) + span * H);
   const end = endAt === null ? now : Math.min(now, Math.max(minEnd, endAt));
   const live = endAt === null;
   const t0 = end - span * H;
@@ -375,7 +384,8 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
   };
   const [pick, setPickRaw] = useState<Pick | null>(null);
   const setPick = (p: Pick | null) => { setPickRaw(p); onPick?.(!!p); };
-  useEffect(() => { if (at && at >= t0 && at <= end) setPick(pickAt(at)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // the entry it was opened at: its marker's details (a meal's name and carbs), else the reading then
+  useEffect(() => { if (at && at >= t0 && at <= end) setPick(pickAt(at, rowFood) ?? pickAt(at)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // near the oldest loaded reading: ask for the day before
   useEffect(() => { if (onOlder && t0 - first < 2 * H) onOlder(); }, [t0, first, onOlder]);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -433,6 +443,7 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
       {alarmHigh <= top && <g><line x1={PL} x2={W - PR} y1={y(alarmHigh)} y2={y(alarmHigh)} stroke={P.high} strokeWidth="1.5" strokeDasharray="1.5 3.5" strokeLinecap="round" /><text x={PL + 2} y={y(alarmHigh) - 4} fontSize="9.5" fontWeight="700" fill={P.highText} direction="ltr">▲ {t('مرتفع')}</text></g>}
       <line x1={PL} x2={W - PR} y1={y(low)} y2={y(low)} stroke={P.low} strokeWidth="1.7" strokeDasharray="7 4" /><text x={PL + 2} y={y(low) + 12} fontSize="9.5" fontWeight="700" fill={P.lowText} direction="ltr">▼ {t('منخفض')}</text>
       {midnights.map((m) => <g key={m} pointerEvents="none"><line x1={x(m)} x2={x(m)} y1={PT} y2={PT + PH} stroke="rgb(var(--text-3))" strokeWidth="1" strokeDasharray="3 4" /><text x={x(m) + 4} y={PT + PH - 5} fontSize="10" fontWeight="700" fill="#8a84a0" direction={dir()}>{shortDate(m)}</text></g>)}
+      {at && at >= t0 && at <= end && <rect x={x(at) - 1.5} y={PT} width={3} height={PH + 26} rx={1.5} fill={P.meal} opacity="0.35" pointerEvents="none" />}
       <g clipPath={`url(#plot${uid})`}>
         {P.fill && <path d={d.split('M').filter(Boolean).map((seg) => { const xs = [...seg.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)]; const a = xs[0], b = xs[xs.length - 1]; return `M${a[1]},${PT + PH}L${seg}L${b[1]},${PT + PH}Z`; }).join('')} fill={`url(#gfill${uid})`} stroke="none" />}
         <path d={d} fill="none" stroke={P.curve} strokeWidth={P.w ?? 2.6} strokeLinejoin="round" strokeLinecap="round" />
