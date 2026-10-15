@@ -17,7 +17,8 @@ import { cx, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import type { MealSlot, PlannedMeal } from '../../lib/types';
 import { Big, MomPage, clock, ago, okToReplace } from './MomUI';
-import { plateFromLog, useCatalog } from './MomMeal';
+import { useCatalog } from './MomMeal';
+import { repeatPlate } from '../../lib/repeatMeal';
 import { draftOps } from '../../lib/mom';
 
 const PLATE_WORD = { small: 'صغير', medium: 'وسط', large: 'كبير' } as const; // i18n-ok: shown via t()
@@ -87,11 +88,12 @@ export function MomMealEntry() {
         {h.photo_path && <img src={photoUrl(h.photo_path)!} alt={t('صورة الأكل')} className="max-h-32 w-full rounded-2xl object-cover" />}
         {who && <div className="truncate text-[13px] text-slate-500">{who}</div>}
       </div>
-      {/* three actions: the graph at this meal (home graph, 12 h centred on it; Back returns here), the same food as a
-          new meal (a new plate from it: the original and its insulin are not touched), and edit */}
+      {/* three actions, each its own page: the graph at this meal (12 h centred on it; Back returns here), the same food
+          as a new meal (a new plate: every food kept, an unmatched one flagged for review; the original and its insulin
+          are not touched), and edit */}
       <div className={cx('grid gap-2', h.lines.length > 0 ? 'grid-cols-3' : 'grid-cols-2')}>
-        <button onClick={() => nav(`/mom?at=${was}&from=log`)} className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-white text-[14px] font-bold leading-tight text-brand active:opacity-80"><span aria-hidden className="text-[20px]">📈</span>{t('عرض في الرسم')}</button>
-        {h.lines.length > 0 && <button disabled={busy} onClick={() => { if (okToReplace()) { const r = plateFromLog(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.left); } nav('/mom/meal'); }} className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-white text-[14px] font-bold leading-tight text-brand active:opacity-80"><span aria-hidden className="text-[20px]">🔁</span>{t('كرري الوجبة')}</button>}
+        <button onClick={() => nav(`/mom/graph?at=${was}`)} className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-white text-[14px] font-bold leading-tight text-brand active:opacity-80"><span aria-hidden className="text-[20px]">📈</span>{t('عرض في الرسم')}</button>
+        {h.lines.length > 0 && <button disabled={busy} onClick={() => { if (okToReplace()) { const r = repeatPlate(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.review); } nav('/mom/meal'); }} className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-white text-[14px] font-bold leading-tight text-brand active:opacity-80"><span aria-hidden className="text-[20px]">🔁</span>{t('كرري الوجبة')}</button>}
         <button disabled={busy} onClick={() => nav(`/mom/meal-edit/${h.id}`)} className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-brand px-1 text-[14px] font-bold leading-tight text-white active:opacity-80"><span aria-hidden className="text-[20px]">✏️</span>{unknown ? t('عرفتي الكارب؟ اكتبيه') : t('عدّلي الأكل')}</button>
       </div>
       {unknown && (

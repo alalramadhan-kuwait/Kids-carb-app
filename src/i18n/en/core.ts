@@ -294,4 +294,9 @@ export const core: Record<string, string> = {
   "عرض في الرسم": "Go to graph",
   "كرري الوجبة": "Repeat meal",
   "رجوع للوجبة": "Back to the meal",
+  "راجعي هالأكل قبل ما تكملين: ما انطابق مع القائمة": "Check these foods before you go on: they did not match the list",
+  "كان {g} غ كارب": "was {g} g carbs",
+  "دوّريه بالقائمة": "Find it in the list",
+  "يبقى بكارب التسجيل القديم. غيّري الكمية أو احذفيه إذا تغيّر.": "It keeps the carbs it was logged with. Change the amount or remove it if that is no longer right.",
+  "راجعتها": "I have checked them",
 };

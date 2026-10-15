@@ -16,7 +16,8 @@ import { cx, inputCls } from '../../components/ui';
 import { isEn, t, tMaybe } from '../../i18n';
 import type { Product, Recipe, SavedMeal } from '../../lib/types';
 import { Big, MomPage } from './MomUI';
-import { FoodRow, GroupTile, RestaurantLogo, gramsText, plateFromLog, recent, shownName, useCatalog, useUrlQuery } from './MomMeal';
+import { repeatPlate } from '../../lib/repeatMeal';
+import { FoodRow, GroupTile, RestaurantLogo, gramsText, recent, shownName, useCatalog, useUrlQuery } from './MomMeal';
 
 type Food = { kind: 'product'; x: Product } | { kind: 'recipe'; x: Recipe } | { kind: 'meal'; x: SavedMeal };
 
@@ -99,7 +100,7 @@ export function MomFind() {
   // a meal from the log that is just one food already listed would only repeat it
   const oneFood = (h: (typeof history)[number]) => { if (h.lines.length !== 1) return null; const p = productOf(h.lines[0], c.products); return p ? 'product:' + p.id : null; };
   if (d.mode === 'now' && !d.items.length) for (const h of reusable(history).filter((x) => { const k = oneFood(x); return !k || !seen.has(k); }).slice(0, 4)) addRecent({ key: 'log:' + h.id, title: tMaybe(h.name), sub: t('من السجل'), icon: '🍽️', carbs: h.total_carbs, per: t('من السجل'),
-    go: () => { const r = plateFromLog(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.left); nav('/mom/meal'); } });
+    go: () => { const r = repeatPlate(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.review); nav('/mom/meal'); } });
   const pickRow = (p: Pick) => <FoodRow key={p.key} x={p.x} icon={p.icon} title={p.title} sub={p.sub} carbs={p.carbs} per={p.per} onClick={p.go} />;
 
   // browsing: everything she likes, home cooking, restaurants, or the food groups (Back returns to the search)

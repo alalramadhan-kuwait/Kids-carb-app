@@ -1,6 +1,6 @@
 import { mealTitle } from '../lib/unknownMeal';
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Suspense, lazy, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { isFatty } from '../engine/iob';
 import { fmt, stateText, unitText } from '../lib/carbs';
@@ -44,33 +44,37 @@ type Item = { t: number; key: string; h?: HistoryEntry; e?: EventRow };
  * older days load on request. Tapping a row opens its details, where it can be deleted.
  */
 export default function History() {
-  const { history, pendingMeals, events, reload, settings, nameOf, me } = useData();
-  const [kind, setKind] = useState<Kind>('all');
+  const { history, pendingMeals, events, settings, nameOf } = useData();
+  const nav = useNavigate();
+  // the type, view, brand, days shown and search are kept in the address and the scroll per visit, so Back from an
+  // entry's page (or its graph) comes back to exactly this list
+  const [sp, setSp] = useSearchParams();
+  const setParam = (k: string, v: string | null) => setSp((p) => { const n = new URLSearchParams(p); if (v) n.set(k, v); else n.delete(k); return n; }, { replace: true });
+  const kind = (sp.get('k') ?? 'all') as Kind;
+  const setKind = (v: Kind) => setParam('k', v === 'all' ? null : v);
   // the doctor's view: alarms with the entries, or either alone; a list or a vertical timeline
-  const [view, setView] = useState<'all' | 'entries' | 'alarms'>('all');
+  const view = (sp.get('v') ?? 'all') as 'all' | 'entries' | 'alarms';
+  const setView = (v: 'all' | 'entries' | 'alarms') => setParam('v', v === 'all' ? null : v);
+  useKeptWindowScroll();
   const [allAlarms, setAllAlarms] = useState(false);
   const [layout, setLayoutState] = useState<'list' | 'timeline'>(() => { try { return localStorage.getItem('log-layout') === 'timeline' ? 'timeline' : 'list'; } catch { return 'list'; } });
   const setLayout = (v: 'list' | 'timeline') => { setLayoutState(v); try { localStorage.setItem('log-layout', v); } catch { /* blocked */ } };
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [openEp, setOpenEp] = useState<Episode | null>(null);
-  const [brand, setBrand] = useState<string | null>(null);
+  const brand = sp.get('b');
+  const setBrand = (v: string | null) => setParam('b', v);
   const [filterOpen, setFilterOpen] = useState(false);
 
   const quick = useQuickItems();
-  const [days, setDays] = useState(7);
-  const [open, setOpen] = useState<Item | null>(null);
+  const days = Math.max(7, Number(sp.get('d')) || 7);
+  const setDays = (n: number) => setParam('d', String(n));
   const [logOpen, setLogOpen] = useState(false);
-  const [editing, setEditing] = useState<false | 'entry' | 'items'>(false);
-  const close = () => { setOpen(null); setEditing(false); };
-  // opened from Now's «last food» / «last dose» (?open=h<id> or e<id>): that entry's sheet opens at once
-  const [sp, setSp] = useSearchParams();
+  // opened from Now's «last food» / «last dose» (?open=h<id> or e<id>): that entry's page opens at once
   const want = sp.get('open');
   // the search is kept in the address, so coming back from a meal's graph shows the same results
   const q = sp.get('q') ?? '';
-  const setQ = (v: string) => setSp((p) => { const n = new URLSearchParams(p); if (v) n.set('q', v); else n.delete('q'); return n; }, { replace: true });
+  const setQ = (v: string) => setParam('q', v);
 
-  const keyOf = (h: { recipe_id: string | null; name: string }) => h.recipe_id ?? `n:${h.name}`;
-  const times = useMemo(() => { const m = new Map<string, number>(); for (const h of history) m.set(keyOf(h), (m.get(keyOf(h)) ?? 0) + 1); return m; }, [history]);
 
   const since = dayStartOf(Date.now()) - (days - 1) * DAY;
   useEffect(() => {
@@ -87,8 +91,8 @@ export default function History() {
   useEffect(() => {
     if (!want) return;
     const it = all.find((x) => x.key === want);
-    if (it) { setEditing(false); setOpen(it); setSp((p) => { const n = new URLSearchParams(p); n.delete('open'); return n; }, { replace: true }); }
-  }, [want, all, setSp]);
+    if (it) { setParam('open', null); nav(`/timeline/entry/${it.key}`); }
+  }, [want, all]); // eslint-disable-line react-hooks/exhaustive-deps
   // brands: from logged meals and frequent foods; an older entry without a brand still matches by its food's name
   const brands = useMemo(() => brandsOf([...history.map((h) => ({ brand: h.brand ?? null })), ...quick.items]), [history, quick.items]);
   const ofBrand = useMemo(() => {
@@ -117,22 +121,6 @@ export default function History() {
     for (const r of rows) { const d = dayStartOf(r.t); m.set(d, [...(m.get(d) ?? []), r]); }
     return [...m.entries()].sort((a, b) => b[0] - a[0]);
   }, [rows]);
-
-  const remove = async (it: Item) => {
-    // asked first, with the sheet still open: "Cancel" leaves everything as it was
-    if (it.h && !confirm(t('حذف هذا التسجيل من السجل؟'))) return;
-    close();
-    try {
-      if (it.e) {
-        await deleteEvent(it.e.id, me); await reload();
-        toast(t('حُذف التسجيل'), { label: t('تراجع'), run: async () => { await restoreEvent(it.e!.id); await reload(); } });
-      } else if (it.h) {
-        // kept and marked, not erased: Undo here, or later from More › Recently deleted
-        await deleteHistory(it.h.id, me); await reload();
-        toast(t('حُذف التسجيل'), { label: t('تراجع'), run: async () => { await restoreHistory(it.h!.id); await reload(); } });
-      }
-    } catch (x) { toast((x as Error).message); }
-  };
 
   // how many less-used filters are away from their default (shown on the Filter button)
   const extra = (brand ? 1 : 0) + (allAlarms ? 1 : 0) + (layout === 'timeline' ? 1 : 0);
@@ -189,16 +177,16 @@ export default function History() {
                 <ol className="relative space-y-2 ps-5 before:absolute before:inset-y-1 before:start-[7px] before:w-0.5 before:rounded-full before:bg-slate-200">
                   {items.map((r) => r.ep
                     ? <EpisodeBlock key={r.key} ep={r.ep} unit={settings.glucose_unit} who={nameOf} onOpen={() => setOpenEp(r.ep!)} withEntries={view !== 'alarms'}
-                        entries={r.inner!.map((it) => ({ t: it.t, node: <Row key={it.key} it={it} who={whoOf(it)} onOpen={() => { setEditing(false); setOpen(it); }} /> }))} />
+                        entries={r.inner!.map((it) => ({ t: it.t, node: <Row key={it.key} it={it} who={whoOf(it)} onOpen={() => nav(`/timeline/entry/${it.key}`)} /> }))} />
                     : <li key={r.key} className="relative overflow-hidden rounded-2xl border border-slate-100 bg-white before:absolute before:-start-[17px] before:top-6 before:h-2.5 before:w-2.5 before:rounded-full before:bg-slate-300">
-                        <ul><Row it={r.it!} who={whoOf(r.it!)} onOpen={() => { setEditing(false); setOpen(r.it!); }} /></ul>
+                        <ul><Row it={r.it!} who={whoOf(r.it!)} onOpen={() => nav(`/timeline/entry/${r.it!.key}`)} /></ul>
                       </li>)}
                 </ol>
               ) : (
                 <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white">
                   {items.map((r) => r.ep
                     ? <AlarmRow key={r.key} ep={r.ep} unit={settings.glucose_unit} who={nameOf} onOpen={() => setOpenEp(r.ep!)} />
-                    : <Row key={r.key} it={r.it!} who={whoOf(r.it!)} onOpen={() => { setEditing(false); setOpen(r.it!); }} />)}
+                    : <Row key={r.key} it={r.it!} who={whoOf(r.it!)} onOpen={() => nav(`/timeline/entry/${r.it!.key}`)} />)}
                 </ul>
               )}
             </section>
@@ -213,16 +201,8 @@ export default function History() {
         {openEp && <EpisodeDetail ep={openEp} unit={settings.glucose_unit} who={nameOf} />}
       </Sheet>
 
-      <Sheet open={!!open} onClose={close} hideTitle={!editing && !!open?.e && ['bg_check', 'treatment', 'insulin'].includes(open.e.kind)} title={editing === 'items' ? t('تعديل الأصناف') : editing ? t('تعديل التسجيل') : open?.h ? open.h.name : open?.e ? describeEvent(open.e) : ''}>
-        {open && editing === 'entry' && <EditEntry e={open.e} h={open.h} onCancel={() => setEditing(false)} onDone={close} onItems={open.h && open.h.lines.length > 0 ? () => setEditing('items') : undefined} />}
-        {open?.h && editing === 'items' && <EditItems h={open.h} onCancel={() => setEditing(false)} onDone={close} />}
-        {open?.h && !editing && <MealDetail h={open.h} n={times.get(keyOf(open.h)) ?? 1} unit={settings.glucose_unit} onEditItems={() => setEditing('items')} />}
-        {open?.e && !editing && <EventSummary e={open.e} who={open.e.source ? '' : nameOf(open.e.created_by)} />}
-        {open && !editing && <EntryActions key={open.key} e={open.e} h={open.h} onEdit={() => setEditing('entry')} onRemove={() => remove(open)} onClose={close} onOpenOther={(x) => setOpen({ t: Date.parse(x.eaten_at), key: 'h' + x.id, h: x })} />}
-      </Sheet>
-
       {/* the same primary action as Now, in the thumb zone above the tab bar */}
-      <div className={cx('pointer-events-none fixed inset-x-0 bottom-[calc(66px+env(safe-area-inset-bottom))] z-30 px-4 lg:bottom-8 lg:ps-[17rem] lg:pe-8', (logOpen || !!open) && 'hidden')}>
+      <div className={cx('pointer-events-none fixed inset-x-0 bottom-[calc(66px+env(safe-area-inset-bottom))] z-30 px-4 lg:bottom-8 lg:ps-[17rem] lg:pe-8', logOpen && 'hidden')}>
         <div className="mx-auto flex max-w-2xl justify-start lg:max-w-none lg:justify-end">
           <button onClick={() => setLogOpen(true)} className="pointer-events-auto flex min-h-[50px] items-center gap-2 rounded-full bg-brand pe-5 ps-4 text-base font-bold text-white shadow-[0_8px_24px_rgba(91,72,214,0.30)] active:scale-[0.98]">
             <Icon name="plus" size={24} /> {t('سجّل')}
@@ -230,6 +210,66 @@ export default function History() {
         </div>
       </div>
       <LogSheet open={logOpen} onClose={() => setLogOpen(false)} />
+    </Page>
+  );
+}
+
+/** The window's scroll position, kept per history entry: Back to the list puts it where it was. */
+function useKeptWindowScroll() {
+  const { key } = useLocation();
+  const id = 'log-scroll:' + key;
+  useLayoutEffect(() => {
+    let y = 0;
+    try { y = Number(sessionStorage.getItem(id) ?? 0); } catch { /* storage blocked */ }
+    let tries = 0, raf = 0;
+    // the list may still be loading: try again for a moment until the page is tall enough
+    const go = () => { window.scrollTo(0, y); if (Math.abs(window.scrollY - y) > 2 && tries++ < 60) raf = requestAnimationFrame(go); };
+    if (y > 0) go();
+    const save = () => { try { sessionStorage.setItem(id, String(Math.round(window.scrollY))); } catch { /* storage blocked */ } };
+    window.addEventListener('scroll', save, { passive: true });
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('scroll', save); };
+  }, [id]);
+}
+
+/** /timeline/entry/<key>: one logged entry on its own page (what was in the Log's sheet), and ?edit=entry|items its
+ *  edit page. Every action opens its own page; Back returns to exactly where it was opened from. */
+export function LogEntryPage() {
+  const { history, pendingMeals, events, reload, settings, nameOf, me } = useData();
+  const nav = useNavigate();
+  const { key = '' } = useParams();
+  const edit = useSearchParams()[0].get('edit');
+  const h = key.startsWith('h') ? [...history, ...pendingMeals].find((x) => x.id === key.slice(1)) : undefined;
+  const e = key.startsWith('e') ? events.find((x) => x.id === key.slice(1)) : undefined;
+  const back = () => nav(-1);
+  const keyOf = (x: { recipe_id: string | null; name: string }) => x.recipe_id ?? `n:${x.name}`;
+  const n = h ? history.filter((x) => keyOf(x) === keyOf(h)).length || 1 : 1;
+  if (!h && !e) return <Page title={t('السجل')} back={back}><Card><p className="text-slate-500">…</p></Card></Page>;
+  const remove = async () => {
+    // asked first: "Cancel" leaves everything as it was
+    if (h && !confirm(t('حذف هذا التسجيل من السجل؟'))) return;
+    try {
+      if (e) {
+        await deleteEvent(e.id, me); await reload();
+        toast(t('حُذف التسجيل'), { label: t('تراجع'), run: async () => { await restoreEvent(e.id); await reload(); } });
+      } else if (h) {
+        // kept and marked, not erased: Undo here, or later from More › Recently deleted
+        await deleteHistory(h.id, me); await reload();
+        toast(t('حُذف التسجيل'), { label: t('تراجع'), run: async () => { await restoreHistory(h.id); await reload(); } });
+      }
+      back();
+    } catch (x) { toast((x as Error).message); }
+  };
+  if (edit === 'items' && h) return <Page title={t('تعديل الأصناف')} back={back}><EditItems h={h} onCancel={back} onDone={back} /></Page>;
+  if (edit === 'entry') return (
+    <Page title={t('تعديل التسجيل')} back={back}>
+      <EditEntry e={e} h={h} onCancel={back} onDone={back} onItems={h && h.lines.length > 0 ? () => nav(`/timeline/entry/${key}?edit=items`, { replace: true }) : undefined} />
+    </Page>
+  );
+  return (
+    <Page title={h ? tMaybe(h.name) : describeEvent(e!)} back={back}>
+      {h && <MealDetail h={h} n={n} unit={settings.glucose_unit} onEditItems={() => nav(`/timeline/entry/${key}?edit=items`)} />}
+      {e && <EventSummary e={e} who={e.source ? '' : nameOf(e.created_by)} />}
+      <EntryActions key={key} e={e} h={h} onEdit={() => nav(`/timeline/entry/${key}?edit=entry`)} onRemove={() => void remove()} onClose={() => {}} onOpenOther={(x) => nav(`/timeline/entry/h${x.id}`)} />
     </Page>
   );
 }

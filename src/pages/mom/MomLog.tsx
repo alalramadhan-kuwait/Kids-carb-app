@@ -3,7 +3,7 @@
 // activity), with who logged it. A meal whose "how much did she eat?" is not answered yet says so. A shot, juice, prick
 // or meal opens to change or delete it.
 import { mealTitle } from '../../lib/unknownMeal';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { dayStartOf, dayTitle } from '../../engine/day';
@@ -13,6 +13,7 @@ import { formatGlucose } from '../../lib/glucose';
 import { inputCls } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import { Big, MomPage, PenBar, PEN_NAME, SITE_NAME, clock } from './MomUI';
+import { useUrlQuery } from './MomMeal';
 
 type Row = { key: string; at: number; to: string | null; icon: React.ReactNode; label: React.ReactNode; sub: string; who: string; hay: (string | null | undefined)[]; detail?: string; pending?: boolean };
 const DAY = 86400000;
@@ -20,11 +21,12 @@ const DAY = 86400000;
 export function MomLog() {
   const nav = useNavigate();
   const { events, history, pendingMeals, settings, nameOf } = useData();
-  const [days, setDays] = useState(2);
-  // the search is kept in the address, so coming back from a meal (or its graph) shows the same results
+  // the search and how many days are shown are kept in the address (and the scroll by MomPage), so Back from a meal or
+  // its graph comes back to exactly this list
+  const [q, setQ] = useUrlQuery();
   const [sp, setSp] = useSearchParams();
-  const q = sp.get('q') ?? '';
-  const setQ = (v: string) => setSp(v ? { q: v } : {}, { replace: true });
+  const days = Math.max(2, Number(sp.get('d')) || 2);
+  const setDays = (n: number) => setSp((p) => { const x = new URLSearchParams(p); x.set('d', String(n)); return x; }, { replace: true });
   const all: Row[] = useMemo(() => {
     const g = (n: number) => `${fmt(n)} ${t('غ كارب')}`;
     return [

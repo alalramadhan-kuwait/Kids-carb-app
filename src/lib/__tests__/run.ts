@@ -3449,5 +3449,26 @@ console.log('simple-mode graph');
   });
 }
 
+console.log('repeat meal');
+{
+  const { repeatPlate } = await import('../repeatMeal');
+  test('repeat meal: every food kept at its amount (a cooked weight stays cooked); an unmatched one is flagged, never dropped; the logged meal is not changed', () => {
+    const P = (id: string, name: string, c100: number, o: Record<string, unknown> = {}) => ({ id, name, brand: null, carbs_per_100: c100, unit: 'g', label_basis: 'cooked', kind: 'natural', ...o }) as any;
+    const products = [P('rice', 'رز أبيض مطبوخ', 28.2), P('pasta', 'Spaghetti', 72, { label_basis: 'as_sold', kind: 'commercial', cooked_yield: 2.4 }), P('chick', 'دجاج مطبوخ', 0)];
+    // the plate's own carbs: per 100 g, a cooked weight of a dry-label food divided by its yield
+    const itemCarbs = (it: any) => { const p = products.find((x) => x.id === it.id); return p ? Math.round((it.amount * p.carbs_per_100 / 100 / (it.cooked ? p.cooked_yield : 1)) * 10) / 10 : null; };
+    const L = (name: string, quantity: number, carbs: number | null, state = 'as_is', unit = 'g') => ({ name, product: null, quantity, unit, state, role: 'main', carbs });
+    const h = { id: 'm1', name: 'غدا', lines: [L('رز أبيض مطبوخ', 150, 42.3), L('Spaghetti', 120, 36, 'cooked'), L('دجاج مطبوخ', 100, 0), L('مرق المطعم', 1, 15, 'as_is', 'serving'), L('رز أبيض مطبوخ', 100, 40)] } as any;
+    const before = JSON.stringify(h);
+    const r = repeatPlate(h, products, itemCarbs);
+    assert.deepEqual(r.items.map((i) => [i.id, i.amount, !!i.cooked]), [['rice', 150, false], ['pasta', 120, true], ['chick', 100, false]]);
+    assert.deepEqual(r.review.map((x) => [x.name, x.why]), [['مرق المطعم', 'no_product'], ['رز أبيض مطبوخ', 'carbs']], 'unmatched foods are listed for review');
+    assert.equal(r.items.length + r.review.length, h.lines.length, 'nothing left out');
+    assert.equal(r.items.reduce((s, i) => s + itemCarbs(i)!, 0), 42.3 + 36 + 0, 'the plate counts the same carbs as the logged foods it took');
+    assert.ok(r.items.every((i) => !('units' in i) && !('insulin' in i)), 'no insulin is carried');
+    assert.equal(JSON.stringify(h), before, 'the logged meal is unchanged');
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);

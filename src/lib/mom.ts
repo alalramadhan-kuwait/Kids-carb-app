@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import { withCompared, type FoodRef, type MomItem } from '../engine/mom';
+import type { ReviewItem } from './repeatMeal';
 import type { InjectionSite, Portion, SavedMeal } from './types';
 import { useData } from './data';
 import { sensorLife } from '../engine/status';
@@ -87,8 +88,10 @@ const KEY = 'mom-draft-v1';
 /** left: foods sent to Dad and eaten anyway; they are not in the dose and the dose page says so. */
 /** mode: 'now' — she eats now (dose next); 'plan' — a meal planned for later (on hold until its time). */
 /** planId: a planned meal being changed (its plate was loaded here); saving it updates that plan. */
-export interface Draft { items: MomItem[]; savedId: string | null; name: string | null; left: string[]; mode: 'now' | 'plan'; planId?: string | null }
-const empty: Draft = { items: [], savedId: null, name: null, left: [], mode: 'now' };
+/** review: foods of a repeated meal that could not be matched (lib/repeatMeal): flagged on the plate, and the plate
+ *  goes on to the dose only once each is found again or removed. fixing: the one being searched for now. */
+export interface Draft { items: MomItem[]; savedId: string | null; name: string | null; left: string[]; mode: 'now' | 'plan'; planId?: string | null; review?: ReviewItem[]; fixing?: number | null }
+const empty: Draft = { items: [], savedId: null, name: null, left: [], mode: 'now', review: [], fixing: null };
 let draft: Draft = (() => { try { return { ...empty, ...JSON.parse(localStorage.getItem(KEY) ?? 'null') }; } catch { return empty; } })();
 const draftSubs = new Set<(d: Draft) => void>();
 function setDraft(d: Draft) {
@@ -102,12 +105,16 @@ export function useDraft() {
   return d;
 }
 export const draftOps = {
-  add: (it: MomItem) => setDraft({ ...draft, items: [...draft.items, it] }),
+  // a food added while one under review was being searched for takes its place: that one is done
+  add: (it: MomItem) => setDraft({ ...draft, items: [...draft.items, it], ...(draft.fixing != null ? { review: (draft.review ?? []).filter((_, i) => i !== draft.fixing), fixing: null } : {}) }),
   replace: (k: number, it: MomItem) => setDraft({ ...draft, items: draft.items.map((x, i) => (i === k ? it : x)) }),
   remove: (k: number) => setDraft({ ...draft, items: draft.items.filter((_, i) => i !== k) }),
   /** A meal from the Log on the plate, to change into a new one (named by the time it is eaten, like any meal). */
-  loadItems: (items: MomItem[], left: string[]) => setDraft({ items, savedId: null, name: null, left, mode: 'now' }),
-  load: (m: SavedMeal) => setDraft({ items: m.items.map((i) => ({ ...i })), savedId: m.id, name: m.name, left: draft.left, mode: draft.mode }),
+  loadItems: (items: MomItem[], review: ReviewItem[]) => setDraft({ items, savedId: null, name: null, left: [], mode: 'now', review, fixing: null }),
+  /** A food under review: look for it again (the next food added takes its place), or remove it from the plate. */
+  fix: (i: number | null) => setDraft({ ...draft, fixing: i }),
+  dropReview: (i: number) => setDraft({ ...draft, review: (draft.review ?? []).filter((_, k) => k !== i), fixing: null }),
+  load: (m: SavedMeal) => setDraft({ items: m.items.map((i) => ({ ...i })), savedId: m.id, name: m.name, left: draft.left, mode: draft.mode, review: draft.review, fixing: null }),
   leaveOut: (name: string) => setDraft({ ...draft, left: [...draft.left.filter((x) => x !== name), name] }),
   clear: () => setDraft(empty),
   /** A planned meal's plate, to change it before its dose. */

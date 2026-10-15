@@ -49,11 +49,13 @@ export function EntryActions({ e, h, onEdit, onRemove, onOpenOther, onClose }: {
     try { await navigator.clipboard.writeText(text); toast(t('نُسخ ✓')); } catch { toast(text); }
   };
 
-  // one main action (Edit holds the time, the note and every value), three small ones, and Delete on its own
+  // a meal: the same three actions as simple mode, each opening its own page: its graph, the same food as a new meal
+  // (the full page that keeps every food and its amount and works out the new dose), and edit. Copy stays as a link.
+  // Any other entry: Edit, log it again now, copy. Delete on its own at the bottom.
+  const tile = 'flex min-h-[64px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl px-1 text-[14px] font-bold leading-tight active:opacity-80';
   const more: { icon: IconName; label: string; on: () => void; show: boolean }[] = [
-    { icon: 'repeat', label: t('سجّل مرة ثانية'), on: again, show: canLogAgain(kind) },
-    { icon: 'meals', label: t('وجبة جديدة منها'), on: () => { onClose(); nav(`/reuse/${h!.id}`); }, show: !!h && h.lines.length > 0 },
-    { icon: 'copy', label: t('نسخ'), on: copy, show: true },
+    { icon: 'repeat', label: t('سجّل مرة ثانية'), on: again, show: !h && canLogAgain(kind) },
+    { icon: 'copy', label: t('نسخ'), on: copy, show: !h },
   ];
   const shown = more.filter((x) => x.show);
 
@@ -67,16 +69,23 @@ export function EntryActions({ e, h, onEdit, onRemove, onOpenOther, onClose }: {
         </div>
       )}
 
-      {/* a meal: its day's graph, centred on it, the 6 hours after it in view; Back reopens this meal */}
-      {h && <Btn kind="soft" block className="flex min-h-[52px] items-center justify-center gap-2 text-base" onClick={() => { onClose(); if (location.hash.startsWith('#/timeline')) { const p = new URLSearchParams(location.hash.split('?')[1] ?? ''); p.set('open', `h${h.id}`); nav(`/timeline?${p}`, { replace: true }); } nav(`/analysis?mode=day&day=${dayStartOf(at)}&at=${at}`); }}><Icon name="glucose" size={20} />{t('عرض في الرسم')}</Btn>}
-      <Btn kind="primary" block className="flex min-h-[52px] items-center justify-center gap-2 text-base" disabled={busy} onClick={onEdit}><Icon name="edit" size={20} />{t('تعديل')}</Btn>
-      <div className={cx('grid gap-2', shown.length === 3 ? 'grid-cols-3' : shown.length === 2 ? 'grid-cols-2' : 'grid-cols-1')}>
+      {h ? (
+        <>
+          <div className={cx('grid gap-2', h.lines.length > 0 ? 'grid-cols-3' : 'grid-cols-2')}>
+            <button onClick={() => { onClose(); nav(`/analysis?mode=day&day=${dayStartOf(at)}&at=${at}`); }} className={cx(tile, 'bg-brand-soft text-brand')}><Icon name="glucose" size={20} />{t('عرض في الرسم')}</button>
+            {h.lines.length > 0 && <button onClick={() => { onClose(); nav(`/reuse/${h.id}`); }} className={cx(tile, 'bg-brand-soft text-brand')}><Icon name="repeat" size={20} />{t('كرري الوجبة')}</button>}
+            <button disabled={busy} onClick={onEdit} className={cx(tile, 'bg-brand text-white')}><Icon name="edit" size={20} />{t('تعديل')}</button>
+          </div>
+          <button onClick={copy} className="min-h-[44px] w-full text-sm font-medium text-slate-500">{t('نسخ')}</button>
+        </>
+      ) : <Btn kind="primary" block className="flex min-h-[52px] items-center justify-center gap-2 text-base" disabled={busy} onClick={onEdit}><Icon name="edit" size={20} />{t('تعديل')}</Btn>}
+      {shown.length > 0 && <div className={cx('grid gap-2', shown.length === 3 ? 'grid-cols-3' : shown.length === 2 ? 'grid-cols-2' : 'grid-cols-1')}>
         {shown.map((x) => (
           <button key={x.label} disabled={busy} onClick={x.on} className="flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-2xl bg-slate-50 px-1 text-[13px] font-medium leading-tight text-slate-700 active:bg-slate-100">
             <Icon name={x.icon} size={18} /><span className="max-w-full text-center">{x.label}</span>
           </button>
         ))}
-      </div>
+      </div>}
 
       {same && same.matches.length > 0 && <SameMealLink to={`/same/${same.target.id}`} target={same.target} matches={same.matches} />}
       {before.length > 0 && (

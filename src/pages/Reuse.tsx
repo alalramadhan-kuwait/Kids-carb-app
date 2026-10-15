@@ -6,6 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { fmt } from '../lib/carbs';
 import { mealFrom } from '../lib/entrySave';
+import { productOf } from '../lib/mealItems';
 import { mealSlot, reusable } from '../lib/entryActions';
 import { dayTitle, dayStartOf } from '../engine/day';
 import { fmtTime } from '../lib/constants';
@@ -57,8 +58,12 @@ export function ReusePick() {
 export function ReuseEdit() {
   const nav = useNavigate();
   const { id } = useParams();
-  const { history, reload } = useData();
+  const { history, reload, products } = useData();
   const h = history.find((x) => x.id === id);
+  // foods with no product in the list keep their logged carbs (scaled if the amount changes): flagged, and saving
+  // waits until they are checked
+  const unmatched = h ? h.lines.filter((l) => !productOf(l, products)) : [];
+  const [checked, setChecked] = useState(false);
   const [at, setAt] = useState(() => Date.now());
   const [slot, setSlot] = useState<MealSlot>(() => slotFor(Date.now()));
   const [cid] = useSubmitId();
@@ -76,7 +81,15 @@ export function ReuseEdit() {
         </Card>
         <Card>
           <h2 className="mb-1 text-[17px] font-bold">{t('الأصناف والكميات')}</h2>
-          <EditItems h={h} onCancel={() => nav(-1)} onDone={() => {}} saveLabel={t('احفظ واحسب الجرعة')}
+          {unmatched.length > 0 && (
+            <div className="mb-3 space-y-2 rounded-2xl border-2 border-over bg-over-soft p-3 text-over">
+              <p className="text-[15px] font-bold">⚠️ {t('راجعي هالأكل قبل ما تكملين: ما انطابق مع القائمة')}</p>
+              <p className="text-[14px]"><bdi>{unmatched.map((l) => tMaybe(l.name)).join(' · ')}</bdi></p>
+              <p className="text-[13px] text-slate-600">{t('يبقى بكارب التسجيل القديم. غيّري الكمية أو احذفيه إذا تغيّر.')}</p>
+              <label className="flex min-h-[44px] items-center gap-2 text-[15px] font-bold text-slate-800"><input type="checkbox" className="h-5 w-5" checked={checked} onChange={(e) => setChecked(e.target.checked)} />{t('راجعتها')}</label>
+            </div>
+          )}
+          <EditItems h={h} blocked={unmatched.length > 0 && !checked} onCancel={() => nav(-1)} onDone={() => {}} saveLabel={t('احفظ واحسب الجرعة')}
             note={t('تنحفظ وجبة جديدة؛ القديمة لا تتغير. الكارب من ملصق كل منتج.')}
             extra={(
               <div className="space-y-3 pt-1">

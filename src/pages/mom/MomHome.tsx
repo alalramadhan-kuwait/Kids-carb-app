@@ -8,6 +8,7 @@ import { nightOf } from '../../lib/schedule';
 import { formatGlucose } from '../../lib/glucose';
 import { useGlucose } from '../../hooks/useGlucose';
 import { fetchGraphSeries } from '../../engine/useSeries';
+import { useBack } from './MomMeal';
 import { mergeSeries, type Series } from '../../engine/series';
 import { levelFromLibre, trendFrom } from '../../engine/trend';
 import { effectiveRange } from '../../lib/glucose';
@@ -46,11 +47,45 @@ const MOOD: Record<Mood, { bg: string; word: string; todo: string }> = {
   stale: { bg: '#64748b', word: 'ما في قراءة جديدة', todo: 'افحصيها بالإصبع' }, // i18n-ok
 }; // i18n: translated where shown
 
+/** The graph's readings: the last 24 h (refetched each minute when `tick` is given), older days loaded one at a time as
+ *  the graph is swiped back (up to 14 days), and, opened at an older entry, the hours around it in one go. Live
+ *  readings newer than the series are added (one source per moment: no zigzags). Shared by home and the full graph. */
+function useGraphReadings(focusAt: number | null, tick?: (now: number) => void) {
+  const { g } = useGlucose();
+  const [now] = useState(Date.now());
+  const [recent, setRecent] = useState<Series | null>(null);
+  useEffect(() => {
+    const load = () => { tick?.(Date.now()); void fetchGraphSeries(Date.now() - 24 * H, Date.now() + 60000).then(setRecent).catch(() => undefined); };
+    load(); if (!tick) return; const id = setInterval(load, 60000); return () => clearInterval(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [older, setOlder] = useState<{ from: number; s: Series } | null>(null);
+  const loadingOlder = useRef(false);
+  const loadOlder = () => {
+    if (loadingOlder.current) return;
+    const to = older?.from ?? now - 24 * H; if (to <= now - 14 * 24 * H) return;
+    loadingOlder.current = true;
+    void fetchGraphSeries(to - 24 * H, to).then((o) => setOlder((p) => ({ from: to - 24 * H, s: p ? mergeSeries(o, p.s.t, p.s.v) : o })))
+      .catch(() => undefined).finally(() => { loadingOlder.current = false; });
+  };
+  useEffect(() => {
+    if (!focusAt || focusAt > Date.now() - 22 * H) return;
+    const from = focusAt - 13 * H, to = Date.now() - 24 * H;
+    void fetchGraphSeries(from, to).then((o) => setOlder({ from, s: o })).catch(() => undefined);
+  }, [focusAt]);
+  const series = useMemo(() => (recent && older ? mergeSeries(older.s, recent.t, recent.v) : recent), [recent, older]);
+  const merged = useMemo(() => {
+    if (!series) return null;
+    const lastT = series.t.length ? series.t[series.t.length - 1] : 0;
+    const r = (g?.readings ?? []).filter((x) => Date.parse(x.taken_at) > lastT + 60000);
+    return mergeSeries(series, r.map((x) => Date.parse(x.taken_at)), r.map((x) => x.mg_dl));
+  }, [series, g]);
+  return { merged, loadOlder };
+}
+
 export function MomHome() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
-  const focusAt = Number(sp.get('at')) || null; // a tapped "Rawan added …" push, or «عرض في الرسم» on a meal in the log
-  const fromLog = sp.get('from') === 'log';
+  const focusAt = Number(sp.get('at')) || null; // a tapped "Rawan added …" push
   const same = useRecentSame();
   // the graph fills its box: its drawing height follows the box's shape (no empty bands on tall phones)
   const box = useRef<HTMLDivElement>(null);
@@ -66,37 +101,9 @@ export function MomHome() {
   const { g } = useGlucose();
   const [now, setNow] = useState(Date.now());
   const [full, setFull] = useState(false);
-  const [hours, setHours] = useState(fromLog ? 12 : 6), [picking, setPicking] = useState(false); // from a meal: 6 h before and after it
+  const [hours, setHours] = useState(6), [picking, setPicking] = useState(false);
   const dark = useIsDark();
-  const [recent, setRecent] = useState<Series | null>(null);
-  useEffect(() => {
-    const load = () => { setNow(Date.now()); void fetchGraphSeries(Date.now() - 24 * H, Date.now() + 60000).then(setRecent).catch(() => undefined); };
-    load(); const id = setInterval(load, 60000); return () => clearInterval(id);
-  }, []);
-  // older days, one at a time, when the graph is swiped back near the oldest loaded reading (at most 14 days back)
-  const [older, setOlder] = useState<{ from: number; s: Series } | null>(null);
-  const loadingOlder = useRef(false);
-  const loadOlder = () => {
-    if (loadingOlder.current) return;
-    const to = older?.from ?? now - 24 * H; if (to <= now - 14 * 24 * H) return;
-    loadingOlder.current = true;
-    void fetchGraphSeries(to - 24 * H, to).then((o) => setOlder((p) => ({ from: to - 24 * H, s: p ? mergeSeries(o, p.s.t, p.s.v) : o })))
-      .catch(() => undefined).finally(() => { loadingOlder.current = false; });
-  };
-  // opened at an older meal: load from 13 hours before it in one go (swiping back loads a day at a time)
-  useEffect(() => {
-    if (!focusAt || focusAt > Date.now() - 22 * H) return;
-    const from = focusAt - 13 * H, to = Date.now() - 24 * H;
-    void fetchGraphSeries(from, to).then((o) => setOlder({ from, s: o })).catch(() => undefined);
-  }, [focusAt]);
-  const series = useMemo(() => (recent && older ? mergeSeries(older.s, recent.t, recent.v) : recent), [recent, older]);
-  const merged = useMemo(() => {
-    if (!series) return null;
-    // the graph's own readings, plus only the live ones newer than them (one source per moment: no zigzags)
-    const lastT = series.t.length ? series.t[series.t.length - 1] : 0;
-    const r = (g?.readings ?? []).filter((x) => Date.parse(x.taken_at) > lastT + 60000);
-    return mergeSeries(series, r.map((x) => Date.parse(x.taken_at)), r.map((x) => x.mg_dl));
-  }, [series, g]);
+  const { merged, loadOlder } = useGraphReadings(focusAt, setNow);
   const unit = s.glucose_unit;
   const range = effectiveRange(s.glucose_low_mgdl, s.glucose_high_mgdl);
   const low = s.alert_low_mgdl ?? range.low ?? 70, high = range.high ?? 180;
@@ -154,8 +161,6 @@ export function MomHome() {
         <LayanCorner face={face} />
       </div>
 
-      {/* opened from a meal in the log: back to that meal */}
-      {fromLog && <button onClick={() => nav(-1)} className="flex min-h-[36px] shrink-0 items-center gap-1.5 self-start rounded-full bg-brand-soft px-4 text-[14px] font-bold text-brand">{isEn() ? '←' : '→'} {t('رجوع للوجبة')}</button>}
       <div className="relative flex max-h-[50dvh] min-h-[120px] flex-1 flex-col rounded-3xl bg-white px-1 pt-1 shadow-[0_1px_3px_rgba(40,30,80,0.06)]">
         <button onClick={() => setFull(true)} aria-label={t('كبّري الرسم')} className="absolute left-0 top-0 z-10 grid h-[44px] w-[44px] place-items-center">
           <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-[15px] text-slate-600">⤢</span>
@@ -496,15 +501,15 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
 
 /** The graph, larger: full screen (landscape where the phone allows), 3, 6, 12 or 24 hours, touch to read a value.
  *  The same graph and readings as home; Close or the phone's back button returns to home. */
-function GraphFull({ onClose, s: st, unit, low, high, band }: { onClose: () => void; s: Settings; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number] }) {
+function GraphFull({ onClose, s: st, unit, low, high, band, at = null, page = false }: { onClose: () => void; s: Settings; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number];
+  /** opened at an entry (a meal in the log): 12 hours centred on it, it highlighted */ at?: number | null;
+  /** its own page (/mom/graph): Back is the page's own way back, nothing full-screen is asked of the phone */ page?: boolean }) {
   const { events, history } = useData();
-  const { g } = useGlucose();
   const [hours, setHours] = useState(12);
-  const [series, setSeries] = useState<Series | null>(null);
   const [now] = useState(Date.now());
+  const { merged, loadOlder } = useGraphReadings(at);
   const box = useRef<HTMLDivElement>(null);
   const [aspect, setAspect] = useState(0.6);
-  useEffect(() => { void fetchGraphSeries(now - 24 * H, now + 60000).then(setSeries).catch(() => undefined); }, [now]);
   useEffect(() => {
     const el = box.current; if (!el) return;
     const ro = new ResizeObserver(() => { const r = el.getBoundingClientRect(); if (r.width > 0 && r.height > 0) setAspect(r.height / r.width); });
@@ -512,6 +517,7 @@ function GraphFull({ onClose, s: st, unit, low, high, band }: { onClose: () => v
   }, []);
   const closeRef = useRef(onClose); closeRef.current = onClose;
   useEffect(() => {
+    if (page) return;
     history_.pushState({ graph: true }, '');
     const onPop = () => closeRef.current();
     window.addEventListener('popstate', onPop);
@@ -519,24 +525,20 @@ function GraphFull({ onClose, s: st, unit, low, high, band }: { onClose: () => v
     el.requestFullscreen?.().then(() => (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> })?.lock?.('landscape')).catch(() => { /* not available: the layout adapts */ });
     return () => { window.removeEventListener('popstate', onPop); if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {}); };
   }, []);
-  const merged = useMemo(() => {
-    if (!series) return null;
-    const lastT = series.t.length ? series.t[series.t.length - 1] : 0;
-    const r = (g?.readings ?? []).filter((x) => Date.parse(x.taken_at) > lastT + 60000);
-    return mergeSeries(series, r.map((x) => Date.parse(x.taken_at)), r.map((x) => x.mg_dl));
-  }, [series, g]);
   return (
-    <div role="dialog" aria-modal="true" aria-label={t('السكر')} className="fixed inset-0 z-[70] flex flex-col bg-white px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-[calc(8px+env(safe-area-inset-top))]">
+    <div role={page ? undefined : 'dialog'} aria-modal={page ? undefined : true} aria-label={t('السكر')} className="fixed inset-0 z-[70] flex flex-col bg-white px-3 pb-[calc(8px+env(safe-area-inset-bottom))] pt-[calc(8px+env(safe-area-inset-top))]">
       <div className="flex shrink-0 items-center gap-2 pb-2">
         <div className="flex gap-1" role="radiogroup" aria-label={t('المدة')}>
           {[3, 6, 12, 24].map((h) => (
             <button key={h} role="radio" aria-checked={hours === h} onClick={() => setHours(h)} className={cx('min-h-[44px] min-w-[52px] rounded-full px-3 text-[15px] font-bold', hours === h ? 'bg-brand text-white' : 'bg-slate-100 text-slate-600')}>{t('{h} س', { h })}</button>
           ))}
         </div>
-        <button onClick={() => history_.back()} className="ms-auto min-h-[44px] rounded-full bg-slate-900 px-4 text-[16px] font-bold text-white">✕ {t('إغلاق')}</button>
+        {page
+          ? <button onClick={onClose} className="ms-auto min-h-[44px] rounded-full bg-slate-900 px-4 text-[16px] font-bold text-white">{isEn() ? '←' : '→'} {t('رجوع')}</button>
+          : <button onClick={() => history_.back()} className="ms-auto min-h-[44px] rounded-full bg-slate-900 px-4 text-[16px] font-bold text-white">✕ {t('إغلاق')}</button>}
       </div>
       <div ref={box} className="min-h-0 flex-1">
-        {merged && <BigGraph key={hours} span={hours} aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={band} alarmHigh={st.alert_high_mgdl ?? 240}
+        {merged && <BigGraph key={hours} span={hours} at={at} onOlder={loadOlder} aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={band} alarmHigh={st.alert_high_mgdl ?? 240}
           shots={events.filter((e) => e.kind === 'insulin' && !e.deleted_at && e.insulin_units).map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
           meals={history.filter((h) => (h.total_carbs ?? 99) >= 5).map((h) => ({ t: Date.parse(h.eaten_at), name: h.name, g: h.total_carbs }))}
           treats={events.filter((e) => e.kind === 'treatment' && !e.deleted_at).map((e) => Date.parse(e.occurred_at))}
@@ -546,6 +548,17 @@ function GraphFull({ onClose, s: st, unit, low, high, band }: { onClose: () => v
   );
 }
 const history_ = window.history;
+
+/** /mom/graph?at=<ms>: the full graph as its own page, at a meal opened from the log. Back returns to that meal. */
+export function MomGraphPage() {
+  const nav = useNavigate();
+  const { settings: s } = useData();
+  const at = Number(useSearchParams()[0].get('at')) || null;
+  const back = useBack('/mom/log');
+  const range = effectiveRange(s.glucose_low_mgdl, s.glucose_high_mgdl);
+  const low = s.alert_low_mgdl ?? range.low ?? 70, high = range.high ?? 180;
+  return <GraphFull page at={at} onClose={() => (typeof back === 'number' ? nav(back) : nav(back, { replace: true }))} s={s} unit={s.glucose_unit} low={low} high={high} band={[range.low ?? 70, high]} />;
+}
 /** the finger-pricks to draw: time and value */
 export const pricksOf = (events: EventRow[]) => events.filter((e) => e.kind === 'bg_check' && !e.deleted_at && e.bg_mgdl).map((e) => ({ t: Date.parse(e.occurred_at), bg: e.bg_mgdl! }));
 type MarkT = { t: number; x: number; k: string; kind: 'meal' | 'treat' | 'shot'; u?: number; type?: 'rapid' | 'long'; name?: string | null; g?: number | null };

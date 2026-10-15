@@ -15,8 +15,7 @@ import { t, tMaybe } from '../../i18n';
 import { RESTAURANTS, cupsOf, menuOf, restaurantByKey, restaurantOf, type Restaurant } from '../../lib/restaurants';
 import { foodName, untranslated, type Named } from '../../lib/foodName';
 import { Big, Choice, MomPage, okToReplace } from './MomUI';
-import type { HistoryEntry, Ingredient, PlanItem, Product, Recipe } from '../../lib/types';
-import { productOf } from '../../lib/mealItems';
+import type { Ingredient, PlanItem, Product, Recipe } from '../../lib/types';
 import { reusable } from '../../lib/entryActions';
 import { mealGi } from '../../engine/gi';
 import { GiBadge, MealGiLine } from '../../components/Gi';
@@ -85,24 +84,6 @@ export const remember = (x: { kind: 'product' | 'recipe'; id: string }) => {
   try { localStorage.setItem(RECENT, JSON.stringify([x, ...recent().filter((r) => !(r.kind === x.kind && r.id === x.id))].slice(0, 12))); } catch { /* blocked */ }
 };
 
-/**
- * A logged meal's items as plate items: each line's product at the same amount. A line is only taken when the plate
- * gives it the same carbs as were logged (within 1 g or 10%); anything else (no product, a unit the plate does not
- * use, a cooked/raw difference) is listed as left out, so nothing is counted wrong.
- */
-export function plateFromLog(h: HistoryEntry, products: Product[], itemCarbs: (it: MomItem) => number | null): { items: MomItem[]; left: string[] } {
-  const items: MomItem[] = [], left: string[] = [];
-  for (const l of h.lines) {
-    const p = productOf(l, products);
-    const unit = l.unit === 'serving' ? 'serving' : l.unit === 'g' || l.unit === 'ml' ? 'g' : null;
-    const it: MomItem | null = p && unit ? { kind: 'product', id: p.id, portion_id: null, amount: l.quantity, unit } : null;
-    const g = it ? itemCarbs(it) : null, want = l.carbs ?? null;
-    if (it && g !== null && want !== null && Math.abs(g - want) <= Math.max(1, want * 0.1)) items.push(it);
-    else left.push(tMaybe(l.name));
-  }
-  return { items, left };
-}
-
 /** «وجبة ليان»: what is on her plate, the carb total (small), add more, then next. */
 export function MomMeal() {
   const nav = useNavigate();
@@ -123,13 +104,14 @@ export function MomMeal() {
   const fromHome = useSearchParams()[0].get('from') === 'home';
   const fresh = () => { draftOps.clear(); draftOps.start(d.mode); nav('/mom/add', { replace: true }); };
   // nothing on the plate yet: straight to the search (the summary appears with the first food)
-  if (!d.items.length) return <Navigate to="/mom/add" replace />;
+  const review = d.review ?? [];
+  if (!d.items.length && !review.length) return <Navigate to="/mom/add" replace />;
   return (
     <MomPage compact title={d.name ?? title} back="/mom" foot={<>
       {/* the total and both buttons stay in view however long the list (a small phone with 8 foods) */}
       <div className="flex items-baseline justify-between px-1"><span className="text-[15px] text-slate-500">{t('مجموع الكارب')}</span><b className="num text-[26px] leading-none text-slate-900">{total === null ? '—' : `${gramsText(total)} ${t('غ')}`}</b></div>
       <Big tone="soft" className="!min-h-[48px] !text-[17px]" onClick={() => nav('/mom/add')}>+ {t('إضافة أكل ثاني')}</Big>
-      <Big md disabled={total === null} onClick={() => nav(d.mode === 'plan' ? (d.planId ? `/mom/when?plan=${d.planId}` : '/mom/when') : '/mom/dose')}>{d.mode === 'plan' ? `${t('التالي')} · 🕐 ${t('متى؟')}` : t('التالي')}</Big>
+      <Big md disabled={total === null || review.length > 0} onClick={() => nav(d.mode === 'plan' ? (d.planId ? `/mom/when?plan=${d.planId}` : '/mom/when') : '/mom/dose')}>{d.mode === 'plan' ? `${t('التالي')} · 🕐 ${t('متى؟')}` : t('التالي')}</Big>
     </>}>
       {fromHome && (
         <div className="flex items-center gap-2 rounded-2xl bg-near-soft px-3 py-2 text-near">
@@ -153,6 +135,24 @@ export function MomMeal() {
           );
         })}
       </ul>
+      {/* a repeated meal's foods that could not be matched: each one found again or removed before the dose */}
+      {review.length > 0 && (
+        <section className="space-y-2 rounded-3xl border-2 border-over bg-over-soft px-3 py-3">
+          <p className="text-[16px] font-bold text-over">⚠️ {t('راجعي هالأكل قبل ما تكملين: ما انطابق مع القائمة')}</p>
+          <ul className="space-y-2">
+            {review.map((r, i) => (
+              <li key={i} className="rounded-2xl bg-white px-3 py-2">
+                <b className="block text-[16px] leading-snug"><bdi>{tMaybe(r.name)}</bdi></b>
+                <span className="text-[13px] text-slate-500"><span className="num">{fmt(r.quantity)}</span> {r.unit === 'serving' ? t('حصة') : r.unit === 'ml' ? t('مل') : t('غرام')}{r.carbs !== null && <> · {t('كان {g} غ كارب', { g: fmt(r.carbs) })}</>}</span>
+                <div className="mt-1.5 grid grid-cols-2 gap-2">
+                  <button onClick={() => { draftOps.fix(i); nav(`/mom/add?q=${encodeURIComponent(r.name)}`); }} className="min-h-[44px] rounded-xl bg-brand-soft text-[15px] font-bold text-brand">🔍 {t('دوّريه بالقائمة')}</button>
+                  <button onClick={() => draftOps.dropReview(i)} className="min-h-[44px] rounded-xl bg-slate-100 text-[15px] font-bold text-slate-600">✕ {t('شيليه')}</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <Left />
       {total !== null && <MealGiLine m={mealGiOf(d.items)} big />}
       {!sameAsSaved && d.items.length > 1 && (naming ? (

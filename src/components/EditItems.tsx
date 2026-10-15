@@ -14,10 +14,11 @@ const UNIT: Record<string, () => string> = { g: () => t('غ'), ml: () => t('مل
  * The items of THIS logged meal: change an amount, remove one, add a product. Carbs and nutrition are recalculated
  * from each product's label; the recipe itself is not changed.
  */
-export function EditItems({ h, onCancel, onDone, onSave, saveLabel, note, extra }: {
+export function EditItems({ h, onCancel, onDone, onSave, saveLabel, note, extra, blocked }: {
   h: HistoryEntry; onCancel: () => void; onDone: () => void;
   /** a new meal from this one: the edited items go here instead of changing this entry */
   onSave?: (r: ReturnType<typeof recompute>) => Promise<void>; saveLabel?: string; note?: string; extra?: React.ReactNode;
+  /** saving waits for something on the page (a repeated meal's unmatched foods to be reviewed) */ blocked?: boolean;
 }) {
   const { products, settings, me, reload } = useData();
   const [rows, setRows] = useState<ItemRow[]>(() => rowsOf(h, products));
@@ -67,7 +68,7 @@ export function EditItems({ h, onCancel, onDone, onSave, saveLabel, note, extra 
       <p className="text-[11px] text-slate-500">{note ?? t('يتغيّر هذا التسجيل فقط، والوصفة كما هي. الإنسولين المعطى لا يتغير.')}</p>
       <div className="sticky bottom-0 -mx-4 grid grid-cols-2 gap-2 border-t border-slate-100 bg-white px-4 pb-1 pt-2 lg:-mx-6 lg:px-6">
         <Btn kind="ghost" onClick={onCancel} disabled={busy}>{t('إلغاء')}</Btn>
-        <Btn kind="primary" onClick={save} disabled={busy || !changed}>{busy ? t('جارٍ الحفظ…') : saveLabel ?? t('حفظ')}</Btn>
+        <Btn kind="primary" onClick={save} disabled={busy || !changed || blocked}>{busy ? t('جارٍ الحفظ…') : saveLabel ?? t('حفظ')}</Btn>
       </div>
     </div>
   );

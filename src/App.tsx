@@ -13,7 +13,7 @@ import type { IconName } from './icons/defs';
 import { themePref } from './lib/theme';
 import { t, useLang } from './i18n';
 import { LangSwitch } from './components/LangSwitch';
-import { MomHome } from './pages/mom/MomHome';
+import { MomGraphPage, MomHome } from './pages/mom/MomHome';
 import { MomFind } from './pages/mom/MomFind';
 import { MomAdd, MomFoodItem, MomGroup, MomMeal, MomNew, MomParts, MomPortion, MomRestaurant } from './pages/mom/MomMeal';
 import { MomPlate } from './pages/mom/MomPlate';
@@ -38,6 +38,7 @@ const Analysis = lazy(() => import('./pages/Analysis'));
 const RecipeEdit = lazy(() => import('./pages/RecipeEdit'));
 const ProductEdit = lazy(() => import('./pages/ProductEdit'));
 const History = lazy(() => import('./pages/History'));
+const LogEntryPage = lazy(() => import('./pages/History').then((m) => ({ default: m.LogEntryPage })));
 const Cgm = lazy(() => import('./pages/Cgm'));
 const Status = lazy(() => import('./pages/Status'));
 const ImportPage = lazy(() => import('./pages/Import'));
@@ -251,6 +252,7 @@ function Shell() {
       <Routes>
         <Route path="/" element={simple ? <Navigate to={new URLSearchParams(search).get('plan') ? `/mom/plan/${new URLSearchParams(search).get('plan')}` : new URLSearchParams(search).get('at') ? `/mom?at=${new URLSearchParams(search).get('at')}` : '/mom'} replace /> : <Now />} />
         <Route path="/mom" element={<MomHome />} />
+        <Route path="/mom/graph" element={<MomGraphPage />} />
         <Route path="/mom/meal" element={<MomMeal />} />
         <Route path="/mom/plate" element={<MomPlate />} />
         <Route path="/mom/add" element={<MomFind />} />
@@ -297,6 +299,7 @@ function Shell() {
         <Route path="/portions/:kind/:id" element={<PortionEdit />} />
         <Route path="/meals" element={<Today />} />
         <Route path="/timeline" element={<History />} />
+        <Route path="/timeline/entry/:key" element={<LogEntryPage />} />
         <Route path="/analysis" element={<Analysis />} />
         <Route path="/recipes" element={<RecipeList />} />
         <Route path="/recipes/new" element={<RecipeEdit />} />
