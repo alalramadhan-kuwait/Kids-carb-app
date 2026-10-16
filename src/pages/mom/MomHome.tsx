@@ -6,6 +6,7 @@ import { useData } from '../../lib/data';
 import { useComparisons } from '../../lib/fingerprick';
 import { nightOf } from '../../lib/schedule';
 import { mealTitle } from '../../lib/unknownMeal';
+import { sunTimes } from '../../lib/sun';
 import { formatGlucose } from '../../lib/glucose';
 import { useGlucose } from '../../hooks/useGlucose';
 import { fetchGraphSeries } from '../../engine/useSeries';
@@ -319,11 +320,11 @@ const dayNo = (ms: number) => { const d = new Date(ms); return Date.UTC(d.getFul
 /** the day of a reading on the graph, so it is never read against the wrong day: today, yesterday and its date, or its date */
 const graphDay = (ms: number, now: number) => { const d = dayNo(now) - dayNo(ms); return d === 0 ? t('اليوم') : d === 1 ? `${t('أمس')} · ${shortDate(ms)}` : shortDate(ms); };
 
-type GPal = { night: string; nightA: number; lineHigh: string; lineLow: string; curve: string; band: string; latest: string; meal: string; ins: string; insText: string; prick: string; high: string; low: string; highText: string; lowText: string; onCurve: string; ink: string; fillA: number; fill?: boolean; w?: number };
+type GPal = { sun: string; sunA: number; night: string; nightA: number; lineHigh: string; lineLow: string; curve: string; band: string; latest: string; meal: string; ins: string; insText: string; prick: string; high: string; low: string; highText: string; lowText: string; onCurve: string; ink: string; fillA: number; fill?: boolean; w?: number };
 // deep teal by day; in dark mode the same meanings in softer, lighter tones on navy. Each warning also has a shape or
 // a word (▼ low, ▲ high, line patterns), never colour alone
-const GPAL0: GPal = { night: '#5B63B8', nightA: 0.08, lineHigh: '#C98200', lineLow: '#D93D55', curve: '#17707A', band: '#E6F3EC', latest: '#169A60', meal: '#EFA055', ins: '#7A62CF', insText: '#fff', prick: '#64748B', high: '#E9A23B', low: '#DC4658', highText: '#9a6410', lowText: '#b3273a', onCurve: '#fff', ink: '#1f2937', fillA: 0.16, fill: true, w: 2.4 };
-const GPAL_DARK: GPal = { night: '#303B70', nightA: 0.18, lineHigh: '#FFBF47', lineLow: '#FF6685', curve: '#4AC6CA', band: 'rgba(61,214,140,0.10)', latest: '#3DD68C', meal: '#F2A65A', ins: '#B7A6F6', insText: '#1E2638', prick: '#94A3B8', high: '#F2B44F', low: '#FF6B7A', highText: '#F5C878', lowText: '#FF9AA4', onCurve: '#10202A', ink: '#EEF2F8', fillA: 0.13, fill: true, w: 2.4 };
+const GPAL0: GPal = { sun: '#F08C2E', sunA: 0.16, night: '#5B63B8', nightA: 0.08, lineHigh: '#C98200', lineLow: '#D93D55', curve: '#17707A', band: '#E6F3EC', latest: '#169A60', meal: '#EFA055', ins: '#7A62CF', insText: '#fff', prick: '#64748B', high: '#E9A23B', low: '#DC4658', highText: '#9a6410', lowText: '#b3273a', onCurve: '#fff', ink: '#1f2937', fillA: 0.16, fill: true, w: 2.4 };
+const GPAL_DARK: GPal = { sun: '#FF9F4A', sunA: 0.22, night: '#303B70', nightA: 0.2, lineHigh: '#FFBF47', lineLow: '#FF6685', curve: '#4AC6CA', band: 'rgba(61,214,140,0.10)', latest: '#3DD68C', meal: '#F2A65A', ins: '#B7A6F6', insText: '#1E2638', prick: '#94A3B8', high: '#F2B44F', low: '#FF6B7A', highText: '#F5C878', lowText: '#FF9AA4', onCurve: '#10202A', ink: '#EEF2F8', fillA: 0.13, fill: true, w: 2.4 };
 export const isDark = () => { const th = document.documentElement.dataset.theme; return th === 'night' || (th !== 'day' && matchMedia('(prefers-color-scheme: dark)').matches); };
 /** re-renders when the appearance changes (the setting on this phone, or the phone's own light/dark mode) */
 function useIsDark() {
@@ -337,8 +338,9 @@ function useIsDark() {
 }
 const gpal = (): GPal => isDark() ? GPAL_DARK : GPAL0;
 /** The graph's own lines, for reading the curve only (alerts and the card keep theirs): amber above 11.1 mmol/L
- *  (200 mg/dL), red below her low, and night shaded from 6 pm to 6 am Kuwait time. */
-const GRAPH_HIGH = 200, GRAPH_NIGHT = { start: 18, end: 6 }, KWO = 3 * H;
+ *  (200 mg/dL), red below her low. Night is shaded by the sun in Kuwait: dusk fades from orange to night over the 15
+ *  minutes after sunset, and dawn back over the 15 minutes before sunrise. */
+const GRAPH_HIGH = 200, TWILIGHT = 15 * 60000, KWO = 3 * H;
 
 export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, shots, meals, treats, pricks, at, span = 6, onPick, onOlder }: { span?: number; at?: number | null; onPick?: (on: boolean) => void; onOlder?: () => void; treats: number[]; pricks: { t: number; bg: number }[]; aspect: number; s: Series; now: number; unit: 'mmol' | 'mgdl'; low: number; high: number; band: [number, number]; alarmHigh: number; shots: { t: number; u: number; type: 'rapid' | 'long' }[]; meals: { t: number; name?: string | null; g?: number | null }[] }) {
   const P = gpal(), uid = useId().replace(/:/g, ''); // ids for the clip and fill: two graphs can be on screen at once
@@ -439,11 +441,11 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
   const px = pick ? x(pick.t) : 0, py = pick && Number.isFinite(pick.v) ? y(pick.v) : PT + PH;
   const midnights: number[] = [];
   for (let m = Math.floor((t0 + KWO) / (24 * H)) * 24 * H - KWO + 24 * H; m < end; m += 24 * H) midnights.push(m); // Kuwait midnights (UTC+3 all year)
-  // night spans (Kuwait clock) that touch the window; shading follows the time axis as it scrolls
-  const nights: [number, number][] = [];
+  // nights that touch the window, sunset to the next sunrise; the shading follows the time axis as it scrolls
+  const nights: { set: number; rise: number }[] = [];
   for (let d0 = Math.floor((t0 + KWO) / (24 * H)) * 24 * H - KWO - 24 * H; d0 < end; d0 += 24 * H) {
-    const a = d0 + GRAPH_NIGHT.start * H, b = d0 + 24 * H + GRAPH_NIGHT.end * H;
-    if (b > t0 && a < end) nights.push([a, b]);
+    const set = sunTimes(d0 + 12 * H).set, rise = sunTimes(d0 + 36 * H).rise;
+    if (rise > t0 && set < end) nights.push({ set, rise });
   }
   const hiY = y(GRAPH_HIGH), loY = y(low), stop = (yy: number) => Math.min(1, Math.max(0, (yy - (PT - 8)) / (PH + 16)));
   const delayed = live && lastV !== null && now - lastT >= 5 * 60000;
@@ -457,15 +459,26 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
           <stop offset={0} stopColor={P.lineHigh} /><stop offset={stop(hiY)} stopColor={P.lineHigh} /><stop offset={stop(hiY)} stopColor={P.curve} />
           <stop offset={stop(loY)} stopColor={P.curve} /><stop offset={stop(loY)} stopColor={P.lineLow} /><stop offset={1} stopColor={P.lineLow} />
         </linearGradient>
+        <linearGradient id={`dusk${uid}`}><stop offset="0" stopColor={P.sun} stopOpacity={P.sunA} /><stop offset="1" stopColor={P.night} stopOpacity={P.nightA} /></linearGradient>
+        <linearGradient id={`dawn${uid}`}><stop offset="0" stopColor={P.night} stopOpacity={P.nightA} /><stop offset="1" stopColor={P.sun} stopOpacity={P.sunA} /></linearGradient>
         <linearGradient id={`gfill${uid}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={P.curve} stopOpacity={P.fillA} /><stop offset="1" stopColor={P.curve} stopOpacity="0" /></linearGradient>
       </defs>
-      {/* night, behind everything: a soft tint, a thin edge where it starts or ends, and a moon with a word */}
-      {nights.map(([a, b]) => { const l = Math.max(PL, x(a)), r = Math.min(W - PR, x(b)); if (r - l < 1) return null; return (
-        <g key={a} pointerEvents="none">
-          <rect x={l} y={PT - 4} width={r - l} height={PH + 4} fill={P.night} fillOpacity={P.nightA} />
-          {[a, b].map((e) => x(e) > PL + 1 && x(e) < W - PR - 1 && <line key={e} x1={x(e)} x2={x(e)} y1={PT - 4} y2={PT + PH} stroke={P.night} strokeOpacity="0.55" strokeWidth="1" />)}
-          {r - l > 46 && <g transform={`translate(${l + 5},${PT + 1})`}><path d="M6 0.5a5.2 5.2 0 1 0 4.9 7.1A4.3 4.3 0 0 1 6 0.5z" fill="rgb(var(--text-3))" /><text x={13} y={8.5} fontSize="9.5" fontWeight="600" fill="rgb(var(--text-3))" direction={dir()}>{t('ليل')}</text></g>}
-        </g>); })}
+      {/* night, behind everything: orange at sunset fading to night over 15 minutes, night, and back to orange at sunrise;
+          the sun times are marked at the top, so the edge reads as the sun, not as a setting */}
+      {nights.map(({ set, rise }) => {
+        const cl = (tt: number) => Math.min(W - PR, Math.max(PL, x(tt))), Y0 = PT - 4, HH2 = PH + 4, SY = PT + 22; // a time's x, kept inside the plot; the sun marks sit under the period buttons
+        const parts: [number, number, string][] = [[set, set + TWILIGHT, `url(#dusk${uid})`], [set + TWILIGHT, rise - TWILIGHT, P.night], [rise - TWILIGHT, rise, `url(#dawn${uid})`]];
+        const mark = (at: number, up: boolean) => x(at) > PL + 1 && x(at) < W - PR - 1 && (
+          <g key={at}><line x1={x(at)} x2={x(at)} y1={Y0} y2={PT + PH} stroke={P.sun} strokeOpacity="0.5" strokeWidth="1" />
+            <g transform={`translate(${x(at)},${SY})`}><path d="M-5 1.5a5 5 0 0 1 10 0z" fill={P.sun} /><path d={up ? 'M0 -5.5v2.4M-2 -4.2l2-2 2 2' : 'M0 -6.5v2.4M-2 -4.8l2 2 2-2'} stroke={P.sun} strokeWidth="1.1" fill="none" strokeLinecap="round" /><line x1={-6.5} x2={6.5} y1={1.9} y2={1.9} stroke={P.sun} strokeWidth="1" /></g>
+            <text x={x(at) + (up ? -9 : 9)} y={SY + 2} fontSize="9" fontWeight="600" fill="rgb(var(--text-3))" textAnchor={up ? 'end' : 'start'} direction="ltr">{clock(at)}</text></g>);
+        return (
+          <g key={set} pointerEvents="none">
+            {parts.map(([a, b, f]) => cl(b) - cl(a) >= 0.5 && <rect key={a} x={x(a)} y={Y0} width={x(b) - x(a)} height={HH2} fill={f} fillOpacity={f === P.night ? P.nightA : 1} clipPath={`url(#plot${uid})`} />)}
+            {cl(rise - TWILIGHT) - cl(set + TWILIGHT) > 46 && <g transform={`translate(${cl(set + TWILIGHT) + 5},${PT + 34})`}><path d="M6 0.5a5.2 5.2 0 1 0 4.9 7.1A4.3 4.3 0 0 1 6 0.5z" fill="rgb(var(--text-3))" /><text x={13} y={8.5} fontSize="9.5" fontWeight="600" fill="rgb(var(--text-3))" direction={dir()} textAnchor={dir() === 'rtl' ? 'end' : 'start'}>{t('ليل')}</text></g>}
+            {mark(set, false)}{mark(rise, true)}
+          </g>);
+      })}
       <rect x={PL} y={y(band[1])} width={W - PL - PR} height={y(band[0]) - y(band[1])} fill={P.band} />
       {ticks.map((v) => <g key={v}><line x1={PL} x2={W - PR} y1={y(v)} y2={y(v)} stroke="rgb(var(--text-3))" strokeOpacity="0.12" strokeWidth="0.8" /><text x={W - PR + 5} y={y(v) + 4} fontSize="12.5" fill="rgb(var(--text-3))">{glucoseText(v, unit).replace(/\.0$/, '')}</text></g>)}
       {hours.map((h) => <line key={'g' + h} x1={x(h)} x2={x(h)} y1={PT} y2={PT + PH} stroke="rgb(var(--text-3))" strokeOpacity="0.07" strokeWidth="0.8" />)}

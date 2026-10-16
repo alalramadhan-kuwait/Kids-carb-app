@@ -3464,6 +3464,20 @@ console.log('simple-mode graph');
   });
 }
 
+console.log('sun');
+{
+  const { sunTimes } = await import('../sun');
+  const kw = (ms: number) => { const d = new Date(ms + 3 * 3600000); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
+  const near = (got: number, h: number, m: number) => Math.abs(kw(got) - (h * 60 + m)) <= 3;
+  test('Kuwait sunrise and sunset match the published times within 3 minutes', () => {
+    const jun = sunTimes(Date.parse('2026-06-21T12:00:00+03:00')), dec = sunTimes(Date.parse('2026-12-21T12:00:00+03:00'));
+    assert.ok(near(jun.rise, 4, 48) && near(jun.set, 18, 50), 'longest day');
+    assert.ok(near(dec.rise, 6, 37) && near(dec.set, 16, 53), 'shortest day');
+    const a = sunTimes(Date.parse('2026-10-16T00:30:00+03:00')), b = sunTimes(Date.parse('2026-10-16T23:30:00+03:00'));
+    assert.equal(a.set, b.set, 'any moment of the Kuwait day gives that day (not the UTC day)');
+  });
+}
+
 console.log('repeat meal');
 {
   const { repeatPlate } = await import('../repeatMeal');
