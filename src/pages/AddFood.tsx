@@ -1,9 +1,9 @@
 // Full mode's «أكل» (from ＋): the same way in as simple mode, on full pages. Search; ⭐ usual foods and 🔁 an earlier
 // meal; nine fixed group tiles (lib/productGroups ADD_TILES). A group lists its foods at once with its sub-groups as one
 // row of chips; restaurants and brands share one page; everything else (all groups, carbs only, photo, recipes, a new
-// product) is under More. A food opens the existing product sheet to choose the amount and log it. Where the page is
+// product) is under More. A food opens its own page (?p=) to choose the amount and log it. Where the page is
 // (search, group, sub-group, brand) lives in the address, so Back always returns to the same place.
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { ADD_TILES, GROUP_TITLE, groupByKey, groupOf, groupsIn, subgroupOf, subgroupsIn } from '../lib/productGroups';
@@ -15,7 +15,7 @@ import { deleteHistory } from '../lib/api';
 import { logQuick, rankQuick, useQuickItems, type QuickItem } from '../lib/quick';
 import type { Product } from '../lib/types';
 import { Page, Photo, cx, inputCls, toast } from '../components/ui';
-import { ProductSheet } from '../components/ProductSheet';
+import { ProductLog } from '../components/ProductSheet';
 import { ProductForm } from '../components/ProductForm';
 import { isEn, t, tMaybe } from '../i18n';
 
@@ -30,13 +30,12 @@ export default function AddFood() {
   const [sp, setSp] = useSearchParams();
   const q = sp.get('q') ?? '', g = sp.get('g'), s = sp.get('s'), b = sp.get('b'), v = sp.get('v');
   const setQ = (x: string) => setSp((p) => { const n = new URLSearchParams(p); if (x) n.set('q', x); else n.delete('q'); return n; }, { replace: true });
-  const [picked, setPicked] = useState<Product | null>(null);
   const back = () => nav(-1);
   const go = (to: string) => nav('/add' + to);
 
   const row = (p: Product) => (
     <li key={p.id}>
-      <button onClick={() => setPicked(p)} className="flex min-h-[60px] w-full items-center gap-3 px-3 py-1.5 text-start active:bg-slate-50">
+      <button onClick={() => go(`?p=${p.id}`)} className="flex min-h-[60px] w-full items-center gap-3 px-3 py-1.5 text-start active:bg-slate-50">
         <Photo path={p.image_path} category={p.category} className="h-11 w-11 shrink-0 rounded-xl" />
         <span className="min-w-0 flex-1">
           <bdi className="block truncate text-[15px] font-semibold">{tMaybe(p.name)}</bdi>
@@ -55,12 +54,19 @@ export default function AddFood() {
     : <p className="py-6 text-center text-slate-500">{t('لا توجد نتائج')}</p>;
   // what is at home first, then by name; restaurant food after the rest
   const order = (ps: Product[]) => [...ps].sort((x, y) => Number(!!restaurantOf(x.brand)) - Number(!!restaurantOf(y.brand)) || Number(y.available) - Number(x.available) || x.name.localeCompare(y.name));
-  const sheet = <ProductSheet p={picked} start="log" onClose={() => setPicked(null)} />;
   const logged = async (qi: QuickItem) => {
     const id = await logQuick(qi); await reload(); void quick.reload();
     toast(t('تم التسجيل: {x}', { x: `${tMaybe(qi.name)} · ${t('{g} غ', { g: fmt(qi.carbs) })}` }), { label: t('تراجع'), run: async () => { await deleteHistory(id); await reload(); } });
     nav('/', { replace: true });
   };
+
+  // a food: choose the amount and time on its own page; logging returns to Now
+  const pid = sp.get('p'), food = pid ? products.find((x) => x.id === pid) : null;
+  if (pid) return (
+    <Page title={food ? tMaybe(food.name) : t('أكل')} back={back}>
+      {food ? <ProductLog p={food} onBack={back} onDone={() => nav('/', { replace: true })} /> : <p className="py-6 text-center text-slate-500">{t('لا توجد نتائج')}</p>}
+    </Page>
+  );
 
   // a group (or groups joined with +), its sub-groups as one row of chips; each chip replaces the page
   if (g) {
@@ -73,12 +79,11 @@ export default function AddFood() {
       <Page title={one ? `${one.emoji} ${tMaybe(one.label)}` : gr ? `${gr.emoji} ${tMaybe(GROUP_TITLE[g] ?? gr.label)}` : t('أكل')} back={back}>
         {subs.length > 1 && <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1">{chip(!one, t('الكل'), `?g=${g}`)}{subs.map(({ sub: x }) => chip(one?.key === x.key, tMaybe(x.label), `?g=${g}&s=${x.key}`))}</div>}
         {list(order(one ? inGroup.filter((p) => subgroupOf(p)?.key === one.key) : inGroup))}
-        {sheet}
       </Page>
     );
   }
   // one restaurant's or brand's foods
-  if (b) return <Page title={b} back={back}>{list(order(products.filter((p) => sameBrand(p.brand, b))))}{sheet}</Page>;
+  if (b) return <Page title={b} back={back}>{list(order(products.filter((p) => sameBrand(p.brand, b))))}</Page>;
   if (v === 'brands') {
     const names = brandsOf(products);
     const rest = names.filter((x) => restaurantOf(x)), shop = names.filter((x) => !restaurantOf(x));
@@ -155,7 +160,6 @@ export default function AddFood() {
           </div>
         </>
       )}
-      {sheet}
     </Page>
   );
 }

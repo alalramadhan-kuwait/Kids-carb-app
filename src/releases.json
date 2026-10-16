@@ -4,11 +4,13 @@
     "date": "2026-10-16",
     "notes": [
       "إضافة الأكل في الوضع الكامل صارت صفحة بمجموعات: خبز، رز ومعكرونة، مشروبات، ألبان وغيرها.",
-      "المعتاد ووجبة سابقة والمطاعم والماركات صارت أزرار واضحة بنفس الصفحة."
+      "المعتاد ووجبة سابقة والمطاعم والماركات صارت أزرار واضحة بنفس الصفحة.",
+      "اختيار الكمية صار صفحة كاملة بدل النافذة النصفية."
     ],
     "notes_en": [
       "Adding food in full mode is now a page with groups: bread, rice & pasta, drinks, dairy and more.",
-      "Usual, Earlier meal and Restaurants & brands are clear buttons on the same page."
+      "Usual, Earlier meal and Restaurants & brands are clear buttons on the same page.",
+      "Choosing the amount is now a full page instead of a half-open panel."
     ]
   },
   {

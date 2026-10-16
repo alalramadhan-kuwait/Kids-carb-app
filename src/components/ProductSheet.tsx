@@ -23,7 +23,10 @@ export function ProductSheet({ p, onClose, start = 'choose' }: { p: Product | nu
   );
 }
 
-function Body({ p, onClose, start }: { p: Product; onClose: () => void; start: 'choose' | 'log' }) {
+/** the same, as a full page's content: Back leaves the page instead of returning to the choice */
+export const ProductLog = ({ p, onDone, onBack }: { p: Product; onDone: () => void; onBack: () => void }) => <Body p={p} onClose={onDone} start="log" onBack={onBack} />;
+
+function Body({ p, onClose, start, onBack }: { p: Product; onClose: () => void; start: 'choose' | 'log'; onBack?: () => void }) {
   const nav = useNavigate();
   const { reload, settings, me } = useData();
   const [mode, setMode] = useState<'choose' | 'log'>(start);
@@ -117,7 +120,7 @@ function Body({ p, onClose, start }: { p: Product; onClose: () => void; start: '
             {wasLow && <p className="text-xs text-slate-500">{t('السكر كان {v} الساعة {t}', { v: formatGlucose(wasLow.mg, settings.glucose_unit), t: fmtTime(new Date(wasLow.at)) })}</p>}
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <Btn kind="ghost" onClick={() => setMode('choose')}>{t('رجوع')}</Btn>
+            <Btn kind="ghost" onClick={onBack ?? (() => setMode('choose'))}>{t('رجوع')}</Btn>
             <Btn kind="primary" disabled={busy || !ok} onClick={save}>{busy ? t('جارٍ الحفظ…') : t('سجّل')}</Btn>
           </div>
         </>
