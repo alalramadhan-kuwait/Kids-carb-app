@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.13.0",
+    "date": "2026-10-16",
+    "notes": [
+      "رسم الرئيسية: الخط يصير برتقالي فوق 11.1 وأحمر تحت الانخفاض، وفيه خط متقطع عند 11.1.",
+      "الليل (6 المسا – 6 الصبح) مظلل بلون هادي مع قمر."
+    ],
+    "notes_en": [
+      "Home graph: the line turns amber above 11.1 and red below low, with a dashed line at 11.1.",
+      "Night (6 pm – 6 am) is softly shaded, with a moon."
+    ]
+  },
+  {
     "version": "4.12.1",
     "date": "2026-10-16",
     "notes": [
