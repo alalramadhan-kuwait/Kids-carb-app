@@ -1577,4 +1577,6 @@ export const food: Record<string, string> = {
   "المعتاد": "Usual",
   "مطاعم وماركات": "Restaurants & brands",
   "رز ومعكرونة": "Rice & pasta",
+  "الحصة": "serving",
+  "ضغطة وحدة تسجّلها بكميتها المعتادة.": "One tap logs it at the usual amount.",
 };

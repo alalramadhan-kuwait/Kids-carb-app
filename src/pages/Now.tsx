@@ -50,12 +50,13 @@ export default function Now() {
   const { settings, history, events, nameOf } = useData();
   const { g, failed, reload } = useGlucose();
   const [logOpen, setLogOpen] = useState(false);
-  const [logKind, setLogKind] = useState<'treatment' | 'insulin' | null>(null);
+  const [logKind, setLogKind] = useState<'treatment' | 'insulin' | 'carbs' | null>(null);
   // arriving from "a new meal from an earlier one" (?log=insulin): the insulin entry opens, its calculator taking the new meal's carbs
   const [params, setParams] = useSearchParams();
   useEffect(() => {
-    if (params.get('log') !== 'insulin') return;
-    setLogKind('insulin'); setLogOpen(true); setParams({}, { replace: true });
+    // or from Add food's «كارب فقط» (?log=carbs): the carbs entry opens
+    const k = params.get('log'); if (k !== 'insulin' && k !== 'carbs') return;
+    setLogKind(k); setLogOpen(true); setParams({}, { replace: true });
   }, [params, setParams]);
   const alerts = useAlerts();
   const [now, setNow] = useState(Date.now());

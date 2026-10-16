@@ -38,6 +38,7 @@ const Analysis = lazy(() => import('./pages/Analysis'));
 const RecipeEdit = lazy(() => import('./pages/RecipeEdit'));
 const ProductEdit = lazy(() => import('./pages/ProductEdit'));
 const History = lazy(() => import('./pages/History'));
+const AddFood = lazy(() => import('./pages/AddFood'));
 const LogEntryPage = lazy(() => import('./pages/History').then((m) => ({ default: m.LogEntryPage })));
 const Cgm = lazy(() => import('./pages/Cgm'));
 const Status = lazy(() => import('./pages/Status'));
@@ -300,6 +301,7 @@ function Shell() {
         <Route path="/meals" element={<Today />} />
         <Route path="/timeline" element={<History />} />
         <Route path="/timeline/entry/:key" element={<LogEntryPage />} />
+        <Route path="/add" element={<AddFood />} />
         <Route path="/analysis" element={<Analysis />} />
         <Route path="/recipes" element={<RecipeList />} />
         <Route path="/recipes/new" element={<RecipeEdit />} />

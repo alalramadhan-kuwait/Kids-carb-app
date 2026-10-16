@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { TimeField } from './TimeField';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { deleteEvent, restoreEvent, saveEvent, type NewEvent } from '../lib/api';
 import { findDuplicate, sinceText } from '../lib/now';
@@ -16,12 +16,6 @@ import { shortName } from '../lib/shortName';
 import { DoseCalculator } from './DoseCalculator';
 import { PlanSheet } from './Plans';
 import { logQuick, rankQuick, useQuickItems } from '../lib/quick';
-import { brandsOf, sameBrand } from '../lib/brand';
-import { ProductForm } from './ProductForm';
-import { ProductPicker } from './ProductPicker';
-import { ProductSheet } from './ProductSheet';
-import type { Product } from '../lib/types';
-import type { QuickItem } from '../lib/quick';
 import { useSiteRotation } from '../lib/sites';
 import { SitePicker } from './SitePicker';
 import { deleteHistory, insulinNear } from '../lib/api';
@@ -54,6 +48,7 @@ const AGO = [0, 15, 30, 60];
  */
 export function LogSheet({ open, onClose, low = false, startKind = null }: { open: boolean; onClose: () => void; low?: boolean; startKind?: EventKind | null }) {
   const { events, me, nameOf, reload, settings, history } = useData();
+  const nav = useNavigate();
   const [kind, setKind] = useState<EventKind | null>(null);
   const [clientId, setClientId] = useState(() => crypto.randomUUID());
   const [units, setUnits] = useState<number | null>(null);
@@ -79,11 +74,7 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
   const [clean, setClean] = useState(true);                     // hands washed and dried
   const quick = useQuickItems();
   const [plan, setPlan] = useState(false); // «خطة وجبة»: pick the food, see the carbs and the doctor's dose, keep it for when she eats
-  const [food, setFood] = useState(false);                        // the food screen: products, carbs only, photo, recipe
   const [more, setMore] = useState(false);                        // note, exercise, sleep shown
-  const [picked, setPicked] = useState<Product | null>(null);
-  const [newProduct, setNewProduct] = useState(false);              // entering a product from the box in hand   // frequent foods of one brand only
-  const brands = useMemo(() => brandsOf(quick.items), [quick.items]);
   const ranked = useMemo(() => rankQuick(quick.items, history), [quick.items, history]);
   const quickShown = ranked.slice(0, 4);
   const usualLow = useMemo(() => usualLowTreatments(history, events), [history, events]);
@@ -98,7 +89,7 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
     setKind(null); setClientId(crypto.randomUUID()); setUnits(null); setType('rapid'); setPurpose(null); setSite(null);
     setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault()); setCalc(null); setNewCarbs(0); setCarbsId(crypto.randomUUID()); setBg(null); setClean(true);
   };
-  const close = () => { reset(); setNewProduct(false); setFood(false); setMore(false); onClose(); };
+  const close = () => { reset(); setMore(false); onClose(); };
 
   const draft: NewEvent | null = useMemo(() => {
     if (!kind) return null;
@@ -156,29 +147,8 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
   return (
     <>
     <PlanSheet open={plan} onClose={() => { setPlan(false); close(); }} />
-    <Sheet open={open && !plan} onClose={close} title={food && !newProduct ? t('أكل') : newProduct ? t('منتج جديد') : kind ? t(KINDS.find((k) => k.kind === kind)!.label) : t('سجّل')}>
-      {food && !newProduct ? (
-        <div className="space-y-3">
-          <div className="flex items-start gap-2">
-            <p className="flex-1 text-sm text-slate-600">{t('اختاروا المنتج من القائمة. إذا لم يكن فيها: اكتبوا الكارب، أو صوّروا الأكل.')}</p>
-            <button onClick={() => setFood(false)} className="min-h-[36px] shrink-0 text-sm font-medium text-slate-500">{t('رجوع')}</button>
-          </div>
-          {/* a meal from the Log, changed into a new one (full page, its own way back) */}
-          <Link to="/reuse" onClick={close} className={cx(SMALL, '!flex-row w-full justify-center gap-2', KIND_STYLE.meal.soft)}><Icon name="repeat" size={22} />{t('من وجبة سابقة')}</Link>
-          <div className="grid grid-cols-3 gap-2">
-            <button onClick={() => { setFood(false); setKind('carbs'); }} className={cx(SMALL, KIND_STYLE.carbs.soft)}><Icon name="carbs" size={22} />{t('كارب فقط')}</button>
-            <Link to="/scan" onClick={close} className={cx(SMALL, KIND_STYLE.carbs.soft)}><Icon name="camera" size={22} />{t('صورة + كارب')}</Link>
-            <Link to="/meals" onClick={close} className={cx(SMALL, KIND_STYLE.carbs.soft)}><Icon name="meals" size={22} />{t('من الوصفات')}</Link>
-          </div>
-          <button onClick={() => setNewProduct(true)} className="min-h-[40px] w-full text-start text-sm font-bold text-brand">{t('+ منتج جديد ليس في القائمة')}</button>
-          <ProductPicker onPick={(p) => { setPicked(p); close(); }} />
-        </div>
-      ) : newProduct ? (
-        <ProductForm q={null} brands={brands} onDone={() => { setNewProduct(false); void quick.reload(); }} onLog={async (q: QuickItem) => {
-          const id = await logQuick(q); await reload(); void quick.reload(); close();
-          toast(t('تم التسجيل: {x}', { x: `${tMaybe(q.name)} · ${t('{g} غ', { g: fmt(q.carbs) })}` }), { label: t('تراجع'), run: async () => { await deleteHistory(id); await reload(); } });
-        }} />
-      ) : !kind ? (
+    <Sheet open={open && !plan} onClose={close} title={kind ? t(KINDS.find((k) => k.kind === kind)!.label) : t('سجّل')}>
+      {!kind ? (
         <div className="space-y-4">
           {low && <Tile k="treatment" icon="treatment" strong wide label={t('علاج انخفاض')} sub={t('السكر منخفض: سجّلوا العصير أو الأقراص')} onClick={() => setKind('treatment')} />}
           {/* the meal plan first: what she will eat, its carbs and the doctor's dose, kept until she eats */}
@@ -187,7 +157,7 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
             <span className="min-w-0 flex-1"><b className="block text-base">{t('خطة وجبة')}</b><span className="block text-xs font-medium opacity-90">{t('الأكل ← الكارب ← الجرعة')}</span></span>
           </button>
           <div className="grid grid-cols-2 gap-2">
-            <Tile k="meal" icon="carbs" label={t('أكل')} onClick={() => setFood(true)} />
+            <Tile k="meal" icon="carbs" label={t('أكل')} onClick={() => { close(); nav('/add'); }} />
             <Tile k="insulin" icon="insulin" label={t('إنسولين')} onClick={() => setKind('insulin')} />
             {!low && <Tile k="treatment" icon="treatment" label={t('علاج انخفاض')} onClick={() => setKind('treatment')} />}
             <Tile k="bg_check" icon="glucose" wide={low} label={t('وخز إصبع')} onClick={() => setKind('bg_check')} />
@@ -307,7 +277,6 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
         </div>
       )}
     </Sheet>
-    <ProductSheet p={picked} start="log" onClose={() => setPicked(null)} />
     </>
   );
 }
