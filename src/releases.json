@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.13.2",
+    "date": "2026-10-16",
+    "notes": [
+      "شلنا «سناك» من صفحة الوجبة والسجل: تختارين بس فطور أو غدا أو عشا، والوجبة تنعرض بالأكل اللي أكلته."
+    ],
+    "notes_en": [
+      "«Snack» is gone from the meal page and the Log: only breakfast, lunch or dinner, and a meal shows what she ate."
+    ]
+  },
+  {
     "version": "4.13.1",
     "date": "2026-10-16",
     "notes": [

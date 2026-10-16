@@ -23,7 +23,8 @@ import { draftOps } from '../../lib/mom';
 
 const PLATE_WORD = { small: 'صغير', medium: 'وسط', large: 'كبير' } as const; // i18n-ok: shown via t()
 const ATE_WORD = { all: 'كله', half: 'نصه', little: 'شوي' } as const; // i18n-ok: shown via t()
-export const SLOT_CHOICES: [MealSlot, string, string][] = [['breakfast', 'فطور', '🍳'], ['lunch', 'غدا', '🍛'], ['dinner', 'عشا', '🍽️'], ['snack', 'سناك', '🍎']]; // i18n-ok: shown via t()
+// no «snack»: a meal is named by what she ate, and only the time of day is asked
+export const SLOT_CHOICES: [MealSlot, string, string][] = [['breakfast', 'فطور', '🍳'], ['lunch', 'غدا', '🍛'], ['dinner', 'عشا', '🍽️']]; // i18n-ok: shown via t()
 /** Who logged it, and who changed it last (and when): short, in her words. */
 export function whoLine(h: { created_by?: string | null; edited_by?: string | null; edited_at?: string | null }, nameOf: (id: string | null | undefined) => string) {
   const by = h.created_by ? nameOf(h.created_by) : '';
@@ -113,8 +114,8 @@ export function MomMealEntry() {
       {!pending && h.client_id && <PartLine clientId={h.client_id} />}
       <DoseReview h={h} simple />
       <div className="text-[15px] font-bold">{t('شنو هذي؟')}</div>
-      {/* the four kinds in one row */}
-      <div className="grid grid-cols-4 gap-1.5">
+      {/* the three times of day in one row */}
+      <div className="grid grid-cols-3 gap-1.5">
         {SLOT_CHOICES.map(([k, w, icon]) => (
           <button key={k} onClick={() => void slot(k)} aria-pressed={h.meal_slot === k} disabled={busy}
             className={cx('flex min-h-[56px] flex-col items-center justify-center rounded-2xl border-2 bg-white text-[14px] font-bold leading-tight active:opacity-80', h.meal_slot === k ? 'border-brand bg-brand-soft text-brand' : 'border-slate-200')}>

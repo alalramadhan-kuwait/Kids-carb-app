@@ -100,7 +100,7 @@ export function MomOut() {
       <div className="grid grid-cols-3 gap-2">{PARTS.map(([k, w]) => <Choice key={k} compact label={t(w)} on={ate === k} onClick={() => setAte(ate === k ? null : k)} />)}</div>
 
       <div className="text-[17px] font-bold">{t('شنو هذي؟')}</div>
-      <div className="grid grid-cols-2 gap-2">{SLOT_CHOICES.map(([k, w, icon]) => <Choice key={k} compact icon={icon} label={t(w)} on={slot === k} onClick={() => setSlot(slot === k ? null : k)} />)}</div>
+      <div className="grid grid-cols-3 gap-2">{SLOT_CHOICES.map(([k, w, icon]) => <Choice key={k} compact icon={icon} label={t(w)} on={slot === k} onClick={() => setSlot(slot === k ? null : k)} />)}</div>
 
       <div className="text-[17px] font-bold">{t('متى أكلت؟')}</div>
       <TimePicker value={at} onChange={setAt} />

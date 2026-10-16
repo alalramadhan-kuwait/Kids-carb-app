@@ -18,7 +18,7 @@ import { Card, Chip, Page, inputCls, toast } from '../components/ui';
 import { isEn, t, tMaybe } from '../i18n';
 
 /** The kinds of meal, with the words shown for them. The kind is its own field: the food keeps its name. */
-export const SLOTS: [MealSlot, string][] = [['breakfast', 'فطور'], ['lunch', 'غدا'], ['dinner', 'عشا'], ['snack', 'سناك']]; // i18n-ok: shown via t()
+export const SLOTS: [MealSlot, string][] = [['breakfast', 'فطور'], ['lunch', 'غدا'], ['dinner', 'عشا']]; // i18n-ok: shown via t()
 export const slotFor = (ms: number): MealSlot => ({ breakfast: 'breakfast', lunch: 'lunch', dinner: 'dinner', late: 'snack' } as const)[mealSlot(ms)];
 
 /** Step 1: which meal. */
