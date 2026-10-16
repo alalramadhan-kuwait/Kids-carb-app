@@ -29,6 +29,10 @@ export interface Tracks {
   act?: { at: (t: number) => number; peaks: number[]; ref: number };
 }
 export interface Inspect { t: number; i: number | null; x: number }
+export interface Measure { a: number; b: number }
+const darkTheme = () => { const th = document.documentElement.dataset.theme; return th === 'night' || (th !== 'day' && matchMedia('(prefers-color-scheme: dark)').matches); };
+/** A in the brand purple, solid; B in orange, dashed: they differ by more than colour */
+export const measureColour = (k: 'a' | 'b') => (k === 'a' ? css('--primary-strong') : darkTheme() ? '#FF8A4C' : '#D9480F');
 
 const LONG_PRESS = 500, TAP_SLOP = 8, DOUBLE_TAP = 300;
 // Colour tokens are read from the page once per theme, not on every frame (getComputedStyle is slow on phones).
@@ -58,7 +62,7 @@ export const dayWord = (ms: number, now: number) => {
   return d === 0 ? t('اليوم') : d === 1 ? `${t('أمس')} · ${kwDate(ms)}` : kwDate(ms);
 };
 
-export function Timeline({ series, view, now, onView, range, unit, height: total, marks = [], layers, onSelect, dayParts, highlight, tracks, forecasts, ahead = 0.04, night, rotated = false, compact = false }: {
+export function Timeline({ series, view, now, onView, range, unit, height: total, marks = [], layers, onSelect, dayParts, highlight, tracks, forecasts, ahead = 0.04, night, rotated = false, compact = false, measure = null, onMeasure }: {
   series: Series; view: View; now: number; onView: (v: View, opts?: { animate?: boolean }) => void;
   range: Range; unit: GlucoseUnit; height: number;
   marks?: Mark[]; layers?: Set<Layer>; onSelect?: (g: Group) => void;
@@ -71,6 +75,9 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
   rotated?: boolean;
   /** a short graph (Now): the events in one row of icons under it, without words; a tap still opens them */
   compact?: boolean;
+  /** Measure (Analysis → 📏): two cursors A and B, each the time of a real reading. Dragging near a cursor moves it to
+   *  the nearest reading; everything else (scroll, zoom, long-press, taps) works as without it. */
+  measure?: Measure | null; onMeasure?: (m: Measure) => void;
 }) {
   // the readout floats just above the plot while a point is read, so the finger on the graph never covers it;
   // the canvas keeps its full height and never moves under the finger
@@ -476,7 +483,34 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
         g.fillStyle = css(tone); g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill();
       }
     }
-  }, [series, view, now, range.low, range.high, range.reference, unit, width, height, inspect, marks, layers, hasRail, RAIL, dayParts, highlight, tracks, TRK, forecasts, night, compact]);
+    // measure: A and B, each a line on its reading with a lettered tag at the top; off screen, it simply waits there
+    if (measure) {
+      const TAG_Y = PAD_T + 50; // under the graph's corner buttons (⤢ 📏 at the left, ⓘ at the right)
+      const tags: { k: 'a' | 'b'; x: number }[] = [];
+      for (const k of ['a', 'b'] as const) {
+        const i = nearest(series, measure[k], Infinity); if (i === null) continue;
+        const x = Math.round(X(series.t[i])) + 0.5; if (x < -1 || x > width + 1) continue;
+        const c = measureColour(k);
+        g.strokeStyle = c; g.lineWidth = 2; g.setLineDash(k === 'b' ? [5, 4] : []);
+        g.beginPath(); g.moveTo(x, TAG_Y + 11); g.lineTo(x, PAD_T + plotH + TRK); g.stroke(); g.setLineDash([]); g.lineWidth = 1;
+        const y = Y(series.v[i]);
+        g.fillStyle = c; g.strokeStyle = css('--surface'); g.lineWidth = 2; g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); g.stroke(); g.lineWidth = 1;
+        tags.push({ k, x });
+      }
+      // two tags closer than a tag's width sit side by side, A on its own side
+      if (tags.length === 2 && Math.abs(tags[0].x - tags[1].x) < 24) {
+        const m = (tags[0].x + tags[1].x) / 2, aLeft = measure.a <= measure.b;
+        tags[0].x = m + (aLeft ? -12 : 12); tags[1].x = m + (aLeft ? 12 : -12);
+      }
+      g.font = '800 12.5px Rubik, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.direction = 'ltr';
+      for (const { k, x } of tags) {
+        const cx2 = Math.min(width - 12, Math.max(12, x));
+        g.fillStyle = measureColour(k); g.beginPath(); g.arc(cx2, TAG_Y, 11, 0, 7); g.fill();
+        g.fillStyle = '#fff'; g.fillText(k.toUpperCase(), cx2, TAG_Y + 0.5);
+      }
+      g.textBaseline = 'alphabetic';
+    }
+  }, [series, view, now, range.low, range.high, range.reference, unit, width, height, inspect, marks, layers, hasRail, RAIL, dayParts, highlight, tracks, TRK, forecasts, night, compact, measure]);
 
   useEffect(() => { const id = requestAnimationFrame(draw); return () => cancelAnimationFrame(id); }, [draw]);
   useEffect(() => { // redraw on light/dark change
@@ -486,10 +520,30 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
 
   // ── gestures ──
   const g = useRef({
-    pts: new Map<number, { x: number; y: number }>(), mode: 'none' as 'none' | 'pan' | 'pinch' | 'cross' | 'pending' | 'scroll', frame: 0,
+    pts: new Map<number, { x: number; y: number }>(), mode: 'none' as 'none' | 'pan' | 'pinch' | 'cross' | 'pending' | 'scroll' | 'measure', frame: 0, mk: 'a' as 'a' | 'b',
     x0: 0, y0: 0, t0: 0, view0: view, dist0: 0, mid0: 0, timer: 0, lastTap: { t: 0, x: 0 }, vel: 0, lastX: 0, lastT: 0, fling: 0, wasLow: false, lastInspectT: 0,
   });
   const rotRef = useRef(rotated); rotRef.current = rotated;
+  const measureRef = useRef(measure); measureRef.current = measure;
+  const seriesRef = useRef(series); seriesRef.current = series;
+  // the cursor a finger at x (graph frame) takes hold of: within 24 px of its line, the nearer one
+  const cursorAt = (x: number, r: { width: number }): 'a' | 'b' | null => {
+    const m = measureRef.current, s = seriesRef.current, v = viewRef.current; if (!m) return null;
+    let best: 'a' | 'b' | null = null, dist = 24;
+    for (const k of ['a', 'b'] as const) {
+      const i = nearest(s, m[k], Infinity); if (i === null) continue;
+      const d = Math.abs(((s.t[i] - (v.end - v.span)) / v.span) * r.width - x);
+      if (d < dist) { dist = d; best = k; }
+    }
+    return best;
+  };
+  const moveCursor = (clientX: number) => {
+    const m = measureRef.current, r = rect(), v = viewRef.current; if (!m || !onMeasure) return;
+    const x = Math.min(r.width, Math.max(0, clientX - r.left));
+    const i = nearest(seriesRef.current, v.end - v.span + (x / r.width) * v.span, Infinity); if (i === null) return;
+    const t = seriesRef.current.t[i];
+    if (m[g.current.mk] !== t) onMeasure({ ...m, [g.current.mk]: t });
+  };
   // screen → the graph's own frame: turned a quarter clockwise, its x runs down the screen and its y runs right to left
   const rect = () => {
     const r = wrap.current!.getBoundingClientRect();
@@ -516,6 +570,8 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
     stopFling();
     (e.target as Element).setPointerCapture?.(e.pointerId);
     const s = g.current; s.pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const r0 = rect(), mk = s.pts.size === 1 && e.clientY - r0.top < height - PAD_B - RAIL ? cursorAt(e.clientX - r0.left, r0) : null;
+    if (mk) { window.clearTimeout(s.timer); stopFling(); Object.assign(s, { mode: 'measure', mk }); setInspect(null); return; }
     if (s.pts.size === 1) {
       Object.assign(s, { mode: 'pending', x0: e.clientX, y0: e.clientY, t0: performance.now(), view0: viewRef.current, vel: 0, lastX: e.clientX, lastT: performance.now() });
       window.clearTimeout(s.timer);
@@ -540,6 +596,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
     const e = { clientX: [...s.pts.values()][0].x, clientY: [...s.pts.values()][0].y };
     const r = rect();
     if (s.mode === 'cross') return inspectAt(e.clientX);
+    if (s.mode === 'measure') return moveCursor(e.clientX);
     // up/down is left to the phone (touch-action: pan-y), which scrolls the page itself and cancels the pointer;
     // a mostly vertical move that still arrives here is ignored rather than read as a sideways pan
     if (s.mode === 'pending') {
@@ -568,7 +625,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
     const s = g.current;
     if (s.frame) { cancelAnimationFrame(s.frame); s.frame = 0; step(); } // apply the last move before letting go
     s.pts.delete(e.pointerId);
-    if (s.mode === 'scroll') { if (s.pts.size === 0) s.mode = 'none'; return; }
+    if (s.mode === 'scroll' || s.mode === 'measure') { if (s.pts.size === 0) s.mode = 'none'; return; }
     window.clearTimeout(s.timer);
     const r = rect();
     if (s.mode === 'pinch') {
@@ -623,7 +680,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
     const el = canvas.current; if (!el) return;
     const block = (e: TouchEvent) => {
       const m = g.current.mode;
-      if (e.touches.length > 1 || m === 'pan' || m === 'cross' || m === 'pinch') e.preventDefault();
+      if (e.touches.length > 1 || m === 'pan' || m === 'cross' || m === 'pinch' || m === 'measure') e.preventDefault();
       else if (m === 'pending' && e.touches.length === 1) {
         const p = vp({ pointerId: 0, target: e.target!, clientX: e.touches[0].clientX, clientY: e.touches[0].clientY });
         const dx = Math.abs(p.clientX - g.current.x0), dy = Math.abs(p.clientY - g.current.y0);

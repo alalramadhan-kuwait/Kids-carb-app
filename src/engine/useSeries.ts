@@ -35,8 +35,9 @@ export function useSeries(start: number, end: number, live: Reading[] | undefine
   const fetchRange = useCallback(async (from: number, to: number) => {
     const { data, error } = await supabase.rpc('glucose_series', { p_from: new Date(from).toISOString(), p_to: new Date(to).toISOString() });
     if (error) throw new Error(error.message);
-    const d = data as { t: number[]; v: number[] };
-    return { t: d.t.map((s) => s * 1000), v: d.v };
+    // without the history rows that sit beside minute readings (as on the home graph), so the line never zigzags
+    const d = data as { t: number[]; v: number[]; h?: number[] };
+    return withoutHistoryTwins(d.t.map((s) => s * 1000), d.v, d.h);
   }, []);
 
   useEffect(() => {

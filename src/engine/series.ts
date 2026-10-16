@@ -71,6 +71,18 @@ export function gapsIn(s: Series, start: number, end: number, now: number): Gap[
   return out;
 }
 
+/** Two cursors on the graph (Analysis → 📏), each on a real reading. `perHour` is (B − A) / hours and is left out when
+ *  A and B are the same reading or readings are missing between them: a straight line across a gap is not a trend. */
+export interface Measured { ta: number; tb: number; va: number; vb: number; dt: number; change: number; perHour: number | null; missingMs: number }
+export function measureBetween(s: Series, a: number, b: number): Measured | null {
+  const ia = nearest(s, a, Infinity), ib = nearest(s, b, Infinity);
+  if (ia === null || ib === null) return null;
+  let missingMs = 0;
+  for (let k = Math.min(ia, ib); k < Math.max(ia, ib); k++) { const d = s.t[k + 1] - s.t[k]; if (d > GAP_MS) missingMs += d; }
+  const ta = s.t[ia], tb = s.t[ib], dt = tb - ta, change = s.v[ib] - s.v[ia];
+  return { ta, tb, va: s.v[ia], vb: s.v[ib], dt, change, perHour: dt === 0 || missingMs > 0 ? null : change / (dt / 3600000), missingMs };
+}
+
 /**
  * Drawable runs for a viewport: readings split at gaps, then reduced to at most two points per pixel column
  * (the column's min and max, in time order). Min–max decimation keeps every real low and high at every zoom

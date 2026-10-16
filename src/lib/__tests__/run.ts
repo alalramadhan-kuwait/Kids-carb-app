@@ -3447,6 +3447,21 @@ console.log('simple-mode graph');
     assert.deepEqual(Array.from(r.v), [100, 101, 102, 120, 130, 131]);
     assert.deepEqual(Array.from(withoutHistoryTwins(t, v, undefined).v), v, 'without the flag nothing is dropped');
   });
+  test('measure: A and B snap to real readings; change, per hour, missing readings and the same reading', () => {
+    const { measureBetween } = S, M = 60000;
+    const t = [0, 5, 10, 15, 63, 68].map((m) => m * M), v = [200, 190, 180, 170, 70, 80];
+    const s = { t: Float64Array.from(t), v: Float64Array.from(v) };
+    const r = measureBetween(s, 1 * M, 14 * M)!;               // snaps to 0 and 15 min
+    assert.equal(r.ta, 0); assert.equal(r.tb, 15 * M); assert.equal(r.change, -30);
+    assert.equal(r.perHour, -120, '−30 in a quarter of an hour'); assert.equal(r.missingMs, 0);
+    const back = measureBetween(s, 15 * M, 0)!;               // B before A: B − A over a negative time, the same slope
+    assert.equal(back.change, 30); assert.equal(back.dt, -15 * M); assert.equal(back.perHour, -120);
+    const gap = measureBetween(s, 10 * M, 68 * M)!;           // across the 48-minute gap: no average
+    assert.equal(gap.missingMs, 48 * M); assert.equal(gap.perHour, null); assert.equal(gap.change, -100);
+    const same = measureBetween(s, 4 * M, 6 * M)!;            // both snap to the 5-minute reading
+    assert.equal(same.dt, 0); assert.equal(same.perHour, null, 'no rate with no time between them');
+    assert.equal(measureBetween({ t: new Float64Array(), v: new Float64Array() }, 0, M), null);
+  });
 }
 
 console.log('repeat meal');

@@ -5,11 +5,12 @@ import { useGlucose } from '../hooks/useGlucose';
 import { effectiveRange, formatGlucose, glucoseStatus, unitLabel } from '../lib/glucose';
 import { Icon, TREND_ICON, TREND_WORDS } from '../components/Icon';
 import { Chip, Page, cx } from '../components/ui';
-import { Timeline } from '../engine/Timeline';
+import { Timeline, measureColour, type Measure } from '../engine/Timeline';
+import { kwClock } from '../lib/constants';
 import { useLandscape } from '../hooks/useLandscape';
 import { useSeries } from '../engine/useSeries';
 import { GraphLoadNotice } from '../components/GraphLoadNotice';
-import { PERIODS, delta15, freshness, limitEnd, rateAt, type View } from '../engine/series';
+import { PERIODS, delta15, freshness, limitEnd, measureBetween, nearest, rateAt, type Series, type View } from '../engine/series';
 import StatsPanel from './Advanced';
 import { ResearchPanel } from './Research';
 import { DayView } from './Day';
@@ -168,6 +169,14 @@ function Live() {
   const latest = g?.latest;
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
   const status = latest && fresh !== 'missing' ? glucoseStatus(latest.mg_dl, rng.low, rng.high) : null;
+  // 📏 Measure: A and B at a third and two thirds of the view, each on a real reading
+  const [measure, setMeasure] = useState<Measure | null>(null);
+  const toggleMeasure = () => {
+    if (measure) return setMeasure(null);
+    const at = (f: number) => { const i = nearest(series, view.end - view.span * f, Infinity); return i === null ? null : series.t[i]; };
+    const a = at(2 / 3), b = at(1 / 3);
+    if (a !== null && b !== null) setMeasure({ a, b });
+  };
   const period = PERIODS.find((p) => Math.abs(p.ms - view.span) / p.ms < 0.03)?.id;
 
   if (land.landscape || wide) {
@@ -220,12 +229,16 @@ function Live() {
       <div className="relative -mx-4 bg-white py-2 shadow-card">
         <Timeline series={series} view={view} now={now} onView={onView} unit={unit} height={height}
           range={rng}
-          marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={ahead} night={nightOf(settings)} />
-        {loading && <div className="absolute start-14 top-3 text-xs text-slate-400">…</div>}
+          marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={ahead} night={nightOf(settings)}
+          measure={measure} onMeasure={setMeasure} />
+        {loading && <div className="absolute start-28 top-3 text-xs text-slate-400">…</div>}
         <button onClick={() => setWide(true)} aria-label={t('ملء الشاشة')} className="absolute left-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-white/90 text-lg font-bold text-slate-600 shadow-sm ring-1 ring-slate-200">⤢</button>
+        <button onClick={toggleMeasure} aria-pressed={!!measure} aria-label={t('قياس بين نقطتين')}
+          className={cx('absolute left-14 top-3 z-10 grid h-9 w-9 place-items-center rounded-full text-base shadow-sm ring-1', measure ? 'bg-brand ring-brand' : 'bg-white/90 ring-slate-200')}>📏</button>
         <GraphHelp past={forecasts.some((f) => f.kind === 'past')} tracks={!!(tracks?.iob || tracks?.cob)} act={!!tracks?.act} className="absolute right-12 top-3" />
       </div>
 
+      {measure && <MeasureCard series={series} m={measure} unit={unit} onClose={() => setMeasure(null)} />}
       <div className="flex items-center gap-2">
         <div className="-mx-1 flex flex-1 gap-1.5 overflow-x-auto px-1" dir="ltr">
           {PERIODS.map((p) => <Chip key={p.id} active={period === p.id} onClick={() => onView({ span: p.ms, end: live ? Infinity : view.end }, { animate: true })}>{p.id}</Chip>)}
@@ -255,6 +268,39 @@ function Live() {
 }
 
 /** "نزل 0.7 خلال 15 د · 0.05 بالدقيقة": words instead of +/− signs, which read ambiguously inside Arabic text. */
+/** The result of 📏: A → B, the change between them, and the average per hour unless readings are missing between them */
+function MeasureCard({ series, m, unit, onClose }: { series: Series; m: Measure; unit: 'mmol' | 'mgdl'; onClose: () => void }) {
+  const r = measureBetween(series, m.a, m.b);
+  if (!r) return null;
+  const KW = 3 * 3600000, dayNo = (ms: number) => Math.floor((ms + KW) / 86400000);
+  const wday = (ms: number) => new Date(ms).toLocaleDateString(isEn() ? 'en-GB' : 'ar-KW', { weekday: 'short', timeZone: 'Asia/Kuwait' });
+  const twoDays = dayNo(r.ta) !== dayNo(r.tb);
+  const span = (ms: number) => { const n = Math.round(Math.abs(ms) / 60000); return n < 60 ? t('{n} د', { n }) : t('{h} س {m} د', { h: Math.floor(n / 60), m: n % 60 }); };
+  const signed = (mg: number) => { const v = unit === 'mmol' ? mg / 18.016 : mg, a = Math.abs(v).toFixed(unit === 'mmol' ? 1 : 0); return `${Number(a) === 0 ? '±' : v > 0 ? '+' : '−'}${a}`; };
+  const pt = (k: 'a' | 'b', v: number, at: number) => (
+    <span className="flex items-center gap-1.5 whitespace-nowrap">
+      <span className="grid h-[22px] w-[22px] place-items-center rounded-full text-xs font-extrabold text-white" style={{ background: measureColour(k) }}>{k.toUpperCase()}</span>
+      <b className="num text-base text-slate-900">{formatGlucose(v, unit)}</b>
+      <bdi className="num text-sm text-slate-500">{kwClock(at)}{twoDays ? ` ${wday(at)}` : ''}</bdi>
+    </span>
+  );
+  return (
+    <div className="relative rounded-2xl bg-white p-3 shadow-card" aria-live="polite">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1" dir="ltr">{pt('a', r.va, r.ta)}<span className="text-slate-400">→</span>{pt('b', r.vb, r.tb)}</div>
+      {r.dt === 0 ? <div className="mt-1.5 text-2xl font-extrabold">{t('نفس القراءة')}</div> : (
+        <div className="mt-1.5 flex items-baseline gap-2 pe-11">
+          <b className="num text-[26px] font-extrabold leading-none" dir="ltr">{signed(r.change)}</b>
+          <span className="text-sm font-semibold text-slate-600">{t('{u} خلال {d}', { u: unitLabel(unit), d: span(r.dt) })}</span>
+        </div>
+      )}
+      {r.dt !== 0 && (r.missingMs > 0
+        ? <div className="me-12 mt-1.5 inline-block rounded-xl bg-near-soft px-2.5 py-1 text-sm text-near">⚠ {t('{d} بلا قراءات · بدون متوسط', { d: span(r.missingMs) })}</div>
+        : <div className="mt-1 text-sm text-slate-600">≈ <b className="num" dir="ltr">{signed(r.perHour!)}</b> {t('في الساعة')}</div>)}
+      <button onClick={onClose} aria-label={t('إغلاق')} className="absolute bottom-2.5 end-2.5 grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-700">✕</button>
+    </div>
+  );
+}
+
 function change(d15: number | null, rate: number | null, unit: 'mmol' | 'mgdl') {
   const f = (mg: number, d: number) => (unit === 'mmol' ? Math.abs(mg / 18.016) : Math.abs(mg)).toFixed(unit === 'mmol' ? d : d === 2 ? 1 : 0);
   const word = (x: number) => (Math.abs(x) < (unit === 'mmol' ? 1.8 : 2) ? 'steady' : x < 0 ? 'down' : 'up');

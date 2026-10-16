@@ -1104,4 +1104,8 @@ export const analysis: Record<string, string> = {
   "بالنهار أغلب الوقت ما يكون صيام: الأكل كل كم ساعة والنوفورابيد معه، والفترة تحتاج ٣ ساعات بعد الأكل و٤ بعد النوفورابيد.": "Most of the day is not fasting: she eats every few hours with NovoRapid, and a period needs 3 h after food and 4 h after NovoRapid.",
   "الأرقام والرسم من الفترات النظيفة بس. خارج التحليل: مستبعدة (أقل من ساعة أو خلال ٤ ساعات من النوفورابيد)، غير أكيدة (نقص قراءات، نزلة مشكوك فيها، ما في تريسيبا، أو نموذج الإنسولين يبين نوفورابيد باقي ٠٫١ وحدة أو أكثر)، متأثرة (نشاط خلال ١٢ ساعة).": "Numbers and the chart use clean periods only. Outside the analysis: excluded (under an hour, or within 4 h of NovoRapid), uncertain (missing readings, a doubtful dip, no Tresiba, or the insulin model still showing 0.1 U or more of NovoRapid), affected (activity within 12 h).",
   "إذا الوخز يختلف عن الحساس، التحليل يعتمد على الحساس. الفرق ينكتب ملاحظة بس، وما يغيّر حالة الفترة.": "When a finger-prick differs from the sensor, the analysis relies on the sensor. The difference is kept as a note and does not change the period's status.",
+  'قياس بين نقطتين': 'Measure between two points',
+  'نفس القراءة': 'Same reading',
+  '{u} خلال {d}': '{u} in {d}',
+  '{d} بلا قراءات · بدون متوسط': '{d} missing · no average',
 };

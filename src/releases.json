@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.12.0",
+    "date": "2026-10-16",
+    "notes": [
+      "التحليل: زر 📏 للقياس بين نقطتين على الرسم. اسحبي A أو B، ويطلع الفرق والمدة والمعدل بالساعة.",
+      "إذا فيه قراءات ناقصة بين النقطتين، ما يطلع معدل.",
+      "خط السكر في التحليل صار بدون القفزات من القراءات المكررة."
+    ],
+    "notes_en": [
+      "Analysis: a 📏 button to measure between two points on the graph. Drag A or B to see the change, the time and the rate per hour.",
+      "If readings are missing between the two points, no rate is shown.",
+      "The glucose line in Analysis no longer jumps because of duplicate readings."
+    ]
+  },
+  {
     "version": "4.11.0",
     "date": "2026-10-16",
     "notes": [
