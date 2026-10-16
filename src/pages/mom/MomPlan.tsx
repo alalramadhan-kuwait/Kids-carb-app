@@ -100,7 +100,7 @@ export function MomPlans() {
   const { products, settings } = useData();
   const now = Date.now();
   return (
-    <MomPage title={t('مخططة')} back="/mom/more" foot={<Big tone="soft" onClick={() => { if (okToReplace('plan')) draftOps.start('plan'); nav('/mom/meal'); }}>📅 {t('خططي وجبة')}</Big>}>
+    <MomPage title={t('مخططة')} back="/mom/actions/food" foot={<Big tone="soft" onClick={() => { if (okToReplace('plan')) draftOps.start('plan'); nav('/mom/meal'); }}>📅 {t('خططي وجبة')}</Big>}>
       {!list.length && <p className="text-center text-[18px] text-slate-500">{t('ما في وجبات مخططة')}</p>}
       {list.map((p) => {
         const m = planMeal(p.items, products, settings);
@@ -173,10 +173,9 @@ export function MomPlanView() {
   );
 }
 
-/** «المزيد»: planned meals, injection sites, the full app. */
+/** «المزيد»: alerts, the sensor, injection sites, the full app (planned meals are under Home → Food). */
 export function MomMore() {
   const nav = useNavigate();
-  const n = useOpenPlans().length;
   const sensor = useSensor();
   const sound = useAlarmSound();
   const awake = useKeepAwakePref();
@@ -200,7 +199,6 @@ export function MomMore() {
             subTone={sensor && sensor.life.state !== 'ok' ? 'warn' : undefined} />
         </SettingsGroup>
         <SettingsGroup title={t('التخطيط والسجلات')}>
-          <SettingsRow icon="calendar" tint={TINT.plan} label={t('مخططة')} sub={n ? t('{n} معلّقة', { n }) : undefined} onClick={() => nav('/mom/plans')} />
           <SettingsRow icon="insulin" tint={TINT.plan} label={t('أماكن الإبر')} onClick={() => nav('/mom/sites')} />
           <SettingsRow icon="trash" tint={TINT.plan} label={t('المحذوفة مؤخرًا')} onClick={() => nav('/mom/deleted')} />
         </SettingsGroup>

@@ -4,13 +4,14 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { draftOps } from '../../lib/mom';
 import { Choice, MomPage, okToReplace } from './MomUI';
 import { cx } from '../../components/ui';
+import { useOpenPlans } from './MomPlan';
 import { t } from '../../i18n';
 
 const useLow = () => !!(useLocation().state as { low?: boolean } | null)?.low;
 const Off = ({ off, children }: { off: boolean; children: React.ReactNode }) => <div className={cx(off && 'pointer-events-none opacity-40')} aria-disabled={off}>{children}</div>;
 
 export function MomFoodMenu() {
-  const nav = useNavigate(), low = useLow();
+  const nav = useNavigate(), low = useLow(), n = useOpenPlans().length;
   const build = (mode: 'now' | 'plan') => { if (okToReplace(mode)) draftOps.start(mode); nav('/mom/meal?from=home', { replace: true }); };
   return (
     <MomPage title={t('أكل')} back="/mom">
@@ -19,6 +20,8 @@ export function MomFoodMenu() {
         <Off off={low}><Choice icon="🍽️" label={t('أضيفي وجبة')} onClick={() => build('now')} /></Off>
         <Off off={low}><Choice icon="📅" label={t('خططي وجبة')} onClick={() => build('plan')} /></Off>
         <Choice icon="🧃" label={t('عصير')} onClick={() => nav('/mom/juice', { replace: true })} />
+        {/* the planned meals (moved here from More); Back from the list returns to this page */}
+        <Choice icon="🗓️" label={t('مخططة')} sub={n ? t('{n} معلّقة', { n }) : undefined} onClick={() => nav('/mom/plans')} />
       </div>
     </MomPage>
   );

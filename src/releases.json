@@ -1,5 +1,11 @@
 [
   {
+    "version": "4.14.1",
+    "date": "2026-10-16",
+    "notes": ["«مخططة» انتقلت من «المزيد» إلى «أكل» في الرئيسية."],
+    "notes_en": ["«Planned» moved from More to Food on Home."]
+  },
+  {
     "version": "4.14.0",
     "date": "2026-10-16",
     "notes": [
