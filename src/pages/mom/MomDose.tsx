@@ -24,7 +24,8 @@ import { doseAt, type DoseAt } from '../../engine/doseAt';
 import { dosesFrom } from '../../engine/iob';
 import { useCatalog } from './MomMeal';
 
-const slotNow = (at = Date.now()): PlannedMeal['slot'] => { const h = new Date(at).getHours(); return h < 5 ? 'snack' : h < 10 ? 'breakfast' : h < 15 ? 'lunch' : h < 20 ? 'dinner' : 'snack'; };
+// Kuwait's late dinners: from 3 pm until 5 am it is dinner, never «snack» by the clock
+const slotNow = (at = Date.now()): PlannedMeal['slot'] => { const h = new Date(at).getHours(); return h >= 5 && h < 10 ? 'breakfast' : h >= 10 && h < 15 ? 'lunch' : 'dinner'; };
 const ARROW: Record<number, string> = { [-3]: '⇊', [-2]: '↓', [-1]: '↘', 0: '→', 1: '↗', 2: '↑', 3: '⇈' };
 const SLOT = { breakfast: 'فطور', lunch: 'غدا', dinner: 'عشا', snack: 'سناك' } as const; // i18n-ok: stored name
 const PARTS: [number, string, string][] = [[1, '🟢', 'كلها'], [0.5, '◐', 'تقريبًا نصها'], [0.25, '◔', 'شوي']]; // i18n-ok: translated where shown
@@ -154,8 +155,8 @@ export function MomDose() {
       else { toast(t('ما تسجّلت: الإبرة والوجبة مسجّلة من قبل')); nav('/mom', { replace: true }); }
     } catch (e) { toast((e as Error).message); setBusy(false); }
   };
-  /** One food is called by its name; a meal by the time she ate it (فطور، غدا…), not by the time it was saved. */
-  const mealName = (at: number) => d.name ?? (!plan && d.items.length === 1 ? nameOf(d.items[0]) : SLOT[slotNow(at)]);
+  /** A meal is called by what she ate (McNuggets + Fries), never by the clock; the time of day is kept in its slot. */
+  const mealName = (at: number) => { const names = d.items.map(nameOf).filter(Boolean); return d.name ?? (names.length ? (names.length > 3 ? `${names.slice(0, 3).join(' + ')} +${names.length - 3}` : names.join(' + ')) : SLOT[slotNow(at)]); };
   /** The food without a dose: asked first, unless she already chose 0 and said why (then it is saved at her time). */
   const eatWithout = async (chosen?: { at: number; why: string }) => {
     if (!chosen && !window.confirm(t('تسجلين الأكل بدون إبرة؟'))) return;

@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.12.1",
+    "date": "2026-10-16",
+    "notes": [
+      "الوجبة تنعرض بالأكل اللي أكلته (مثل ناغتس + بطاطس)، مو «سناك» حسب الساعة.",
+      "لما تضغطين على وجبة في الرسم، يطلع كل صنف وكاربه.",
+      "شلنا سؤال «سناك ولا وجبة» عند التسجيل."
+    ],
+    "notes_en": [
+      "A meal now shows what she ate (like McNuggets + Fries), not «snack» by the clock.",
+      "Tapping a meal on the graph lists each food with its carbs.",
+      "The «snack or meal» question when logging is gone."
+    ]
+  },
+  {
     "version": "4.12.0",
     "date": "2026-10-16",
     "notes": [

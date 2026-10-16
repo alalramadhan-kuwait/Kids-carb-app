@@ -5,6 +5,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { useComparisons } from '../../lib/fingerprick';
 import { nightOf } from '../../lib/schedule';
+import { mealTitle } from '../../lib/unknownMeal';
 import { formatGlucose } from '../../lib/glucose';
 import { useGlucose } from '../../hooks/useGlucose';
 import { fetchGraphSeries } from '../../engine/useSeries';
@@ -170,7 +171,7 @@ export function MomHome() {
         <div ref={box} className="min-h-0 flex-1">
           {merged && <BigGraph key={`${focusAt ?? 0}-${hours}`} span={hours} onPick={setPicking} onOlder={loadOlder} at={focusAt} aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} alarmHigh={s.alert_high_mgdl ?? 240}
             shots={shots.map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
-            meals={history.filter((h) => (h.total_carbs ?? 99) >= 5).map((h) => ({ t: Date.parse(h.eaten_at), name: h.name, g: h.total_carbs }))}
+            meals={history.filter((h) => (h.total_carbs ?? 99) >= 5).map((h) => ({ t: Date.parse(h.eaten_at), name: mealTitle(h), g: h.total_carbs }))}
             treats={events.filter((e) => e.kind === 'treatment' && !e.deleted_at).map((e) => Date.parse(e.occurred_at))}
             pricks={pricksOf(events)} />}
         </div>
@@ -540,7 +541,7 @@ function GraphFull({ onClose, s: st, unit, low, high, band, at = null, page = fa
       <div ref={box} className="min-h-0 flex-1">
         {merged && <BigGraph key={hours} span={hours} at={at} onOlder={loadOlder} aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={band} alarmHigh={st.alert_high_mgdl ?? 240}
           shots={events.filter((e) => e.kind === 'insulin' && !e.deleted_at && e.insulin_units).map((e) => ({ t: Date.parse(e.occurred_at), u: e.insulin_units!, type: e.insulin_type === 'long' ? 'long' as const : 'rapid' as const }))}
-          meals={history.filter((h) => (h.total_carbs ?? 99) >= 5).map((h) => ({ t: Date.parse(h.eaten_at), name: h.name, g: h.total_carbs }))}
+          meals={history.filter((h) => (h.total_carbs ?? 99) >= 5).map((h) => ({ t: Date.parse(h.eaten_at), name: mealTitle(h), g: h.total_carbs }))}
           treats={events.filter((e) => e.kind === 'treatment' && !e.deleted_at).map((e) => Date.parse(e.occurred_at))}
           pricks={pricksOf(events)} />}
       </div>

@@ -33,7 +33,7 @@ function Body({ p, onClose, start, onBack }: { p: Product; onClose: () => void; 
   const choices = amountChoices(p);
   const [amount, setAmount] = useState<number | null>(null); // nothing preselected: a tap on Save never logs a guessed 100 g
   const [at, setAt] = useState(Date.now());
-  const [picked, setKind] = useState<'snack' | 'meal' | 'low' | null>(null);
+  const [picked, setKind] = useState<'meal' | 'low' | null>(null); // no snack-or-meal question: food is food
   // was she low in the 30 minutes before the time it is logged for? then a small item is most likely a low treatment
   const low = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl).low ?? 70;
   const [wasLow, setWasLow] = useState<{ mg: number; at: number } | null>(null);
@@ -47,7 +47,7 @@ function Body({ p, onClose, start, onBack }: { p: Product; onClose: () => void; 
   const u = p.unit === 'ml' ? t('مل') : t('غ');
   const x = amount && amount > 0 ? portion(p, amount) : null;
   const ok = !!x && amount! <= 3000 && p.approved;
-  const kind = picked ?? (wasLow && (!x || x.carbs <= 25) ? 'low' : 'snack');
+  const kind = picked ?? (wasLow && (!x || x.carbs <= 25) ? 'low' : 'meal');
   const label = (k: string, a: number) => (k === 'item' ? t('{n} حبة', { n: fmt(a / 100) }) : k === 'pack' ? t('العلبة ({a} {u})', { a: fmt(a), u }) : k === 'serving' ? t('حصة ({a} {u})', { a: fmt(a), u }) : `${fmt(a)} ${u}`);
 
   const save = async () => {
@@ -112,10 +112,7 @@ function Body({ p, onClose, start, onBack }: { p: Product; onClose: () => void; 
           )}
           <TimePicker value={at} onChange={setAt} />
           <div className="space-y-1.5">
-            <div className="grid h-[40px] grid-cols-2 gap-1 rounded-xl bg-slate-50 p-1 text-sm">
-              {(['snack', 'meal'] as const).map((k) => <button key={k} onClick={() => setKind(k)} className={kind === k ? 'rounded-lg bg-white font-medium text-brand shadow-sm' : 'text-slate-500'}>{k === 'snack' ? t('سناك') : t('وجبة')}</button>)}
-            </div>
-            <button onClick={() => setKind('low')} aria-pressed={kind === 'low'}
+            <button onClick={() => setKind(kind === 'low' ? 'meal' : 'low')} aria-pressed={kind === 'low'}
               className={cx('min-h-[44px] w-full rounded-xl border-2 text-sm font-bold', kind === 'low' ? 'border-over bg-over text-white' : 'border-over/40 text-over')}>{t('لعلاج انخفاض')}</button>
             {wasLow && <p className="text-xs text-slate-500">{t('السكر كان {v} الساعة {t}', { v: formatGlucose(wasLow.mg, settings.glucose_unit), t: fmtTime(new Date(wasLow.at)) })}</p>}
           </div>

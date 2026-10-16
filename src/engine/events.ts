@@ -3,6 +3,7 @@
 import type { EventRow, HistoryEntry } from '../lib/types';
 import { GAP_MS, lowerBound, nearest, type Series } from './series';
 import { t } from '../i18n';
+import { mealTitle } from '../lib/unknownMeal';
 
 const MIN = 60000;
 
@@ -37,7 +38,7 @@ export interface Mark {
 
 export function buildMarks(history: HistoryEntry[], events: EventRow[]): Mark[] {
   const out: Mark[] = [];
-  for (const h of history) out.push({ key: 'h' + h.id, t: Date.parse(h.eaten_at), kind: 'meal', layer: 'meals', carbs: h.total_carbs ?? undefined, unknown: h.total_carbs === null, name: h.name, meal: h });
+  for (const h of history) out.push({ key: 'h' + h.id, t: Date.parse(h.eaten_at), kind: 'meal', layer: 'meals', carbs: h.total_carbs ?? undefined, unknown: h.total_carbs === null, name: mealTitle(h), meal: h });
   for (const e of events) {
     if (e.deleted_at) continue;
     const t = Date.parse(e.occurred_at), base = { key: 'e' + e.id, t, event: e };

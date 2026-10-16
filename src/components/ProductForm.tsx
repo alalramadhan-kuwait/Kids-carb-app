@@ -23,7 +23,7 @@ export function ProductForm({ q, brands, onDone, onLog }: { q: QuickItem | null;
   const [name, setName] = useState(q?.name ?? '');
   const [brand, setBrand] = useState(q?.brand ?? '');
   const [barcode, setBarcode] = useState(q?.barcode ?? '');
-  const [kind, setKind] = useState<'meal' | 'snack'>(q?.kind === 'meal' ? 'meal' : 'snack');
+  const [kind] = useState<'meal' | 'snack'>(q?.kind === 'snack' ? 'snack' : 'meal'); // kept as saved; no longer asked
   const [category, setCategory] = useState('');
   const [n, setN] = useState<NutrState>(() => nutrStateFrom(
     { carbs: q?.carbs ?? null, fat: q?.fat ?? null, protein: q?.protein ?? null, fiber: q?.fiber ?? null, kcal: q?.kcal ?? null }, q?.per100, q?.amount, q?.amount_unit));
@@ -66,11 +66,6 @@ export function ProductForm({ q, brands, onDone, onLog }: { q: QuickItem | null;
       <NutritionFields s={n} set={setN} />
       <div className="grid grid-cols-[3fr_2fr] gap-2">
         <L label={t('الباركود (اختياري)')}><input className={box} dir="ltr" inputMode="numeric" value={barcode} maxLength={20} onChange={(e) => setBarcode(e.target.value.replace(/\D/g, ''))} /></L>
-        <L label={t('النوع')}>
-          <div className="grid h-[40px] grid-cols-2 gap-1 rounded-xl bg-slate-50 p-1 text-sm">
-            {(['snack', 'meal'] as const).map((k) => <button key={k} type="button" onClick={() => setKind(k)} className={kind === k ? 'rounded-lg bg-white font-medium text-brand shadow-sm' : 'text-slate-500'}>{k === 'snack' ? t('سناك') : t('وجبة')}</button>)}
-          </div>
-        </L>
       </div>
       {!q && (
         <L label={t('المجموعة في المنتجات')}>

@@ -107,7 +107,7 @@ function ItemRow({ item, onChange, onRemove }: { item: EstItem; onChange: (i: Es
 }
 
 function ReviewFooter({ items, name, setName, onSave, onRetake }: { items: EstItem[]; name: string; setName: (s: string) => void; onSave: (kind: 'meal' | 'snack') => void; onRetake: () => void }) {
-  const [kind, setKind] = useState<'meal' | 'snack'>('meal');
+  const kind = 'meal' as const;
   const tot = totals(items);
   return (
     <div className="space-y-3">
@@ -116,11 +116,6 @@ function ReviewFooter({ items, name, setName, onSave, onRetake }: { items: EstIt
         <span><b className="num text-3xl text-brand-num">{fmt(tot.carbs)}</b> <span className="text-sm text-slate-500">{t('غ كارب')}</span></span>
       </div>
       <input className={inputCls} dir="auto" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('اسم الوجبة')} />
-      <div className="grid grid-cols-2 gap-1 rounded-full bg-slate-50 p-1">
-        {(['meal', 'snack'] as const).map((k) => (
-          <button key={k} onClick={() => setKind(k)} className={cx('min-h-[44px] rounded-full text-sm font-bold', kind === k ? 'bg-brand text-white' : 'text-slate-600')}>{k === 'meal' ? t('وجبة') : t('سناك')}</button>
-        ))}
-      </div>
       <Btn block kind="primary" className="min-h-[56px] text-lg" disabled={!items.length} onClick={() => onSave(kind)}>{t('سجّل {g} غ كارب', { g: fmt(tot.carbs) })}</Btn>
       <Btn block kind="ghost" onClick={onRetake}>{t('صورة أخرى')}</Btn>
     </div>
@@ -156,7 +151,7 @@ function PackagedReview({ url, p, onSave, onRetake }: { url: string; p: Packaged
 function PhotoEntry({ url, file, onRetake, onDone }: { url: string; file: File; onRetake: () => void; onDone: () => Promise<void> }) {
   const [name, setName] = useState('');
   const [carbs, setCarbs] = useState<number | null>(null);
-  const [kind, setKind] = useState<'meal' | 'snack'>('meal');
+  const kind = 'meal' as const;
   const [busy, setBusy] = useState(false);
   const save = async () => {
     if (carbs === null) return;
@@ -175,11 +170,6 @@ function PhotoEntry({ url, file, onRetake, onDone }: { url: string; file: File; 
         <span className="font-medium">{t('الكارب الذي تقدّرونه')}</span>
         <span className="flex items-center gap-1.5"><NumInput value={carbs} onChange={setCarbs} className="!w-24 text-center text-lg font-bold" /><span className="text-slate-500">{t('غ')}</span></span>
       </label>
-      <div className="grid grid-cols-2 gap-1 rounded-full bg-slate-50 p-1">
-        {(['meal', 'snack'] as const).map((k) => (
-          <button key={k} onClick={() => setKind(k)} className={cx('min-h-[44px] rounded-full text-sm font-bold', kind === k ? 'bg-brand text-white' : 'text-slate-600')}>{k === 'meal' ? t('وجبة') : t('سناك')}</button>
-        ))}
-      </div>
       <Btn block kind="primary" className="min-h-[56px] text-lg" disabled={carbs === null || carbs < 0 || carbs >= 500 || busy} onClick={save}>{carbs === null ? t('اكتبوا الكارب') : t('سجّل {g} غ كارب', { g: fmt(carbs) })}</Btn>
       <Btn block kind="ghost" onClick={onRetake}>{t('صورة أخرى')}</Btn>
     </div>

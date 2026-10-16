@@ -15,7 +15,16 @@ export function recentUnknownMeal(history: Pick<HistoryEntry, 'total_carbs' | 'e
 }
 
 /** A meal's name in the page's language: a meal eaten out is named after its kinds of food, each one translated. */
-export const mealTitle = (h: Pick<HistoryEntry, 'name' | 'foods'>) => (h.foods?.length ? h.foods.map((f) => tMaybe(f)).join(' + ') : tMaybe(h.name));
+// names that only say when she ate, not what (older meals were named by the clock: «سناك» for a dinner after 8 pm)
+const WHEN_ONLY = new Set(['سناك', 'وجبة', 'فطور', 'غدا', 'عشا', 'الفطور', 'الغداء', 'العشاء']); // i18n-ok: stored names
+/** What she ate: the foods by name. A meal saved under a time-of-day word is shown by its foods instead (the record is
+ *  not changed); a named dish or recipe keeps its name. */
+export const mealTitle = (h: Pick<HistoryEntry, 'name' | 'foods'> & { lines?: HistoryEntry['lines'] }) => {
+  if (h.foods?.length) return h.foods.map((f) => tMaybe(f)).join(' + ');
+  const names = (h.lines ?? []).map((l) => l.name).filter(Boolean);
+  if (names.length && (WHEN_ONLY.has(h.name.trim()) || !h.name.trim())) return names.length > 3 ? `${names.slice(0, 3).map((n) => tMaybe(n)).join(' + ')} +${names.length - 3}` : names.map((n) => tMaybe(n)).join(' + ');
+  return tMaybe(h.name);
+};
 
 /** Meals still waiting for their carbs (newest first): for the parent who fills them in later. */
 export const waitingForCarbs = (history: HistoryEntry[]) => history.filter((h) => h.total_carbs === null);

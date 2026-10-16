@@ -5,7 +5,8 @@ import { describeEvent, unitsWord } from '../lib/events';
 import { mealResponse, OFFSETS, type Group, type Mark } from '../engine/events';
 import { nearest, type Series } from '../engine/series';
 import { Sheet } from './ui';
-import { dir, t, tr } from '../i18n';
+import { dir, t, tMaybe, tr } from '../i18n';
+import { mealTitle } from '../lib/unknownMeal';
 
 const KW = 3 * 3600000;
 const clock = kwClock;
@@ -43,7 +44,17 @@ function Item({ m, series, unit, events, who }: { m: Mark; series: Series; unit:
     const r = mealResponse(series, m.t, events);
     return (
       <section>
-        {head(m.meal.name)}
+        {head(mealTitle(m.meal))}
+        {m.meal.lines.length > 0 && (
+          <ul className="mb-1 space-y-0.5 rounded-xl bg-slate-50 px-3 py-2 text-[15px]">
+            {m.meal.lines.map((l, n) => (
+              <li key={n} className="flex items-baseline justify-between gap-3">
+                <span className="min-w-0"><bdi>{tMaybe(l.name)}</bdi>{l.product?.includes(' — ') && <span className="text-sm text-slate-500"> · <bdi>{l.product.split(' — ').pop()}</bdi></span>}</span>
+                <b className="num shrink-0">{l.carbs === null ? '—' : t('{g} غ', { g: Math.round(l.carbs) })}</b>
+              </li>
+            ))}
+          </ul>
+        )}
         <Row label={t('الكارب')} value={m.meal.total_carbs === null ? t('غير معروف') : t('{g} غ', { g: Math.round(m.meal.total_carbs) })} />
         <Row label={t('إنسولين الوجبة')} value={r.bolus ? `${r.bolus.insulin_units} ${unitsWord(r.bolus.insulin_units ?? 0)}` : '—'} />
         {r.prebolus !== null && <Row label={r.prebolus >= 0 ? t('قبل الأكل بـ') : t('بعد الأكل بـ')} value={t('{m} د', { m: Math.abs(r.prebolus) })} />}
