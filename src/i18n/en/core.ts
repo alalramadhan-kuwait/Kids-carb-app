@@ -299,4 +299,6 @@ export const core: Record<string, string> = {
   "دوّريه بالقائمة": "Find it in the list",
   "يبقى بكارب التسجيل القديم. غيّري الكمية أو احذفيه إذا تغيّر.": "It keeps the carbs it was logged with. Change the amount or remove it if that is no longer right.",
   "راجعتها": "I have checked them",
+  'طبي': 'Medical',
+  'السكر نازل: عصير أول': 'She is low: juice first',
 };

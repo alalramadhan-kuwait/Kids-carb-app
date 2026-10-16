@@ -1,0 +1,37 @@
+// Home's two buttons, Food and Medical: each opens a full page with its few choices (no half-open sheets). Home passes
+// whether she is low now, so the same choices are held back as on Home before: no meal and no injection while low.
+import { useLocation, useNavigate } from 'react-router-dom';
+import { draftOps } from '../../lib/mom';
+import { Choice, MomPage, okToReplace } from './MomUI';
+import { cx } from '../../components/ui';
+import { t } from '../../i18n';
+
+const useLow = () => !!(useLocation().state as { low?: boolean } | null)?.low;
+const Off = ({ off, children }: { off: boolean; children: React.ReactNode }) => <div className={cx(off && 'pointer-events-none opacity-40')} aria-disabled={off}>{children}</div>;
+
+export function MomFoodMenu() {
+  const nav = useNavigate(), low = useLow();
+  const build = (mode: 'now' | 'plan') => { if (okToReplace(mode)) draftOps.start(mode); nav('/mom/meal?from=home', { replace: true }); };
+  return (
+    <MomPage title={t('أكل')} back="/mom">
+      <div className="space-y-2.5">
+        {low && <p className="rounded-2xl bg-over-soft px-4 py-2 font-bold text-over">{t('السكر نازل: عصير أول')}</p>}
+        <Off off={low}><Choice icon="🍽️" label={t('أضيفي وجبة')} onClick={() => build('now')} /></Off>
+        <Off off={low}><Choice icon="📅" label={t('خططي وجبة')} onClick={() => build('plan')} /></Off>
+        <Choice icon="🧃" label={t('عصير')} onClick={() => nav('/mom/juice', { replace: true })} />
+      </div>
+    </MomPage>
+  );
+}
+
+export function MomMedicalMenu() {
+  const nav = useNavigate(), low = useLow();
+  return (
+    <MomPage title={t('طبي')} back="/mom">
+      <div className="space-y-2.5">
+        <Off off={low}><Choice icon="💉" label={t('إبرة')} onClick={() => nav('/mom/shot', { replace: true })} /></Off>
+        <Choice icon="🩸" label={t('وخز')} onClick={() => nav('/mom/prick', { replace: true })} />
+      </div>
+    </MomPage>
+  );
+}

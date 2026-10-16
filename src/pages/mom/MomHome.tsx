@@ -34,7 +34,6 @@ import noReadingPng from '../../assets/layan/layan-no-reading.png';
 import noReadingWebp from '../../assets/layan/layan-no-reading.webp';
 import { Big, okToReplace, PEN, PEN_NAME, PenBar, TABS_PAD, ago, clock, dayWord, glucoseText, left, sensorLeft, span } from './MomUI';
 import { Icon } from '../../components/Icon';
-import { LastNightLine } from '../../components/LastNightLine';
 import type { EventRow, Settings } from '../../lib/types';
 import { inNight, prickHint, prickPoints, sensorBias, type PrickPoint } from '../../engine/prick';
 
@@ -146,7 +145,7 @@ export function MomHome() {
   const lastPrick = events.filter((e) => e.kind === 'bg_check' && !e.deleted_at).reduce<number | null>((m, e) => Math.max(m ?? 0, Date.parse(e.occurred_at)), null);
   const hint = prickHint({ v: latest?.mg_dl ?? null, at, rate: tr?.rate ?? null, low, urgentLow: s.alert_urgent_low_mgdl ?? 54, now, lastPrick, night: inNight(now, nightOf(s)) });
   const bias = sensorBias(comparisons ?? [], sensor?.sn ?? null);
-  const big = '!min-h-[52px] !text-[18px]', small = '!min-h-[48px] !px-1 !text-[16px]';
+  const big = '!min-h-[52px] !text-[18px]';
   return (
     // one fixed screen: nothing scrolls; the graph takes whatever room is left
     <main className={cx('mx-auto flex h-[100dvh] max-w-md flex-col gap-2 overflow-hidden px-4 pt-[calc(8px+env(safe-area-inset-top))]', TABS_PAD)}>
@@ -162,7 +161,7 @@ export function MomHome() {
         <LayanCorner face={face} />
       </div>
 
-      <div className="relative flex max-h-[50dvh] min-h-[120px] flex-1 flex-col rounded-3xl bg-white px-1 pt-1 shadow-[0_1px_3px_rgba(40,30,80,0.06)]">
+      <div className="relative flex max-h-[62dvh] min-h-[120px] flex-1 flex-col rounded-3xl bg-white px-1 pt-1 shadow-[0_1px_3px_rgba(40,30,80,0.06)]">
         <button onClick={() => setFull(true)} aria-label={t('كبّري الرسم')} className="absolute left-0 top-0 z-10 grid h-[44px] w-[44px] place-items-center">
           <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-[15px] text-slate-600">⤢</span>
         </button>
@@ -190,19 +189,24 @@ export function MomHome() {
           <span>{bias.gap === 'sensor_lower' ? t('هذا الحساس يقرأ أقل من الإصبع بـ ~{v}', { v: formatGlucose(bias.mgdl, unit) }) : t('هذا الحساس يقرأ أعلى من الإصبع بـ ~{v}', { v: formatGlucose(bias.mgdl, unit) })} · {t('من {n} وخزات', { n: bias.n })}</span>
         </div>
       ) : null}
-      {!hint && <LastNightLine unit={unit} />}
 
       <div className="shrink-0 space-y-1.5 rounded-3xl border border-slate-100 bg-white p-1.5">
         {/* the last of each pen side by side: name and units, then how long ago */}
         <div className="grid grid-cols-2 gap-1.5">
-          {[lastRapid && { type: 'rapid' as const, e: lastRapid }, lastLong && { type: 'long' as const, e: lastLong }].filter(Boolean).map((x, _i, all) => x && (
-            <Link key={x.type} to={`/mom/entry/${x.e.id}`} className={cx('flex min-h-[48px] items-center gap-2 rounded-2xl px-2 py-1 active:bg-slate-50', all.length === 1 && 'col-span-2')}>
-              <PenBar type={x.type} small />
+          {/* both pens always: a pen with nothing recent says so instead of disappearing */}
+          {([['rapid', lastRapid], ['long', lastLong]] as const).map(([type, e]) => e ? (
+            <Link key={type} to={`/mom/entry/${e.id}`} className="flex min-h-[48px] items-center gap-2 rounded-2xl px-2 py-1 active:bg-slate-50">
+              <PenBar type={type} small />
               <span className="min-w-0 leading-tight">
-                <span className="block truncate text-[16px]">{t(PEN_NAME[x.type])} <b className="num">{x.e.insulin_units}</b> {t('وحدة')}</span>
-                <span className="num block truncate text-[13px] text-slate-500">{ago(Date.parse(x.e.occurred_at), now)}</span>
+                <span className="block truncate text-[16px]">{t(PEN_NAME[type])} <b className="num">{e.insulin_units}</b> {t('وحدة')}</span>
+                <span className="num block truncate text-[13px] text-slate-500">{ago(Date.parse(e.occurred_at), now)}</span>
               </span>
             </Link>
+          ) : (
+            <div key={type} className="flex min-h-[48px] items-center gap-2 px-2 py-1">
+              <PenBar type={type} small />
+              <span className="min-w-0 leading-tight"><span className="block truncate text-[16px]">{t(PEN_NAME[type])}</span><span className="block text-[13px] text-slate-500">—</span></span>
+            </div>
           ))}
         </div>
         {nextAt && !lowNow && (
@@ -230,22 +234,18 @@ export function MomHome() {
         </Link>
       )}
 
-      {/* one main button: the next step of whatever is going on (kept at the bottom when the graph leaves room) */}
-      <div className="mt-auto shrink-0">
+      {/* a main button only when something is going on (a juice to check, a low, a meal under way, a planned dose) */}
+      {(juice || lowNow || open || due) && <div className="shrink-0">
         {juice ? <Big className={big} onClick={ack}><Lbl icon="✓" text={t('فحصتها')} /></Big>
           : lowNow ? <Big tone="danger" className={big} onClick={() => nav('/mom/juice')}><Lbl icon="🧃" text={t('عطيتها عصير')} /></Big>
           : open ? <Big className={big} onClick={() => nav(open.eating_at ? `/mom/ate/${open.id}` : `/mom/given/${open.id}`)}><Lbl icon="🍽️" text={open.eating_at ? t('شكثر أكلت؟') : t('بدأت تاكل؟')} /></Big>
-          : due ? <Big className={big} onClick={() => nav(`/mom/plan/${due.id}`)}><Lbl icon="💉" text={t('وقت {x}', { x: due.name })} wrap /></Big>
-          : <div className="grid grid-cols-2 gap-2">
-              <Big className={big} onClick={() => build('now')}><Lbl icon="🍽️" text={t('أضيفي وجبة')} /></Big>
-              <Big tone="soft" className={big} onClick={() => build('plan')}><Lbl icon="📅" text={t('خططي وجبة')} /></Big>
-            </div>}
-      </div>
+          : due && <Big className={big} onClick={() => nav(`/mom/plan/${due.id}`)}><Lbl icon="💉" text={t('وقت {x}', { x: due.name })} wrap /></Big>}
+      </div>}
       {next && <Link to={`/mom/plan/${next.id}`} className="flex min-h-[44px] shrink-0 items-center rounded-2xl bg-white px-4 py-1.5 text-[15px]">📅 <bdi>{next.name}</bdi> · {dayWord(Date.parse(next.dose_at))} 💉 {clock(Date.parse(next.dose_at))} ›</Link>}
-      <div className="grid shrink-0 grid-cols-3 gap-2">
-        {lowNow || juice ? <Big tone="ghost" className={small} disabled={lowNow} onClick={() => build('now')}><Lbl icon="🍽️" text={t('وجبة')} /></Big> : <Big tone="ghost" className={small} onClick={() => nav('/mom/juice')}><Lbl icon="🧃" text={t('عصير')} /></Big>}
-        <Big tone="ghost" className={small} disabled={lowNow} onClick={() => nav('/mom/shot')}><Lbl icon="💉" text={t('إبرة')} /></Big>
-        <Big tone="ghost" className={small} onClick={() => nav('/mom/prick')}><Lbl icon="🩸" text={t('وخز')} /></Big>
+      {/* two buttons: Food (meal, plan, juice) and Medical (injection, finger-prick), each a page of its own */}
+      <div className="mt-auto grid shrink-0 grid-cols-2 gap-2">
+        <Big className={big} onClick={() => nav('/mom/actions/food', { state: { low: lowNow } })}><Lbl icon="🍽️" text={t('أكل')} chevron /></Big>
+        <Big tone="soft" className={big} onClick={() => nav('/mom/actions/medical', { state: { low: lowNow } })}><Lbl icon="🩸" text={t('طبي')} chevron /></Big>
       </div>
       {full && <GraphFull onClose={() => setFull(false)} s={s} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} />}
     </main>
@@ -253,10 +253,11 @@ export function MomHome() {
 }
 
 /** Icon and word on one line, the icon in a fixed box so every button lines up. */
-function Lbl({ icon, text, wrap }: { icon: string; text: string; wrap?: boolean }) {
+function Lbl({ icon, text, wrap, chevron }: { icon: string; text: string; wrap?: boolean; /** opens a page: › after the word */ chevron?: boolean }) {
   return (
     <span className={cx('flex items-center justify-center gap-1.5', !wrap && 'whitespace-nowrap')}>
       <span aria-hidden className="grid w-[1.25em] shrink-0 place-items-center leading-none">{icon}</span><span className={cx(wrap && 'line-clamp-2')}>{text}</span>
+      {chevron && <span aria-hidden className="ms-1 opacity-60 rtl:-scale-x-100">›</span>}
     </span>
   );
 }

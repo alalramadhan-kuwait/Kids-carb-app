@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.14.0",
+    "date": "2026-10-16",
+    "notes": [
+      "الرئيسية أبسط: الرسم أكبر، وزرين بس تحت: «أكل» (وجبة، تخطيط، عصير) و«طبي» (إبرة، وخز).",
+      "آخر نوفورابيد وآخر تريسيبا يطلعون دايمًا، وتنبيه الدكتور باقي.",
+      "بطاقة الليل انشالت من الرئيسية (موجودة في التحليل)، وتظليل الليل باقي في الرسم."
+    ],
+    "notes_en": [
+      "A simpler Home: a bigger graph and just two buttons: Food (meal, plan, juice) and Medical (injection, finger-prick).",
+      "The last NovoRapid and Tresiba always show, and the doctor's warning stays.",
+      "The Night card is off Home (still in Analysis); night shading stays on the graph."
+    ]
+  },
+  {
     "version": "4.13.2",
     "date": "2026-10-16",
     "notes": [

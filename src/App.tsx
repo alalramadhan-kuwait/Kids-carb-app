@@ -21,6 +21,7 @@ import { MomCompare } from './pages/mom/MomCompare';
 import { MomAte, MomDose, MomGiven } from './pages/mom/MomDose';
 import { MomMealEdit } from './pages/mom/MomMealEdit';
 import { MomJuice, MomRecordDose, MomShot, MomSite, MomSites, MomTresiba } from './pages/mom/MomShots';
+import { MomFoodMenu, MomMedicalMenu } from './pages/mom/MomActions';
 import { MomEntry } from './pages/mom/MomEntry';
 import { Alarm } from './components/Alarm';
 import { useKeepAwake } from './lib/keepAwake';
@@ -267,6 +268,8 @@ function Shell() {
         <Route path="/mom/given/:id" element={<MomGiven />} />
         <Route path="/mom/ate/:id" element={<MomAte />} />
         <Route path="/mom/juice" element={<MomJuice />} />
+        <Route path="/mom/actions/food" element={<MomFoodMenu />} />
+        <Route path="/mom/actions/medical" element={<MomMedicalMenu />} />
         <Route path="/mom/shot" element={<MomShot />} />
         <Route path="/mom/record" element={<MomRecordDose />} />
         <Route path="/mom/prick" element={<MomPrick />} />
