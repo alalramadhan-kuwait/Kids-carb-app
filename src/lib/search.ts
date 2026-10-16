@@ -1,6 +1,7 @@
 // Search that forgives how a word was typed: case, Arabic letter forms (أ إ آ → ا, ة → ه, ى → ي) and diacritics,
 // and which language it was typed in: a food or brand word found in an item also counts in the other language
 // (Milk Toast is found by «توست», «عسل» by "honey"). Every word typed must appear somewhere. Pure, tested in Node.
+import { restaurantOf } from './restaurants';
 
 export const norm = (s: string) => s.toLowerCase()
   .replace(/[ً-ْـ]/g, '') // i18n-ok: regex (diacritics, tatweel, letter forms)
@@ -147,6 +148,8 @@ export function rankFoods<T>(items: T[], query: string, of: (x: T) => Rankable):
 
 /** What a logged meal can be found by: its name, restaurant or brand, place, note and every food in it. With matches()
  *  it finds «ماك», "McDonald's", "mcdonalds" or «ماكدونالدز» alike, in either language. */
-export function mealHay(h: { name: string; brand?: string | null; place?: string | null; notes?: string | null; lines: { name: string; brand?: string | null }[] }, ...more: (string | null | undefined)[]): (string | null | undefined)[] {
-  return [h.name, h.brand, h.place, h.notes, ...h.lines.flatMap((l) => [l.name, l.brand]), ...more];
+export function mealHay(h: { name: string; brand?: string | null; place?: string | null; notes?: string | null; lines: { name: string; brand?: string | null; product?: string | null }[] }, ...more: (string | null | undefined)[]): (string | null | undefined)[] {
+  // each food's product ("Fries — McDonald's") carries its brand; a restaurant is also found by its Arabic name (ماك → ماكدونالدز)
+  const brands = [h.brand, h.place, ...h.lines.flatMap((l) => [l.brand, l.product?.includes(' — ') ? l.product.split(' — ').pop() : null])];
+  return [h.name, h.brand, h.place, h.notes, ...h.lines.flatMap((l) => [l.name, l.brand, l.product]), ...brands.map((b) => restaurantOf(b)?.label), ...more];
 }

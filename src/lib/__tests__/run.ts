@@ -3464,6 +3464,17 @@ console.log('simple-mode graph');
   });
 }
 
+console.log('log search');
+{
+  const { matches, mealHay } = await import('../search');
+  test('a meal is found by its foods\' restaurant, in Arabic or English, even when it is named «سناك»', () => {
+    const h = { name: 'سناك', brand: null, place: null, notes: null, lines: [
+      { name: 'Chicken McNuggets 6 pcs', product: "Chicken McNuggets 6 pcs — McDonald's" }, { name: 'World Famous Fries (Regular)', product: "World Famous Fries (Regular) — McDonald's" }] };
+    for (const q of ['ماك', 'ماكدونالدز', 'mcdonald', 'fries', 'nuggets']) assert.ok(matches(mealHay(h), q), q);
+    assert.ok(!matches(mealHay(h), 'كنتاكي'), 'not another restaurant');
+  });
+}
+
 console.log('sun');
 {
   const { sunTimes } = await import('../sun');

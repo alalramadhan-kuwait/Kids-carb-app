@@ -257,7 +257,7 @@ export function MomAdd({ browse = false }: { browse?: boolean }) {
   const rec = recent().filter((r) => readyForMom(r.kind, r.id, c)).slice(0, 4);
   const find = (kind: 'product' | 'recipe', id: string) => ((kind === 'product' ? c.products : c.recipes) as (Product | Recipe)[]).find((y) => y.id === id)!;
   // searching finds every approved food in every group (restaurants, things not bought yet), what is at home first
-  const found = q.trim() ? homeFirst(products.filter((p) => matches([p.name, p.name_ar, p.name_en, p.brand, p.category], q))) : [];
+  const found = q.trim() ? homeFirst(products.filter((p) => matches([p.name, p.name_ar, p.name_en, p.brand, restaurantOf(p.brand)?.label, p.category], q))) : [];
   const foundRecipes = q.trim() ? recipes.filter((r) => matches([r.name, r.name_ar, r.name_en, r.category], q)) : [];
   const groups = groupsIn(products.filter((p) => !restaurantOf(p.brand))); // restaurant food has its own tab
   const missing = q.trim() && !found.length && !foundRecipes.length;

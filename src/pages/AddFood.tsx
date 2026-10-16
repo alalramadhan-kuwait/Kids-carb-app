@@ -137,7 +137,7 @@ export default function AddFood() {
     );
   }
   // the first page: search, usual, an earlier meal, nine tiles
-  const found = q.trim() ? order(products.filter((p) => matches([p.name, p.name_ar, p.name_en, p.brand, p.category], q))).slice(0, 60) : [];
+  const found = q.trim() ? order(products.filter((p) => matches([p.name, p.name_ar, p.name_en, p.brand, restaurantOf(p.brand)?.label, p.category], q))).slice(0, 60) : [];
   return (
     <Page title={t('أكل')} back={back}>
       <input className={cx(inputCls, 'mb-3')} type="search" enterKeyHint="search" dir="auto" value={q} onChange={(e) => setQ(e.target.value)} placeholder={`🔍 ${t('ابحث عن منتج أو شركة')}`} aria-label={t('ابحث عن منتج أو شركة')} />

@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.13.1",
+    "date": "2026-10-16",
+    "notes": [
+      "البحث في السجل يلقى الوجبة باسم المطعم بالعربي أو الإنجليزي (مثل «ماك»)، حتى لو اسم الوجبة ما فيه المطعم."
+    ],
+    "notes_en": [
+      "Log search finds a meal by its restaurant, in Arabic or English (like «ماك»), even when the meal's name does not say it."
+    ]
+  },
+  {
     "version": "4.13.0",
     "date": "2026-10-16",
     "notes": [
