@@ -7,6 +7,7 @@ import { Alert, Btn, Card, NumInput, Page, cx, inputCls, toast } from '../compon
 import { uploadPhoto } from '../lib/supabase';
 import { Icon } from '../components/Icon';
 import { isEn, lang, t } from '../i18n';
+import { SourcePick } from './mom/MomSnap';
 
 type Step = { s: 'pick' } | { s: 'working'; url: string; ai?: boolean } | { s: 'estimated'; url: string; file: File; items: EstItem[]; note: string; scanId: string | null } | { s: 'packaged'; url: string; p: Packaged } | { s: 'manual'; url: string; file: File };
 
@@ -23,6 +24,7 @@ export default function Scan() {
   const cam = useRef<HTMLInputElement>(null), gallery = useRef<HTMLInputElement>(null);
   // a saved key turns on the AI estimate for photos without a barcode (otherwise the parents type the carbs)
   const [ai, setAi] = useState(false);
+  const [from, setFrom] = useState('');
   useEffect(() => { aiStatus().then((x) => setAi(x.configured)).catch(() => setAi(false)); }, []);
 
   const onFile = async (file: File | undefined) => {
@@ -39,7 +41,7 @@ export default function Scan() {
       if (ai) {
         setStep({ s: 'working', url: photo.url, ai: true });
         try {
-          const r = await estimatePhoto(photo);
+          const r = await estimatePhoto(photo, from ? `From: ${from}` : '');
           if (r.estimate.is_food) return setStep({ s: 'estimated', url: photo.url, file, items: r.estimate.items, note: isEn() ? r.estimate.notes_en : r.estimate.notes_ar, scanId: r.scan_id });
           setErr(t('ما لقيت أكل واضح بالصورة. اكتبوا الكارب بأنفسكم'));
         } catch (e) {
@@ -71,6 +73,7 @@ export default function Scan() {
       {step.s === 'pick' && (
         <div className="space-y-4">
           {err && <Alert tone="over">{err}</Alert>}
+          {ai && <SourcePick value={from} onChange={setFrom} />}
           <button onClick={() => cam.current?.click()} className="flex min-h-[136px] w-full flex-col items-center justify-center gap-3 rounded-3xl bg-brand text-white active:opacity-90">
             <Icon name="camera" size={44} /><span className="text-xl font-bold">{t('التقاط صورة')}</span>
             <span className="text-sm opacity-80">{t('تُحفظ مع الكارب الذي تقدّرونه')}</span>
@@ -88,7 +91,7 @@ export default function Scan() {
       )}
 
       {step.s === 'estimated' && <EstimateReview key={step.url} step={step} onRetake={() => setStep({ s: 'pick' })} onManual={() => setStep({ s: 'manual', url: step.url, file: step.file })}
-        onSave={(name, items) => save(name, items, 'meal', t('تقدير من صورة، راجعه الأهل'), step.scanId)} />}
+        onSave={(name, items) => save(name, items, 'meal', t('تقدير من صورة، راجعه الأهل') + (from ? ` · ${from}` : ''), step.scanId)} />}
       {step.s === 'manual' && err && <Alert tone="near">{err}</Alert>}
       {step.s === 'manual' && <PhotoEntry url={step.url} file={step.file} onRetake={() => setStep({ s: 'pick' })} onDone={async () => { await reload(); nav('/'); }} />}
 
@@ -200,8 +203,8 @@ function EstimateReview({ step, onSave, onRetake, onManual }: { step: { url: str
   return (
     <div className="space-y-4">
       <img src={step.url} alt="" className="max-h-[30vh] w-full rounded-2xl object-cover" />
-      <Alert tone="near">{t('تقدير من الصورة، مو رقم أكيد. راجعوا كل كمية وكارب قبل الحفظ.')}</Alert>
-      {step.note && <p className="px-1 text-sm text-slate-600" dir="auto">💡 {step.note}</p>}
+      <p className="text-center text-sm text-near">{t('تقدير · تأكدوا من الأرقام')}</p>
+      {step.note && <p className="px-1 text-sm text-slate-500" dir="auto">💡 {step.note}</p>}
       <Card className="!p-0"><ul className="divide-y divide-slate-100">
         {items.map((it, k) => <ItemRow key={k} item={it} onChange={(x) => setItems((xs) => xs.map((y, j) => (j === k ? x : y)))} onRemove={() => setItems((xs) => xs.filter((_, j) => j !== k))} />)}
       </ul></Card>

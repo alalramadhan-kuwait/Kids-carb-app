@@ -15,6 +15,7 @@ import { t, useLang } from './i18n';
 import { LangSwitch } from './components/LangSwitch';
 import { MomGraphPage, MomHome } from './pages/mom/MomHome';
 import { MomFind } from './pages/mom/MomFind';
+import { MomSnap } from './pages/mom/MomSnap';
 import { MomAdd, MomFoodItem, MomGroup, MomKidsMeal, MomMeal, MomNew, MomParts, MomPortion, MomRestaurant } from './pages/mom/MomMeal';
 import { MomPlate } from './pages/mom/MomPlate';
 import { MomCompare } from './pages/mom/MomCompare';
@@ -289,6 +290,7 @@ function Shell() {
         <Route path="/mom/food/r/:key" element={<MomRestaurant browse />} />
         <Route path="/mom/add/r/:key" element={<MomRestaurant />} />
         <Route path="/mom/add/r/:key/kids" element={<MomKidsMeal />} />
+        <Route path="/mom/snap" element={<MomSnap />} />
         <Route path="/mom/food/:kind/:id" element={<MomFoodItem />} />
         <Route path="/mom/compare" element={<MomCompare />} />
         <Route path="/mom/sensor" element={<MomSensor />} />

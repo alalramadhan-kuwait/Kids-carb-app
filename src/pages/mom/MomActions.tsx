@@ -18,6 +18,7 @@ export function MomFoodMenu() {
       <div className="space-y-2.5">
         {low && <p className="rounded-2xl bg-over-soft px-4 py-2 font-bold text-over">{t('السكر نازل: عصير أول')}</p>}
         <Off off={low}><Choice icon="🍽️" label={t('أضيفي وجبة')} onClick={() => build('now')} /></Off>
+        <Off off={low}><Choice icon="📷" label={t('صوّري الأكل')} onClick={() => nav('/mom/snap')} /></Off>
         <Off off={low}><Choice icon="📅" label={t('خططي وجبة')} onClick={() => build('plan')} /></Off>
         <Choice icon="🧃" label={t('عصير')} onClick={() => nav('/mom/juice', { replace: true })} />
         {/* the planned meals (moved here from More); Back from the list returns to this page */}

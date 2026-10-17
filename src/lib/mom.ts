@@ -65,10 +65,10 @@ export async function savePortion(p: Omit<Portion, 'id'> & { id?: string }) {
 /** Mom gives a food that is not in the list, with its label in hand: the food is kept with its label photo and its
  *  carbs for one piece (as written on the label), and one portion «حبة», so it counts like any food on the plate and
  *  is found by name next time (never entered twice). Dad can check it against the photo. */
-export async function saveLabelFood(f: { name: string; carbs: number; photo: string }): Promise<{ productId: string; portionId: string }> {
+export async function saveLabelFood(f: { name: string; carbs: number; photo: string; note?: string }): Promise<{ productId: string; portionId: string }> {
   const prod: { id: string } = await ok<any>(supabase.from('products').insert({ name: f.name.trim(), brand: null, category: 'أخرى', kind: 'commercial', image_path: f.photo, unit: 'g', // i18n-ok: stored value
     per_item: true, carbs_per_100: f.carbs, approved: true, available: true, label_basis: 'as_sold',
-    notes: `من ماما: الكارب من الملصق (${f.carbs} غ للحبة) · بابا يراجع الصورة` }).select('id').single()); // i18n-ok: stored note
+    notes: f.note ?? `من ماما: الكارب من الملصق (${f.carbs} غ للحبة) · بابا يراجع الصورة` }).select('id').single()); // i18n-ok: stored note
   const portion: { id: string } = await ok<any>(supabase.from('portions').insert({ product_id: prod.id, recipe_id: null, label: 'حبة', amount: 100, photo_path: null, sort: 0 }).select('id').single()); // i18n-ok: stored value
   await portionsT.load();
   return { productId: prod.id, portionId: portion.id };

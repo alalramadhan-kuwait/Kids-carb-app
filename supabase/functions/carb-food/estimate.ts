@@ -10,6 +10,8 @@ List each distinct food or drink you can see with the amount on the plate or in 
 
 Be honest about what a photo cannot show. Use low confidence when the portion or the ingredients cannot be judged (sugar dissolved in tea or juice, sauces, fillings, frying oil), set hidden_sugar when sugar may be added but not visible, and say in the notes what the parents should check, in one or two short sentences in Arabic and in English. A note from the parents is more reliable than the photo.
 
+Keep it short: each name at most three words (in Arabic as people in Kuwait say it, e.g. «بسكويت شوكولاتة»), and each note at most twelve words about the one thing most worth checking, or empty. When the parents say where the food is from (a restaurant or a brand), use that place's usual portions and recipes.
+
 Never mention insulin, doses or treatment. If there is no food or drink in the photo, set is_food to false and leave items empty.`;
 
 export const SCHEMA = {

@@ -1,5 +1,19 @@
 [
   {
+    "version": "4.19.0",
+    "date": "2026-10-17",
+    "notes": [
+      "وضع ماما: «صوّري الأكل» في صفحة الأكل. الصورة تعطي الكارب لكل صنف، وبعد المراجعة ينحط بالصحن ويكمل للجرعة.",
+      "تختارين من وين الأكل (البيت أو مطعم أو ماركة) قبل التصوير عشان التقدير يكون أدق.",
+      "نصوص التقدير صارت أقصر."
+    ],
+    "notes_en": [
+      "Simple mode: “Snap the food” on the Food page. The photo gives carbs per food; once checked it goes on the plate and on to the dose.",
+      "Choose where the food is from (home, a restaurant or a brand) before the photo, for a closer estimate.",
+      "Shorter estimate texts."
+    ]
+  },
+  {
     "version": "4.18.0",
     "date": "2026-10-17",
     "notes": [
