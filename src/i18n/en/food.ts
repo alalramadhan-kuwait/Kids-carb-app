@@ -1596,4 +1596,6 @@ export const food: Record<string, string> = {
   'العبوة': 'Pack',
   'السعرات': 'Calories',
   'السكريات': 'Sugars',
+  'الجرعة أُعطيت {t}: وقتها يتغيّر من «وقت الجرعة» فقط': 'Dose given at {t}: its time changes only from «Dose time»',
+  'الجرعة أُعطيت وتبقى مسجّلة. ما أكلت شي؟ راقبوا السكر، قد ينزل.': 'The dose was given and stays recorded. She ate nothing? Watch her glucose, it may drop.',
 };

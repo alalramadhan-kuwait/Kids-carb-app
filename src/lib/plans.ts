@@ -6,6 +6,7 @@ import { logMeal, mealColumns, saveEvent } from './api';
 import { glucoseAt, glucoseCols } from './productLog';
 import { recordRecalc } from './recalc';
 import { computeMeal } from './carbs';
+import { planRow } from '../engine/mealPlan';
 import type { DoseSnapshot, HistoryEntry, MealSlot, PlanItem, PlannedMeal, Product, Settings } from './types';
 
 let cache: PlannedMeal[] | null = null;
@@ -60,7 +61,7 @@ async function patch(id: string, p: Partial<PlannedMeal>) {
 
 export async function savePlan(p: Omit<PlannedMeal, 'id' | 'status' | 'dose_event_id' | 'treatment_event_id' | 'history_id' | 'recheck_at' | 'dosed_at' | 'eaten_at' | 'created_by'> & { id?: string; dosed?: boolean }) {
   // a meal edited after its dose keeps its reminders as they were (no second "time to eat")
-  const row = { for_date: p.for_date, slot: p.slot, name: p.name, recipe_id: p.recipe_id, items: p.items, dose_at: p.dose_at, eat_after_min: p.eat_after_min, remind_min: p.remind_min, note: p.note, ...(p.mom_items !== undefined ? { mom_items: p.mom_items } : {}), ...(p.dosed ? {} : { notified: {} }) };
+  const row = planRow(p);
   const { error } = p.id ? await supabase.from('planned_meals').update({ ...row, updated_at: new Date().toISOString() }).eq('id', p.id) : await supabase.from('planned_meals').insert(row);
   if (error) throw new Error(error.message);
   await load();

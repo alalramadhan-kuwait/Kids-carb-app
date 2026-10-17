@@ -10,6 +10,7 @@ import { useComparisons } from '../../lib/fingerprick';
 import { formatGlucose, toMgdl } from '../../lib/glucose';
 import { TimePicker } from '../../components/TimePicker';
 import { setGivenUnits, skipPlan, usePlans } from '../../lib/plans';
+import { givenAfterEdit } from '../../engine/dose';
 import { fmt } from '../../lib/carbs';
 import { cx, inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
@@ -44,7 +45,7 @@ export function MomEntry() {
     catch (x) { toast((x as Error).message); setBusy(false); }
   };
   const saveAll = () => run(async () => {
-    if (shot && u !== null && u !== e.insulin_units) { await setEventUnits(e.id, units, me); if (plan) await setGivenUnits(plan.id, units); }
+    if (shot && u !== null && u !== e.insulin_units) { await setEventUnits(e.id, units, me); if (plan) await setGivenUnits(plan.id, givenAfterEdit(plan.given_units ?? null, e.insulin_units ?? 0, units)); }
     // a finger-prick's number or time changing restarts its comparison with the sensor (updateEvent does both)
     if (prick && ((bgText !== null && bgOk && bgMg !== e.bg_mgdl) || timeChanged)) await updateEvent(e, { t: when ?? at, bg: bgText !== null && bgOk ? bgMg! : e.bg_mgdl! }, me);
     else if (timeChanged) await setEntryTime({ e }, when!, me);

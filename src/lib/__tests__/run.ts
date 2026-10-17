@@ -1331,6 +1331,24 @@ console.log('dose calculator');
   });
 }
 
+test('editing a shot that belongs to a plan changes only that shot: a top-up given later is kept', async () => {
+  const { givenAfterEdit } = await import('../../engine/dose');
+  assert.equal(givenAfterEdit(3, 2, 2.5), 3.5, 'first shot 2 → 2.5 U, top-up 1 U kept: 3.5');
+  assert.equal(givenAfterEdit(2, 2, 1.5), 1.5, 'no top-up: the new units');
+  assert.equal(givenAfterEdit(null, 2, 3), 3, 'nothing summed yet: the shot itself');
+  assert.equal(givenAfterEdit(1, 2, 0), 0, 'never below zero');
+});
+
+test('a plan edited after its dose never moves the dose day or time, and keeps its reminders', async () => {
+  const { planRow } = await import('../../engine/mealPlan');
+  const p = { for_date: '2026-10-18', slot: 'lunch', name: 'x', recipe_id: null, items: [], dose_at: '2026-10-18T10:00:00Z', eat_after_min: 10, remind_min: 10, note: null } as never;
+  const before = planRow({ ...(p as object), dosed: false } as never) as Record<string, unknown>;
+  assert.equal(before.dose_at, '2026-10-18T10:00:00Z'); assert.equal(before.for_date, '2026-10-18'); assert.deepEqual(before.notified, {});
+  const after = planRow({ ...(p as object), dosed: true } as never) as Record<string, unknown>;
+  assert.ok(!('dose_at' in after) && !('for_date' in after) && !('notified' in after), 'dosed: time stays with the insulin entry');
+  assert.equal(after.name, 'x', 'the food can still change');
+});
+
 test('an earlier meal added while planning keeps the plan (its id, name and mode); for now it stays for now', async () => {
   const { addToDraft } = await import('../../engine/mom');
   const it = (id: string) => ({ kind: 'product' as const, id, portion_id: null, amount: 1, unit: 'serving' }) as never;

@@ -3,6 +3,7 @@
 // numbers, engine/dose.ts) and the parent approves or changes it. The alerts are short facts from her data.
 import { isFatty } from './iob';
 import type { DoseBlock } from './dose';
+import type { PlannedMeal } from '../lib/types';
 
 const MIN = 60000;
 export type Slot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -57,3 +58,10 @@ export function planAlerts(p: {
 /** A drink with sugar acts in 10–15 minutes, faster than rapid insulin: a juice or nectar among the items. */
 export const isFastDrink = (item: { role: string; unit: string }, category: string | null | undefined, carbs: number | null) =>
   (carbs ?? 0) >= 10 && (item.role === 'drink' || item.unit === 'ml' || category === 'مشروبات'); // i18n-ok: data value
+
+/** The columns a plan save writes. After the dose its day and time stay with the insulin entry (only setDoseTime
+ *  moves both together) and its reminders stay as they were. Pure. */
+export function planRow(p: Pick<PlannedMeal, 'for_date' | 'slot' | 'name' | 'recipe_id' | 'items' | 'dose_at' | 'eat_after_min' | 'remind_min' | 'note'> & { mom_items?: PlannedMeal['mom_items']; dosed?: boolean }) {
+  return { slot: p.slot, name: p.name, recipe_id: p.recipe_id, items: p.items, eat_after_min: p.eat_after_min, remind_min: p.remind_min, note: p.note,
+    ...(p.mom_items !== undefined ? { mom_items: p.mom_items } : {}), ...(p.dosed ? {} : { for_date: p.for_date, dose_at: p.dose_at, notified: {} }) };
+}

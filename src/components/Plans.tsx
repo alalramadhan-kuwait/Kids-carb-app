@@ -159,12 +159,13 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
           <div className="grid grid-cols-4 gap-1 rounded-full bg-slate-100 p-1 text-xs">
             {(['breakfast', 'lunch', 'dinner', 'snack'] as Slot[]).map((s) => <button key={s} onClick={() => { setSlot(s); if (!plan) setTime(SLOT_TIME[s]); }} className={cx('min-h-[36px] rounded-full', slot === s ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{SLOT[s]}</button>)}
           </div>
+          {plan?.status === 'dosed' ? <p className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600">{t('الجرعة أُعطيت {t}: وقتها يتغيّر من «وقت الجرعة» فقط', { t: clock(Date.parse(plan.dosed_at ?? plan.dose_at)) })}</p> : (
           <div className="grid grid-cols-2 gap-2">
             <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 text-sm">
               {[dayOf(now), dayOf(now + 86400000)].map((d, k) => <button key={d} onClick={() => setDay(d)} className={cx('min-h-[36px] rounded-lg', day === d ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{k ? t('غدًا') : t('اليوم')}</button>)}
             </div>
             <label className="flex items-center gap-2 text-sm"><span className="shrink-0 text-slate-600">{t('الجرعة')}</span><TimeField dir="ltr" className={cx(inputCls, '!min-h-[40px]')} value={time} onChange={(e) => setTime(e.target.value)} /></label>
-          </div>
+          </div>)}
           <p className="rounded-xl bg-brand-soft px-3 py-2 text-sm text-brand">
             {t('الجرعة {d} · الأكل {e}', { d: clock(doseAt), e: clock(doseAt + eatAfter * MIN) })}
             <span className="block text-xs">{eatAfter ? t('الأكل بعد الجرعة بـ {m} د (فريق السكري) · تذكير {r}', { m: eatAfter, r: clock(doseAt - 10 * MIN) }) : t('الأكل بعد الجرعة مباشرة · تذكير {r}', { r: clock(doseAt - 10 * MIN) })}</span>
@@ -398,7 +399,11 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
 
       <div className="flex justify-between gap-2 pt-1 text-sm">
         <button className="min-h-[44px] font-bold text-brand" onClick={() => { onClose(); onEdit(plan); }}>{dosed ? t('تعديل الوجبة') : t('تعديل الخطة')}</button>
-        <button className="min-h-[44px] text-slate-500" disabled={busy} onClick={() => run(() => skipPlan(plan.id), t('أُلغيت الخطة'), true)}>{t('لم تُؤكل · إلغاء')}</button>
+        <button className="min-h-[44px] text-slate-500" disabled={busy} onClick={() => {
+          // after the dose: the insulin entry stays as given; cancelling only says she did not eat (asked first)
+          if (dosed && !window.confirm(t('الجرعة أُعطيت وتبقى مسجّلة. ما أكلت شي؟ راقبوا السكر، قد ينزل.'))) return;
+          void run(() => skipPlan(plan.id), t('أُلغيت الخطة'), true);
+        }}>{t('لم تُؤكل · إلغاء')}</button>
       </div>
     </div>
   );

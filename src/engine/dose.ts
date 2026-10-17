@@ -104,3 +104,12 @@ export function mealChangeDose(oldCarbs: number, newCarbs: number, cr: number, s
   const extra = raw > 0 ? Math.floor(raw / step + 1e-9) * step : 0;
   return { diff, raw, extra, over: raw < 0 ? -raw : 0 };
 }
+
+/**
+ * A plan's given units after one of its shots is edited: only that shot's change is applied, so a top-up given
+ * later (counted in the plan's total) is never wiped. Never below zero.
+ */
+export function givenAfterEdit(planGiven: number | null, oldUnits: number, newUnits: number): number {
+  const total = planGiven ?? oldUnits;
+  return Math.max(0, Math.round((total - oldUnits + newUnits) * 100) / 100);
+}
