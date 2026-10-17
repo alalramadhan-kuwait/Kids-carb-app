@@ -214,6 +214,7 @@ export function SettingsPage({ part = 'food' }: { part?: SettingsPart }) {
     <Page title={t(PART_TITLE[part])} back={() => nav(-1)}>
       <div className="space-y-4">
         {part === 'food' && <>
+        <AiKeyCard />
         <Link to="/portions" className="flex min-h-[56px] items-center gap-3 rounded-2xl bg-white px-4 py-2.5 shadow-sm active:bg-slate-50">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="meals" size={20} /></span>
           <span className="min-w-0 flex-1"><span className="block font-semibold">{t('كميات ليان')}</span><span className="block truncate text-sm text-slate-500">{t('صحن ليان الصغير والكبير… لوضع ماما')}</span></span>
@@ -355,5 +356,46 @@ export function SettingsPage({ part = 'food' }: { part?: SettingsPart }) {
         }}>{t('حفظ')}</Btn>
       </div>
     </Page>
+  );
+}
+
+/** The Anthropic key for meal-photo estimates: pasted once, checked and kept in the database vault by the carb-food
+ *  function (never stored on the phone, never shown again). */
+function AiKeyCard() {
+  const [st, setSt] = useState<{ configured: boolean; used: number; limit: number } | null>(null);
+  const [key, setKey] = useState('');
+  const [busy, setBusy] = useState(false);
+  const call = async (body: Record<string, unknown>) => {
+    const { data, error } = await supabase.functions.invoke('carb-food', { body });
+    const code = (data as { error?: string } | null)?.error
+      ?? (error && 'context' in error ? ((await (error as { context: Response }).context.json().catch(() => ({}))) as { error?: string }).error : undefined);
+    if (code || error) throw new Error(code ?? 'server');
+    return data;
+  };
+  const load = () => call({ action: 'status' }).then((d) => setSt(d as never)).catch(() => setSt(null));
+  useEffect(() => { void load(); }, []);
+  const save = async () => {
+    setBusy(true);
+    try { await call({ action: 'save_key', key: key.trim() }); setKey(''); toast(t('انحفظ المفتاح ✓')); await load(); }
+    catch (e) { toast((e as Error).message === 'bad_key' ? t('المفتاح غير صحيح. انسخيه مرة ثانية') : t('ما قدرت أتأكد من المفتاح. حاولوا بعد شوي')); }
+    finally { setBusy(false); }
+  };
+  const clear = async () => { if (!confirm(t('مسح المفتاح؟'))) return; setBusy(true); try { await call({ action: 'clear_key' }); await load(); } finally { setBusy(false); } };
+  return (
+    <Card className="space-y-2">
+      <h2 className="font-bold">🤖 {t('مفتاح تقدير الأكل بالصور')}</h2>
+      {st?.configured ? (
+        <>
+          <p className="text-sm text-in">✓ {t('المفتاح محفوظ · اليوم {u} من {l} صورة', { u: st.used, l: st.limit })}</p>
+          <Btn kind="ghost" disabled={busy} onClick={clear}>{t('مسح المفتاح')}</Btn>
+        </>
+      ) : (
+        <>
+          <p className="text-sm text-slate-500">{t('الصقوا مفتاح Anthropic (يبدأ بـ sk-ant-). ينحفظ بأمان في قاعدة البيانات ولا يظهر مرة ثانية.')}</p>
+          <input className={inputCls} dir="ltr" type="password" autoComplete="off" placeholder="sk-ant-…" value={key} onChange={(e) => setKey(e.target.value)} />
+          <Btn kind="primary" block disabled={busy || !key.trim().startsWith('sk-ant-')} onClick={save}>{busy ? t('يتأكد…') : t('احفظ المفتاح')}</Btn>
+        </>
+      )}
+    </Card>
   );
 }

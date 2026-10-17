@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.17.1",
+    "date": "2026-10-17",
+    "notes": [
+      "الإعدادات: مكان لحفظ مفتاح تقدير الأكل بالصور."
+    ],
+    "notes_en": [
+      "Settings: a place to save the meal-photo estimate key."
+    ]
+  },
+  {
     "version": "4.17.0",
     "date": "2026-10-17",
     "notes": [
