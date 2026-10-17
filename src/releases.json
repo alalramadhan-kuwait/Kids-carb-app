@@ -7,7 +7,7 @@
       "تعديل جرعة مسجّلة ما يمسح الجرعة الإضافية، وتعديل الوجبة بعد الجرعة ما يغيّر وقت الجرعة.",
       "إلغاء وجبة بعد جرعتها يسأل أول.",
       "داخل المطعم: تختارين أكثر من صنف وتبقين بنفس المطعم، مع المجموع وزر «تم».",
-      "وجبات كنغ جونيور: الوجبة والبطاطا والمشروب (ماي افتراضياً).",
+      "وجبات كنغ جونيور: الوجبة والبطاطا والمشروب (ماي افتراضياً). البطاطا تنحسب بس بعد تأكيد حجمها.",
       "خطط لأي يوم، ورقم صغير على زر «أكل» بعدد الوجبات المخططة.",
       "إضافة وجبة سابقة أثناء التخطيط ما عادت تحوّل الخطة إلى «أكل الحين»."
     ],
@@ -16,7 +16,7 @@
       "Editing a recorded shot keeps any extra dose, and editing a meal after its dose no longer moves the dose time.",
       "Cancelling a meal after its dose asks first.",
       "Inside a restaurant: pick several items without leaving it, with a running total and Done.",
-      "King Jr meals: main, fries and drink (water by default).",
+      "King Jr meals: main, fries and drink (water by default). Fries count only after their size is confirmed.",
       "Plan meals for any day; a small count of planned meals on the Food button.",
       "Adding an earlier meal while planning no longer turns the plan into “eat now”."
     ]

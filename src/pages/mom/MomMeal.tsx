@@ -790,11 +790,15 @@ export function MomKidsMeal() {
   const { c, itemCarbs } = useCatalog();
   const idOf = (name: string) => c.products.find((p) => p.name === name)?.id ?? null;
   const [main, setMain] = useState<string | null>(null);
-  const [side, setSide] = useState(0);
+  // fries: no default. The kids portion is not confirmed for Kuwait (some markets give a smaller kids size), so the
+  // regular small fries' carbs count only after the parent confirms the portion she got is that size
+  const [side, setSide] = useState(-1);
+  const [friesOk, setFriesOk] = useState(false);
   const [drink, setDrink] = useState(0);
   if (!set) return <Navigate to={`/mom/add/r/${key}`} replace />;
   const one = (id: string | null) => (id ? itemCarbs({ kind: 'product', id, portion_id: null, amount: 1, unit: 'serving' }) : 0);
-  const ids = main ? kidsMealIds(set, { main, side, drink }, idOf) : null;
+  const friesPicked = side >= 0 && !!set.sides[side]?.name;
+  const ids = main && side >= 0 && (!friesPicked || friesOk) ? kidsMealIds(set, { main, side, drink }, idOf) : null;
   const total = ids ? ids.reduce<number | null>((a, id) => { const g = one(id); return a === null || g === null ? null : a + g; }, 0) : null;
   const add = () => {
     if (!ids) return;
@@ -818,7 +822,13 @@ export function MomKidsMeal() {
         <h2 className="text-[15px] font-bold text-slate-500">{t('الوجبة')}</h2>
         <div className="grid grid-cols-2 gap-2">{set.meals.map((m) => { const id = idOf(m.main); return id ? <Choice key={m.key} compact dense on={main === m.key} label={tMaybe(m.label)} sub={t('{g} غ كارب', { g: gramsText(one(id) ?? 0) })} onClick={() => setMain(m.key)} /> : null; })}</div>
       </div>
-      {row(t('البطاطا'), sides, side, setSide)}
+      {row(t('البطاطا'), sides, side, (i) => { setSide(i); setFriesOk(false); })}
+      {friesPicked && (
+        <button onClick={() => setFriesOk((x) => !x)} aria-pressed={friesOk} className={cx('flex w-full items-start gap-2 rounded-2xl border-2 px-3 py-2 text-start text-[15px] leading-snug', friesOk ? 'border-brand bg-brand-soft' : 'border-near bg-near-soft text-near')}>
+          <span className="text-[18px]">{friesOk ? '☑️' : '⚠️'}</span>
+          <span>{t('حجم بطاطا وجبة الأطفال غير مؤكد بالكويت. أكّدي إنها بحجم البطاطا الصغيرة العادية قبل ما تنحسب')}</span>
+        </button>
+      )}
       {row(t('المشروب'), drinks, drink, setDrink)}
       <p className="text-[13px] leading-snug text-slate-500">{t('قيم مرجعية من برجر كنج تركيا، غير مؤكدة للكويت. عصير البرتقال ما له قيمة موثوقة بعد.')}</p>
     </MomPage>
