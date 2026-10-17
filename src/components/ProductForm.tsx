@@ -4,15 +4,16 @@ import { normBrand } from '../lib/brand';
 import { nutrProblem, totalsOf, type NutrState } from '../lib/per100';
 import { NutritionFields, nutrStateFrom } from './NutritionFields';
 import { Alert, Btn, toast } from './ui';
-import { t, tMaybe, tr } from '../i18n';
+import { lang, t, tMaybe, tr } from '../i18n';
 import { PRODUCT_CATEGORIES } from '../lib/constants';
-import { readLabel, type Label } from '../lib/food';
+import type { Label } from '../lib/food';
+import { readLabelLocal } from '../lib/labelOcr';
 
 const PROBLEM: Record<string, string> = tr({ // i18n-ok: values translated when read
   name: 'اكتبوا اسم المنتج', carbs: 'اكتبوا الكارب', per100: 'لكل 100 لا يمكن أن يزيد عن 100 غ: هل كتبتم قيم الحصة؟', amount: 'اكتبوا الكمية (مل أو غ)', values: 'القيم الغذائية غير معقولة', // i18n-ok
 });
 const READ_ERR: Record<string, string> = tr({ // i18n-ok: values translated when read
-  no_key: 'أضيفوا مفتاح الذكاء الاصطناعي من الإعدادات أولاً', daily_limit: 'وصلتم حد القراءات اليوم', not_label: 'ما لقيت جدول القيم الغذائية. صوّروه أوضح', server: 'ما قدرت أقرأ الملصق. حاولوا مرة ثانية أو اكتبوا القيم', // i18n-ok
+  not_label: 'ما قدرت أقرأ الكارب. صوّروا الجدول أوضح ومستقيم', server: 'ما قدرت أقرأ الملصق. حاولوا مرة ثانية أو اكتبوا القيم', // i18n-ok
 });
 const FIELD_AR: Record<string, string> = tr({ // i18n-ok: values translated when read
   name: 'الاسم', brand: 'البراند', barcode: 'الباركود', serving: 'الحصة', pack: 'العبوة', carbs: 'الكارب', sugar: 'السكريات', fiber: 'الألياف', fat: 'الدهون', protein: 'البروتين', kcal: 'السعرات' }); // i18n-ok
@@ -34,7 +35,7 @@ export function ProductForm({ q, brands, onDone, onLog }: { q: QuickItem | null;
   const [n, setN] = useState<NutrState>(() => nutrStateFrom(
     { carbs: q?.carbs ?? null, fat: q?.fat ?? null, protein: q?.protein ?? null, fiber: q?.fiber ?? null, kcal: q?.kcal ?? null }, q?.per100, q?.amount, q?.amount_unit));
   const [busy, setBusy] = useState(false);
-  const [shots, setShots] = useState<File[]>([]);
+  const [shots, setShots] = useState<(File | undefined)[]>([]);
   const [reading, setReading] = useState(false);
   const [read, setRead] = useState<Label | null>(null);
   const [readErr, setReadErr] = useState('');
@@ -50,7 +51,7 @@ export function ProductForm({ q, brands, onDone, onLog }: { q: QuickItem | null;
   };
   const runRead = async () => {
     setReading(true); setReadErr('');
-    try { const l = await readLabel(shots); setRead(l); if (l.is_label) fill(l); else setReadErr('not_label'); }
+    try { const l = await readLabelLocal(shots[0], shots[1] ?? shots[0], lang()); setRead(l); if (l.is_label) fill(l); else setReadErr('not_label'); }
     catch (e) { setReadErr((e as Error).message); } finally { setReading(false); }
   };
   const problem = !name.trim() ? 'name' : nutrProblem(n);
@@ -84,12 +85,12 @@ export function ProductForm({ q, brands, onDone, onLog }: { q: QuickItem | null;
                 <span>{shots[i] ? '✓' : '📷'} {lbl}</span>
                 <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => {
                   const f = e.target.files?.[0]; if (!f) return;
-                  setShots((s) => { const x = [...s]; x[i] = f; return x.filter(Boolean); }); setRead(null); setReadErr('');
+                  setShots((s) => { const x = [...s]; x[i] = f; return x; }); setRead(null); setReadErr('');
                 }} />
               </label>
             ))}
           </div>
-          <Btn kind="primary" className="mt-2 w-full" disabled={!shots.length || reading} onClick={runRead}>{reading ? t('يقرأ الملصق…') : t('📷 اقرأ الملصق')}</Btn>
+          <Btn kind="primary" className="mt-2 w-full" disabled={!shots.some(Boolean) || reading} onClick={runRead}>{reading ? t('يقرأ الملصق…') : t('📷 اقرأ الملصق')}</Btn>
           {readErr && <Alert tone="near">{READ_ERR[readErr] ?? READ_ERR.server}</Alert>}
           {read?.is_label && (
             <div className="mt-2 space-y-1 text-xs text-slate-600">

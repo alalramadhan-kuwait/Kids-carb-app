@@ -1093,6 +1093,19 @@ test('label readings are cleaned: impossible numbers blanked and flagged, nothin
   assert.equal(LABEL_SCHEMA.additionalProperties, false); assert.equal(LABEL_SCHEMA.properties.per100.additionalProperties, false);
 });
 
+test('a nutrition table read on the phone fills per-100 values from the first column', async () => {
+  const { parseLabelText } = await import('../labelOcr');
+  const eu = parseLabelText(`Nutrition Information\nTypical values Per 100g Per wrap (40g)\nEnergy 1288kJ / 308kcal 515kJ / 123kcal\nFat 13g 5.2g\nof which saturates 2.1g 0.8g\nCarbohydrate 11g 4.4g\nof which sugars 1.2g 0.5g\nFibre 26g 10g\nProtein 22g 8.8g\nSalt 1.1g 0.4g`);
+  assert.equal(eu.is_label, true); assert.equal(eu.per100.carbs, 11); assert.equal(eu.per100.fat, 13); assert.equal(eu.per100.sugar, 1.2);
+  assert.equal(eu.per100.fiber, 26); assert.equal(eu.per100.protein, 22); assert.equal(eu.per100.kcal, 308); assert.equal(eu.serving, 40);
+  assert.equal(eu.label_style, 'eu_fibre_excluded'); assert.deepEqual(eu.uncertain, []);
+  const ocr = parseLabelText('Per 100g Per wrap (40g)\nEnergy 1288kJ / 308kcal 515kJ/ 123kcal\nFat 13g 5.29\nCarbohydrate 11g 4.4q\nof which sugars 1.29 0.59\nFibre 269 10g\nProtein 229 8.89');
+  assert.equal(ocr.per100.sugar, 1.2, 'the g read as 9 after a decimal is dropped'); assert.equal(ocr.per100.fiber, 26); assert.equal(ocr.per100.protein, 22);
+  assert.ok(ocr.uncertain.includes('fiber') && ocr.uncertain.includes('protein') && !ocr.uncertain.includes('carbs'), 'repaired numbers are flagged for checking');
+  const blur = parseLabelText('Energy ?? kcal\nCarbohydrate ~~');
+  assert.equal(blur.is_label, false, 'no carbs read: nothing filled in as if certain'); assert.ok(blur.uncertain.includes('carbs'));
+});
+
 test('editing an estimated item: grams scale everything; barcode data reads Open Food Facts per 100 g', async () => {
   const { scaleItem, totals, offToPackaged } = await import('../foodcalc');
   const i = { name_ar: 'أرز', name_en: 'Rice', grams: 100, carbs_g: 28, protein_g: 2.7, fat_g: 0.3, kcal: 130, confidence: 'medium' as const, hidden_sugar: false };
