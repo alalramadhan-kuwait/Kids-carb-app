@@ -1621,5 +1621,7 @@ export const food: Record<string, string> = {
   'يوم ثاني': 'Another day',
   '{n} وجبات مخططة': '{n} planned meals',
   'اختاري اليوم': 'Choose the day',
-  'حجم بطاطا وجبة الأطفال غير مؤكد بالكويت. أكّدي إنها بحجم البطاطا الصغيرة العادية قبل ما تنحسب': 'The kids meal fries size is not confirmed in Kuwait. Confirm it is the regular small fries size before it counts',
+  'قيمة بطاطا الأطفال مرجعية من برجر كنج أمريكا، غير مؤكدة للكويت. أكّدي إنها بطاطا أطفال قبل ما تنحسب': 'Kids fries value is from Burger King US, not verified for Kuwait. Confirm she got kids fries before it counts',
+  'بطاطا أطفال': 'Kids fries',
+  'برجر كنج بطاطا أطفال': 'Burger King Kids Fries',
 };

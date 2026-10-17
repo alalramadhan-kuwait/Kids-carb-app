@@ -790,8 +790,8 @@ export function MomKidsMeal() {
   const { c, itemCarbs } = useCatalog();
   const idOf = (name: string) => c.products.find((p) => p.name === name)?.id ?? null;
   const [main, setMain] = useState<string | null>(null);
-  // fries: no default. The kids portion is not confirmed for Kuwait (some markets give a smaller kids size), so the
-  // regular small fries' carbs count only after the parent confirms the portion she got is that size
+  // fries: no default. The kids fries' value is Burger King US's, not confirmed for Kuwait: it counts only after the
+  // parent confirms she got the kids portion
   const [side, setSide] = useState(-1);
   const [friesOk, setFriesOk] = useState(false);
   const [drink, setDrink] = useState(0);
@@ -826,7 +826,7 @@ export function MomKidsMeal() {
       {friesPicked && (
         <button onClick={() => setFriesOk((x) => !x)} aria-pressed={friesOk} className={cx('flex w-full items-start gap-2 rounded-2xl border-2 px-3 py-2 text-start text-[15px] leading-snug', friesOk ? 'border-brand bg-brand-soft' : 'border-near bg-near-soft text-near')}>
           <span className="text-[18px]">{friesOk ? '☑️' : '⚠️'}</span>
-          <span>{t('حجم بطاطا وجبة الأطفال غير مؤكد بالكويت. أكّدي إنها بحجم البطاطا الصغيرة العادية قبل ما تنحسب')}</span>
+          <span>{t('قيمة بطاطا الأطفال مرجعية من برجر كنج أمريكا، غير مؤكدة للكويت. أكّدي إنها بطاطا أطفال قبل ما تنحسب')}</span>
         </button>
       )}
       {row(t('المشروب'), drinks, drink, setDrink)}

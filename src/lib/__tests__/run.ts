@@ -1352,16 +1352,17 @@ test('a plan edited after its dose never moves the dose day or time, and keeps i
 test('a kids meal is its separate parts, each once: main, fries and the chosen drink (water unless changed)', async () => {
   const { KIDS_MEALS, kidsMealIds } = await import('../restaurants');
   const set = KIDS_MEALS.bk;
-  const ids: Record<string, string> = { 'برجر كنج تشيز برجر كيدز': 'cb', 'برجر كنج بطاطا (صغير)': 'fr', 'برجر كنج ماء معدني': 'wa', 'برجر كنج كوك زيرو (علبة)': 'cz', 'برجر كنج تشيكن تيندر (4 قطع)': 'tn' };
+  const ids: Record<string, string> = { 'برجر كنج تشيز برجر كيدز': 'cb', 'برجر كنج بطاطا أطفال': 'fr', 'برجر كنج بطاطا (صغير)': 'small', 'برجر كنج ماء معدني': 'wa', 'برجر كنج كوك زيرو (علبة)': 'cz', 'برجر كنج تشيكن تيندر (4 قطع)': 'tn' };
   const idOf = (n: string) => ids[n] ?? null;
   assert.equal(set.drinks[0].name, 'برجر كنج ماء معدني', 'water is the first (default) drink');
   assert.deepEqual(kidsMealIds(set, { main: 'cheeseburger', side: 0, drink: 0 }, idOf), ['cb', 'fr', 'wa']);
   assert.deepEqual(kidsMealIds(set, { main: 'tenders', side: 1, drink: 1 }, idOf), ['tn', 'cz'], 'no fries, Coke Zero');
   assert.equal(kidsMealIds(set, { main: 'hamburger', side: 0, drink: 0 }, idOf), null, 'a main not in the food list is not offered');
   // the meal has no nutrition row of its own: carbs = the sum of the parts only (never meal + its fries)
-  const carbs: Record<string, number> = { cb: 29.33, fr: 44, wa: 0 };
+  const carbs: Record<string, number> = { cb: 29.33, fr: 18, wa: 0 };
   const total = kidsMealIds(set, { main: 'cheeseburger', side: 0, drink: 0 }, idOf)!.reduce((a, id) => a + carbs[id], 0);
-  assert.equal(Math.round(total * 100) / 100, 73.33);
+  assert.equal(Math.round(total * 100) / 100, 47.33);
+  assert.ok(!kidsMealIds(set, { main: 'cheeseburger', side: 0, drink: 0 }, idOf)!.includes('small'), 'kids fries, never the regular small fries');
   assert.ok(!set.drinks.some((d) => d.name && /برتقال/.test(d.name)), 'orange juice is not offered until it has a reliable value');
 });
 

@@ -72,7 +72,7 @@ export function cupsOf<T extends { name: string; per_item?: boolean }>(items: T[
 export interface KidsMeal { key: string; label: string; main: string }
 export interface KidsMealSet { title: string; meals: KidsMeal[]; sides: { label: string; name: string | null }[]; drinks: { label: string; name: string | null }[] }
 /** Burger King Kuwait King Jr meals (menu checked 17 Oct 2026): main, small fries (the same item as on the menu)
- *  and a drink. Water first (the family's default), Coke Zero; orange juice has no reliable value yet. */
+ *  (kids fries, not the regular small fries) and a drink. Water first (the family's default), Coke Zero; orange juice has no reliable value yet. */
 export const KIDS_MEALS: Record<string, KidsMealSet> = {
   bk: {
     title: 'وجبات كنغ جونيور', // i18n-ok: stored labels, shown via tMaybe
@@ -82,7 +82,7 @@ export const KIDS_MEALS: Record<string, KidsMealSet> = {
       { key: 'chicken', label: 'تشيكن برجر', main: 'برجر كنج تشيكن برجر كيدز' }, // i18n-ok
       { key: 'tenders', label: 'تندر ٤ قطع', main: 'برجر كنج تشيكن تيندر (4 قطع)' }, // i18n-ok
     ],
-    sides: [{ label: 'بطاطا صغير', name: 'برجر كنج بطاطا (صغير)' }, { label: 'بدون', name: null }], // i18n-ok
+    sides: [{ label: 'بطاطا أطفال', name: 'برجر كنج بطاطا أطفال' }, { label: 'بدون', name: null }], // i18n-ok: kids fries; the regular small fries stay for regular meals
     drinks: [{ label: 'ماي', name: 'برجر كنج ماء معدني' }, { label: 'كوك زيرو', name: 'برجر كنج كوك زيرو (علبة)' }, { label: 'بدون', name: null }], // i18n-ok
   },
 };
