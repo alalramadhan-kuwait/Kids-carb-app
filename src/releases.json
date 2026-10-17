@@ -1,9 +1,25 @@
 [
   {
+    "version": "4.15.0",
+    "date": "2026-10-17",
+    "notes": [
+      "منتج جديد: صوّروا جدول القيم الغذائية والتطبيق يقرأ الأرقام بنفسه، بدون مفتاح. راجعوا الأرقام قبل الحفظ.",
+      "قائمة مطعم جود ستف (69 صنف) مع الكارب ومؤشر سكر تقديري."
+    ],
+    "notes_en": [
+      "New product: photograph the nutrition table and the app reads the numbers itself, no AI key needed. Check them before saving.",
+      "Good Stuff restaurant menu (69 items) with carbs and an estimated GI."
+    ]
+  },
+  {
     "version": "4.14.1",
     "date": "2026-10-16",
-    "notes": ["«مخططة» انتقلت من «المزيد» إلى «أكل» في الرئيسية."],
-    "notes_en": ["«Planned» moved from More to Food on Home."]
+    "notes": [
+      "«مخططة» انتقلت من «المزيد» إلى «أكل» في الرئيسية."
+    ],
+    "notes_en": [
+      "«Planned» moved from More to Food on Home."
+    ]
   },
   {
     "version": "4.14.0",
@@ -166,8 +182,12 @@
   {
     "version": "4.7.1",
     "date": "2026-10-15",
-    "notes": ["رسم السكر بالرئيسية ما يتقطع إلا إذا فعلًا ما في قراءات لأكثر من ٢٠ دقيقة."],
-    "notes_en": ["The home graph only breaks where readings are really missing for more than 20 minutes."]
+    "notes": [
+      "رسم السكر بالرئيسية ما يتقطع إلا إذا فعلًا ما في قراءات لأكثر من ٢٠ دقيقة."
+    ],
+    "notes_en": [
+      "The home graph only breaks where readings are really missing for more than 20 minutes."
+    ]
   },
   {
     "version": "4.7.0",
@@ -188,8 +208,12 @@
   {
     "version": "4.6.1",
     "date": "2026-10-15",
-    "notes": ["فحص القاعدي: نسبة القراءات صارت تنحسب صح في الفترات اللي تنتهي بعصير."],
-    "notes_en": ["Basal Check: reading coverage is now counted correctly for periods that end with a juice."]
+    "notes": [
+      "فحص القاعدي: نسبة القراءات صارت تنحسب صح في الفترات اللي تنتهي بعصير."
+    ],
+    "notes_en": [
+      "Basal Check: reading coverage is now counted correctly for periods that end with a juice."
+    ]
   },
   {
     "version": "4.6.0",
