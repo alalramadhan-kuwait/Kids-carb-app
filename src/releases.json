@@ -1,13 +1,23 @@
 [
   {
-    "version": "4.15.2",
+    "version": "4.16.0",
     "date": "2026-10-17",
     "notes": [
-      "زر «جرعة إضافية» بعد تعديل الوجبة صار يتبع نفس فحوصات حاسبة الجرعة: قراءة حديثة، آخر جرعة، الإنسولين الفعّال، والسكر النازل أو المنخفض.",
+      "زر «جرعة إضافية» بعد تعديل الوجبة صار يتبع نفس فحوصات حاسبة الجرعة.",
+      "تعديل جرعة مسجّلة ما يمسح الجرعة الإضافية، وتعديل الوجبة بعد الجرعة ما يغيّر وقت الجرعة.",
+      "إلغاء وجبة بعد جرعتها يسأل أول.",
+      "داخل المطعم: تختارين أكثر من صنف وتبقين بنفس المطعم، مع المجموع وزر «تم».",
+      "وجبات كنغ جونيور: الوجبة والبطاطا والمشروب (ماي افتراضياً).",
+      "خطط لأي يوم، ورقم صغير على زر «أكل» بعدد الوجبات المخططة.",
       "إضافة وجبة سابقة أثناء التخطيط ما عادت تحوّل الخطة إلى «أكل الحين»."
     ],
     "notes_en": [
-      "The “extra dose” after a meal is edited now follows the dose calculator’s checks: a fresh reading, the last dose, insulin still working, and low or falling glucose.",
+      "The “extra dose” after a meal is edited now follows the dose calculator’s checks.",
+      "Editing a recorded shot keeps any extra dose, and editing a meal after its dose no longer moves the dose time.",
+      "Cancelling a meal after its dose asks first.",
+      "Inside a restaurant: pick several items without leaving it, with a running total and Done.",
+      "King Jr meals: main, fries and drink (water by default).",
+      "Plan meals for any day; a small count of planned meals on the Food button.",
       "Adding an earlier meal while planning no longer turns the plan into “eat now”."
     ]
   },

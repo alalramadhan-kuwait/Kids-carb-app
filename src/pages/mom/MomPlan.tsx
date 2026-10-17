@@ -39,7 +39,7 @@ export function useOpenPlans() {
   return plans.filter((p) => phase(p, now) !== 'done' && p.for_date >= isoDate(new Date(now - 86400000))).sort((a, b) => Date.parse(a.dose_at) - Date.parse(b.dose_at));
 }
 
-/** «متى؟»: which meal, today or tomorrow, and the injection time; saving puts the plan on hold. ?plan=id changes a plan's time. */
+/** «متى؟»: which meal, which day (today, tomorrow or a later date), and the injection time; saving puts the plan on hold. ?plan=id changes a plan's time. */
 export function MomWhen() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
@@ -55,6 +55,7 @@ export function MomWhen() {
   const [slot, setSlot] = useState<Slot>(editing?.slot ?? first);
   const [time, setTime] = useState(editing ? hmOf(Date.parse(editing.dose_at)) : SLOT_TIME[first]);
   const [day, setDay] = useState(editing?.for_date ?? (at(today, SLOT_TIME[first]) > now ? today : tomorrow));
+  const [later, setLater] = useState(day > tomorrow);
   const [busy, setBusy] = useState(false);
   const eatAfter = settings.dose_to_meal_min ?? 10;
   const doseAt = at(day, time);
@@ -75,17 +76,20 @@ export function MomWhen() {
   };
   return (
     <MomPage title={t('متى؟')} foot={<>
-      <div className="text-center text-[17px]">💉 {clock(doseAt)} · 🍽️ {clock(doseAt + eatAfter * 60000)}</div>
-      <Big disabled={busy} onClick={save}>✓ {t('احفظي الخطة')}</Big>
+      <div className="text-center text-[17px]">{later && day <= tomorrow ? t('اختاري اليوم') : <>{day > tomorrow && `${day} · `}💉 {clock(doseAt)} · 🍽️ {clock(doseAt + eatAfter * 60000)}</>}</div>
+      <Big disabled={busy || (later && day <= tomorrow)} onClick={save}>✓ {t('احفظي الخطة')}</Big>
     </>}>
       <div className="grid grid-cols-2 gap-2">
         {SLOTS.map((x) => (
           <button key={x} onClick={() => { setSlot(x); if (!editing) setTime(SLOT_TIME[x]); }} className={cx('min-h-[64px] rounded-2xl border-2 text-[19px] font-bold', slot === x ? 'border-brand bg-brand-soft text-brand' : 'border-slate-200 bg-white')}>{SLOT_ICON[x]} {t(SLOT_NAME[x])}</button>
         ))}
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        {[today, tomorrow].map((x, k) => <button key={x} onClick={() => setDay(x)} className={cx('min-h-[56px] rounded-2xl border-2 text-[18px] font-bold', day === x ? 'border-brand bg-brand-soft text-brand' : 'border-slate-200 bg-white')}>{k ? t('بكرة') : t('اليوم')}</button>)}
+      <div className="grid grid-cols-3 gap-2">
+        {[today, tomorrow].map((x, k) => <button key={x} onClick={() => { setDay(x); setLater(false); }} className={cx('min-h-[56px] rounded-2xl border-2 text-[18px] font-bold', day === x && !later ? 'border-brand bg-brand-soft text-brand' : 'border-slate-200 bg-white')}>{k ? t('بكرة') : t('اليوم')}</button>)}
+        <button onClick={() => setLater(true)} className={cx('min-h-[56px] rounded-2xl border-2 text-[18px] font-bold', later ? 'border-brand bg-brand-soft text-brand' : 'border-slate-200 bg-white')}>📅 {t('يوم ثاني')}</button>
       </div>
+      {/* a later day (a birthday next week): any date from the day after tomorrow */}
+      {later && <input type="date" dir="ltr" className={cx(inputCls, '!min-h-[56px] !text-center !text-[20px] font-bold')} min={isoDate(new Date(now + 2 * 86400000))} value={day > tomorrow ? day : ''} onChange={(e) => e.target.value && setDay(e.target.value)} aria-label={t('يوم ثاني')} />}
       <label className="block space-y-1"><span className="text-[17px] font-bold">💉 {t('وقت الإبرة')}</span>
         <TimeField dir="ltr" className={cx(inputCls, '!min-h-[60px] !text-center !text-[26px] font-bold')} value={time} onChange={(e) => e.target.value && setTime(e.target.value)} /></label>
       <p className="text-center text-[15px] text-slate-500">{t('الأكل بعد الإبرة بـ {m} د · يوصلكم تذكير', { m: eatAfter })}</p>

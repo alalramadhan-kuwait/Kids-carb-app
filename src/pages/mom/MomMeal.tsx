@@ -12,7 +12,7 @@ import { fmt } from '../../lib/carbs';
 import { supabase, uploadPhoto } from '../../lib/supabase';
 import { Photo, asset, cx, inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
-import { RESTAURANTS, cupsOf, menuOf, restaurantByKey, restaurantOf, type Restaurant } from '../../lib/restaurants';
+import { KIDS_MEALS, RESTAURANTS, cupsOf, kidsMealIds, menuOf, restaurantByKey, restaurantOf, type Restaurant } from '../../lib/restaurants';
 import { foodName, untranslated, type Named } from '../../lib/foodName';
 import { Big, Choice, MomPage, okToReplace } from './MomUI';
 import type { Ingredient, PlanItem, Product, Recipe } from '../../lib/types';
@@ -92,6 +92,8 @@ export function MomMeal() {
   const { meals } = useSavedMeals();
   const { history } = useData();
   const total = mealCarbs(d.items);
+  // «add another» goes back into the restaurant of the last food added from one (search stays one tap away there)
+  const lastPlace = [...d.items].reverse().map((it) => (it.kind === 'product' ? restaurantOf(c.products.find((p) => p.id === it.id)?.brand)?.key : undefined)).find(Boolean) ?? null;
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
   const sameAsSaved = d.savedId && meals.find((m) => m.id === d.savedId && JSON.stringify(m.items) === JSON.stringify(d.items));
@@ -110,7 +112,7 @@ export function MomMeal() {
     <MomPage compact title={d.name ?? title} back="/mom" foot={<>
       {/* the total and both buttons stay in view however long the list (a small phone with 8 foods) */}
       <div className="flex items-baseline justify-between px-1"><span className="text-[15px] text-slate-500">{t('مجموع الكارب')}</span><b className="num text-[26px] leading-none text-slate-900">{total === null ? '—' : `${gramsText(total)} ${t('غ')}`}</b></div>
-      <Big tone="soft" className="!min-h-[48px] !text-[17px]" onClick={() => nav('/mom/add')}>+ {t('إضافة أكل ثاني')}</Big>
+      <Big tone="soft" className="!min-h-[48px] !text-[17px]" onClick={() => nav(lastPlace ? `/mom/add/r/${lastPlace}` : '/mom/add')}>+ {t('إضافة أكل ثاني')}</Big>
       <Big md disabled={total === null || review.length > 0} onClick={() => nav(d.mode === 'plan' ? (d.planId ? `/mom/when?plan=${d.planId}` : '/mom/when') : '/mom/dose')}>{d.mode === 'plan' ? `${t('التالي')} · 🕐 ${t('متى؟')}` : t('التالي')}</Big>
     </>}>
       {fromHome && (
@@ -327,7 +329,11 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
   const r = restaurantByKey(key);
   const { products, tile, pick, grid } = useFoods(browse);
   const items = products.filter((p) => restaurantOf(p.brand)?.key === key);
-  const bar = useCompareBar(browse), menuBack = useBack(browse ? '/mom/food?tab=restaurants' : '/mom/add?browse=restaurants');
+  const compareBar = useCompareBar(browse), menuBack = useBack(browse ? '/mom/food?tab=restaurants' : '/mom/add?browse=restaurants');
+  const nav = useNavigate();
+  const plate = usePlateBar();
+  const bar = browse ? compareBar : plate;
+  const kids = !browse ? KIDS_MEALS[key] : undefined;
   // a section, a size or a flavour list is a step inside the menu: its back arrow steps back (never a new step to the
   // menu, which made Back loop between the menu and the section)
   const up = useBack(`${browse ? '/mom/food' : '/mom/add'}/r/${key}`);
@@ -360,6 +366,7 @@ export function MomRestaurant({ browse = false }: { browse?: boolean }) {
     <MomPage compact={!browse} title={open && sections.length > 1 ? `${open.section.emoji} ${tMaybe(open.section.label)}` : r ? tMaybe(r.label) : t('مطاعم')} back={open && sections.length > 1 ? up : menuBack} foot={bar}>
       {!open && r && <div className="flex justify-center"><RestaurantLogo r={r} size={64} /></div>}
       {!open && <input className={inputCls} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('ابحثي في المنيو')} />}
+      {!open && !q.trim() && kids && <Choice dense icon="👑" label={tMaybe(kids.title)} sub={t('الوجبة · بطاطا · مشروب')} onClick={() => nav(`/mom/add/r/${key}/kids`)} />}
       {q.trim() && !open ? (
         found.length ? grid(found.map((p) => tile('product', p))) : <p className="text-center text-slate-500">{t('ما في شي بهالاسم')}</p>
       ) : open ? (
@@ -460,7 +467,8 @@ function PortionPage({ kind, id, k }: { kind: 'product' | 'recipe'; id: string; 
     if (k !== null) draftOps.replace(Number(k), item); else draftOps.add(item);
     remember({ kind, id });
     rememberPortion(item);
-    nav('/mom/meal', { replace: true });
+    // a new restaurant item: back to the same menu to pick the next one (the running total and «تم» are there)
+    if (k === null && restaurantOf(prod?.brand)) nav(-1); else nav('/mom/meal', { replace: true });
   };
   const carbsText = (v: number | null) => (v === null ? '' : v === 0 ? t('بدون كارب') : `${gramsText(v)} ${t('غرام كارب')}`);
   const step = sel === 'g' ? (ss && ss < 40 ? 5 : 10) : 0.5;
@@ -754,6 +762,65 @@ export function MomParts() {
         </div>
       ))}
       {rest.length > 0 && <p className="rounded-2xl bg-near-soft px-4 py-3 text-center text-[15px] font-bold text-near">⚠️ {t('ما ينحسب هنا: {x}. إذا أكلت منه أضيفيه بروحه.', { x: rest.join(' · ') })}</p>}
+    </MomPage>
+  );
+}
+
+/** Inside a restaurant: what is on the plate so far (count and carbs) and «تم» to see it. Nothing on it: no bar. */
+function usePlateBar() {
+  const nav = useNavigate();
+  const d = useDraft();
+  const { mealCarbs } = useCatalog();
+  if (!d.items.length) return null;
+  const total = mealCarbs(d.items);
+  return (
+    <div className="flex items-center gap-3">
+      <div className="min-w-0 flex-1 leading-tight"><span className="block text-[13px] text-slate-500">{t('{n} أصناف بالصحن', { n: d.items.length })}</span><b className="num text-[22px]">{total === null ? '—' : `${gramsText(total)} ${t('غ')}`}</b></div>
+      <Big md className="!w-auto shrink-0 px-6" onClick={() => nav('/mom/meal')}>✓ {t('تم')}</Big>
+    </div>
+  );
+}
+
+/** A kids meal built from its parts: the main, the fries and the drink, each a separate food on the plate (so the
+ *  carbs are the sum of what she has, never the meal and its fries twice). Water is the drink unless changed. */
+export function MomKidsMeal() {
+  const { key } = useParams() as { key: string };
+  const nav = useNavigate();
+  const set = KIDS_MEALS[key];
+  const { c, itemCarbs } = useCatalog();
+  const idOf = (name: string) => c.products.find((p) => p.name === name)?.id ?? null;
+  const [main, setMain] = useState<string | null>(null);
+  const [side, setSide] = useState(0);
+  const [drink, setDrink] = useState(0);
+  if (!set) return <Navigate to={`/mom/add/r/${key}`} replace />;
+  const one = (id: string | null) => (id ? itemCarbs({ kind: 'product', id, portion_id: null, amount: 1, unit: 'serving' }) : 0);
+  const ids = main ? kidsMealIds(set, { main, side, drink }, idOf) : null;
+  const total = ids ? ids.reduce<number | null>((a, id) => { const g = one(id); return a === null || g === null ? null : a + g; }, 0) : null;
+  const add = () => {
+    if (!ids) return;
+    for (const id of ids) draftOps.add({ kind: 'product', id, portion_id: null, amount: 1, unit: 'serving' });
+    nav(-1); // back in the restaurant: more can be added, «تم» shows the plate
+  };
+  const row = (label: string, opts: { label: string; id: string | null }[], cur: number, pick: (i: number) => void) => (
+    <div className="space-y-1.5">
+      <h2 className="text-[15px] font-bold text-slate-500">{label}</h2>
+      <div className="grid grid-cols-2 gap-2">{opts.map((o, i) => <Choice key={i} compact dense on={cur === i} label={tMaybe(o.label)} sub={o.id ? t('{g} غ كارب', { g: gramsText(one(o.id) ?? 0) }) : undefined} onClick={() => pick(i)} />)}</div>
+    </div>
+  );
+  const sides = set.sides.map((x) => ({ label: x.label, id: x.name ? idOf(x.name) : null })).filter((x, i) => x.id || !set.sides[i].name);
+  const drinks = set.drinks.map((x) => ({ label: x.label, id: x.name ? idOf(x.name) : null })).filter((x, i) => x.id || !set.drinks[i].name);
+  return (
+    <MomPage compact title={tMaybe(set.title)} back={-1} foot={<>
+      <div className="flex items-baseline justify-between px-1"><span className="text-[15px] text-slate-500">{t('مجموع الكارب')}</span><b className="num text-[26px] leading-none">{total === null ? '—' : `${gramsText(total)} ${t('غ')}`}</b></div>
+      <Big md disabled={!ids || total === null} onClick={add}>✓ {t('أضيفي للصحن')}</Big>
+    </>}>
+      <div className="space-y-1.5">
+        <h2 className="text-[15px] font-bold text-slate-500">{t('الوجبة')}</h2>
+        <div className="grid grid-cols-2 gap-2">{set.meals.map((m) => { const id = idOf(m.main); return id ? <Choice key={m.key} compact dense on={main === m.key} label={tMaybe(m.label)} sub={t('{g} غ كارب', { g: gramsText(one(id) ?? 0) })} onClick={() => setMain(m.key)} /> : null; })}</div>
+      </div>
+      {row(t('البطاطا'), sides, side, setSide)}
+      {row(t('المشروب'), drinks, drink, setDrink)}
+      <p className="text-[13px] leading-snug text-slate-500">{t('قيم مرجعية من برجر كنج تركيا، غير مؤكدة للكويت. عصير البرتقال ما له قيمة موثوقة بعد.')}</p>
     </MomPage>
   );
 }

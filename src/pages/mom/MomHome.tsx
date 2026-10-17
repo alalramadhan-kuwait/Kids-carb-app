@@ -127,6 +127,8 @@ export function MomHome() {
   const waiting = plans.filter((p) => p.status === 'planned' && phase(p, now) !== 'done').sort((a, b) => Date.parse(a.dose_at) - Date.parse(b.dose_at));
   const due = waiting.find((p) => phase(p, now) === 'check') ?? null;
   const next = due ? null : waiting.find((p) => Date.parse(p.dose_at) - now < 18 * H) ?? null;
+  // the Food button's small count: plans still to come and meals dosed but not finished (never done or cancelled ones)
+  const openPlans = waiting.length + plans.filter((p) => p.status === 'dosed' && now - Date.parse(p.dose_at) < 6 * H).length;
   // a meal of the other kind replaces the one being built: asked first; kept, the plate opens as it is
   const build = (mode: 'now' | 'plan') => { if (okToReplace(mode)) draftOps.start(mode); nav('/mom/meal?from=home'); };
   // the sensor: days left in the status line; its last day, or an unknown arm, gets a card
@@ -244,7 +246,9 @@ export function MomHome() {
       {next && <Link to={`/mom/plan/${next.id}`} className="flex min-h-[44px] shrink-0 items-center rounded-2xl bg-white px-4 py-1.5 text-[15px]">📅 <bdi>{next.name}</bdi> · {dayWord(Date.parse(next.dose_at))} 💉 {clock(Date.parse(next.dose_at))} ›</Link>}
       {/* two buttons: Food (meal, plan, juice) and Medical (injection, finger-prick), each a page of its own */}
       <div className="mt-auto grid shrink-0 grid-cols-2 gap-2">
-        <Big className={big} onClick={() => nav('/mom/actions/food', { state: { low: lowNow } })}><Lbl icon="🍽️" text={t('أكل')} chevron /></Big>
+        <Big className={cx(big, 'relative')} onClick={() => nav('/mom/actions/food', { state: { low: lowNow } })}><Lbl icon="🍽️" text={t('أكل')} chevron />
+          {/* plans not done yet (planned, or dosed and waiting): a small count, no new row, the graph keeps its size */}
+          {openPlans > 0 && <span className="absolute -top-1.5 start-2 rounded-full bg-white px-2 text-[13px] font-bold leading-6 text-brand shadow" aria-label={t('{n} وجبات مخططة', { n: openPlans })}>📅 {openPlans}</span>}</Big>
         <Big tone="soft" className={big} onClick={() => nav('/mom/actions/medical', { state: { low: lowNow } })}><Lbl icon="🩸" text={t('طبي')} chevron /></Big>
       </div>
       {full && <GraphFull onClose={() => setFull(false)} s={s} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} />}

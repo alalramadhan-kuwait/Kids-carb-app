@@ -66,3 +66,33 @@ export function cupsOf<T extends { name: string; per_item?: boolean }>(items: T[
   const rest = items.filter((i) => !SIZED.test(i.name) && i.per_item);
   return { sizes, weighed, rest };
 }
+
+// ── kids meals: built from the separate menu items (the meal itself has no nutrition of its own, so nothing is
+// counted twice). Products are found by their exact stored name; a missing one is simply not offered. ──────────
+export interface KidsMeal { key: string; label: string; main: string }
+export interface KidsMealSet { title: string; meals: KidsMeal[]; sides: { label: string; name: string | null }[]; drinks: { label: string; name: string | null }[] }
+/** Burger King Kuwait King Jr meals (menu checked 17 Oct 2026): main, small fries (the same item as on the menu)
+ *  and a drink. Water first (the family's default), Coke Zero; orange juice has no reliable value yet. */
+export const KIDS_MEALS: Record<string, KidsMealSet> = {
+  bk: {
+    title: 'وجبات كنغ جونيور', // i18n-ok: stored labels, shown via tMaybe
+    meals: [
+      { key: 'hamburger', label: 'هامبرغر', main: 'برجر كنج هامبرغر كيدز' }, // i18n-ok
+      { key: 'cheeseburger', label: 'تشيز برجر', main: 'برجر كنج تشيز برجر كيدز' }, // i18n-ok
+      { key: 'chicken', label: 'تشيكن برجر', main: 'برجر كنج تشيكن برجر كيدز' }, // i18n-ok
+      { key: 'tenders', label: 'تندر ٤ قطع', main: 'برجر كنج تشيكن تيندر (4 قطع)' }, // i18n-ok
+    ],
+    sides: [{ label: 'بطاطا صغير', name: 'برجر كنج بطاطا (صغير)' }, { label: 'بدون', name: null }], // i18n-ok
+    drinks: [{ label: 'ماي', name: 'برجر كنج ماء معدني' }, { label: 'كوك زيرو', name: 'برجر كنج كوك زيرو (علبة)' }, { label: 'بدون', name: null }], // i18n-ok
+  },
+};
+
+/** The chosen parts of a kids meal as the product ids to put on the plate, each once (no meal row, no repeats).
+ *  Null when the main is not in the food list. Pure. */
+export function kidsMealIds(set: KidsMealSet, pick: { main: string; side: number; drink: number }, idOf: (name: string) => string | null): string[] | null {
+  const meal = set.meals.find((m) => m.key === pick.main);
+  const main = meal ? idOf(meal.main) : null;
+  if (!main) return null;
+  const parts = [main, set.sides[pick.side]?.name, set.drinks[pick.drink]?.name].map((n, i) => (i === 0 ? n : n ? idOf(n) : null)).filter((x): x is string => !!x);
+  return [...new Set(parts)];
+}
