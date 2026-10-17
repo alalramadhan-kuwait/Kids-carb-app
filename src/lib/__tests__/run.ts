@@ -1308,7 +1308,40 @@ console.log('dose calculator');
     assert.equal(suggestDose({ ...base, ratio: null }).block, 'no_plan');
     assert.equal(suggestDose({ ...base, iob: null }).block, 'no_plan');
   });
+  test('the extra dose after a meal changes is offered only when the calculator itself would give a number', async () => {
+    const { extraDoseGate } = await import('../../engine/dose');
+    const now = (x: Record<string, unknown>) => suggestDose({ ...base, carbs: 0, ...x } as typeof base);
+    assert.deepEqual(extraDoseGate(1, now({})), { give: true, block: null }, 'fresh reading, no recent dose: one-tap give allowed');
+    assert.equal(extraDoseGate(0, now({})).give, false, 'less than a pen step: nothing to give');
+    // the first meal dose 40 min ago is inside the gap: no one-tap second dose, and when it would be allowed
+    const recent = extraDoseGate(1, now({ lastRapidAt: T - 40 * M }));
+    assert.equal(recent.give, false); assert.equal(recent.block, 'recent_dose'); assert.equal(recent.until, T + 80 * M);
+    assert.equal(extraDoseGate(1, now({ glucose: { mg: 171, at: T - 16 * M, level: 0 } })).block, 'no_reading', 'an old reading is never reused');
+    assert.equal(extraDoseGate(1, now({ iob: null })).block, 'no_plan', 'insulin still working unknown: no number');
+    assert.equal(extraDoseGate(1, now({ glucose: { mg: 65, at: T, level: 0 } })).block, 'low');
+    assert.equal(extraDoseGate(1, now({ glucose: { mg: 171, at: T, level: -2 } })).block, 'falling');
+    assert.equal(extraDoseGate(1, now({ sensorStartedAt: T - 30 * M })).block, 'warmup');
+  });
+  test('regression: the calculator numbers and the meal-change difference are unchanged', () => {
+    const r = suggestDose({ ...base, carbs: 30, glucose: { mg: 225, at: T - M, level: 0 }, iob: 0.5 });
+    assert.equal(r.food, 2); assert.ok(Math.abs(r.correction - 1.5) < 1e-9); assert.equal(r.iobUsed, 0.5); assert.equal(r.dose, 3, '2 + (2 − 0.5) = 3.5 → 3');
+    assert.deepEqual(mealChangeDose(30, 45, 15, 1), { diff: 15, raw: 1, extra: 1, over: 0 });
+    assert.deepEqual(mealChangeDose(30, 52, 15, 0.5), { diff: 22, raw: 22 / 15, extra: 1, over: 0 }, '1.47 → 1 at half steps');
+    assert.equal(mealChangeDose(45, 30, 15, 1).extra, 0); assert.equal(mealChangeDose(45, 30, 15, 1).over, 1, 'less food: a warning, never a negative dose');
+  });
 }
+
+test('an earlier meal added while planning keeps the plan (its id, name and mode); for now it stays for now', async () => {
+  const { addToDraft } = await import('../../engine/mom');
+  const it = (id: string) => ({ kind: 'product' as const, id, portion_id: null, amount: 1, unit: 'serving' }) as never;
+  const plan = { items: [it('a')], savedId: null, name: 'عيد ميلاد', left: [], mode: 'plan' as const, planId: 'plan-1', review: [] as string[], fixing: 2 };
+  const d = addToDraft(plan, [it('b'), it('c')], ['x']);
+  assert.equal(d.mode, 'plan'); assert.equal(d.planId, 'plan-1'); assert.equal(d.name, 'عيد ميلاد');
+  assert.equal(d.items.length, 3); assert.deepEqual(d.review, ['x']); assert.equal(d.fixing, null);
+  assert.equal(plan.items.length, 1, 'the plate before is not changed in place');
+  const now = addToDraft({ items: [], savedId: 's1', name: 'Saved', left: [], mode: 'now' as const, review: ['y'] }, [it('b')], [] as string[]);
+  assert.equal(now.mode, 'now'); assert.equal(now.name, null); assert.equal(now.savedId, null); assert.deepEqual(now.review, ['y']);
+});
 
 console.log('prediction tracking');
 

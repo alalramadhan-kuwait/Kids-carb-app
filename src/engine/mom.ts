@@ -243,3 +243,11 @@ export function curvePoints(s: Series, t0: number, now: number): { t: number; v:
   }
   return pts;
 }
+
+/** Foods from an earlier meal added to the plate being built: everything else stays as it was, so a plan stays a
+ *  plan (its time and id) and a meal for now stays for now. A meal for now is named by its foods again; a plan keeps
+ *  its own name. */
+export function addToDraft<R, D extends { items: MomItem[]; review?: R[]; fixing?: number | null; mode: 'now' | 'plan'; savedId: string | null; name: string | null }>(d: D, items: MomItem[], review: R[]): D {
+  return { ...d, items: [...d.items, ...items.map((i) => ({ ...i }))], review: [...(d.review ?? []), ...review], fixing: null,
+    ...(d.mode === 'plan' ? {} : { savedId: null, name: null }) };
+}

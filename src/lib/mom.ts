@@ -2,7 +2,7 @@
 // saved, so going back and forth between pages never loses it), and the simple-mode switch.
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
-import { withCompared, type FoodRef, type MomItem } from '../engine/mom';
+import { addToDraft, withCompared, type FoodRef, type MomItem } from '../engine/mom';
 import type { ReviewItem } from './repeatMeal';
 import type { InjectionSite, Portion, SavedMeal } from './types';
 import { useData } from './data';
@@ -111,6 +111,8 @@ export const draftOps = {
   remove: (k: number) => setDraft({ ...draft, items: draft.items.filter((_, i) => i !== k) }),
   /** A meal from the Log on the plate, to change into a new one (named by the time it is eaten, like any meal). */
   loadItems: (items: MomItem[], review: ReviewItem[]) => setDraft({ items, savedId: null, name: null, left: [], mode: 'now', review, fixing: null }),
+  /** An earlier meal's foods added to the plate (a plan stays a plan). */
+  addItems: (items: MomItem[], review: ReviewItem[]) => setDraft(addToDraft(draft, items, review)),
   /** A food under review: look for it again (the next food added takes its place), or remove it from the plate. */
   fix: (i: number | null) => setDraft({ ...draft, fixing: i }),
   dropReview: (i: number) => setDraft({ ...draft, review: (draft.review ?? []).filter((_, k) => k !== i), fixing: null }),

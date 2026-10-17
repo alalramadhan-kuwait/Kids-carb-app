@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.15.2",
+    "date": "2026-10-17",
+    "notes": [
+      "زر «جرعة إضافية» بعد تعديل الوجبة صار يتبع نفس فحوصات حاسبة الجرعة: قراءة حديثة، آخر جرعة، الإنسولين الفعّال، والسكر النازل أو المنخفض.",
+      "إضافة وجبة سابقة أثناء التخطيط ما عادت تحوّل الخطة إلى «أكل الحين»."
+    ],
+    "notes_en": [
+      "The “extra dose” after a meal is edited now follows the dose calculator’s checks: a fresh reading, the last dose, insulin still working, and low or falling glucose.",
+      "Adding an earlier meal while planning no longer turns the plan into “eat now”."
+    ]
+  },
+  {
     "version": "4.15.1",
     "date": "2026-10-17",
     "notes": [

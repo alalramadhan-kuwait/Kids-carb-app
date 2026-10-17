@@ -40,14 +40,8 @@ export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'mea
   const newCarbs = carbs !== null && carbs - recentCarbs >= 1 && !r.block && r.dose > 0 ? Math.round((carbs - recentCarbs) * 10) / 10 : 0; // no dose, nothing saved with it
   const unit = s.glucose_unit, gl = (mg: number) => formatGlucose(mg, unit);
 
-  const BLOCK: Record<DoseBlock, string> = {
-    no_plan: t('أكملوا خطة الطبيب في الإعدادات: نسبة الكارب، معامل التصحيح، الهدف، ومدة عمل الإنسولين.'),
-    recent_dose: t('آخر جرعة سريعة قبل أقل من {h} س. الجرعة التالية بعد {time}.', { h: (s.dose_gap_min ?? 120) / 60, time: r.until ? clock(r.until) : '' }),
-    no_reading: t('لا توجد قراءة سكر حديثة (آخر 15 دقيقة). قيسوا بالجهاز أو انتظروا القراءة.'),
-    warmup: t('الحساس في ساعة التسخين الأولى. قيسوا بجهاز الوخز.'),
-    low: t('السكر منخفض: عالجوا الانخفاض أولًا. لا جرعة الآن.'),
-    falling: t('السكر ينزل بسرعة. لا جرعة الآن؛ راقبوا وأعيدوا الحساب بعد قليل.'),
-  };
+  const BLOCK = blockTexts(s.dose_gap_min ?? 120, r.until);
+
 
   if (!g) return <div className="rounded-2xl bg-slate-50 p-3 text-sm text-slate-500">{t('حاسبة الجرعة…')}</div>;
   const purpose = r.food > 0 && r.correction > 0 ? 'both' : r.food > 0 ? 'meal' : 'correction';
@@ -116,4 +110,16 @@ function Line({ label, math, value }: { label: string; math: string; value: stri
       <dd className="num w-12 text-end font-bold" dir="ltr">{value}</dd>
     </div>
   );
+}
+
+/** Why the calculator gives no number now, in words (shared with the extra-dose check after a meal changes). */
+export function blockTexts(gapMin: number, until?: number): Record<DoseBlock, string> {
+  return {
+    no_plan: t('أكملوا خطة الطبيب في الإعدادات: نسبة الكارب، معامل التصحيح، الهدف، ومدة عمل الإنسولين.'),
+    recent_dose: t('آخر جرعة سريعة قبل أقل من {h} س. الجرعة التالية بعد {time}.', { h: gapMin / 60, time: until ? clock(until) : '' }),
+    no_reading: t('لا توجد قراءة سكر حديثة (آخر 15 دقيقة). قيسوا بالجهاز أو انتظروا القراءة.'),
+    warmup: t('الحساس في ساعة التسخين الأولى. قيسوا بجهاز الوخز.'),
+    low: t('السكر منخفض: عالجوا الانخفاض أولًا. لا جرعة الآن.'),
+    falling: t('السكر ينزل بسرعة. لا جرعة الآن؛ راقبوا وأعيدوا الحساب بعد قليل.'),
+  };
 }

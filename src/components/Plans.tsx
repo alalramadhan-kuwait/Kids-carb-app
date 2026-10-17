@@ -5,7 +5,8 @@ import { TimeField } from './TimeField';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
-import { mealChangeDose } from '../engine/dose';
+import { extraDoseGate, mealChangeDose } from '../engine/dose';
+import { blockTexts } from './DoseCalculator';
 import { adoptDose, approveDose, ate, logPendingMeal, deletePlan, planMeal, savePlan, setDoseTime, skipPlan, topUpDose, treatFromPlan, usePlanHistory, usePlans, type DoseConflict } from '../lib/plans';
 import { useSubmitId } from '../lib/useSubmitId';
 import { SameDose } from './SameDose';
@@ -376,7 +377,7 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
       )}
 
       {/* the meal changed after the dose: the difference at the same ratio (more food: the extra dose; less: a warning) */}
-      {dosed && <MealChange plan={plan} carbs={meal.total.carbs} complete={meal.complete} ratio={live.ratio?.cr ?? null} />}
+      {dosed && <MealChange plan={plan} carbs={meal.total.carbs} complete={meal.complete} ratio={live.ratio?.cr ?? null} live={live} />}
 
       {/* after the dose: when it was really given can still be set (the eating time follows) */}
       {dosed && plan.dosed_at && <DoseTimeRow plan={plan} />}
@@ -404,7 +405,7 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
 }
 
 /** After the dose the meal was edited: what the dose was for, the carbs now, and the extra at the same carb ratio. */
-function MealChange({ plan, carbs, complete, ratio }: { plan: PlannedMeal; carbs: number; complete: boolean; ratio: number | null }) {
+function MealChange({ plan, carbs, complete, ratio, live }: { plan: PlannedMeal; carbs: number; complete: boolean; ratio: number | null; live: ReturnType<typeof useLiveDose> }) {
   const { settings, reload } = useData();
   const [busy, setBusy] = useState(false);
   const [cid, nextCid] = useSubmitId();
@@ -413,17 +414,20 @@ function MealChange({ plan, carbs, complete, ratio }: { plan: PlannedMeal; carbs
   if (was === null || !cr || !complete || Math.abs(carbs - was) < 1) return null;
   const step = settings.pen_step ?? 1;
   const c = mealChangeDose(was, carbs, cr, step);
+  const gate = extraDoseGate(c.extra, live.r); // the calculator's own stops, right now
   const r1 = (x: number) => Math.round(x * 10) / 10;
   return (
     <div className={cx('space-y-2 rounded-2xl p-3 text-sm', c.diff > 0 ? 'bg-brand-soft' : 'bg-near-soft')}>
       <div className="font-bold">{t('الوجبة تغيّرت بعد الجرعة: {a} غ ← {b} غ', { a: fmt(r1(was)), b: fmt(r1(carbs)) })}</div>
       <div className="text-slate-700">{t('بنفس نسبة الكارب (1 لكل {cr} غ): {d} غ = {u} وحدة', { cr: fmt(cr), d: (c.diff > 0 ? '+' : '−') + fmt(r1(Math.abs(c.diff))), u: (c.diff > 0 ? '+' : '−') + r1(Math.abs(c.raw)).toFixed(1) })}</div>
-      {c.diff > 0 ? (c.extra > 0 ? (
+      {c.diff > 0 ? (c.extra > 0 ? (!live.ready ? <p className="text-slate-500">{t('حاسبة الجرعة…')}</p> : gate.block ? (
+        <p className="font-medium text-near">{blockTexts(settings.dose_gap_min ?? 120, gate.until)[gate.block]}</p>
+      ) : (
         <Btn kind="primary" block disabled={busy} onClick={async () => {
           setBusy(true);
           try { await topUpDose(plan, { given: c.extra, calc: c.extra, carbs }, cid); nextCid(); await reload(); toast(t('سُجّلت {u} وحدة إضافية', { u: fmt(c.extra) })); } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
         }}>{t('أعطِ {u} وحدة إضافية الآن', { u: fmt(c.extra) })}</Btn>
-      ) : <p className="text-slate-600">{t('أقل من خطوة القلم ({s} و): لا جرعة إضافية', { s: fmt(step) })}</p>)
+      )) : <p className="text-slate-600">{t('أقل من خطوة القلم ({s} و): لا جرعة إضافية', { s: fmt(step) })}</p>)
         : <p className="font-medium text-near">{t('الجرعة المعطاة أكثر من الوجبة الجديدة بحوالي {u} وحدة. راقبوا السكر، قد ينزل.', { u: r1(c.over).toFixed(1) })}</p>}
       {c.extra > 0 && <p className="text-[11px] text-slate-500">{t('من خطة الطبيب. راجعوا الرقم قبل الإعطاء.')}</p>}
     </div>

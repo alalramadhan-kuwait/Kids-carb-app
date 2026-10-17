@@ -88,6 +88,16 @@ export function doseSteps(s: { carbs: number; cr: number; glucose: number; isf: 
  * (shown as a warning, never "taken back"). The correction part of the first dose is not touched. Display only until
  * a parent gives it.
  */
+/**
+ * May the extra food dose be offered as a one-tap give? Only when the calculator itself would give a number now
+ * (`r` is suggestDose's answer for this moment): a fresh reading, no recent dose within the gap, not low or falling,
+ * insulin still working known, the doctor's plan complete. No new rule: the calculator's own stops, nothing else.
+ */
+export function extraDoseGate(extra: number, r: Pick<DoseResult, 'block' | 'until'>): { give: boolean; block: DoseBlock | null; until?: number } {
+  if (r.block) return { give: false, block: r.block, until: r.until };
+  return { give: extra > 0, block: null };
+}
+
 export function mealChangeDose(oldCarbs: number, newCarbs: number, cr: number, step: number) {
   const diff = newCarbs - oldCarbs;
   const raw = diff / cr;

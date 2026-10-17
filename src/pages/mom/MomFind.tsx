@@ -122,7 +122,7 @@ export function MomFind() {
   if (browse === 'log') return (
     <MomPage compact title={t('وجبة سابقة')} back={-1}>
       <div className="space-y-2">{reusable(history).slice(0, 40).map((h) => <FoodRow key={h.id} icon="🍽️" title={tMaybe(h.name)} sub={h.lines.map((l) => tMaybe(l.name)).join(' · ')} carbs={h.total_carbs} per={t('الوجبة')}
-        onClick={() => { const r = repeatPlate(h, c.products, itemCarbs); draftOps.loadItems([...d.items, ...r.items], r.review); nav('/mom/meal'); }} />)}</div>
+        onClick={() => { const r = repeatPlate(h, c.products, itemCarbs); draftOps.addItems(r.items, r.review); nav('/mom/meal'); }} />)}</div>
     </MomPage>
   );
   if (browse === 'brands') {
