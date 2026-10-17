@@ -3,6 +3,7 @@
 // saved, and the saved entry says it was estimated.
 import { supabase } from './supabase';
 import type { HistoryLine } from './types';
+import type { Label } from '../../supabase/functions/carb-food/estimate';
 import { offToPackaged, totals, type EstItem, type Packaged } from './foodcalc';
 
 export * from './foodcalc';
@@ -74,4 +75,17 @@ export async function logEstimated(input: { name: string; kind: 'meal' | 'snack'
   if (error) throw new Error(error.message);
   if (input.scanId) await supabase.from('food_scans').update({ history_id: (data as { id: string }).id }).eq('id', input.scanId);
   return (data as { id: string }).id;
+}
+
+// ── nutrition labels ──
+export type { Label };
+
+/** One or two photos of a pack (front, nutrition table) read by the carb-food function. Prefills a form; never saves. */
+export async function readLabel(files: Blob[]): Promise<Label> {
+  const images = await Promise.all(files.slice(0, 2).map(async (f) => (await shrinkPhoto(f, 1600)).data));
+  const { data, error } = await supabase.functions.invoke('carb-food', { body: { action: 'label', images } });
+  const code = (data as { error?: string } | null)?.error
+    ?? (error && 'context' in error ? ((await (error as { context: Response }).context.json().catch(() => ({}))) as { error?: string }).error : undefined);
+  if (code || error) throw new Error(code ?? 'server');
+  return (data as { label: Label }).label;
 }

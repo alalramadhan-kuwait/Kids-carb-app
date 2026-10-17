@@ -1079,6 +1079,20 @@ test('photo estimates are cleaned: bounded numbers, carbs never above the weight
   assert.equal(SCHEMA.additionalProperties, false); assert.equal(SCHEMA.properties.items.items.additionalProperties, false);
 });
 
+test('label readings are cleaned: impossible numbers blanked and flagged, nothing invented', async () => {
+  const { cleanLabel, LABEL_SCHEMA } = await import('../../../supabase/functions/carb-food/estimate');
+  const l = cleanLabel({ is_label: true, name: 'Protein Wraps', brand: 'Nano Supps', barcode: 'EAN 5 060 123 456 789', category: 'خبز', unit: 'g', serving: 40, pack: 240,
+    per100: { carbs: 11, sugar: 140, fiber: 26, fat: 13, protein: 22, kcal: 308 }, label_style: 'eu_fibre_excluded', uncertain: ['brand', 'nonsense'] });
+  assert.equal(l.is_label, true); assert.equal(l.per100.carbs, 11); assert.equal(l.serving, 40); assert.equal(l.barcode, '5060123456789');
+  assert.equal(l.per100.sugar, null, 'sugar over 100 g per 100 g is blanked');
+  assert.ok(l.uncertain.includes('sugar') && l.uncertain.includes('brand') && !l.uncertain.includes('nonsense'));
+  const bad = cleanLabel({ is_label: true, per100: { carbs: 'x' }, unit: 'kg', label_style: 'odd' });
+  assert.equal(bad.is_label, false, 'no readable carbs: nothing to prefill'); assert.equal(bad.unit, 'g'); assert.equal(bad.label_style, 'unknown');
+  assert.ok(bad.uncertain.includes('carbs'));
+  assert.equal(cleanLabel(null).is_label, false);
+  assert.equal(LABEL_SCHEMA.additionalProperties, false); assert.equal(LABEL_SCHEMA.properties.per100.additionalProperties, false);
+});
+
 test('editing an estimated item: grams scale everything; barcode data reads Open Food Facts per 100 g', async () => {
   const { scaleItem, totals, offToPackaged } = await import('../foodcalc');
   const i = { name_ar: 'أرز', name_en: 'Rice', grams: 100, carbs_g: 28, protein_g: 2.7, fat_g: 0.3, kcal: 130, confidence: 'medium' as const, hidden_sugar: false };

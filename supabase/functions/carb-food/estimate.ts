@@ -68,3 +68,64 @@ export function cleanEstimate(raw: unknown): Estimate {
 
 /** Never show advice the app does not give, whatever the model wrote. */
 export const mentionsDosing = (s: string) => /insulin|bolus|dose|units? of|إنسولين|انسولين|جرعة|وحدات|وحدة/i.test(s);
+
+// ── nutrition labels ──
+export const LABEL_DAILY_LIMIT = 30;
+
+export const LABEL_SYSTEM = `You read the nutrition label of a packaged food from one or two photos (the front of the pack and the nutrition table) for the parents of a 6-year-old girl with type 1 diabetes. Your answer fills a form that the parents check and edit before saving.
+
+Copy the numbers exactly as printed per 100 g (or per 100 ml for drinks). If only per-serving values are printed, convert them to per 100 using the printed serving size. Give the serving size and the pack size in grams or millilitres when printed, else null. Never guess a number you cannot read: use null and add the field name to uncertain.
+
+label_style: "eu_fibre_excluded" when the label lists carbohydrate and fibre as separate lines in the European way (carbohydrate already excludes fibre), "fibre_included" when total carbohydrate includes dietary fibre (US/Gulf style with "Total Carbohydrate"), else "unknown". Report carbohydrate as printed either way.
+
+category: one short Arabic product group such as خبز, حليب, عصير, سناكات, حلويات, لحوم, أخرى. Never mention insulin, doses or treatment. If no nutrition table is visible, set is_label to false.`;
+
+const nul = (t: string) => ({ type: ['number', 'null'] as const, description: t });
+export const LABEL_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['is_label', 'name', 'brand', 'barcode', 'category', 'unit', 'serving', 'pack', 'per100', 'label_style', 'uncertain'],
+  properties: {
+    is_label: { type: 'boolean' },
+    name: { type: 'string' }, brand: { type: 'string' }, barcode: { type: 'string' }, category: { type: 'string' },
+    unit: { type: 'string', enum: ['g', 'ml'] },
+    serving: nul('serving size'), pack: nul('pack size'),
+    per100: {
+      type: 'object', additionalProperties: false,
+      required: ['carbs', 'sugar', 'fiber', 'fat', 'protein', 'kcal'],
+      properties: { carbs: nul('g'), sugar: nul('g'), fiber: nul('g'), fat: nul('g'), protein: nul('g'), kcal: nul('kcal') },
+    },
+    label_style: { type: 'string', enum: ['eu_fibre_excluded', 'fibre_included', 'unknown'] },
+    uncertain: { type: 'array', items: { type: 'string' } },
+  },
+} as const;
+
+export interface LabelPer100 { carbs: number | null; sugar: number | null; fiber: number | null; fat: number | null; protein: number | null; kcal: number | null }
+export interface Label {
+  is_label: boolean; name: string; brand: string; barcode: string; category: string; unit: 'g' | 'ml';
+  serving: number | null; pack: number | null; per100: LabelPer100;
+  label_style: 'eu_fibre_excluded' | 'fibre_included' | 'unknown'; uncertain: string[];
+}
+
+const opt = (x: unknown, max: number) => { if (x === null || x === undefined || x === '') return null; const n = Number(x); return Number.isFinite(n) && n >= 0 && n <= max ? Math.round(n * 10) / 10 : null; };
+const FIELDS = ['name', 'brand', 'barcode', 'serving', 'pack', 'carbs', 'sugar', 'fiber', 'fat', 'protein', 'kcal'];
+
+/** Make a label reading safe to prefill: impossible numbers become blanks (and are flagged), nothing is invented. */
+export function cleanLabel(raw: unknown): Label {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const p = (r.per100 ?? {}) as Record<string, unknown>;
+  const per100: LabelPer100 = { carbs: opt(p.carbs, 100), sugar: opt(p.sugar, 100), fiber: opt(p.fiber, 100), fat: opt(p.fat, 100), protein: opt(p.protein, 100), kcal: opt(p.kcal, 900) };
+  const uncertain = new Set((Array.isArray(r.uncertain) ? r.uncertain : []).filter((x): x is string => typeof x === 'string' && FIELDS.includes(x)));
+  for (const k of ['carbs', 'sugar', 'fiber', 'fat', 'protein', 'kcal'] as const) if (p[k] !== null && p[k] !== undefined && per100[k] === null) uncertain.add(k);
+  if (per100.carbs === null) uncertain.add('carbs');
+  if (per100.sugar !== null && per100.carbs !== null && per100.sugar > per100.carbs) uncertain.add('sugar');
+  const barcode = str(r.barcode, 60).replace(/\D/g, '').slice(0, 14);
+  return {
+    is_label: r.is_label === true && per100.carbs !== null,
+    name: str(r.name), brand: str(r.brand, 60), barcode: barcode.length >= 8 ? barcode : '', category: str(r.category, 40),
+    unit: r.unit === 'g' ? 'g' : r.unit === 'ml' ? 'ml' : 'g',
+    serving: opt(r.serving, 5000), pack: opt(r.pack, 10000), per100,
+    label_style: (['eu_fibre_excluded', 'fibre_included'] as const).includes(r.label_style as never) ? (r.label_style as Label['label_style']) : 'unknown',
+    uncertain: [...uncertain],
+  };
+}

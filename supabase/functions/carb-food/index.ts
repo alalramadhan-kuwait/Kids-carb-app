@@ -3,7 +3,7 @@
 // to check and edit, and nothing is saved until they do. The Anthropic key lives in Vault (carb.ai_secret_*).
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import Anthropic from 'npm:@anthropic-ai/sdk@0.131.0';
-import { DAILY_LIMIT, MODEL, SCHEMA, SYSTEM, cleanEstimate, mentionsDosing } from './estimate.ts';
+import { DAILY_LIMIT, LABEL_DAILY_LIMIT, LABEL_SCHEMA, LABEL_SYSTEM, MODEL, SCHEMA, SYSTEM, cleanEstimate, cleanLabel, mentionsDosing } from './estimate.ts';
 
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'content-type': 'application/json' } });
@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
 
   const body = await req.json().catch(() => ({}));
   const since = new Date(Date.now() - 24 * 3600000).toISOString();
-  const usedToday = async () => (await db.from('food_scans').select('id', { count: 'exact', head: true }).eq('kind', 'photo').gte('created_at', since)).count ?? 0;
+  const usedToday = async (kind = 'photo') => (await db.from('food_scans').select('id', { count: 'exact', head: true }).eq('kind', kind).gte('created_at', since)).count ?? 0;
 
   try {
     if (body.action === 'status') {
@@ -78,6 +78,38 @@ Deno.serve(async (req) => {
         input_tokens: response.usage.input_tokens, output_tokens: response.usage.output_tokens,
       }).select('id').single();
       return json({ scan_id: (row as { id: string } | null)?.id ?? null, estimate: est });
+    }
+    if (body.action === 'label') {
+      const images = (Array.isArray(body.images) ? body.images : []).filter((i: unknown) => typeof i === 'string' && i.length > 0 && i.length <= 6_000_000).slice(0, 2) as string[];
+      if (!images.length) return json({ error: 'bad_image' }, 400);
+      const { data: key } = await db.rpc('ai_secret_get');
+      if (!key) return json({ error: 'no_key' }, 400);
+      if ((await usedToday('label')) >= LABEL_DAILY_LIMIT) return json({ error: 'daily_limit', limit: LABEL_DAILY_LIMIT }, 429);
+      const client = new Anthropic({ apiKey: key as string });
+      const response = await client.beta.messages.create({
+        model: MODEL,
+        max_tokens: 8000,
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+        system: LABEL_SYSTEM,
+        output_config: { format: { type: 'json_schema', schema: LABEL_SCHEMA } },
+        messages: [{
+          role: 'user',
+          content: [
+            ...images.map((data) => ({ type: 'image' as const, source: { type: 'base64' as const, media_type: 'image/jpeg' as const, data } })),
+            { type: 'text', text: 'Read this nutrition label.' },
+          ],
+        }],
+      });
+      if (response.stop_reason === 'refusal') return json({ error: 'refused' }, 422);
+      const text = response.content.find((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')?.text ?? '';
+      let label;
+      try { label = cleanLabel(JSON.parse(text)); } catch { return json({ error: 'unreadable' }, 502); }
+      await db.from('food_scans').insert({
+        created_by: userId, kind: 'label', model: response.model, result: label,
+        input_tokens: response.usage.input_tokens, output_tokens: response.usage.output_tokens,
+      });
+      return json({ label });
     }
     return json({ error: 'unknown_action' }, 400);
   } catch (e) {
