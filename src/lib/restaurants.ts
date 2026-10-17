@@ -10,6 +10,9 @@ export const RESTAURANTS: Restaurant[] = [
   { key: 'kfc', brand: 'KFC', label: 'كنتاكي', bg: '#E4002B', fg: '#FFFFFF', mark: 'KFC', logo: 'brands/kfc.webp' }, // i18n-ok
   { key: 'elevation', brand: 'Elevation Burger', label: 'إليفيشن برجر', bg: '#0B2D6E', fg: '#FFFFFF', mark: 'EB', logo: 'brands/elevation.webp' }, // i18n-ok
   { key: 'canes', brand: "Raising Cane's", label: 'كينز', bg: '#C8102E', fg: '#FFFFFF', mark: 'C', logo: 'brands/canes.webp' }, // i18n-ok
+  { key: 'fiveguys', brand: 'Five Guys', label: 'فايف جايز', bg: '#D21033', fg: '#FFFFFF', mark: '5G', logo: 'brands/fiveguys.png' }, // i18n-ok
+  { key: 'shakeshack', brand: 'Shake Shack', label: 'شيك شاك', bg: '#1F1F1F', fg: '#6CB33F', mark: 'SS', logo: 'brands/shakeshack.png' }, // i18n-ok
+  { key: 'goodstuff', brand: 'Good Stuff', label: 'جود ستف', bg: '#1E6B3A', fg: '#F3EDE2', mark: 'GS' }, // i18n-ok
   { key: 'pick', brand: 'PICK', label: 'بيك', bg: '#722C80', fg: '#FFFFFF', mark: 'PICK', lead: 'frozen', logo: 'brands/pick.webp' }, // i18n-ok: frozen yogurt first
   { key: 'baskin', brand: 'Baskin Robbins', label: 'باسكن روبنز', bg: '#DA1884', fg: '#FFFFFF', mark: 'BR', lead: 'frozen', logo: 'brands/baskin.webp' }, // i18n-ok
 ];
