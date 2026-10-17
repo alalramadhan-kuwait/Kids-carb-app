@@ -1,7 +1,7 @@
 // Pure parts of the food photo estimate, so the app's tests can run them: the prompt, the JSON schema the model
 // must answer in, and the clean-up of its answer. Estimates only: the parents check and edit before anything is saved.
 
-export const MODEL = 'claude-opus-5-5';
+export const MODEL = 'claude-haiku-5-5'; // the cheapest; the parents check and edit every estimate before it is saved
 export const DAILY_LIMIT = 40; // photos per day for the family, to keep the cost bounded
 
 export const SYSTEM = `You estimate the nutrition of the food in a photo for the parents of a 6-year-old girl with type 1 diabetes in Kuwait. They count carbohydrates; your answer is a starting point that they check and edit before saving.

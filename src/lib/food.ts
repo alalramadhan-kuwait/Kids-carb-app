@@ -38,6 +38,20 @@ export async function shrinkPhoto(file: Blob, max = 1280): Promise<{ data: strin
   return { data: url.slice(url.indexOf(',') + 1), media_type: 'image/jpeg', url };
 }
 
+// ── AI estimate (carb-food, Claude) ──
+async function callFood<T>(body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('carb-food', { body });
+  const code = (data as { error?: string } | null)?.error
+    ?? (error && 'context' in error ? ((await (error as { context: Response }).context.json().catch(() => ({}))) as { error?: string }).error : undefined);
+  if (code || error) throw new Error(code ?? 'server');
+  return data as T;
+}
+/** Whether a key is saved (the photo estimate is offered only then), and today's count against the daily limit. */
+export const aiStatus = () => callFood<{ configured: boolean; used: number; limit: number }>({ action: 'status' });
+/** The foods in a photo with estimated grams and nutrients. Display only: the parents check and edit before saving. */
+export const estimatePhoto = (photo: { data: string; media_type: string }, note = '') =>
+  callFood<{ scan_id: string | null; estimate: { is_food: boolean; items: EstItem[]; notes_ar: string; notes_en: string } }>({ action: 'photo', image: photo.data, media_type: photo.media_type, note });
+
 // ── saving ──
 /**
  * The photo kept for reference (AI estimate on hold): the parents' own carb count is logged as one entry and the

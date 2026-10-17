@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.18.0",
+    "date": "2026-10-17",
+    "notes": [
+      "صوّر الأكل: يطلع تقدير للكارب لكل صنف (Claude Haiku)، تراجعونه وتعدّلونه قبل الحفظ."
+    ],
+    "notes_en": [
+      "Photograph food: a carb estimate per food (Claude Haiku) to check and edit before saving."
+    ]
+  },
+  {
     "version": "4.17.1",
     "date": "2026-10-17",
     "notes": [

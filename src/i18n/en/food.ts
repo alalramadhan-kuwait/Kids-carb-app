@@ -1637,4 +1637,12 @@ export const food: Record<string, string> = {
   'Pineapple Stick': 'Pineapple Stick',
   'Milk': 'Milk',
   'عصير برتقال الهابي ميل ما له قيمة موثوقة بعد.': 'The Happy Meal orange juice has no reliable value yet.',
+  'ما لقيت أكل واضح بالصورة. اكتبوا الكارب بأنفسكم': 'No clear food in the photo. Type the carbs yourselves',
+  'وصلتم حد الصور اليوم. اكتبوا الكارب بأنفسكم': "Today's photo limit is reached. Type the carbs yourselves",
+  'ما قدرت أقدّر الأكل الحين. اكتبوا الكارب بأنفسكم': 'Could not estimate the food now. Type the carbs yourselves',
+  'يقدّر الأكل…': 'Estimating the food…',
+  'تقدير من صورة، راجعه الأهل': 'Estimated from a photo, checked by the parents',
+  'صوّروا الأكل: يطلع تقدير للكارب تراجعونه وتعدّلونه قبل الحفظ. باركود المنتج يُقرأ تلقائيًا.': 'Photograph the food: you get a carb estimate to check and edit before saving. Product barcodes are read automatically.',
+  'تقدير من الصورة، مو رقم أكيد. راجعوا كل كمية وكارب قبل الحفظ.': 'An estimate from the photo, not a sure number. Check every amount and carbs before saving.',
+  'أكتب الكارب بنفسي': "I'll type the carbs",
 };

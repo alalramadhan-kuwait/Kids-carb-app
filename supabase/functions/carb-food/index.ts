@@ -50,12 +50,10 @@ Deno.serve(async (req) => {
 
       const note = typeof body.note === 'string' ? body.note.trim().slice(0, 300) : '';
       const client = new Anthropic({ apiKey: key as string });
-      // Safety classifiers may decline; the server-side fallback re-runs the request on another model in that case.
-      const response = await client.beta.messages.create({
+      // a declined photo comes back as 'refused' and the parents count the carbs themselves
+      const response = await client.messages.create({
         model: MODEL,
         max_tokens: 16000,
-        betas: ['server-side-fallback-2026-07-01'],
-        fallbacks: 'default',
         system: SYSTEM,
         output_config: { format: { type: 'json_schema', schema: SCHEMA } },
         messages: [{
@@ -68,7 +66,7 @@ Deno.serve(async (req) => {
       });
 
       if (response.stop_reason === 'refusal') return json({ error: 'refused' }, 422);
-      const text = response.content.find((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')?.text ?? '';
+      const text = response.content.find((b): b is Anthropic.TextBlock => b.type === 'text')?.text ?? '';
       let est;
       try { est = cleanEstimate(JSON.parse(text)); } catch { return json({ error: 'unreadable' }, 502); }
       if (mentionsDosing(est.notes_ar)) est.notes_ar = '';

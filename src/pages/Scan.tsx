@@ -1,14 +1,14 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../lib/data';
-import { findBarcode, logEstimated, logPhotoEntry, lookupBarcode, scaleItem, shrinkPhoto, totals, type EstItem, type Packaged } from '../lib/food';
+import { aiStatus, estimatePhoto, findBarcode, logEstimated, logPhotoEntry, lookupBarcode, scaleItem, shrinkPhoto, totals, type EstItem, type Packaged } from '../lib/food';
 import { fmt } from '../lib/carbs';
 import { Alert, Btn, Card, NumInput, Page, cx, inputCls, toast } from '../components/ui';
 import { uploadPhoto } from '../lib/supabase';
 import { Icon } from '../components/Icon';
 import { isEn, lang, t } from '../i18n';
 
-type Step = { s: 'pick' } | { s: 'working'; url: string } | { s: 'packaged'; url: string; p: Packaged } | { s: 'manual'; url: string; file: File };
+type Step = { s: 'pick' } | { s: 'working'; url: string; ai?: boolean } | { s: 'estimated'; url: string; file: File; items: EstItem[]; note: string; scanId: string | null } | { s: 'packaged'; url: string; p: Packaged } | { s: 'manual'; url: string; file: File };
 
 /**
  * صوّر الأكل: one photo. A barcode in it is looked up (Open Food Facts) and shown as an editable entry; any other
@@ -21,6 +21,9 @@ export default function Scan() {
   const [step, setStep] = useState<Step>({ s: 'pick' });
   const [err, setErr] = useState('');
   const cam = useRef<HTMLInputElement>(null), gallery = useRef<HTMLInputElement>(null);
+  // a saved key turns on the AI estimate for photos without a barcode (otherwise the parents type the carbs)
+  const [ai, setAi] = useState(false);
+  useEffect(() => { aiStatus().then((x) => setAi(x.configured)).catch(() => setAi(false)); }, []);
 
   const onFile = async (file: File | undefined) => {
     if (!file) return;
@@ -33,6 +36,17 @@ export default function Scan() {
         const p = await lookupBarcode(code, lang()).catch(() => null);
         if (p) return setStep({ s: 'packaged', url: photo.url, p });
       }
+      if (ai) {
+        setStep({ s: 'working', url: photo.url, ai: true });
+        try {
+          const r = await estimatePhoto(photo);
+          if (r.estimate.is_food) return setStep({ s: 'estimated', url: photo.url, file, items: r.estimate.items, note: isEn() ? r.estimate.notes_en : r.estimate.notes_ar, scanId: r.scan_id });
+          setErr(t('ما لقيت أكل واضح بالصورة. اكتبوا الكارب بأنفسكم'));
+        } catch (e) {
+          const code = (e as Error).message;
+          setErr(code === 'daily_limit' ? t('وصلتم حد الصور اليوم. اكتبوا الكارب بأنفسكم') : t('ما قدرت أقدّر الأكل الحين. اكتبوا الكارب بأنفسكم'));
+        }
+      }
       setStep({ s: 'manual', url: photo.url, file });
     } catch (e) {
       setErr(t('تعذّر قراءة الصورة: {e}', { e: (e as Error).message }));
@@ -40,11 +54,11 @@ export default function Scan() {
     }
   };
 
-  const save = async (name: string, items: EstItem[], kind: 'meal' | 'snack', source: string) => {
+  const save = async (name: string, items: EstItem[], kind: 'meal' | 'snack', source: string, scanId: string | null = null) => {
     const tot = totals(items);
     if (tot.carbs > settings.max_meal_carbs && !confirm(t('هذه الوجبة {carbs}غ كارب وتتجاوز الحد ({max}غ). هل تريدون تسجيلها رغم ذلك؟', { carbs: fmt(tot.carbs), max: settings.max_meal_carbs }))) return;
     try {
-      await logEstimated({ name: name.trim() || t('وجبة مصوّرة'), kind, items, lang: lang(), notes: source, scanId: null });
+      await logEstimated({ name: name.trim() || t('وجبة مصوّرة'), kind, items, lang: lang(), notes: source, scanId });
       await reload(); toast(t('تم التسجيل في السجل ✓')); nav('/');
     } catch (e) { toast(t('تعذّر التسجيل: {err}', { err: (e as Error).message })); }
   };
@@ -62,17 +76,20 @@ export default function Scan() {
             <span className="text-sm opacity-80">{t('تُحفظ مع الكارب الذي تقدّرونه')}</span>
           </button>
           <Btn block kind="ghost" onClick={() => gallery.current?.click()}>{t('اختيار من الصور')}</Btn>
-          <p className="text-sm text-slate-600">{t('صوّروا الأكل واكتبوا الكارب الذي تقدّرونه: تُحفظ الصورة مع التسجيل. باركود المنتج يُقرأ تلقائيًا.')}</p>
+          <p className="text-sm text-slate-600">{ai ? t('صوّروا الأكل: يطلع تقدير للكارب تراجعونه وتعدّلونه قبل الحفظ. باركود المنتج يُقرأ تلقائيًا.') : t('صوّروا الأكل واكتبوا الكارب الذي تقدّرونه: تُحفظ الصورة مع التسجيل. باركود المنتج يُقرأ تلقائيًا.')}</p>
         </div>
       )}
 
       {step.s === 'working' && (
         <div className="space-y-4 text-center">
           <img src={step.url} alt="" className="mx-auto max-h-[50vh] rounded-2xl object-contain" />
-          <p className="animate-pulse font-medium text-slate-600">{t('نبحث عن باركود…')}</p>
+          <p className="animate-pulse font-medium text-slate-600">{step.ai ? t('يقدّر الأكل…') : t('نبحث عن باركود…')}</p>
         </div>
       )}
 
+      {step.s === 'estimated' && <EstimateReview key={step.url} step={step} onRetake={() => setStep({ s: 'pick' })} onManual={() => setStep({ s: 'manual', url: step.url, file: step.file })}
+        onSave={(name, items) => save(name, items, 'meal', t('تقدير من صورة، راجعه الأهل'), step.scanId)} />}
+      {step.s === 'manual' && err && <Alert tone="near">{err}</Alert>}
       {step.s === 'manual' && <PhotoEntry url={step.url} file={step.file} onRetake={() => setStep({ s: 'pick' })} onDone={async () => { await reload(); nav('/'); }} />}
 
       {step.s === 'packaged' && <PackagedReview url={step.url} p={step.p} onRetake={() => setStep({ s: 'pick' })}
@@ -172,6 +189,24 @@ function PhotoEntry({ url, file, onRetake, onDone }: { url: string; file: File; 
       </label>
       <Btn block kind="primary" className="min-h-[56px] text-lg" disabled={carbs === null || carbs < 0 || carbs >= 500 || busy} onClick={save}>{carbs === null ? t('اكتبوا الكارب') : t('سجّل {g} غ كارب', { g: fmt(carbs) })}</Btn>
       <Btn block kind="ghost" onClick={onRetake}>{t('صورة أخرى')}</Btn>
+    </div>
+  );
+}
+
+/** The AI estimate, one row per food: every grams and carbs number can be changed, a food removed; saved only on tap. */
+function EstimateReview({ step, onSave, onRetake, onManual }: { step: { url: string; items: EstItem[]; note: string }; onSave: (name: string, items: EstItem[]) => void; onRetake: () => void; onManual: () => void }) {
+  const [items, setItems] = useState(step.items);
+  const [name, setName] = useState(items.map((i) => (isEn() ? i.name_en : i.name_ar)).join(' + '));
+  return (
+    <div className="space-y-4">
+      <img src={step.url} alt="" className="max-h-[30vh] w-full rounded-2xl object-cover" />
+      <Alert tone="near">{t('تقدير من الصورة، مو رقم أكيد. راجعوا كل كمية وكارب قبل الحفظ.')}</Alert>
+      {step.note && <p className="px-1 text-sm text-slate-600" dir="auto">💡 {step.note}</p>}
+      <Card className="!p-0"><ul className="divide-y divide-slate-100">
+        {items.map((it, k) => <ItemRow key={k} item={it} onChange={(x) => setItems((xs) => xs.map((y, j) => (j === k ? x : y)))} onRemove={() => setItems((xs) => xs.filter((_, j) => j !== k))} />)}
+      </ul></Card>
+      <ReviewFooter items={items} name={name} setName={setName} onSave={() => onSave(name, items)} onRetake={onRetake} />
+      <Btn block kind="ghost" onClick={onManual}>{t('أكتب الكارب بنفسي')}</Btn>
     </div>
   );
 }
