@@ -70,7 +70,9 @@ export function cupsOf<T extends { name: string; per_item?: boolean }>(items: T[
 // ── kids meals: built from the separate menu items (the meal itself has no nutrition of its own, so nothing is
 // counted twice). Products are found by their exact stored name; a missing one is simply not offered. ──────────
 export interface KidsMeal { key: string; label: string; main: string }
-export interface KidsMealSet { title: string; meals: KidsMeal[]; sides: { label: string; name: string | null }[]; drinks: { label: string; name: string | null }[] }
+export interface KidsMealSet { title: string; meals: KidsMeal[]; sides: { label: string; name: string | null }[]; drinks: { label: string; name: string | null }[];
+  /** the side's value is not confirmed for this meal: shown, and counted only after the parent confirms it */
+  sideNote?: string }
 /** Burger King Kuwait King Jr meals (menu checked 17 Oct 2026): main, small fries (the same item as on the menu)
  *  (kids fries, not the regular small fries) and a drink. Water first (the family's default), Coke Zero; orange juice has no reliable value yet. */
 export const KIDS_MEALS: Record<string, KidsMealSet> = {
@@ -84,6 +86,19 @@ export const KIDS_MEALS: Record<string, KidsMealSet> = {
     ],
     sides: [{ label: 'بطاطا أطفال', name: 'برجر كنج بطاطا أطفال' }, { label: 'بدون', name: null }], // i18n-ok: kids fries; the regular small fries stay for regular meals
     drinks: [{ label: 'ماي', name: 'برجر كنج ماء معدني' }, { label: 'كوك زيرو', name: 'برجر كنج كوك زيرو (علبة)' }, { label: 'بدون', name: null }], // i18n-ok
+    sideNote: 'قيمة بطاطا الأطفال مرجعية من برجر كنج أمريكا، غير مؤكدة للكويت. أكّدي إنها بطاطا أطفال قبل ما تنحسب', // i18n-ok
+  },
+  /** McDonald's Kuwait Happy Meal: the Kuwait meal totals match our burger, cheeseburger, small fries and pineapple
+   *  rows exactly. Its orange juice drink is not our 12 oz juice (about 20 g more), so it is not offered yet. */
+  mcd: {
+    title: 'هابي ميل', // i18n-ok
+    meals: [
+      { key: 'beefburger', label: 'بيف برجر', main: 'Beef Burger' }, // i18n-ok
+      { key: 'cheeseburger', label: 'تشيز برجر', main: 'Cheeseburger' }, // i18n-ok
+      { key: 'nuggets', label: 'ناجت ٤ قطع', main: 'Chicken McNuggets 4 pcs' }, // i18n-ok
+    ],
+    sides: [{ label: 'بطاطا صغير', name: 'Fries (Small)' }, { label: 'أناناس', name: 'Pineapple Stick' }, { label: 'بدون', name: null }], // i18n-ok
+    drinks: [{ label: 'ماي', name: 'ماكدونالدز ماء' }, { label: 'كوك زيرو', name: 'ماكدونالدز كوك زيرو' }, { label: 'حليب', name: 'Milk' }, { label: 'بدون', name: null }], // i18n-ok
   },
 };
 

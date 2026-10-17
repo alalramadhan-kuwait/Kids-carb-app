@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.17.0",
+    "date": "2026-10-17",
+    "notes": [
+      "هابي ميل ماكدونالدز: الوجبة والبطاطا أو الأناناس والمشروب (ماي افتراضياً).",
+      "داخل أي مطعم: تشوفين الأصناف اللي اخترتيها مع المجموع."
+    ],
+    "notes_en": [
+      "McDonald's Happy Meal: main, fries or pineapple, and a drink (water by default).",
+      "Inside any restaurant: see the items picked so far with the total."
+    ]
+  },
+  {
     "version": "4.16.1",
     "date": "2026-10-17",
     "notes": [

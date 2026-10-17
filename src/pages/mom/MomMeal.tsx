@@ -770,12 +770,13 @@ export function MomParts() {
 function usePlateBar() {
   const nav = useNavigate();
   const d = useDraft();
-  const { mealCarbs } = useCatalog();
+  const { mealCarbs, nameOf } = useCatalog();
   if (!d.items.length) return null;
   const total = mealCarbs(d.items);
+  const names = d.items.map((it) => nameOf(it)).join(' · ');
   return (
     <div className="flex items-center gap-3">
-      <div className="min-w-0 flex-1 leading-tight"><span className="block text-[13px] text-slate-500">{t('{n} أصناف بالصحن', { n: d.items.length })}</span><b className="num text-[22px]">{total === null ? '—' : `${gramsText(total)} ${t('غ')}`}</b></div>
+      <div className="min-w-0 flex-1 leading-tight"><span className="block truncate text-[13px] text-slate-500" dir="auto">{t('{n} أصناف بالصحن', { n: d.items.length })}: <bdi>{names}</bdi></span><b className="num text-[22px]">{total === null ? '—' : `${gramsText(total)} ${t('غ')}`}</b></div>
       <Big md className="!w-auto shrink-0 px-6" onClick={() => nav('/mom/meal')}>✓ {t('تم')}</Big>
     </div>
   );
@@ -797,7 +798,7 @@ export function MomKidsMeal() {
   const [drink, setDrink] = useState(0);
   if (!set) return <Navigate to={`/mom/add/r/${key}`} replace />;
   const one = (id: string | null) => (id ? itemCarbs({ kind: 'product', id, portion_id: null, amount: 1, unit: 'serving' }) : 0);
-  const friesPicked = side >= 0 && !!set.sides[side]?.name;
+  const friesPicked = side >= 0 && !!set.sides[side]?.name && !!set.sideNote;
   const ids = main && side >= 0 && (!friesPicked || friesOk) ? kidsMealIds(set, { main, side, drink }, idOf) : null;
   const total = ids ? ids.reduce<number | null>((a, id) => { const g = one(id); return a === null || g === null ? null : a + g; }, 0) : null;
   const add = () => {
@@ -826,11 +827,12 @@ export function MomKidsMeal() {
       {friesPicked && (
         <button onClick={() => setFriesOk((x) => !x)} aria-pressed={friesOk} className={cx('flex w-full items-start gap-2 rounded-2xl border-2 px-3 py-2 text-start text-[15px] leading-snug', friesOk ? 'border-brand bg-brand-soft' : 'border-near bg-near-soft text-near')}>
           <span className="text-[18px]">{friesOk ? '☑️' : '⚠️'}</span>
-          <span>{t('قيمة بطاطا الأطفال مرجعية من برجر كنج أمريكا، غير مؤكدة للكويت. أكّدي إنها بطاطا أطفال قبل ما تنحسب')}</span>
+          <span>{tMaybe(set.sideNote ?? '')}</span>
         </button>
       )}
       {row(t('المشروب'), drinks, drink, setDrink)}
-      <p className="text-[13px] leading-snug text-slate-500">{t('قيم مرجعية من برجر كنج تركيا، غير مؤكدة للكويت. عصير البرتقال ما له قيمة موثوقة بعد.')}</p>
+      {key === 'bk' && <p className="text-[13px] leading-snug text-slate-500">{t('قيم مرجعية من برجر كنج تركيا، غير مؤكدة للكويت. عصير البرتقال ما له قيمة موثوقة بعد.')}</p>}
+      {key === 'mcd' && <p className="text-[13px] leading-snug text-slate-500">{t('عصير برتقال الهابي ميل ما له قيمة موثوقة بعد.')}</p>}
     </MomPage>
   );
 }

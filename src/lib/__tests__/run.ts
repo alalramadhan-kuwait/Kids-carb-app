@@ -1366,6 +1366,21 @@ test('a kids meal is its separate parts, each once: main, fries and the chosen d
   assert.ok(!set.drinks.some((d) => d.name && /برتقال/.test(d.name)), 'orange juice is not offered until it has a reliable value');
 });
 
+test('Happy Meal: main, small fries or pineapple, and water by default; the Kuwait meal totals match the parts', async () => {
+  const { KIDS_MEALS, kidsMealIds } = await import('../restaurants');
+  const set = KIDS_MEALS.mcd;
+  const ids: Record<string, string> = { 'Cheeseburger': 'cb', 'Beef Burger': 'bb', 'Fries (Small)': 'fs', 'Pineapple Stick': 'pn', 'ماكدونالدز ماء': 'wa', 'Milk': 'mk' };
+  const idOf = (n: string) => ids[n] ?? null;
+  assert.equal(set.sideNote, undefined, 'Happy Meal fries are the small fries (Kuwait totals match): no confirmation needed');
+  assert.equal(set.drinks[0].name, 'ماكدونالدز ماء', 'water first');
+  assert.deepEqual(kidsMealIds(set, { main: 'cheeseburger', side: 1, drink: 0 }, idOf), ['cb', 'pn', 'wa']);
+  // Kuwait: Happy Meal Cheeseburger + pineapple + orange juice = 97 g; without the juice (≈55 g) the parts are 42 g
+  const carbs: Record<string, number> = { cb: 36, pn: 6, wa: 0 };
+  assert.equal(kidsMealIds(set, { main: 'cheeseburger', side: 1, drink: 0 }, idOf)!.reduce((a, id) => a + carbs[id], 0), 42);
+  assert.ok(!set.drinks.some((d) => d.name && /orange|برتقال/i.test(d.name)), 'the Happy Meal orange juice is not offered until verified');
+  assert.equal(KIDS_MEALS.bk.sideNote !== undefined, true, 'Burger King kids fries still need confirming');
+});
+
 test('an earlier meal added while planning keeps the plan (its id, name and mode); for now it stays for now', async () => {
   const { addToDraft } = await import('../../engine/mom');
   const it = (id: string) => ({ kind: 'product' as const, id, portion_id: null, amount: 1, unit: 'serving' }) as never;
