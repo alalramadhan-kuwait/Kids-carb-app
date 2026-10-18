@@ -104,7 +104,7 @@ export function MomPlans() {
   const { products, settings } = useData();
   const now = Date.now();
   return (
-    <MomPage title={t('مخططة')} back="/mom/actions/food" foot={<Big tone="soft" onClick={() => { if (okToReplace('plan')) draftOps.start('plan'); nav('/mom/meal'); }}>📅 {t('خططي وجبة')}</Big>}>
+    <MomPage title={t('مخططة')} back="/mom/add" foot={<Big tone="soft" onClick={() => { if (okToReplace('plan')) draftOps.start('plan'); nav('/mom/meal'); }}>📅 {t('خططي وجبة')}</Big>}>
       {!list.length && <p className="text-center text-[18px] text-slate-500">{t('ما في وجبات مخططة')}</p>}
       {list.map((p) => {
         const m = planMeal(p.items, products, settings);

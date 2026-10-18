@@ -80,14 +80,14 @@ export function MomSnap() {
   </>;
 
   if (ready === false) return (
-    <MomPage title={t('صوّري الأكل')} back="/mom/actions/food">
+    <MomPage title={t('صوّري الأكل')} back="/mom/add">
       <p className="text-center text-[17px] text-slate-600">{t('التقدير بالصور مو مفعّل. كلّمي بابا')}</p>
     </MomPage>
   );
 
   // the estimate: one row per food, carbs changeable, a food removable
   if (items && file) return (
-    <MomPage compact title={t('راجعي الكارب')} back="/mom/actions/food" foot={<>
+    <MomPage compact title={t('راجعي الكارب')} back="/mom/add" foot={<>
       <div className="flex items-baseline justify-between px-1"><span className="text-[15px] text-slate-500">{t('المجموع')}</span><b className="num text-[26px] leading-none">{fmt(total)} {t('غ')}</b></div>
       {!allChecked && <p className="text-center text-[14px] font-bold text-near">{t('✓ تستخدمين الرقم التقريبي، أو عدّليه')}</p>}
       <Big md disabled={busy || !allChecked} onClick={toPlate}>✓ {t('حطيه بالصحن')}</Big>
@@ -111,7 +111,7 @@ export function MomSnap() {
   );
 
   return (
-    <MomPage title={t('صوّري الأكل')} back="/mom/actions/food">
+    <MomPage title={t('صوّري الأكل')} back="/mom/add">
       {pickers}
       <SourcePick value={from} onChange={setFrom} />
       {busy ? (

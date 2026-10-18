@@ -123,6 +123,8 @@ export const draftOps = {
   clear: () => setDraft(empty),
   /** A planned meal's plate, to change it before its dose. */
   editPlan: (items: MomItem[], name: string, planId: string) => setDraft({ items: items.map((i) => ({ ...i })), savedId: null, name, left: [], mode: 'plan', planId }),
+  /** «الحين» or «وقت ثاني» chosen at the end: the same plate, now for eating now or for later. */
+  setMode: (mode: Draft['mode']) => { if (draft.mode !== mode) setDraft({ ...draft, mode }); },
   /** Start building for now or for a plan; switching between them starts a fresh plate. */
   start: (mode: Draft['mode']) => { if (draft.mode !== mode) setDraft({ ...empty, mode }); },
   get: () => draft,

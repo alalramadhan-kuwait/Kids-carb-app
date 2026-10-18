@@ -21,7 +21,7 @@ import { draftOps, useSensor } from '../../lib/mom';
 import { phase } from '../../engine/mealPlan';
 import { cx } from '../../components/ui';
 import { SameMealLink, useRecentSame } from '../../components/SameMeal';
-import { dir, isEn, locale, t } from '../../i18n';
+import { dir, isEn, locale, t, tMaybe } from '../../i18n';
 import okPng from '../../assets/layan/layan-ok.png';
 import okWebp from '../../assets/layan/layan-ok.webp';
 import watchingPng from '../../assets/layan/layan-watching.png';
@@ -244,9 +244,10 @@ export function MomHome() {
           : due && <Big className={big} onClick={() => nav(`/mom/plan/${due.id}`)}><Lbl icon="💉" text={t('وقت {x}', { x: due.name })} wrap /></Big>}
       </div>}
       {next && <Link to={`/mom/plan/${next.id}`} className="flex min-h-[44px] shrink-0 items-center rounded-2xl bg-white px-4 py-1.5 text-[15px]">📅 <bdi>{next.name}</bdi> · {dayWord(Date.parse(next.dose_at))} 💉 {clock(Date.parse(next.dose_at))} ›</Link>}
-      {/* two buttons: Food (meal, plan, juice) and Medical (injection, finger-prick), each a page of its own */}
-      <div className="mt-auto grid shrink-0 grid-cols-2 gap-2">
-        <Big className={cx(big, 'relative')} onClick={() => nav('/mom/actions/food', { state: { low: lowNow } })}><Lbl icon="🍽️" text={t('أكل')} chevron />
+      {/* «شنو بتاكل ليان؟»: one way into food, the food first and «now or later» at the end; Medical (injection,
+          finger-prick, juice) beside it */}
+      <div className="mt-auto grid shrink-0 grid-cols-3 gap-2">
+        <Big className={cx(big, 'relative col-span-2')} onClick={() => { if (okToReplace('now')) draftOps.start('now'); nav('/mom/meal?from=home', { state: { low: lowNow } }); }}><Lbl icon="🍽️" text={t('شنو بتاكل {n}؟', { n: s.child_name ?? t('ليان') })} wrap />
           {/* plans not done yet (planned, or dosed and waiting): a small count, no new row, the graph keeps its size */}
           {openPlans > 0 && <span className="absolute -top-1.5 start-2 rounded-full bg-white px-2 text-[13px] font-bold leading-6 text-brand shadow" aria-label={t('{n} وجبات مخططة', { n: openPlans })}>📅 {openPlans}</span>}</Big>
         <Big tone="soft" className={big} onClick={() => nav('/mom/actions/medical', { state: { low: lowNow } })}><Lbl icon="🩸" text={t('طبي')} chevron /></Big>

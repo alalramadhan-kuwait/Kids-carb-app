@@ -102,7 +102,7 @@ export function MomMeal() {
     : it.unit === 'g' && c.products.find((p) => p.id === it.id)?.per_item ? `× ${fmt((it.amount ?? 0) / 100)}`
     : `${fmt(it.amount ?? 0)} ${it.unit === 'serving' ? t('حصة') : it.unit === 'plate' ? t('صحن') : it.unit === 'cup' ? t('كوب') : c.products.find((p) => p.id === it.id)?.unit === 'ml' ? t('مل') : t('غرام')}`;
   const Left = () => d.left.length ? <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ <bdi>{d.left.join(' · ')}</bdi> {t('ما ينحسب بالإبرة · كلّمي بابا')}</p> : null;
-  const title = d.mode === 'plan' ? t('خطة وجبة') : t('وجبة ليان');
+  const title = d.planId ? t('خطة وجبة') : t('وجبة ليان');
   // opened from home with a plate left from before: say so, and one tap starts a new meal (nothing else is lost)
   const fromHome = useSearchParams()[0].get('from') === 'home';
   const fresh = () => { draftOps.clear(); draftOps.start(d.mode); nav('/mom/add', { replace: true }); };
@@ -114,7 +114,14 @@ export function MomMeal() {
       {/* the total and both buttons stay in view however long the list (a small phone with 8 foods) */}
       <div className="flex items-baseline justify-between px-1"><span className="text-[15px] text-slate-500">{t('مجموع الكارب')}</span><b className="num text-[26px] leading-none text-slate-900">{total === null ? '—' : `${gramsText(total)} ${t('غ')}`}</b></div>
       <Big tone="soft" className="!min-h-[48px] !text-[17px]" onClick={() => nav(lastPlace ? `/mom/add/r/${lastPlace}` : '/mom/add')}>+ {t('إضافة أكل ثاني')}</Big>
-      <Big md disabled={total === null || review.length > 0} onClick={() => nav(d.mode === 'plan' ? (d.planId ? `/mom/when?plan=${d.planId}` : '/mom/when') : '/mom/dose')}>{d.mode === 'plan' ? `${t('التالي')} · 🕐 ${t('متى؟')}` : t('التالي')}</Big>
+      {/* «متى بتاكل؟» at the end: now goes to the injection page (the doctor's plan, unchanged), later to the eating
+          time. A planned meal being changed keeps its single «next». */}
+      {d.planId ? <Big md disabled={total === null || review.length > 0} onClick={() => nav(`/mom/when?plan=${d.planId}`)}>{`${t('التالي')} · 🕐 ${t('متى؟')}`}</Big> : (
+        <div className="grid grid-cols-2 gap-2">
+          <Big md disabled={total === null || review.length > 0} onClick={() => { draftOps.setMode('now'); nav('/mom/dose'); }}>🍽️ {t('تاكل الحين')}</Big>
+          <Big md tone="soft" disabled={total === null || review.length > 0} onClick={() => { draftOps.setMode('plan'); nav('/mom/when'); }}>📅 {t('وقت ثاني')}</Big>
+        </div>
+      )}
     </>}>
       {fromHome && (
         <div className="flex items-center gap-2 rounded-2xl bg-near-soft px-3 py-2 text-near">

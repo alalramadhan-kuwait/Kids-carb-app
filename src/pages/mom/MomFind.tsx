@@ -16,6 +16,8 @@ import { cx, inputCls } from '../../components/ui';
 import { isEn, t, tMaybe } from '../../i18n';
 import type { Product, Recipe, SavedMeal } from '../../lib/types';
 import { Big, MomPage } from './MomUI';
+import { useLow } from './MomActions';
+import { useOpenPlans } from './MomPlan';
 import { repeatPlate } from '../../lib/repeatMeal';
 import { FoodRow, GroupTile, RestaurantLogo, gramsText, recent, shownName, useCatalog, useUrlQuery } from './MomMeal';
 
@@ -68,7 +70,9 @@ export function MomFind() {
     return <FoodRow key={f.kind + f.x.id} x={f.x} title={shownName(f.x)} sub={where} carbs={cl?.g ?? null} per={cl?.per} onClick={() => open(f.kind, f.x.id)} />;
   };
   const back = d.items.length ? '/mom/meal' : '/mom';
-  const title = d.mode === 'plan' ? t('خطة وجبة') : t('شنو بتاكل؟');
+  const { settings } = useData();
+  const title = d.mode === 'plan' && d.planId ? t('خطة وجبة') : t('شنو بتاكل {n}؟', { n: settings.child_name ?? t('ليان') });
+  const low = useLow(), openPlans = useOpenPlans().length;
   const left = d.left.length ? <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[16px] font-bold text-over">⚠️ <bdi>{d.left.join(' · ')}</bdi> {t('ما ينحسب بالإبرة · كلّمي بابا')}</p> : null;
 
   // her favourites (saved meals, starred recipes; most eaten first) and what she had lately (foods she opened, the
@@ -197,6 +201,9 @@ export function MomFind() {
   );
   return (
     <MomPage compact keyboard title={title} back={back} top={search}>
+      {/* low now: juice first; the foods stay greyed until she is back up (the injection page blocks too) */}
+      {low && <div className="space-y-2"><p className="rounded-2xl bg-over-soft px-4 py-2 text-center font-bold text-over">{t('السكر نازل: عصير أول')}</p><Big tone="danger" md onClick={() => nav('/mom/juice')}>🧃 {t('عصير')}</Big></div>}
+      <div className={cx('space-y-3', low && 'pointer-events-none opacity-40')} aria-disabled={low}>
       {left}
       {q.trim() ? (
         found.length ? <div className="space-y-2">{found.slice(0, 60).map(row)}</div> : (
@@ -211,6 +218,9 @@ export function MomFind() {
           <div className="grid grid-cols-2 gap-2">
             <button onClick={() => nav('/mom/add?browse=all')} className="min-h-[52px] rounded-2xl bg-brand-soft text-[16px] font-bold text-brand active:opacity-80">⭐ {t('المعتاد')}</button>
             <button onClick={() => nav('/mom/add?browse=log')} className="min-h-[52px] rounded-2xl bg-brand-soft text-[16px] font-bold text-brand active:opacity-80">🔁 {t('وجبة سابقة')}</button>
+            {/* a photo of the plate (an estimate she checks) and a packaged food read off its label */}
+            <button onClick={() => nav('/mom/snap')} className="min-h-[52px] rounded-2xl bg-brand-soft text-[16px] font-bold text-brand active:opacity-80">📷 {t('صوّري الأكل')}</button>
+            <button onClick={() => nav('/mom/new')} className="min-h-[52px] rounded-2xl bg-brand-soft text-[16px] font-bold text-brand active:opacity-80">🏷️ {t('منتج جديد')}</button>
           </div>
           <div className="grid grid-cols-3 gap-2.5 pt-1">
             {ADD_TILES.map((x) => (
@@ -222,10 +232,11 @@ export function MomFind() {
           </div>
           <div className="flex justify-center gap-2 pt-1 text-[14px] font-bold text-brand">
             {d.mode === 'now' && <button className="min-h-[44px] px-2" onClick={() => nav('/mom/out')}>🍽️ {t('أكل برّا')}</button>}
-            <button className="min-h-[44px] px-2" onClick={() => nav('/mom/new')}>📷 {t('مو موجود؟')}</button>
+            {openPlans > 0 && <button className="min-h-[44px] px-2" onClick={() => nav('/mom/plans')}>📅 {t('مخططة')} ({openPlans})</button>}
           </div>
         </>
       )}
+      </div>
     </MomPage>
   );
 }

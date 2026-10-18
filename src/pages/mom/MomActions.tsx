@@ -1,5 +1,6 @@
 // Home's two buttons, Food and Medical: each opens a full page with its few choices (no half-open sheets). Home passes
 // whether she is low now, so the same choices are held back as on Home before: no meal and no injection while low.
+import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { draftOps } from '../../lib/mom';
 import { useData } from '../../lib/data';
@@ -14,7 +15,7 @@ import { t } from '../../i18n';
 
 // low now, worked out on this page from her latest reading the same way Home does (moodOf), so the choices are held
 // back however the page was reached (a link, Back, a reminder); Home's hint is still honoured while a reading loads
-function useLow() {
+export function useLow() {
   const fromHome = !!(useLocation().state as { low?: boolean } | null)?.low;
   const { settings: s } = useData();
   const { g } = useGlucose();
@@ -27,22 +28,12 @@ function useLow() {
 }
 const Off = ({ off, children }: { off: boolean; children: React.ReactNode }) => <div className={cx(off && 'pointer-events-none opacity-40')} aria-disabled={off}>{children}</div>;
 
+/** The old Food menu: its address (reminders, Back from older pages) now opens «شنو بتاكل ليان؟», the food page, where
+ *  the plate ends with «now or later». A plate under way is kept (okToReplace asks first). */
 export function MomFoodMenu() {
-  const nav = useNavigate(), low = useLow(), n = useOpenPlans().length;
-  const build = (mode: 'now' | 'plan') => { if (okToReplace(mode)) draftOps.start(mode); nav('/mom/meal?from=home', { replace: true }); };
-  return (
-    <MomPage title={t('أكل')} back="/mom">
-      <div className="space-y-2.5">
-        {low && <p className="rounded-2xl bg-over-soft px-4 py-2 font-bold text-over">{t('السكر نازل: عصير أول')}</p>}
-        <Off off={low}><Choice icon="🍽️" label={t('أضيفي وجبة')} onClick={() => build('now')} /></Off>
-        <Off off={low}><Choice icon="📷" label={t('صوّري الأكل')} onClick={() => nav('/mom/snap')} /></Off>
-        <Off off={low}><Choice icon="📅" label={t('خططي وجبة')} onClick={() => build('plan')} /></Off>
-        <Choice icon="🧃" label={t('عصير')} onClick={() => nav('/mom/juice', { replace: true })} />
-        {/* the planned meals (moved here from More); Back from the list returns to this page */}
-        <Choice icon="🗓️" label={t('مخططة')} sub={n ? t('{n} معلّقة', { n }) : undefined} onClick={() => nav('/mom/plans')} />
-      </div>
-    </MomPage>
-  );
+  const nav = useNavigate(), low = useLow();
+  useEffect(() => { if (okToReplace('now')) draftOps.start('now'); nav('/mom/meal?from=home', { replace: true, state: { low } }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
 }
 
 export function MomMedicalMenu() {
@@ -52,6 +43,8 @@ export function MomMedicalMenu() {
       <div className="space-y-2.5">
         <Off off={low}><Choice icon="💉" label={t('إبرة')} onClick={() => nav('/mom/shot', { replace: true })} /></Off>
         <Choice icon="🩸" label={t('وخز')} onClick={() => nav('/mom/prick', { replace: true })} />
+        {/* juice, moved here from the old Food menu (also the red Home button when low) */}
+        <Choice icon="🧃" label={t('عصير')} onClick={() => nav('/mom/juice', { replace: true })} />
       </div>
     </MomPage>
   );
