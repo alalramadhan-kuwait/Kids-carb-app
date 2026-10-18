@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
-import { compareOps, draftOps, saveLabelFood, saveMeal, useCompare, useDraft, usePortions, useSavedMeals } from '../../lib/mom';
+import { compareOps, draftOps, saveMomLabelFood, saveMeal, useCompare, useDraft, usePortions, useSavedMeals } from '../../lib/mom';
 import { planMeal } from '../../lib/plans';
 import { COMPARE_MAX, planItems, planItemsOf, readyForMom, recipePot, type Catalog, type MomItem } from '../../engine/mom';
 import { GROUP_TITLE, groupByKey, groupOf, groupsIn, subgroupOf, subgroupsIn } from '../../lib/productGroups';
@@ -11,11 +11,13 @@ import { matchTier, matches } from '../../lib/search';
 import { fmt } from '../../lib/carbs';
 import { supabase, uploadPhoto } from '../../lib/supabase';
 import { Photo, asset, cx, inputCls, toast } from '../../components/ui';
-import { t, tMaybe } from '../../i18n';
+import { isEn, t, tMaybe } from '../../i18n';
 import { KIDS_MEALS, RESTAURANTS, cupsOf, kidsMealIds, menuOf, restaurantByKey, restaurantOf, type Restaurant } from '../../lib/restaurants';
 import { foodName, untranslated, type Named } from '../../lib/foodName';
 import { Big, Choice, MomPage, okToReplace, SourceTag } from './MomUI';
 import { carbSource } from '../../engine/source';
+import { isPer100, labelCarbs, type LabelBasis } from '../../engine/labelMath';
+import { readLabelLocal } from '../../lib/labelOcr';
 import type { Ingredient, PlanItem, Product, Recipe } from '../../lib/types';
 import { reusable } from '../../lib/entryActions';
 import { mealGi } from '../../engine/gi';
@@ -588,67 +590,83 @@ export function MomNew() {
   const { reload, products } = useData();
   const [sp] = useSearchParams();
   const [name, setName] = useState(() => sp.get('name') ?? ''); // what she searched for
-  // the carbs for one piece, read off the label: with its photo, the food goes on the plate and counts like any other
+  // the label read on the phone (no AI, no internet): it only fills the boxes; she sees the numbers and the total,
+  // and one tap means «these are the label's numbers». A number the reader was not sure of waits for her to touch it.
+  const [basis, setBasis] = useState<LabelBasis>('per100g');
   const [carbsText, setCarbsText] = useState('');
-  const carbs = carbsText.trim() === '' ? null : Number(carbsText.replace(',', '.'));
-  const carbsBad = carbs !== null && !(carbs >= 0 && carbs <= 150);
-  const withCarbs = carbs !== null && !carbsBad;
+  const [amountText, setAmountText] = useState('');
+  const [unsure, setUnsure] = useState(false);
+  const [reading, setReading] = useState(false);
+  const num = (x: string) => (x.trim() === '' ? null : Number(x.replace(',', '.')));
+  const per100 = isPer100(basis);
+  const r = labelCarbs(basis, num(carbsText), per100 ? num(amountText) : num(amountText) ?? 1);
   // the same name already in the list: that one is offered, so a food is never entered twice
   const same = name.trim().length >= 2 ? products.find((p) => p.approved && matchTier([p.name, p.name_ar, p.name_en], [], name) === 0) ?? null : null;
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
-  const [sent, setSent] = useState(false);
   const input = useRef<HTMLInputElement>(null), camera = useRef<HTMLInputElement>(null);
   const preview = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
-  const send = async () => {
+  const pick = async (f: File) => {
+    setFile(f); setReading(true);
+    try {
+      const l = await readLabelLocal(f, f, isEn() ? 'en' : 'ar');
+      if (l.per100.carbs !== null) { setBasis(l.unit === 'ml' ? 'per100ml' : 'per100g'); setCarbsText(String(l.per100.carbs)); }
+      if (l.serving) setAmountText(String(l.serving));
+      setUnsure(!l.is_label || l.uncertain.includes('carbs'));
+    } catch { setUnsure(true); } finally { setReading(false); }
+  };
+  const ready = !!file && !!name.trim() && r.total !== null && !r.problem && !unsure;
+  const add = async () => {
+    if (!ready) return;
     setBusy(true);
     try {
-      if (withCarbs) {
-        const photo = await uploadPhoto(file!, 'products');
-        const { portionId, productId } = await saveLabelFood({ name, carbs: carbs!, photo });
-        draftOps.add({ kind: 'product', id: productId, portion_id: portionId });
-        await reload();
-        toast(t('انضاف للوجبة ✓'));
-        nav('/mom/meal', { replace: true });
-        return;
-      }
-      const photo = file ? await uploadPhoto(file, 'products') : null;
-      const { error } = await supabase.from('products').insert({ name: name.trim(), brand: null, category: 'أخرى', kind: 'commercial', image_path: photo, unit: 'g', carbs_per_100: 0, approved: false, available: true, // i18n-ok: stored value
-        notes: 'من ماما: ينتظر بابا يكمّل الملصق والكميات' }); // i18n-ok: stored note
-      if (error) throw new Error(error.message);
-      await reload(); setSent(true);
-    } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
+      const photo = await uploadPhoto(file!, 'products');
+      const carbs = num(carbsText)!, amount = num(amountText) ?? 1;
+      const { productId, portionId } = await saveMomLabelFood({ name, photo, basis, carbs });
+      draftOps.add(per100 ? { kind: 'product', id: productId, portion_id: null, unit: 'g', amount }
+        : amount === 1 && portionId ? { kind: 'product', id: productId, portion_id: portionId } : { kind: 'product', id: productId, portion_id: null, unit: 'g', amount: amount * 100 });
+      await reload();
+      toast(t('انضاف للوجبة ✓'));
+      nav('/mom/meal', { replace: true });
+    } catch (e) { toast((e as Error).message); setBusy(false); }
   };
-  if (sent) return (
-    <MomPage title={t('انرسل لبابا ✓')} back="/mom/meal">
-      <p className="text-center text-[18px] text-slate-600">{t('وبالحين؟')}</p>
-      <Big onClick={() => { draftOps.leaveOut(name.trim()); nav('/mom/meal', { replace: true }); }}>{t('كمّلي الوجبة بدونه')}</Big>
-      <Big tone="ghost" onClick={() => nav('/mom', { replace: true })}>{t('انتظري بابا')}</Big>
-      <Big tone="ghost" onClick={() => nav('/mom/out', { replace: true })}>🍽️ {t('أكل برّا · ما أعرف الكارب')}</Big>
-      <p className="mt-auto text-center text-sm text-slate-500">{t('ما نحسب إبرة لشي مو مؤكد')}</p>
-    </MomPage>
-  );
+  const BASES: [LabelBasis, string][] = [['per100g', t('100 غ')], ['per100ml', t('100 مل')], ['serving', t('حصة')], ['piece', t('حبة')]];
   return (
-    <MomPage title={t('مو موجود')} back="/mom/add">
-      {/* a photo of the food or its label: taken now, or one already on the phone */}
-      <div className="grid place-items-center rounded-3xl border-2 border-dashed border-slate-300 bg-white p-3 text-center">
-        {file ? <img src={preview!} alt="" className="h-44 rounded-2xl object-cover" /> : <span className="py-3"><span className="block text-5xl">📷</span><b className="text-[18px]">{t('صورة الأكل أو الملصق')}</b></span>}
+    <MomPage compact title={t('منتج جديد')} back="/mom/add" foot={<>
+      {r.total !== null && !r.problem && <div className="flex items-baseline justify-between px-1"><span className="text-[15px] text-slate-500">{t('الكارب')} <SourceTag s="mom_label" /></span><b className="num text-[26px] leading-none">{fmt(r.total)} {t('غ')}</b></div>}
+      <Big md disabled={busy || !ready} onClick={add}>✓ {t('نفس الملصق · أضيفيه')}</Big>
+    </>}>
+      {/* the label: a photo now or one already on the phone; its numbers fill the boxes below */}
+      <button onClick={() => camera.current?.click()} className="grid min-h-[120px] w-full place-items-center rounded-3xl border-2 border-dashed border-slate-300 bg-white p-2 text-center">
+        {file ? <img src={preview!} alt="" className="max-h-40 rounded-2xl object-contain" /> : <span><span className="block text-5xl">🏷️</span><b className="text-[18px]">{t('صوّري جدول القيم')}</b></span>}
+      </button>
+      <div className="flex justify-center gap-4 text-[15px] font-bold text-brand">
+        <button className="min-h-[40px]" onClick={() => camera.current?.click()}>📷 {file ? t('صوّري غيرها') : t('صوّري')}</button>
+        <button className="min-h-[40px]" onClick={() => input.current?.click()}>🖼️ {t('من الصور')}</button>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <Big tone="soft" className="!min-h-[52px] !text-[17px]" onClick={() => camera.current?.click()}>📷 {file ? t('صوّري غيرها') : t('صوّري')}</Big>
-        <Big tone="soft" className="!min-h-[52px] !text-[17px]" onClick={() => input.current?.click()}>🖼️ {t('من الصور')}</Big>
-      </div>
-      <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f); e.target.value = ''; }} />
-      <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f); e.target.value = ''; }} />
+      <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void pick(f); e.target.value = ''; }} />
+      <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void pick(f); e.target.value = ''; }} />
+      {reading && <p className="animate-pulse text-center text-[15px] font-bold text-slate-500">{t('يقرأ الملصق…')}</p>}
       <input className={inputCls} dir="auto" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('الاسم')} maxLength={60} />
       {same && <button onClick={() => nav(`/mom/item/product/${same.id}`)} className="min-h-[48px] rounded-2xl bg-ok-soft px-4 text-[16px] font-bold text-ok">✓ {t('موجود عندنا: {n}', { n: tMaybe(same.name) })} ›</button>}
-      <div className="rounded-3xl bg-white p-4">
-        <div className="text-[17px] font-bold">{t('كم كارب بالحبة؟')} <span className="text-[14px] font-normal text-slate-500">({t('من الملصق · اختياري')})</span></div>
-        <input className={cx(inputCls, 'num mt-2', carbsBad && 'border-over')} inputMode="decimal" dir="ltr" value={carbsText} onChange={(e) => setCarbsText(e.target.value.replace(/[^\d.,]/g, ''))} placeholder={t('مثلًا 11')} />
-        <p className="mt-1.5 text-[14px] text-slate-500">{withCarbs ? (file ? t('ينضاف للوجبة وتشوفين الإبرة حسب خطة الدكتور') : t('صوّري الملصق عشان ينحسب')) : t('بدون رقم: ينرسل لبابا وما تنحسب له إبرة')}</p>
+      <div className="space-y-2 rounded-3xl bg-white p-3">
+        <div className="text-[15px] font-bold text-slate-600">{t('الكارب على الملصق لكل:')}</div>
+        <div className="grid grid-cols-4 gap-1.5">
+          {BASES.map(([b, label]) => <button key={b} onClick={() => { if (isPer100(b) !== isPer100(basis)) setAmountText(isPer100(b) ? '' : '1'); setBasis(b); }} className={cx('min-h-[44px] rounded-xl border-2 text-[15px] font-bold', basis === b ? 'border-brand bg-brand-soft text-brand' : 'border-slate-200')}>{label}</button>)}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block"><span className="text-[14px] text-slate-500">{t('كم كارب؟')}</span>
+            <input className={cx(inputCls, 'num', (unsure || r.problem === 'carbs') && carbsText && 'border-near bg-near-soft')} inputMode="decimal" dir="ltr" value={carbsText} onChange={(e) => { setCarbsText(e.target.value.replace(/[^\d.,]/g, '')); setUnsure(false); }} placeholder={t('غ')} /></label>
+          <label className="block"><span className="text-[14px] text-slate-500">{per100 ? (basis === 'per100ml' ? t('كم مل أكلت؟') : t('كم غرام أكلت؟')) : basis === 'serving' ? t('كم حصة؟') : t('كم حبة؟')}</span>
+            <input className={cx(inputCls, 'num', r.problem === 'amount' && amountText && 'border-near')} inputMode="decimal" dir="ltr" value={amountText} onChange={(e) => setAmountText(e.target.value.replace(/[^\d.,]/g, ''))} placeholder={per100 ? (basis === 'per100ml' ? t('مل') : t('غ')) : '1'} /></label>
+        </div>
+        {unsure && file && !reading && <p className="text-[14px] font-bold text-near">{carbsText ? t('تأكدي من رقم الكارب مع الملصق') : t('ما قدرت أقرأ الكارب · اكتبيه من الملصق')}</p>}
+        {r.problem === 'carbs' && carbsText && <p className="text-[14px] font-bold text-near">{per100 ? t('رقم الكارب لكل 100 ما يزيد عن 100') : t('رقم الكارب كبير، تأكدي منه')}</p>}
+        {r.problem === 'too_much' && <p className="text-[14px] font-bold text-near">{t('المجموع كبير جدًا، تأكدي من الأرقام')}</p>}
       </div>
-      <Big disabled={busy || !name.trim() || carbsBad || (withCarbs && !file)} onClick={send}>{withCarbs ? `✓ ${t('أضيفيه للوجبة')}` : t('أرسليه لبابا')}</Big>
+      {/* she cannot read it: the meal goes on without this food, and it is never counted */}
+      {name.trim() && <button className="min-h-[44px] text-[15px] font-bold text-slate-500" onClick={() => { draftOps.leaveOut(name.trim()); nav('/mom/meal', { replace: true }); }}>{t('ما عرفت الرقم؟ كمّلي الوجبة بدونه')}</button>}
     </MomPage>
   );
 }

@@ -73,6 +73,22 @@ export async function saveLabelFood(f: { name: string; carbs: number; photo: str
   await portionsT.load();
   return { productId: prod.id, portionId: portion.id };
 }
+/** A packaged food the mother read off its label herself (photo kept, «قراءة ماما» on every screen): the printed carbs
+ *  for 100 g / 100 ml, a serving or a piece, so it is found and counted the same way next time. */
+export async function saveMomLabelFood(f: { name: string; photo: string; basis: import('../engine/labelMath').LabelBasis; carbs: number }): Promise<{ productId: string; portionId: string | null }> {
+  const per100 = f.basis === 'per100g' || f.basis === 'per100ml';
+  const word = f.basis === 'per100g' ? 'لكل 100 غ' : f.basis === 'per100ml' ? 'لكل 100 مل' : f.basis === 'serving' ? 'للحصة' : 'للحبة'; // i18n-ok: stored note
+  const prod: { id: string } = await ok<any>(supabase.from('products').insert({ name: f.name.trim(), brand: null, category: 'أخرى', kind: 'commercial', image_path: f.photo, // i18n-ok: stored value
+    unit: f.basis === 'per100ml' ? 'ml' : 'g', per_item: !per100, carbs_per_100: f.carbs, approved: true, available: true, label_basis: 'as_sold',
+    notes: `من ماما: الكارب من الملصق (${f.carbs} غ ${word})` }).select('id').single()); // i18n-ok: stored note
+  let portionId: string | null = null;
+  if (!per100) {
+    const portion: { id: string } = await ok<any>(supabase.from('portions').insert({ product_id: prod.id, recipe_id: null, label: f.basis === 'serving' ? 'حصة' : 'حبة', amount: 100, photo_path: null, sort: 0 }).select('id').single()); // i18n-ok: stored value
+    portionId = portion.id;
+  }
+  await portionsT.load();
+  return { productId: prod.id, portionId };
+}
 export async function deletePortion(id: string) { await ok(supabase.from('portions').delete().eq('id', id)); await portionsT.load(); }
 
 export async function saveMeal(m: Omit<SavedMeal, 'id' | 'sort'> & { id?: string }) {

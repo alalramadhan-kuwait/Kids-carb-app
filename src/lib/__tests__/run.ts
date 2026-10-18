@@ -3684,6 +3684,17 @@ console.log('P0: food sources, eaten part, injections untouched');
     const all = E.eatenFromLogged({ ...half.totals, lines: half.lines }, 1, 0.5);
     assert.deepEqual(all.lines.map((l) => [l.quantity, l.carbs]), [[170, 23.5], [100, 28.2]]); assert.equal(all.carbs, 51.7);
   });
+  test('a label read by the mother: per 100 g, per 100 ml, per serving, per piece', async () => {
+    const LM = await import('../../engine/labelMath');
+    assert.deepEqual(LM.labelCarbs('per100ml', 12, 200), { total: 24, problem: null }, 'cocoa drink 12 g/100 ml, a 200 ml box');
+    assert.deepEqual(LM.labelCarbs('per100g', 60, 45), { total: 27, problem: null });
+    assert.deepEqual(LM.labelCarbs('serving', 18, 2), { total: 36, problem: null });
+    assert.deepEqual(LM.labelCarbs('piece', 11, 1), { total: 11, problem: null });
+    assert.equal(LM.labelCarbs('per100g', 120, 50).problem, 'carbs', 'more than 100 g in 100 g cannot be right');
+    assert.equal(LM.labelCarbs('per100g', null, 50).problem, 'carbs', 'an unread number is never used');
+    assert.equal(LM.labelCarbs('serving', 20, 0).problem, 'amount');
+    assert.equal(LM.labelCarbs('per100g', 80, 400).problem, 'too_much', '320 g of carbs on one plate is shown, not passed on');
+  });
   const body = (file: string, fn: string) => {
     const src = readFileSync(new URL(file, import.meta.url), 'utf8');
     const a = src.indexOf(`export async function ${fn}(`); assert.ok(a >= 0, `${fn} not found`);
