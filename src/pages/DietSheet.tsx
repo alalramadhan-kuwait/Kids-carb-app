@@ -92,9 +92,9 @@ export default function DietSheetPage() {
   const zoom = boxW ? Math.min(1, boxW / 1065) : 0.3; // the A4 page (281 mm ≈ 1062 px) fitted to the width it has
   const ctx: Ctx = { g: (mg: number) => formatGlucose(mg, settings.glucose_unit), low, high, products, portions };
   const child = settings.child_name ?? t('ليان');
-  // each day: the dietitian's table, then the graph with every event (busy days continue on another page)
+  // each day: the graph with every event (busy days continue on another page); the daily table page was dropped at
+  // the parents' request (it is still in the visit report)
   const pageOf = (s: DaySheet) => <Fragment key={s.start}>
-    <SheetPage s={s} unit={settings.glucose_unit} low={low} high={high} child={child} rapidName={settings.rapid_insulin} basalName={settings.basal_insulin} ratios={settings.ratios} ctx={ctx} />
     <EventsPages s={s} unit={settings.glucose_unit} low={low} high={high} child={child} ctx={ctx} />
   </Fragment>;
   const pages = sheets?.map(pageOf);
@@ -121,7 +121,7 @@ export default function DietSheetPage() {
           {err && <Alert tone="over">{err}</Alert>}
           <SharePdf className="w-full" disabled={!sheets?.length || busy} filename={`layan-food-sheet-${from}-${to}.pdf`} title={t('جدول التغذية اليومي')}
             make={() => makePdf(Array.from(document.querySelectorAll<HTMLElement>('#print-root .diet-page')), { orientation: 'landscape', fit: 'page' })} />
-          <p className="text-center text-xs text-slate-500">{busy ? t('جارٍ التجهيز…') : sheets ? t('PDF للطباعة: {n} صفحة A4، لكل يوم الجدول ثم الرسم والأحداث', { n: sheets.reduce((n, s) => n + 1 + eventPages(s, products), 0) }) : ''}</p>
+          <p className="text-center text-xs text-slate-500">{busy ? t('جارٍ التجهيز…') : sheets ? t('PDF للطباعة: {n} صفحة A4، لكل يوم الرسم والأحداث', { n: sheets.reduce((n, s) => n + eventPages(s, products), 0) }) : ''}</p>
           <details className="text-sm" open={showTimes} onToggle={(e) => setShowTimes((e.target as HTMLDetailsElement).open)}>
             <summary className="min-h-[36px] cursor-pointer py-1 text-slate-600">{t('أوقات الوجبات')}</summary>
             <div className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-5">

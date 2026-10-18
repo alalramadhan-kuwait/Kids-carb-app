@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.21.1",
+    "date": "2026-10-18",
+    "notes": [
+      "جدول أخصائية التغذية: الـPDF صار فيه صفحة الرسم والأحداث بس لكل يوم، بدون صفحة الجدول."
+    ],
+    "notes_en": [
+      "Dietitian sheet: the PDF now has only the graph and events page for each day, without the table page."
+    ]
+  },
+  {
     "version": "4.21.0",
     "date": "2026-10-18",
     "notes": [
