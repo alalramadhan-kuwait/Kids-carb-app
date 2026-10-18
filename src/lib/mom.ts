@@ -111,6 +111,8 @@ export const draftOps = {
   remove: (k: number) => setDraft({ ...draft, items: draft.items.filter((_, i) => i !== k) }),
   /** A meal from the Log on the plate, to change into a new one (named by the time it is eaten, like any meal). */
   loadItems: (items: MomItem[], review: ReviewItem[]) => setDraft({ items, savedId: null, name: null, left: [], mode: 'now', review, fixing: null }),
+  /** A meal from the Log as a plan («خططيها بكرة»): the same foods and name, to give a day and a time. */
+  planItems: (items: MomItem[], review: ReviewItem[], name: string | null) => setDraft({ items, savedId: null, name, left: [], mode: 'plan', review, fixing: null }),
   /** An earlier meal's foods added to the plate (a plan stays a plan). */
   addItems: (items: MomItem[], review: ReviewItem[]) => setDraft(addToDraft(draft, items, review)),
   /** A food under review: look for it again (the next food added takes its place), or remove it from the plate. */

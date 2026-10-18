@@ -1,5 +1,21 @@
 [
   {
+    "version": "4.22.0",
+    "date": "2026-10-18",
+    "notes": [
+      "خططي وجبة: تختارين وقت الأكل بس، ووقت الإبرة يطلع لحاله (١٠ د قبل).",
+      "ما تحتاجين تختارين فطور أو غدا: يتعرّف من الوقت.",
+      "بعد ما تحفظين الخطة ترجعين للرئيسية، ويوصلك تذكير وقت الإبرة.",
+      "«خططيها بكرة» على أي وجبة في السجل: نفس الأكل بكرة بنفس الوقت."
+    ],
+    "notes_en": [
+      "Plan a meal: pick only when she eats; the injection time follows (10 min before).",
+      "No need to pick breakfast or lunch: it follows from the time.",
+      "After saving a plan you go back Home, and get a reminder at injection time.",
+      "«Plan it tomorrow» on any meal in the log: the same food tomorrow at the same time."
+    ]
+  },
+  {
     "version": "4.21.1",
     "date": "2026-10-18",
     "notes": [

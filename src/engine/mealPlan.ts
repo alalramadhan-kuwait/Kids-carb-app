@@ -7,6 +7,11 @@ import type { PlannedMeal } from '../lib/types';
 
 const MIN = 60000;
 export type Slot = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+/** Which meal a planned eating time is (mom mode asks only the time): before 11 breakfast, before 15 lunch, before 18 a snack, then dinner. */
+export function slotAt(hm: string): Slot {
+  const [h, m] = hm.split(':').map(Number), x = h * 60 + (m || 0);
+  return x < 11 * 60 ? 'breakfast' : x < 15 * 60 ? 'lunch' : x < 18 * 60 ? 'snack' : 'dinner';
+}
 export type PlanStatus = 'planned' | 'dosed' | 'eaten' | 'skipped';
 export interface PlanTimes { dose_at: string; eat_after_min: number; remind_min: number; status: PlanStatus; recheck_at: string | null }
 

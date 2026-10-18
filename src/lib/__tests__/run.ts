@@ -1930,6 +1930,7 @@ console.log('planned meals');
     const a = MP.planAlerts({ block: low.block, carbs: 48.8, fat: 15, protein: 12, maxCarbs: 60, fastDrinkCarbs: 18.75, lastLowAt: at(3, 52), now: at(6, 30) });
     assert.deepEqual(a.map((x) => x.key), ['treat_first', 'recent_low', 'fast_drink'], 'toast and eggs (15 g fat) is no longer a late-rise meal');
     assert.equal(a[0].tone, 'red');
+    assert.deepEqual(['06:30', '10:59', '11:00', '14:59', '15:00', '17:59', '18:00', '23:30'].map(MP.slotAt), ['breakfast', 'breakfast', 'lunch', 'lunch', 'snack', 'snack', 'dinner', 'dinner'], 'mom mode: the meal follows from the eating time');
     assert.ok(MP.planAlerts({ block: null, carbs: 30, fat: 5, protein: 5, maxCarbs: 60, fastDrinkCarbs: 0, lastLowAt: null, now: at(6, 30), roseLateBefore: true }).some((x) => x.key === 'fatty'), 'a meal that rose late before gets the late-rise note');
     assert.deepEqual(MP.planAlerts({ block: null, carbs: 30, fat: 5, protein: 5, maxCarbs: 60, fastDrinkCarbs: 0, lastLowAt: null, now: at(6, 30), droppedEarlyBefore: true }).map((x) => x.key), ['early'], 'a meal that dropped her early before gets the early note');
     const after = D.suggestDose({ ...base, now: at(6, 46), carbs: 30, glucose: { mg: 90, at: at(6, 45), level: 1 } });

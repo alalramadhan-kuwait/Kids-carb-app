@@ -59,6 +59,14 @@ export function MomMealEntry() {
     void run(() => deleteHistory(h.id, me), t('انمسحت'), () => restoreHistory(h.id));
   };
   const who = whoLine(h, nameOf);
+  // «خططيها بكرة»: the same foods as a plan for tomorrow at the same time; a food to check goes to the plate first
+  const planTomorrow = () => {
+    if (!okToReplace('plan')) return;
+    const r = repeatPlate(h, c.products, itemCarbs);
+    draftOps.planItems(r.items, r.review, h.name);
+    const d = new Date(was), hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    nav(r.review.length ? '/mom/meal' : `/mom/when?day=tomorrow&eat=${hm}`);
+  };
   // one food whose name is the meal's name: its weight goes on the title's line instead of a list that repeats it
   const single = h.lines.length === 1 && tMaybe(h.lines[0].name) === mealTitle(h) ? h.lines[0] : null;
   const amount = (l: (typeof h.lines)[number]) => `${fmt(l.unit === 'g' || l.unit === 'ml' ? Math.round(l.quantity) : l.quantity)} ${unitText(l.unit)}`;
@@ -92,9 +100,10 @@ export function MomMealEntry() {
       {/* three actions, each its own page: the graph at this meal (12 h centred on it; Back returns here), the same food
           as a new meal (a new plate: every food kept, an unmatched one flagged for review; the original and its insulin
           are not touched), and edit */}
-      <div className={cx('grid gap-2', h.lines.length > 0 ? 'grid-cols-3' : 'grid-cols-2')}>
+      <div className="grid grid-cols-2 gap-2">
         <button onClick={() => nav(`/mom/graph?at=${was}`)} className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-white text-[14px] font-bold leading-tight text-brand active:opacity-80"><span aria-hidden className="text-[20px]">📈</span>{t('عرض في الرسم')}</button>
         {h.lines.length > 0 && <button disabled={busy} onClick={() => { if (okToReplace()) { const r = repeatPlate(h, c.products, itemCarbs); draftOps.loadItems(r.items, r.review); } nav('/mom/meal'); }} className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-white text-[14px] font-bold leading-tight text-brand active:opacity-80"><span aria-hidden className="text-[20px]">🔁</span>{t('كرري الوجبة')}</button>}
+        {h.lines.length > 0 && <button disabled={busy} onClick={planTomorrow} className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-white text-[14px] font-bold leading-tight text-brand active:opacity-80"><span aria-hidden className="text-[20px]">📅</span>{t('خططيها بكرة')}</button>}
         <button disabled={busy} onClick={() => nav(`/mom/meal-edit/${h.id}`)} className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 rounded-2xl bg-brand px-1 text-[14px] font-bold leading-tight text-white active:opacity-80"><span aria-hidden className="text-[20px]">✏️</span>{unknown ? t('عرفتي الكارب؟ اكتبيه') : t('عدّلي الأكل')}</button>
       </div>
       {unknown && (

@@ -9,7 +9,7 @@ import { useData } from '../../lib/data';
 import { draftOps, setFullModeNow, setSensorSite, useDraft, useSensor } from '../../lib/mom';
 import { planMeal, savePlan, skipPlan, usePlans } from '../../lib/plans';
 import { planItems, type MomItem } from '../../engine/mom';
-import { eatAt, phase } from '../../engine/mealPlan';
+import { eatAt, phase, slotAt } from '../../engine/mealPlan';
 import { isoDate } from '../../lib/constants';
 import { fmt } from '../../lib/carbs';
 import { cx, inputCls, toast } from '../../components/ui';
@@ -27,7 +27,7 @@ type Slot = PlannedMeal['slot'];
 const SLOTS: Slot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 const SLOT_NAME = { breakfast: 'فطور', lunch: 'غدا', dinner: 'عشا', snack: 'سناك' } as const; // i18n-ok: stored name, shown via t()
 const SLOT_ICON = { breakfast: '🌅', lunch: '☀️', dinner: '🌙', snack: '🍪' } as const;
-const SLOT_TIME: Record<Slot, string> = { breakfast: '07:00', lunch: '13:00', dinner: '19:00', snack: '16:00' };
+const EAT_TIME: Record<Slot, string> = { breakfast: '07:00', lunch: '13:00', dinner: '19:00', snack: '16:00' };
 const at = (date: string, hm: string) => new Date(`${date}T${hm}:00`).getTime();
 const hmOf = (ms: number) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 const nameOfItem = (i: PlannedMeal['items'][number], products: Product[]) => tMaybe(i.label ?? products.find((p) => p.id === i.product_id)?.name ?? i.slot_category ?? '?');
@@ -39,7 +39,11 @@ export function useOpenPlans() {
   return plans.filter((p) => phase(p, now) !== 'done' && p.for_date >= isoDate(new Date(now - 86400000))).sort((a, b) => Date.parse(a.dose_at) - Date.parse(b.dose_at));
 }
 
-/** «متى؟»: which meal, which day (today, tomorrow or a later date), and the injection time; saving puts the plan on hold. ?plan=id changes a plan's time. */
+/**
+ * «متى؟»: which day (today, tomorrow or a later date) and when she eats; the meal (breakfast…) follows from the time and
+ * the injection is the care plan's minutes before it, shown under it. Saving puts the plan on hold and goes Home.
+ * ?plan=id changes a plan's time; ?day=tomorrow&eat=HH:MM comes from «خططيها بكرة» on a meal in the Log.
+ */
 export function MomWhen() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
@@ -49,16 +53,16 @@ export function MomWhen() {
   const d = useDraft();
   const { c } = useCatalog();
   const now = Date.now();
+  const eatAfter = settings.dose_to_meal_min ?? 10;
   const today = isoDate(new Date(now)), tomorrow = isoDate(new Date(now + 86400000));
   const h = new Date(now).getHours();
   const first: Slot = h < 10 || h >= 20 ? 'breakfast' : h < 15 ? 'lunch' : 'dinner';
-  const [slot, setSlot] = useState<Slot>(editing?.slot ?? first);
-  const [time, setTime] = useState(editing ? hmOf(Date.parse(editing.dose_at)) : SLOT_TIME[first]);
-  const [day, setDay] = useState(editing?.for_date ?? (at(today, SLOT_TIME[first]) > now ? today : tomorrow));
+  const [time, setTime] = useState(editing ? hmOf(Date.parse(editing.dose_at) + editing.eat_after_min * 60000) : sp.get('eat') ?? EAT_TIME[first]);
+  const [day, setDay] = useState(editing?.for_date ?? (sp.get('day') === 'tomorrow' ? tomorrow : at(today, EAT_TIME[first]) > now ? today : tomorrow));
   const [later, setLater] = useState(day > tomorrow);
   const [busy, setBusy] = useState(false);
-  const eatAfter = settings.dose_to_meal_min ?? 10;
-  const doseAt = at(day, time);
+  const slot = slotAt(time);
+  const eat = at(day, time), doseAt = eat - (editing?.eat_after_min ?? eatAfter) * 60000;
   const save = async () => {
     // a plan whose plate was changed here takes the new plate; otherwise a plan keeps its food
     const fromPlate = !editing || d.planId === editing.id;
@@ -68,31 +72,26 @@ export function MomWhen() {
     setBusy(true);
     try {
       const note = editing ? editing.note : d.left.length ? `${d.left.join(' · ')} ${t('ما ينحسب بالإبرة · كلّمي بابا')}` : null;
-      await savePlan({ id: editing?.id, for_date: day, slot, name: editing?.name ?? d.name ?? SLOT_NAME[slot], recipe_id: fromPlate ? null : editing?.recipe_id ?? null, items, ...(fromPlate ? { mom_items: d.items } : {}), dose_at: new Date(doseAt).toISOString(), eat_after_min: eatAfter, remind_min: 10, note });
+      await savePlan({ id: editing?.id, for_date: day, slot, name: editing?.name ?? d.name ?? SLOT_NAME[slot], recipe_id: fromPlate ? null : editing?.recipe_id ?? null, items, ...(fromPlate ? { mom_items: d.items } : {}), dose_at: new Date(doseAt).toISOString(), eat_after_min: editing?.eat_after_min ?? eatAfter, remind_min: 10, note });
       if (fromPlate) draftOps.clear();
-      toast(t('انحفظت الخطة ✓'));
-      nav('/mom/plans', { replace: true });
+      toast(t('انحفظت الخطة ✓ يوصلك تذكير وقت الإبرة'));
+      nav(editing ? '/mom/plans' : '/mom', { replace: true });
     } catch (e) { toast((e as Error).message); setBusy(false); }
   };
   return (
     <MomPage title={t('متى؟')} foot={<>
-      <div className="text-center text-[17px]">{later && day <= tomorrow ? t('اختاري اليوم') : <>{day > tomorrow && `${day} · `}💉 {clock(doseAt)} · 🍽️ {clock(doseAt + eatAfter * 60000)}</>}</div>
+      <div className="text-center text-[17px]">{later && day <= tomorrow ? t('اختاري اليوم') : <>{day > tomorrow && `${day} · `}{SLOT_ICON[slot]} {t(SLOT_NAME[slot])} · 💉 {t('الإبرة {t}', { t: clock(doseAt) })}</>}</div>
       <Big disabled={busy || (later && day <= tomorrow)} onClick={save}>✓ {t('احفظي الخطة')}</Big>
     </>}>
-      <div className="grid grid-cols-2 gap-2">
-        {SLOTS.map((x) => (
-          <button key={x} onClick={() => { setSlot(x); if (!editing) setTime(SLOT_TIME[x]); }} className={cx('min-h-[64px] rounded-2xl border-2 text-[19px] font-bold', slot === x ? 'border-brand bg-brand-soft text-brand' : 'border-slate-200 bg-white')}>{SLOT_ICON[x]} {t(SLOT_NAME[x])}</button>
-        ))}
-      </div>
       <div className="grid grid-cols-3 gap-2">
-        {[today, tomorrow].map((x, k) => <button key={x} onClick={() => { setDay(x); setLater(false); }} className={cx('min-h-[56px] rounded-2xl border-2 text-[18px] font-bold', day === x && !later ? 'border-brand bg-brand-soft text-brand' : 'border-slate-200 bg-white')}>{k ? t('بكرة') : t('اليوم')}</button>)}
-        <button onClick={() => setLater(true)} className={cx('min-h-[56px] rounded-2xl border-2 text-[18px] font-bold', later ? 'border-brand bg-brand-soft text-brand' : 'border-slate-200 bg-white')}>📅 {t('يوم ثاني')}</button>
+        {[today, tomorrow].map((x, k) => <button key={x} onClick={() => { setDay(x); setLater(false); }} className={cx('min-h-[60px] rounded-2xl border-2 text-[19px] font-bold', day === x && !later ? 'border-brand bg-brand-soft text-brand' : 'border-slate-200 bg-white')}>{k ? t('بكرة') : t('اليوم')}</button>)}
+        <button onClick={() => setLater(true)} className={cx('min-h-[60px] rounded-2xl border-2 text-[18px] font-bold', later ? 'border-brand bg-brand-soft text-brand' : 'border-slate-200 bg-white')}>📅 {t('يوم ثاني')}</button>
       </div>
       {/* a later day (a birthday next week): any date from the day after tomorrow */}
       {later && <input type="date" dir="ltr" className={cx(inputCls, '!min-h-[56px] !text-center !text-[20px] font-bold')} min={isoDate(new Date(now + 2 * 86400000))} value={day > tomorrow ? day : ''} onChange={(e) => e.target.value && setDay(e.target.value)} aria-label={t('يوم ثاني')} />}
-      <label className="block space-y-1"><span className="text-[17px] font-bold">💉 {t('وقت الإبرة')}</span>
-        <TimeField dir="ltr" className={cx(inputCls, '!min-h-[60px] !text-center !text-[26px] font-bold')} value={time} onChange={(e) => e.target.value && setTime(e.target.value)} /></label>
-      <p className="text-center text-[15px] text-slate-500">{t('الأكل بعد الإبرة بـ {m} د · يوصلكم تذكير', { m: eatAfter })}</p>
+      <label className="block space-y-1"><span className="text-[18px] font-bold">🍽️ {t('وقت الأكل')}</span>
+        <TimeField dir="ltr" className={cx(inputCls, '!min-h-[64px] !text-center !text-[28px] font-bold')} value={time} onChange={(e) => e.target.value && setTime(e.target.value)} /></label>
+      <p className="rounded-2xl bg-brand-soft px-4 py-3 text-center text-[16px] text-brand">🔔 {t('يوصلك تذكير وقت الإبرة ({m} د قبل الأكل)، وبابا يشوف الخطة', { m: editing?.eat_after_min ?? eatAfter })}</p>
     </MomPage>
   );
 }
