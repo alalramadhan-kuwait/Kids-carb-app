@@ -7,6 +7,7 @@ import { glucoseAt, glucoseCols } from './productLog';
 import { recordRecalc } from './recalc';
 import { computeMeal } from './carbs';
 import { planRow } from '../engine/mealPlan';
+import { eatenFromLogged } from '../engine/eaten';
 import type { DoseSnapshot, HistoryEntry, MealSlot, PlanItem, PlannedMeal, Product, Settings } from './types';
 
 let cache: PlannedMeal[] | null = null;
@@ -171,19 +172,24 @@ export async function ate(p: PlannedMeal, part: number, eatingAt: number, produc
   // The meal saved with the dose ('pending') is confirmed in place: same entry, now with what she ate.
   const { data: had } = await supabase.from('meal_history').select('*').eq('client_id', p.id).is('deleted_at', null).maybeSingle();
   let r: { id: string };
+  let eatenCarbs = Math.round(meal.total.carbs * 10) / 10;
   if (had) {
     const h = had as HistoryEntry;
-    const { error } = await supabase.from('meal_history').update({ ...mealColumns(meal), ...glucoseCols(await glucoseAt(eatingAt)), eaten_at: new Date(eatingAt).toISOString(),
-      intake: 'confirmed', modified: part !== 1 || !p.recipe_id }).eq('id', h.id);
+    // the part is taken from the meal as it is in the log now (a correction made after the dose stays), scaled from
+    // the part answered before when this is a change (engine/eaten)
+    const e = eatenFromLogged(h, part, o.change ? p.part_eaten ?? 1 : 1);
+    eatenCarbs = e.carbs;
+    const { error } = await supabase.from('meal_history').update({ lines: e.lines, ...e.totals, ...glucoseCols(await glucoseAt(eatingAt)), eaten_at: new Date(eatingAt).toISOString(),
+      intake: 'confirmed', modified: part !== 1 || !p.recipe_id || !!h.edited_at }).eq('id', h.id);
     if (error) throw new Error(error.message);
     r = { id: h.id };
     // she ate part of it: the dose for what she ate, for review (the dose given is not touched)
-    if (part !== 1) await recordRecalc({ ...h, total_carbs: Number(h.total_carbs) }, Math.round(meal.total.carbs * 10) / 10, 'part');
+    if (part !== 1) await recordRecalc({ ...h, total_carbs: Number(h.total_carbs) }, e.carbs, 'part');
   } else {
     r = await logMeal({ kind: p.slot === 'snack' ? 'snack' : 'meal', recipe_id: p.recipe_id, name: p.name, category: null, meal, modified: part !== 1 || !p.recipe_id, eatenAt: new Date(eatingAt).toISOString(), notes: p.note ?? undefined, client_id: p.id, meal_slot: p.slot as MealSlot });
   }  // the plan's note (a weighed plate, an item left out) stays with the meal
   await patch(p.id, { status: 'eaten', history_id: r.id, eaten_at: new Date().toISOString(), eating_at: new Date(eatingAt).toISOString(), part_eaten: part, part_auto: false,
-    carbs_planned: p.carbs_planned ?? Math.round(full * 10) / 10, carbs_eaten: Math.round(meal.total.carbs * 10) / 10 });
+    carbs_planned: p.carbs_planned ?? Math.round(full * 10) / 10, carbs_eaten: eatenCarbs });
 }
 
 /** The review as last computed (kept for history, patterns and reports), and the parent's note. */

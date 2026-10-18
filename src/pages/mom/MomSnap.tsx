@@ -1,6 +1,8 @@
 // Mom mode, «صوّري الأكل»: where the food is from (optional), one photo, and the estimate per food with its carbs.
 // She checks the numbers; «حطيه بالصحن» puts the meal on the plate as one food with its photo, so it goes on to
 // the dose like any other plate. Nothing is logged before that, and the estimate never suggests insulin.
+// A raw estimate never reaches the plate: each food's number is hers first (ticked ✓ as right, or corrected), and the
+// food keeps the «تقريبي» tag on every screen after (engine/source).
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../../lib/data';
@@ -11,7 +13,7 @@ import { RESTAURANTS } from '../../lib/restaurants';
 import { fmt } from '../../lib/carbs';
 import { NumInput, cx, inputCls, toast } from '../../components/ui';
 import { isEn, t, tMaybe } from '../../i18n';
-import { Big, MomPage, okToReplace } from './MomUI';
+import { Big, MomPage, okToReplace, SourceTag } from './MomUI';
 
 /** Where the food is from: home, a restaurant, or a brand typed in; it goes to the estimate as the parents' note. */
 export function SourcePick({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -34,7 +36,7 @@ export function MomSnap() {
   useEffect(() => { aiStatus().then((x) => setReady(x.configured)).catch(() => setReady(false)); }, []);
   const [from, setFrom] = useState('');
   const [file, setFile] = useState<File | null>(null);
-  const [items, setItems] = useState<EstItem[] | null>(null);
+  const [items, setItems] = useState<(EstItem & { ok?: boolean })[] | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const cam = useRef<HTMLInputElement>(null), gallery = useRef<HTMLInputElement>(null);
@@ -56,8 +58,9 @@ export function MomSnap() {
   const total = items ? Math.round(items.reduce((s, i) => s + i.carbs_g, 0) * 10) / 10 : 0;
   const name = items ? items.map((i) => (isEn() ? i.name_en : i.name_ar)).join(' + ') : '';
   // the checked meal on the plate as one food with its photo (the same way as a food read off a label)
+  const allChecked = !!items?.length && items.every((i) => i.ok);
   const toPlate = async () => {
-    if (!file || !items?.length) return;
+    if (!file || !items?.length || !allChecked) return;
     setBusy(true);
     try {
       if (!okToReplace('now')) { setBusy(false); return; }
@@ -86,7 +89,8 @@ export function MomSnap() {
   if (items && file) return (
     <MomPage compact title={t('راجعي الكارب')} back="/mom/actions/food" foot={<>
       <div className="flex items-baseline justify-between px-1"><span className="text-[15px] text-slate-500">{t('المجموع')}</span><b className="num text-[26px] leading-none">{fmt(total)} {t('غ')}</b></div>
-      <Big md disabled={busy || !items.length} onClick={toPlate}>✓ {t('حطيه بالصحن')}</Big>
+      {!allChecked && <p className="text-center text-[14px] font-bold text-near">{t('تأكدي من كل رقم: ✓ أو عدّليه')}</p>}
+      <Big md disabled={busy || !allChecked} onClick={toPlate}>✓ {t('حطيه بالصحن')}</Big>
       <Big tone="ghost" className="!min-h-[44px]" onClick={() => cam.current?.click()}>📷 {t('صورة ثانية')}</Big>
     </>}>
       {pickers}
@@ -94,10 +98,11 @@ export function MomSnap() {
       <p className="text-center text-[14px] text-near">{t('تقدير · تأكدي من الأرقام')}{note ? ` · ${note}` : ''}</p>
       <div className="space-y-2">
         {items.map((it, k) => (
-          <div key={k} className="flex items-center gap-2 rounded-2xl bg-white px-3 py-2">
-            <span className="min-w-0 flex-1 truncate text-[17px] font-bold" dir="auto">{isEn() ? it.name_en : it.name_ar}</span>
-            <NumInput value={it.carbs_g} onChange={(v) => setItems((xs) => xs!.map((x, j) => (j === k ? { ...x, carbs_g: v ?? 0, confidence: 'high' } : x)))} className="!w-20 !min-h-[44px] text-center font-bold" />
+          <div key={k} className={cx('flex items-center gap-2 rounded-2xl px-3 py-2', it.ok ? 'bg-white' : 'bg-near-soft')}>
+            <span className="min-w-0 flex-1 truncate text-[17px] font-bold" dir="auto">{isEn() ? it.name_en : it.name_ar}{!it.ok && <SourceTag s="estimate" />}</span>
+            <NumInput value={it.carbs_g} onChange={(v) => setItems((xs) => xs!.map((x, j) => (j === k ? { ...x, carbs_g: v ?? 0, ok: true } : x)))} className="!w-20 !min-h-[44px] text-center font-bold" />
             <span className="text-[14px] text-slate-500">{t('غ')}</span>
+            <button onClick={() => setItems((xs) => xs!.map((x, j) => (j === k ? { ...x, ok: !x.ok } : x)))} aria-label={t('الرقم صحيح')} aria-pressed={!!it.ok} className={cx('grid h-10 w-10 place-items-center rounded-full text-[18px] font-bold', it.ok ? 'bg-ok text-white' : 'bg-white text-slate-400')}>✓</button>
             <button onClick={() => setItems((xs) => xs!.filter((_, j) => j !== k))} aria-label={t('حذف')} className="grid h-10 w-10 place-items-center text-slate-400">✕</button>
           </div>
         ))}

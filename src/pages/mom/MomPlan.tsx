@@ -15,7 +15,8 @@ import { fmt } from '../../lib/carbs';
 import { cx, inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import type { PlannedMeal, Product } from '../../lib/types';
-import { Big, Choice, MomPage, okToReplace, SITE_NAME, SettingsGroup, SettingsRow, Switch, clock, dayWord, sensorLeft } from './MomUI';
+import { carbSource } from '../../engine/source';
+import { Big, Choice, MomPage, okToReplace, SourceTag, SITE_NAME, SettingsGroup, SettingsRow, Switch, clock, dayWord, sensorLeft } from './MomUI';
 import { setAlarmSound, testAlarm, useAlarmSound } from '../../components/Alarm';
 import { setKeepAwake, useKeepAwakePref } from '../../lib/keepAwake';
 import type { InjectionSite } from '../../lib/types';
@@ -167,7 +168,7 @@ export function MomPlanView() {
       </div>
       <ul className="divide-y divide-slate-100 rounded-3xl bg-white px-4">
         {m.lines.map((l, k) => (
-          <li key={k} className="flex items-center justify-between gap-2 py-2.5 text-[17px]"><bdi className="min-w-0 truncate">{nameOfItem(p.items[k], products)}</bdi><span className="shrink-0 text-slate-500">{l.carbs === null ? '—' : `${fmt(Math.round(l.carbs * 10) / 10)} ${t('غرام')}`}</span></li>
+          <li key={k} className="flex items-center justify-between gap-2 py-2.5 text-[17px]"><bdi className="min-w-0 truncate">{nameOfItem(p.items[k], products)}<SourceTag s={carbSource(products.find((x) => x.id === p.items[k].product_id))} /></bdi><span className="shrink-0 text-slate-500">{l.carbs === null ? '—' : `${fmt(Math.round(l.carbs * 10) / 10)} ${t('غرام')}`}</span></li>
         ))}
       </ul>
       <div className="flex items-baseline justify-between px-1 text-slate-500"><span>{t('الكارب')}</span><b className="num text-[22px] text-slate-900">{m.complete ? `${fmt(Math.round(m.total.carbs * 10) / 10)} ${t('غرام')}` : '—'}</b></div>

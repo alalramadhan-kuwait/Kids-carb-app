@@ -10,6 +10,7 @@ import { formatGlucose } from '../../lib/glucose';
 import { relDay } from '../../lib/constants';
 import { isEn, locale, t } from '../../i18n';
 import type { InjectionSite } from '../../lib/types';
+import { SOURCE_WORD, type CarbSource } from '../../engine/source';
 
 /** The pen colours: NovoRapid orange, Tresiba light green (matched to the pens). */
 export const PEN = { rapid: '#F28C28', long: '#8DC63F' } as const;
@@ -33,6 +34,13 @@ export const left = (ms: number, now = Date.now()) => {
   return span(m);
 };
 export const glucoseText = (mg: number, unit: 'mmol' | 'mgdl') => formatGlucose(mg, unit);
+
+/** A small tag after a food's name when its carbs are not from a checked source: «تقريبي» (a photo estimate she
+ *  checked), «مرجعي» (another country's or a reference value), «قراءة ماما» (her own reading of a label). */
+export function SourceTag({ s }: { s: CarbSource | null | undefined }) {
+  if (!s) return null;
+  return <span className={cx('ms-1 inline-block whitespace-nowrap rounded-md px-1.5 align-middle text-[11px] font-bold leading-[18px]', s === 'mom_label' ? 'bg-brand-soft text-brand' : 'bg-near-soft text-near')}>{t(SOURCE_WORD[s])}</span>;
+}
 
 export function MomPage({ title, back = -1, children, foot, tabs, top, compact, keyboard }: { title: string; back?: string | number | null; children: ReactNode; foot?: ReactNode; tabs?: boolean; /** stays under the title while the page scrolls (a search box) */ top?: ReactNode;
   /** the add-meal pages: a slightly smaller title and tighter rows, so more of the list shows */ compact?: boolean;

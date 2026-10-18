@@ -1,5 +1,21 @@
 [
   {
+    "version": "4.22.1",
+    "date": "2026-10-18",
+    "notes": [
+      "صورة الأكل: كل رقم تقديري لازم تأكدينه (✓) أو تعدّلينه قبل ما ينحط بالصحن.",
+      "الأكل اللي رقمه تقريبي أو مرجعي أو قراءتك من الملصق يطلع عليه علامة صغيرة بكل مكان.",
+      "«شكثر أكلت؟» ما يمسح التعديل اللي سويتيه على الوجبة.",
+      "قائمة الأكل توقف الوجبات والإبر إذا السكر نازل، حتى لو فتحتيها من مكان ثاني."
+    ],
+    "notes_en": [
+      "Food photo: each estimated number must be checked (✓) or corrected before it goes on the plate.",
+      "Foods whose carbs are approximate, a reference value or your own label reading show a small tag everywhere.",
+      "«How much did she eat?» no longer undoes a correction made to the meal.",
+      "The food menu holds back meals and injections when glucose is low, however it was opened."
+    ]
+  },
+  {
     "version": "4.22.0",
     "date": "2026-10-18",
     "notes": [

@@ -3653,5 +3653,42 @@ console.log('add food tiles');
   });
 }
 
+console.log('P0: food sources, eaten part, injections untouched');
+{
+  const S = await import('../../engine/source');
+  test('a food\'s carb source comes from its stored note, nothing is rewritten', () => {
+    assert.equal(S.carbSource({ notes: 'من صورة (تقدير): شاورما 18 غ · راجعته ماما' }), 'estimate');
+    assert.equal(S.carbSource({ notes: 'من ماما: الكارب من الملصق (11 غ للحبة) · بابا يراجع الصورة' }), 'mom_label');
+    assert.equal(S.carbSource({ notes: 'قيمة مرجعية من برجر كنج تركيا (الجدول الرسمي، 17 أكتوبر 2026). غير مؤكدة للكويت' }), 'reference');
+    assert.equal(S.carbSource({ notes: 'من موقع ماكدونالدز الكويت الرسمي: الحصة 57 غ = 17 غ كارب.' }), null, 'official values carry no tag');
+    assert.equal(S.carbSource({ notes: 'من ماما: ينتظر بابا يكمّل الملصق والكميات' }), null, 'a food sent to Dad without a number is not a label reading');
+    assert.equal(S.carbSource(null), null);
+    assert.deepEqual(S.plateSources(['mom_label', null, 'estimate', 'estimate']), ['estimate', 'mom_label'], 'once each, most uncertain first');
+  });
+  const E = await import('../../engine/eaten');
+  const logged = { lines: [{ name: 'رز', quantity: 150, carbs: 42 }, { name: 'كباب', quantity: 2, carbs: 2 }], total_carbs: 44, total_fat: 18, total_protein: null };
+  test('«شكثر أكلت؟» halves the meal as corrected, not the plan it came from', () => {
+    const r = E.eatenFromLogged(logged, 0.5);
+    assert.equal(r.carbs, 22); assert.deepEqual(r.lines.map((l) => [l.quantity, l.carbs]), [[75, 21], [1, 1]]);
+    assert.equal(r.totals.total_fat, 9); assert.equal(r.totals.total_protein, null, 'unknown stays unknown');
+  });
+  test('changing the answer later scales from the earlier part, never twice', () => {
+    const half = E.eatenFromLogged(logged, 0.5);
+    const back = E.eatenFromLogged({ ...half.totals, lines: half.lines }, 1, 0.5);
+    assert.equal(back.carbs, 44); assert.deepEqual(back.lines.map((l) => l.quantity), [150, 2]);
+  });
+  const body = (file: string, fn: string) => {
+    const src = readFileSync(new URL(file, import.meta.url), 'utf8');
+    const a = src.indexOf(`export async function ${fn}(`); assert.ok(a >= 0, `${fn} not found`);
+    const b = src.indexOf('\nexport ', a + 10); return src.slice(a, b < 0 ? undefined : b);
+  };
+  test('no food edit and no «شكثر أكلت؟» answer writes to an insulin entry', () => {
+    for (const [file, fn] of [['../editSave.ts', 'updateMealItems'], ['../editSave.ts', 'setMealCarbs'], ['../plans.ts', 'ate']] as const) {
+      const b = body(file, fn);
+      assert.ok(!/from\('events'\)/.test(b) && !/saveEvent\(/.test(b), `${fn} must not touch events`);
+    }
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);

@@ -170,6 +170,8 @@ export interface HistoryLine {
   state: State;
   role: Role;
   carbs: number | null;
+  /** where the carbs came from when not a checked source (engine/source); absent on older entries */
+  src?: import('../engine/source').CarbSource | null;
 }
 
 export interface HistoryEntry {

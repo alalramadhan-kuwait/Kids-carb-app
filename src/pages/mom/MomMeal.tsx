@@ -14,7 +14,8 @@ import { Photo, asset, cx, inputCls, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import { KIDS_MEALS, RESTAURANTS, cupsOf, kidsMealIds, menuOf, restaurantByKey, restaurantOf, type Restaurant } from '../../lib/restaurants';
 import { foodName, untranslated, type Named } from '../../lib/foodName';
-import { Big, Choice, MomPage, okToReplace } from './MomUI';
+import { Big, Choice, MomPage, okToReplace, SourceTag } from './MomUI';
+import { carbSource } from '../../engine/source';
 import type { Ingredient, PlanItem, Product, Recipe } from '../../lib/types';
 import { reusable } from '../../lib/entryActions';
 import { mealGi } from '../../engine/gi';
@@ -129,7 +130,7 @@ export function MomMeal() {
               {/* tap to change the amount */}
               <button onClick={() => nav(`/mom/item/${it.kind}/${it.id}?k=${k}`)} className="flex min-w-0 flex-1 items-center gap-3 text-start">
                 <Photo {...pic(p)} className="h-12 w-12 shrink-0 rounded-xl" />
-                <span className="min-w-0 flex-1"><b className="block text-[16px] leading-snug"><bdi>{nameOf(it)}</bdi></b><span className="text-[13px] text-slate-500"><bdi>{portionLabel(it)}</bdi> · <span className="text-brand">{t('تعديل')}</span></span></span>
+                <span className="min-w-0 flex-1"><b className="block text-[16px] leading-snug"><bdi>{nameOf(it)}</bdi><SourceTag s={it.kind === 'product' ? carbSource(c.products.find((p) => p.id === it.id)) : null} /></b><span className="text-[13px] text-slate-500"><bdi>{portionLabel(it)}</bdi> · <span className="text-brand">{t('تعديل')}</span></span></span>
                 <span className="shrink-0 text-[16px] font-bold">{g === null ? '—' : g === 0 ? <span className="font-normal text-slate-500">{t('بدون كارب')}</span> : <><span className="num">{gramsText(g)}</span> <span className="text-[13px] font-normal text-slate-500">{t('غ')}</span></>}</span>
               </button>
               <button aria-label={t('شيليه من الصحن')} onClick={() => draftOps.remove(k)} className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-[20px] text-slate-400 active:bg-slate-100">✕</button>

@@ -2,12 +2,29 @@
 // whether she is low now, so the same choices are held back as on Home before: no meal and no injection while low.
 import { useLocation, useNavigate } from 'react-router-dom';
 import { draftOps } from '../../lib/mom';
+import { useData } from '../../lib/data';
+import { useGlucose } from '../../hooks/useGlucose';
+import { effectiveRange } from '../../lib/glucose';
+import { levelFromLibre, trendFrom } from '../../engine/trend';
+import { moodOf } from '../../engine/mom';
 import { Choice, MomPage, okToReplace } from './MomUI';
 import { cx } from '../../components/ui';
 import { useOpenPlans } from './MomPlan';
 import { t } from '../../i18n';
 
-const useLow = () => !!(useLocation().state as { low?: boolean } | null)?.low;
+// low now, worked out on this page from her latest reading the same way Home does (moodOf), so the choices are held
+// back however the page was reached (a link, Back, a reminder); Home's hint is still honoured while a reading loads
+function useLow() {
+  const fromHome = !!(useLocation().state as { low?: boolean } | null)?.low;
+  const { settings: s } = useData();
+  const { g } = useGlucose();
+  const latest = g?.latest ?? null;
+  if (!latest) return fromHome;
+  const now = Date.now(), at = Date.parse(latest.taken_at);
+  const range = effectiveRange(s.glucose_low_mgdl, s.glucose_high_mgdl);
+  const level = trendFrom(g!.readings, now)?.level ?? levelFromLibre(latest.trend);
+  return fromHome || moodOf(latest.mg_dl, (now - at) / 60000, level, s.alert_low_mgdl ?? range.low ?? 70, range.high ?? 180) === 'low';
+}
 const Off = ({ off, children }: { off: boolean; children: React.ReactNode }) => <div className={cx(off && 'pointer-events-none opacity-40')} aria-disabled={off}>{children}</div>;
 
 export function MomFoodMenu() {

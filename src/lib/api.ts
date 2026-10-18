@@ -3,6 +3,7 @@ import { supabase } from './supabase';
 import type { EventRow, HistoryLine, Ingredient, MealSlot, Product, Recipe, Settings } from './types';
 import type { MealResult } from './carbs';
 import type { GlucoseState } from './glucose';
+import { carbSource } from '../engine/source';
 
 const ok = <T,>(r: { data: T; error: { message: string } | null }): T => {
   if (r.error) throw new Error(r.error.message);
@@ -76,6 +77,7 @@ export async function logMeal(input: {
     product: l.product ? [l.product.name, l.product.brand].filter(Boolean).join(' — ') : null,
     quantity: l.ing.quantity, unit: l.ing.unit, state: l.ing.state, role: l.ing.role,
     carbs: l.carbs === null ? null : Math.round(l.carbs * 10) / 10,
+    ...(carbSource(l.product) ? { src: carbSource(l.product) } : {}),
   }));
   const r = (n: number) => Math.round(n * 10) / 10;
   // the glucose reading when she started eating (within 10 minutes), not when it was saved

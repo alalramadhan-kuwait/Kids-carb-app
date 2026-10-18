@@ -17,7 +17,8 @@ import { fmt } from '../../lib/carbs';
 import { toast, cx } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import type { DoseSnapshot, PlannedMeal } from '../../lib/types';
-import { Big, Choice, MomPage, ago, clock, glucoseText, left } from './MomUI';
+import { Big, Choice, MomPage, ago, clock, glucoseText, left, SourceTag } from './MomUI';
+import { carbSource, plateSources } from '../../engine/source';
 import { TimePicker } from '../../components/TimePicker';
 import { fetchSeries } from '../../engine/useSeries';
 import { doseAt, type DoseAt } from '../../engine/doseAt';
@@ -53,6 +54,8 @@ export function MomDose() {
   const plan = plans.find((p) => p.id === sp.get('plan')) ?? null;
   const planM = plan ? planMeal(plan.items, products, s) : null;
   const carbs = correction ? 0 : planM ? (planM.complete ? Math.round(planM.total.carbs * 10) / 10 : null) : mealCarbs(d.items);
+  // the plate's carb sources (estimate, reference, her label reading), once each, beside the food names
+  const srcs = plateSources((plan ? plan.items.map((i) => i.product_id) : d.items.map((i) => (i.kind === 'product' ? i.id : null))).map((id) => (id ? carbSource(products.find((p) => p.id === id)) : null)));
   const names = planM ? planM.lines.map((l, k) => tMaybe(plan!.items[k].label ?? l.product?.name ?? '?')) : d.items.map((i) => nameOf(i));
   const leftOut = plan ? [] : d.left;
   const backTo = correction ? '/mom/shot' : plan ? `/mom/plan/${plan.id}` : '/mom/meal';
@@ -209,7 +212,7 @@ export function MomDose() {
       {override && block && <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ {t(STOP[block] ?? STOP.recent_dose)} · {t('سجّلي الإبرة اللي عطيتيها')}</p>}
       <UnknownMealNote meal={live.unknownMeal} big />
       <div className="space-y-1 rounded-3xl border border-slate-100 bg-white px-4 py-2.5 text-[15px]">
-        {!correction && <div className="text-[14px] text-slate-600"><bdi>{names.join(' · ')}</bdi></div>}
+        {!correction && <div className="text-[14px] text-slate-600"><bdi>{names.join(' · ')}</bdi>{srcs.map((x) => <SourceTag key={x} s={x} />)}</div>}
         {!correction && <div className="flex justify-between"><span>🍽️ {t('الكارب')}</span><b className="num">{fmt(carbs ?? 0)} {t('غرام')}</b></div>}
         {latest && <div className="flex justify-between"><span>{t('السكر الحين')}</span><b className="num" dir="ltr">{glucoseText(latest.mg_dl, unit)} {level !== null ? ARROW[level] : ''}</b></div>}
         <div className="flex justify-between"><span>{t('آخر إبرة')}</span><b>{lastRapid ? ago(Date.parse(lastRapid.occurred_at)) : '—'}</b></div>

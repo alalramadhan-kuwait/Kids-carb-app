@@ -16,7 +16,8 @@ import { DoseReview } from '../../components/DoseReview';
 import { cx, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import type { MealSlot, PlannedMeal } from '../../lib/types';
-import { Big, MomPage, clock, ago, okToReplace } from './MomUI';
+import { Big, MomPage, clock, ago, okToReplace, SourceTag } from './MomUI';
+import { carbSource } from '../../engine/source';
 import { useCatalog } from './MomMeal';
 import { repeatPlate } from '../../lib/repeatMeal';
 import { draftOps } from '../../lib/mom';
@@ -59,6 +60,8 @@ export function MomMealEntry() {
     void run(() => deleteHistory(h.id, me), t('انمسحت'), () => restoreHistory(h.id));
   };
   const who = whoLine(h, nameOf);
+  // a line's carb source: kept with the entry since P0, else found from the food it names (older entries)
+  const srcOf = (l: (typeof h.lines)[number]) => l.src ?? carbSource(c.products.find((p) => [p.name, p.brand].filter(Boolean).join(' — ') === l.product));
   // «خططيها بكرة»: the same foods as a plan for tomorrow at the same time; a food to check goes to the plate first
   const planTomorrow = () => {
     if (!okToReplace('plan')) return;
@@ -88,7 +91,7 @@ export function MomMealEntry() {
           <ul className="divide-y divide-slate-100 border-t border-slate-100">
             {h.lines.map((l, i) => (
               <li key={i} className="flex items-baseline gap-2 py-1.5 text-[15px]">
-                <span className="min-w-0 flex-1"><bdi>{tMaybe(l.name)}</bdi> <span className="num whitespace-nowrap text-[13px] text-slate-500">· {amount(l)}</span></span>
+                <span className="min-w-0 flex-1"><bdi>{tMaybe(l.name)}</bdi><SourceTag s={srcOf(l)} /> <span className="num whitespace-nowrap text-[13px] text-slate-500">· {amount(l)}</span></span>
                 <span className="num shrink-0 font-bold">{fmt(l.carbs ?? 0)} <span className="text-[12px] font-normal text-slate-500">{t('غ')}</span></span>
               </li>
             ))}
