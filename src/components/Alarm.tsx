@@ -1,5 +1,5 @@
 // The alarm: while a very low, low, high or no-reading alert is open and nobody has answered it, this phone plays a
-// loud repeating sound and shows a full-screen flashing card until someone taps «أنا عليها» (that answers the alert
+// loud repeating sound and shows a flashing bar across the top until someone taps «أنا عليها» (that answers the alert
 // for everyone). The phone also checks by itself: no new reading for 15 minutes, or no connection to the server for
 // 15 minutes, sounds too. Sound plays only while the app is open on screen (a phone's browser cannot play it in the
 // background): the server's pushes and the LibreLinkUp app's own alarms stay the backup.
@@ -124,7 +124,7 @@ function useFreshness() {
   return s;
 }
 
-/** The full-screen alarm, mounted once for the whole app. */
+/** The alarm bar, mounted once for the whole app. */
 export function Alarm() {
   const { settings } = useData();
   const soundOn = useAlarmSound();
@@ -179,18 +179,23 @@ export function Alarm() {
       await reload(); setBusy(false);
     } else setQuiet({ reading: fresh.reading, until: Date.now() + 30 * MIN });
   };
+  // a bar across the top (the family's choice): the app stays usable under it; the sound and the phone
+  // notifications are the same as before, and it stays until someone answers it
   return (
-    <div role="alertdialog" aria-live="assertive" className="fixed inset-0 z-[80] flex flex-col items-center justify-center gap-4 px-6 pb-[max(24px,env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))] text-center"
+    <div role="alertdialog" aria-live="assertive" className="fixed inset-x-0 top-0 z-[80] px-3 pb-2.5 pt-[max(10px,env(safe-area-inset-top))] shadow-lg"
       style={{ color: '#fff', animation: 'alarm-flash 1s steps(1) infinite', ['--a' as string]: bg[0], ['--b' as string]: bg[1] }}>
       <style>{'@keyframes alarm-flash { 0% { background: var(--a); } 50% { background: var(--b); } }'}</style>
-      <div className="text-[72px] leading-none">{level === 'high' ? '⬆️' : level === 'nodata' ? '📡' : '⚠️'}</div>
-      <div className="text-[40px] font-extrabold leading-tight">{title}</div>
-      {sub && <div dir="ltr" className="text-[44px] font-extrabold leading-none">{sub}</div>}
-      <div className="text-[22px] font-bold opacity-95">{todo}</div>
-      {soundOn && !ready && <div className="rounded-2xl bg-black/25 px-4 py-2 text-[17px] font-bold">🔊 {t('اضغطي أي مكان لتشغيل الصوت')}</div>}
-      <button disabled={busy} onClick={answer} className="mt-4 min-h-[76px] w-full max-w-sm rounded-3xl text-[26px] font-extrabold disabled:opacity-60" style={{ color: bg[0], background: '#fff' }}>
-        {server ? t('أنا عليها') : t('تمام')}
-      </button>
+      <div className="mx-auto flex max-w-xl items-center gap-3">
+        <span className="text-[30px] leading-none">{level === 'high' ? '⬆️' : level === 'nodata' ? '📡' : '⚠️'}</span>
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="flex items-baseline gap-2"><b className="text-[20px]">{title}</b>{sub && <b dir="ltr" className="text-[24px]">{sub}</b>}</span>
+          <span className="block text-[15px] font-bold opacity-95">{todo}</span>
+        </span>
+        <button disabled={busy} onClick={answer} className="min-h-[48px] shrink-0 rounded-2xl px-4 text-[17px] font-extrabold disabled:opacity-60" style={{ color: bg[0], background: '#fff' }}>
+          {server ? t('أنا عليها') : t('تمام')}
+        </button>
+      </div>
+      {soundOn && !ready && <div className="mx-auto mt-1.5 max-w-xl rounded-xl bg-black/25 px-3 py-1 text-center text-[14px] font-bold">🔊 {t('اضغطي أي مكان لتشغيل الصوت')}</div>}
     </div>
   );
 }
