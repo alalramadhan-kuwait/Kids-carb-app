@@ -1665,6 +1665,8 @@ export const food: Record<string, string> = {
   'استخدمي هالرقم': 'Use this number',
   'شنو بتاكل {n}؟': 'What is {n} eating?',
   'تاكل الحين': 'Eating now',
+  'آخر نوفورابيد': 'Last NovoRapid',
+  'آخر تريسيبا': 'Last Tresiba',
   'من قائمتنا': 'from our list',
   'ممكن فيه سكر': 'may have sugar',
   'نفس الملصق · أضيفيه': 'Same as the label · add it',

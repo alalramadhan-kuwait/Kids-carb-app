@@ -12,7 +12,7 @@ import { useSubmitId } from '../lib/useSubmitId';
 import { SameDose } from './SameDose';
 import { useLiveDose } from '../lib/useLiveDose';
 import { useLateRise } from '../lib/lateRise';
-import { learnedOf } from '../engine/iob';
+import { keyLines, learnedOf } from '../engine/iob';
 import { UnknownMealNote } from './UnknownMealNote';
 import { eatAt, expectedDose, isFastDrink, phase, planAlerts, remindAt, upcoming, type PlanAlert, type Phase, type Slot } from '../engine/mealPlan';
 import { fmt } from '../lib/carbs';
@@ -212,9 +212,6 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
   );
 }
 
-/** The meal's foods the way they are saved to the log (api.ts), so they key the same as in her history. */
-const keyLines = (lines: { ing: { label?: string | null; slot_category?: string | null }; product?: { name: string; brand?: string | null } | null }[]) =>
-  lines.map((l) => ({ name: l.ing.label ?? l.product?.name ?? l.ing.slot_category ?? '', product: l.product ? [l.product.name, l.product.brand].filter(Boolean).join(' — ') : null }));
 const learnedFlags = (l: { early: boolean; late: boolean } | null) => ({ roseLateBefore: !!l?.late, droppedEarlyBefore: !!l?.early });
 
 const ALERT_TEXT = (a: PlanAlert) => ({

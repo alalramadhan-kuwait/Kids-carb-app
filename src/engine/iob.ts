@@ -72,6 +72,9 @@ export const learnedOf = (lines: { name: string; product?: string | null }[] | n
   return k ? learned.get(k) ?? null : null;
 };
 export const EARLY_MIN = 150;
+/** A meal's foods as the log saves them (lib/api), so a plate keys the same as in her history. */
+export const keyLines = (lines: { ing: { label?: string | null; slot_category?: string | null }; product?: { name: string; brand?: string | null } | null }[]) =>
+  lines.map((l) => ({ name: l.ing.label ?? l.product?.name ?? l.ing.slot_category ?? '', product: l.product ? [l.product.name, l.product.brand].filter(Boolean).join(' — ') : null }));
 
 /** Rapid-acting doses only; long-acting insulin is not "on board" in this sense. */
 export const dosesFrom = (events: EventRow[]): Dose[] =>

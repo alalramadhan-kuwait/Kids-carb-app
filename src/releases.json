@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.23.0",
+    "date": "2026-10-18",
+    "notes": [
+      "زر واحد بالرئيسية: «شنو بتاكل ليان؟». تختارين الأكل أول، وبالأخير «تاكل الحين» أو «وقت ثاني».",
+      "منتج جديد: صوّري جدول القيم، الأرقام تنقرى لحالها، تختارين لكل ١٠٠ غ أو مل أو حصة أو حبة، والمجموع يطلع لك.",
+      "صورة الأكل: الأكل اللي موجود عندنا ينحسب من قائمتنا، وأنتِ تعدّلين الغرامات بس.",
+      "صفحة الإبرة: آخر نوفورابيد وآخر تريسيبا، وملاحظة إذا الوجبة ممكن تأثيرها متأخر.",
+      "«شكثر أكلت؟»: كلها، ¾، نصها، ربعها.",
+      "العصير صار تحت «طبي»."
+    ],
+    "notes_en": [
+      "One Home button: «What is Layan eating?». Choose the food first, then «Eating now» or «Later».",
+      "New product: photograph the nutrition table; the numbers are read for you; choose per 100 g, 100 ml, serving or piece; the total shows.",
+      "Food photo: foods we already have are counted from our list; you only adjust the grams.",
+      "Injection page: last NovoRapid and last Tresiba, and a note when a meal may act late.",
+      "«How much did she eat?»: all, ¾, half, a quarter.",
+      "Juice is now under «Medical»."
+    ]
+  },
+  {
     "version": "4.22.1",
     "date": "2026-10-18",
     "notes": [

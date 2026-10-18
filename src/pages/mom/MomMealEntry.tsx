@@ -148,7 +148,7 @@ function PartLine({ clientId }: { clientId: string }) {
   const [p, setP] = useState<PlannedMeal | null>(null);
   useEffect(() => { void fetchPlan(clientId).then(setP); }, [clientId]);
   if (!p || p.status !== 'eaten' || p.part_eaten == null) return null;
-  const word = p.part_eaten >= 1 ? t('كلها') : p.part_eaten >= 0.5 ? t('تقريبًا نصها') : t('شوي');
+  const word = p.part_eaten >= 1 ? t('كلها') : p.part_eaten >= 0.75 ? '¾' : p.part_eaten >= 0.5 ? t('نصها') : p.part_eaten >= 0.25 ? t('ربعها') : t('شوي');
   return (
     <button onClick={() => nav(`/mom/ate/${p.id}`)} className="flex min-h-[56px] w-full items-center justify-between rounded-3xl bg-white px-4 text-[17px]">
       <span>{t('كم أكلت؟')} <b>{word}</b>{p.part_auto ? <span className="text-[14px] text-slate-500"> · {t('تلقائيًا')}</span> : null}</span><span className="font-bold text-brand">{t('غيّري')} ›</span>

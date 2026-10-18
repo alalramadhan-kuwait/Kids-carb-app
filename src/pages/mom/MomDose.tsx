@@ -17,7 +17,9 @@ import { fmt } from '../../lib/carbs';
 import { toast, cx } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import type { DoseSnapshot, PlannedMeal } from '../../lib/types';
-import { Big, Choice, MomPage, ago, clock, glucoseText, left, SourceTag } from './MomUI';
+import { Big, Choice, MomPage, ago, clock, dayWord, glucoseText, left, SourceTag } from './MomUI';
+import { isFatty, keyLines, learnedOf } from '../../engine/iob';
+import { useLateRise } from '../../lib/lateRise';
 import { carbSource, plateSources } from '../../engine/source';
 import { TimePicker } from '../../components/TimePicker';
 import { fetchSeries } from '../../engine/useSeries';
@@ -29,7 +31,8 @@ import { useCatalog } from './MomMeal';
 const slotNow = (at = Date.now()): PlannedMeal['slot'] => { const h = new Date(at).getHours(); return h >= 5 && h < 10 ? 'breakfast' : h >= 10 && h < 15 ? 'lunch' : 'dinner'; };
 const ARROW: Record<number, string> = { [-3]: '⇊', [-2]: '↓', [-1]: '↘', 0: '→', 1: '↗', 2: '↑', 3: '⇈' };
 const SLOT = { breakfast: 'فطور', lunch: 'غدا', dinner: 'عشا', snack: 'سناك' } as const; // i18n-ok: stored name
-const PARTS: [number, string, string][] = [[1, '🟢', 'كلها'], [0.5, '◐', 'تقريبًا نصها'], [0.25, '◔', 'شوي']]; // i18n-ok: translated where shown
+// the same four answers as when a meal is corrected in the log (MomMealEdit)
+const PARTS: [number, string, string][] = [[1, '🟢', 'كلها'], [0.75, '◕', '¾'], [0.5, '◐', 'نصها'], [0.25, '◔', 'ربعها']]; // i18n-ok: translated where shown
 // why the number given differs, by direction (stored as said, shown via t())
 const REASONS = {
   less: ['أكلت أقل', 'كانت نازلة', 'ما احتاجت وقتها', 'ما رضت', 'شي ثاني'], // i18n-ok
@@ -58,6 +61,11 @@ export function MomDose() {
   const srcs = plateSources((plan ? plan.items.map((i) => i.product_id) : d.items.map((i) => (i.kind === 'product' ? i.id : null))).map((id) => (id ? carbSource(products.find((p) => p.id === id)) : null)));
   const names = planM ? planM.lines.map((l, k) => tMaybe(plan!.items[k].label ?? l.product?.name ?? '?')) : d.items.map((i) => nameOf(i));
   const leftOut = plan ? [] : d.left;
+  // what her own data and the meal's fat and protein say about this plate (notes only, never in the number)
+  const mealNow = planM ?? planMeal(planItems(d.items, c) ?? [], products, s);
+  const learned = learnedOf(keyLines(mealNow.lines), plan?.name ?? d.name, useLateRise());
+  const fatty = !!learned?.late || isFatty(mealNow.missing.fat ? null : mealNow.total.fat, mealNow.missing.protein ? null : mealNow.total.protein);
+  const lastLong = events.filter((e) => e.kind === 'insulin' && e.insulin_type === 'long' && !e.deleted_at).sort((a, b) => Date.parse(b.occurred_at) - Date.parse(a.occurred_at))[0] ?? null;
   const backTo = correction ? '/mom/shot' : plan ? `/mom/plan/${plan.id}` : '/mom/meal';
   const live = useLiveDose(carbs ?? 0);
   const { r, latest, level } = live;
@@ -215,8 +223,11 @@ export function MomDose() {
         {!correction && <div className="text-[14px] text-slate-600"><bdi>{names.join(' · ')}</bdi>{srcs.map((x) => <SourceTag key={x} s={x} />)}</div>}
         {!correction && <div className="flex justify-between"><span>🍽️ {t('الكارب')}</span><b className="num">{fmt(carbs ?? 0)} {t('غرام')}</b></div>}
         {latest && <div className="flex justify-between"><span>{t('السكر الحين')}</span><b className="num" dir="ltr">{glucoseText(latest.mg_dl, unit)} {level !== null ? ARROW[level] : ''}</b></div>}
-        <div className="flex justify-between"><span>{t('آخر إبرة')}</span><b>{lastRapid ? ago(Date.parse(lastRapid.occurred_at)) : '—'}</b></div>
+        <div className="flex justify-between"><span>{t('آخر نوفورابيد')}</span><b>{lastRapid ? ago(Date.parse(lastRapid.occurred_at)) : '—'}</b></div>
+        <div className="flex justify-between"><span>{t('آخر تريسيبا')}</span><b>{lastLong ? `${clock(Date.parse(lastLong.occurred_at))} · ${dayWord(Date.parse(lastLong.occurred_at))}` : '—'}</b></div>
       </div>
+      {!correction && learned?.early && <p className="rounded-2xl bg-near-soft px-4 py-2 text-[15px] text-near">{t('صار قبل: نزل السكر بدري بعد هذي الوجبة. راقبوا أول ساعتين.')}</p>}
+      {!correction && fatty && <p className="rounded-2xl bg-near-soft px-4 py-2 text-[15px] text-near">{t('ممكن تأثير متأخر: راقبوا السكر بعد ٣–٥ ساعات.')}</p>}
       {!override && <div className="rounded-3xl bg-brand-soft px-4 py-2 text-center">
         <div className="text-[13px] text-brand">{past ? t('حسب خطة الدكتور الحين') : t('حسب خطة الدكتور')}</div>
         <div className="text-brand"><span className="num text-[48px] font-extrabold leading-none">{fmt(r.dose)}</span> <span className="text-[18px] font-bold">{t('وحدة')}</span></div>
