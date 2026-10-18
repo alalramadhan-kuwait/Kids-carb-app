@@ -14,6 +14,7 @@ import { fmt } from '../../lib/carbs';
 import { NumInput, cx, inputCls, toast } from '../../components/ui';
 import { isEn, t, tMaybe } from '../../i18n';
 import { Big, MomPage, okToReplace, SourceTag } from './MomUI';
+import { carbsFromList, listMatch } from '../../engine/estimateMatch';
 
 /** Where the food is from: home, a restaurant, or a brand typed in; it goes to the estimate as the parents' note. */
 export function SourcePick({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -31,12 +32,15 @@ export function SourcePick({ value, onChange }: { value: string; onChange: (v: s
 
 export function MomSnap() {
   const nav = useNavigate();
-  const { reload } = useData();
+  const { reload, products } = useData();
   const [ready, setReady] = useState<boolean | null>(null);
   useEffect(() => { aiStatus().then((x) => setReady(x.configured)).catch(() => setReady(false)); }, []);
   const [from, setFrom] = useState('');
   const [file, setFile] = useState<File | null>(null);
-  const [items, setItems] = useState<(EstItem & { ok?: boolean })[] | null>(null);
+  // each food: the photo's guess, our own food when its name is in the list (carbs from our value × the grams), and
+  // whether she has taken the number (✓ or a change)
+  type Row = EstItem & { ok?: boolean; match?: { id: string; name: string; c100: number } | null };
+  const [items, setItems] = useState<Row[] | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const cam = useRef<HTMLInputElement>(null), gallery = useRef<HTMLInputElement>(null);
@@ -49,7 +53,7 @@ export function MomSnap() {
     try {
       const r = await estimatePhoto(await shrinkPhoto(f), from ? `From: ${from}` : '');
       if (!r.estimate.is_food) { toast(t('ما بان أكل بالصورة. جربي مرة ثانية')); setFile(null); return; }
-      setItems(r.estimate.items); setNote(isEn() ? r.estimate.notes_en : r.estimate.notes_ar);
+      setItems(r.estimate.items.map((i) => { const p = listMatch(i, products); return p ? { ...i, match: { id: p.id, name: p.name, c100: Number(p.carbs_per_100) }, carbs_g: carbsFromList(i.grams, p.carbs_per_100) } : i; })); setNote(isEn() ? r.estimate.notes_en : r.estimate.notes_ar);
     } catch (e) {
       toast((e as Error).message === 'daily_limit' ? t('خلصت صور اليوم') : t('ما قدرت أقدّر الحين. جربي بعد شوي'));
       setFile(null);
@@ -67,7 +71,7 @@ export function MomSnap() {
       draftOps.start('now');
       const photo = await uploadPhoto(file, 'products');
       const { productId, portionId } = await saveLabelFood({ name: from ? `${name} · ${from}` : name, carbs: total, photo,
-        note: `من صورة (تقدير): ${items.map((i) => `${i.name_ar} ${fmt(i.carbs_g)} غ`).join(' + ')}${from ? ` · ${from}` : ''} · راجعته ماما` }); // i18n-ok: stored note
+        note: `من صورة (تقدير): ${items.map((i) => (i.match ? `${i.name_ar} ${fmt(i.grams)} غ × ${i.match.name} = ${fmt(i.carbs_g)} غ` : `${i.name_ar} ${fmt(i.carbs_g)} غ`)).join(' + ')}${from ? ` · ${from}` : ''} · راجعته ماما` }); // i18n-ok: stored note
       draftOps.add({ kind: 'product', id: productId, portion_id: portionId });
       await reload();
       nav('/mom/meal', { replace: true });
@@ -99,9 +103,14 @@ export function MomSnap() {
       <div className="space-y-2">
         {items.map((it, k) => (
           <div key={k} className={cx('flex items-center gap-2 rounded-2xl px-3 py-2', it.ok ? 'bg-white' : 'bg-near-soft')}>
-            <span className="min-w-0 flex-1 truncate text-[17px] font-bold" dir="auto">{isEn() ? it.name_en : it.name_ar}{!it.ok && <SourceTag s="estimate" />}</span>
-            <NumInput value={it.carbs_g} onChange={(v) => setItems((xs) => xs!.map((x, j) => (j === k ? { ...x, carbs_g: v ?? 0, ok: true } : x)))} className="!w-20 !min-h-[44px] text-center font-bold" />
-            <span className="text-[14px] text-slate-500">{t('غ')}</span>
+            <span className="min-w-0 flex-1"><b className="block truncate text-[17px]" dir="auto">{isEn() ? it.name_en : it.name_ar}{!it.ok && <SourceTag s="estimate" />}</b>
+              {/* our food: carbs from our value; she changes the grams. Otherwise the photo's own carb guess. */}
+              {it.match ? <span className="block text-[13px] text-slate-500">{t('من قائمتنا')} · <bdi>{tMaybe(it.match.name)}</bdi> · <b className="num text-slate-700">{fmt(it.carbs_g)} {t('غ كارب')}</b></span>
+                : it.hidden_sugar ? <span className="block text-[13px] text-near">{t('ممكن فيه سكر')}</span> : null}</span>
+            {it.match
+              ? <NumInput value={it.grams} onChange={(v) => setItems((xs) => xs!.map((x, j) => (j === k ? { ...x, grams: v ?? 0, carbs_g: carbsFromList(v ?? 0, x.match!.c100), ok: true } : x)))} className="!w-20 !min-h-[44px] text-center font-bold" />
+              : <NumInput value={it.carbs_g} onChange={(v) => setItems((xs) => xs!.map((x, j) => (j === k ? { ...x, carbs_g: v ?? 0, ok: true } : x)))} className="!w-20 !min-h-[44px] text-center font-bold" />}
+            <span className="text-[14px] text-slate-500">{it.match ? t('غرام') : t('غ')}</span>
             <button onClick={() => setItems((xs) => xs!.map((x, j) => (j === k ? { ...x, ok: !x.ok } : x)))} aria-label={t('استخدمي هالرقم')} aria-pressed={!!it.ok} className={cx('grid h-10 w-10 place-items-center rounded-full text-[18px] font-bold', it.ok ? 'bg-ok text-white' : 'bg-white text-slate-400')}>✓</button>
             <button onClick={() => setItems((xs) => xs!.filter((_, j) => j !== k))} aria-label={t('حذف')} className="grid h-10 w-10 place-items-center text-slate-400">✕</button>
           </div>

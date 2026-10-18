@@ -3695,6 +3695,21 @@ console.log('P0: food sources, eaten part, injections untouched');
     assert.equal(LM.labelCarbs('serving', 20, 0).problem, 'amount');
     assert.equal(LM.labelCarbs('per100g', 80, 400).problem, 'too_much', '320 g of carbs on one plate is shown, not passed on');
   });
+  test('a photo item takes its carbs from our food list when the name matches', async () => {
+    const M = await import('../../engine/estimateMatch');
+    const list = [
+      { id: 'r1', name: 'رز بسمتي مطبوخ', name_en: 'Basmati rice, cooked', carbs_per_100: '29.7', approved: true },
+      { id: 'r2', name: 'رز', name_en: 'Rice', carbs_per_100: 28, approved: true },
+      { id: 'b1', name: 'برجر كنج بطاطا (صغير)', carbs_per_100: 44, per_item: true, approved: true },
+      { id: 'x', name: 'بطاطس مقلية', name_en: 'French fries', carbs_per_100: 41, approved: false },
+      { id: 'm', name: 'Fries (Small)', brand: "McDonald's", carbs_per_100: 36, approved: true },
+    ];
+    assert.equal(M.listMatch({ name_ar: 'رز', name_en: 'rice' }, list)?.id, 'r2', 'the exact name wins');
+    assert.equal(M.listMatch({ name_ar: 'أرز بسمتي', name_en: 'basmati rice' }, list)?.id, 'r1', 'English name begins it');
+    assert.equal(M.listMatch({ name_ar: 'بطاطس مقلية', name_en: 'fries' }, list), null, 'unapproved, branded and by-the-piece foods are not used');
+    assert.equal(M.listMatch({ name_ar: 'روبيان', name_en: 'shrimp' }, list), null);
+    assert.equal(M.carbsFromList(150, '29.7'), 44.6);
+  });
   const body = (file: string, fn: string) => {
     const src = readFileSync(new URL(file, import.meta.url), 'utf8');
     const a = src.indexOf(`export async function ${fn}(`); assert.ok(a >= 0, `${fn} not found`);

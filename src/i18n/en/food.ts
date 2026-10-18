@@ -1665,6 +1665,8 @@ export const food: Record<string, string> = {
   'استخدمي هالرقم': 'Use this number',
   'شنو بتاكل {n}؟': 'What is {n} eating?',
   'تاكل الحين': 'Eating now',
+  'من قائمتنا': 'from our list',
+  'ممكن فيه سكر': 'may have sugar',
   'نفس الملصق · أضيفيه': 'Same as the label · add it',
   'صوّري جدول القيم': 'Photograph the nutrition table',
   'ما عرفت الرقم؟ كمّلي الوجبة بدونه': "Can't read the number? Go on without it",
