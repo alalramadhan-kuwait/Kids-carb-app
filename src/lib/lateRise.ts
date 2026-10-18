@@ -1,17 +1,18 @@
-// Meal names that rose late in Layan's own readings (carb.late_rise_meals), loaded once per app start. Used only to
-// show «ممكن تأثير متأخر» on more meals; it never changes a dose. On any error the set stays empty.
+// What Layan's own readings taught about a meal (carb.meal_learning): it dropped early, or rose late, at least twice.
+// Loaded once per app start; used only for notices, never for a dose. On any error the map stays empty.
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
-import { mealKey } from '../engine/iob';
+import type { Learned } from '../engine/iob';
 
-let cache: Promise<Set<string>> | null = null;
-const load = () => (cache ??= Promise.resolve(supabase.rpc('late_rise_meals')).then(({ data, error }) => {
-  if (error) { cache = null; return new Set<string>(); }
-  return new Set(((data ?? []) as { name: string }[]).map((r) => mealKey(r.name)));
-}, () => { cache = null; return new Set<string>(); }));
+type Row = { key: string; early: boolean; late: boolean; early_n: number; late_n: number };
+let cache: Promise<Map<string, Learned>> | null = null;
+const load = () => (cache ??= Promise.resolve(supabase.rpc('meal_learning')).then(({ data, error }) => {
+  if (error) { cache = null; return new Map<string, Learned>(); }
+  return new Map(((data ?? []) as Row[]).map((r) => [r.key, { early: r.early, late: r.late, earlyN: r.early_n, lateN: r.late_n }]));
+}, () => { cache = null; return new Map<string, Learned>(); }));
 
 export function useLateRise() {
-  const [set, setSet] = useState<Set<string>>(() => new Set());
-  useEffect(() => { let on = true; load().then((s) => { if (on) setSet(s); }); return () => { on = false; }; }, []);
-  return set;
+  const [map, setMap] = useState<Map<string, Learned>>(() => new Map());
+  useEffect(() => { let on = true; load().then((m) => { if (on) setMap(m); }); return () => { on = false; }; }, []);
+  return map;
 }

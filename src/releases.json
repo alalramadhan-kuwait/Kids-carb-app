@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.21.0",
+    "date": "2026-10-18",
+    "notes": [
+      "التطبيق يتعرّف على الوجبة من أصنافها مو من اسمها: «فطور» و«ريوق» بنفس التوست والبيض والجبن صاروا وجبة وحدة.",
+      "وجبة نزل بعدها السكر بدري مرتين أو أكثر تطلع عليها «صار قبل: نزل بدري · راقبوا أول ساعتين»، في الرئيسية وفي الخطة."
+    ],
+    "notes_en": [
+      "Meals are recognised by their foods, not their name: «breakfast» with the same toast, egg and cheese is one meal.",
+      "A meal after which her glucose dropped early twice or more now shows «Dropped early before · watch the first two hours», on Now and in the plan."
+    ]
+  },
+  {
     "version": "4.20.0",
     "date": "2026-10-18",
     "notes": [

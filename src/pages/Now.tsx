@@ -30,7 +30,7 @@ import { trendFrom, libreOf } from '../engine/trend';
 import { useGraphExtras } from '../hooks/useGraphExtras';
 import { fmtTime } from '../lib/constants';
 import { useLateRise } from '../lib/lateRise';
-import { carbLane, carbsFrom, dosesFrom, insulinLane, iobParamsOk, recentFatty, type OnBoardLane } from '../engine/iob';
+import { carbLane, carbsFrom, dosesFrom, insulinLane, iobParamsOk, recentEarly, recentFatty, type OnBoardLane } from '../engine/iob';
 import { GraphHelp } from '../components/ForecastKey';
 import { TrendArrow, TrendLine } from '../components/Trend';
 import { dur } from '../components/OnBoardLanes';
@@ -258,6 +258,8 @@ function NoticeRow({ now, open, sensor, error, onRetry }: { now: number; open: A
     const l = phaseLine(p, phase(p, now), now);
     list.push({ key: 'plan' + p.id, tone: 'brand', icon: 'clock', text: <><bdi className="font-bold">{p.name}</bdi> · {l.text}</>, onClick: () => sp({ plan: p.id }, { replace: true }) });
   }
+  const early = recentEarly(history, now, lateRise);
+  if (early) list.push({ key: 'early', tone: 'warm', icon: null, emoji: '🔻', text: <>{t('صار قبل: نزل بدري')} ({t('{n} مرات', { n: early.n })}): <bdi>{tMaybe(early.name)}</bdi> · {t('راقبوا لين {time}', { time: fmtTime(new Date(early.until)) })}</>, to: '/timeline' });
   const fat = recentFatty(history, now, lateRise);
   if (fat) list.push({ key: 'fat', tone: 'warm', icon: null, emoji: '🍕', text: <>{t('ممكن تأثير متأخر')}: <bdi>{tMaybe(fat.name)}</bdi>{fat.seen ? ` (${t('صار قبل')})` : ''} · {t('قد يرتفع السكر متأخرًا حتى {time}', { time: fmtTime(new Date(fat.until)) })}</>, to: '/timeline' });
   if (same) list.push({ key: 'same', tone: 'brand', icon: null, emoji: '🔁', text: t('نفس وجبة سابقة'), to: `/same/${same.target.id}`, action: t('قارن') });

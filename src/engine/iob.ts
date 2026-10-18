@@ -51,9 +51,27 @@ export const FATTY = { fatG: 25, withProteinFatG: 20, proteinG: 25, windowMin: 3
 export const isFatty = (fat: number | null | undefined, protein: number | null | undefined) =>
   fat !== null && fat !== undefined && (fat >= FATTY.fatG || (fat >= FATTY.withProteinFatG && (protein ?? 0) >= FATTY.proteinG));
 
-/** Meal names that rose late in her own readings (carb.late_rise_meals: twice or more), matched the way the server keys them. */
-export const mealKey = (name: string | null | undefined) => (name ?? '').trim().toLowerCase();
-export const learnedLate = (name: string | null | undefined, learned: ReadonlySet<string> | undefined) => !!learned?.size && learned.has(mealKey(name));
+/**
+ * What a meal was, as carb.meal_key keys it on the server: its foods (product, else the item's name), lower-cased, one
+ * of each, in code-point order; a meal with no items goes by its name, unless that is only a slot («فطور», «عشا»).
+ */
+const SLOT_NAMES = new Set(['', 'فطور', 'ريوق', 'غدا', 'غداء', 'عشا', 'عشاء', 'سناك', 'وجبة', 'breakfast', 'lunch', 'dinner', 'snack', 'meal']); // i18n-ok: data values
+const norm = (x: string | null | undefined) => (x ?? '').trim().toLowerCase();
+export function mealKey(lines: { name: string; product?: string | null }[] | null | undefined, name: string | null | undefined): string | null {
+  const ks = [...new Set((lines ?? []).map((l) => norm(l.product?.trim() ? l.product : l.name)).filter(Boolean))].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  if (ks.length) return ks.join(' + ');
+  return SLOT_NAMES.has(norm(name)) ? null : 'n:' + norm(name);
+}
+
+/** From carb.meal_learning: meals that, in her own readings, dropped early (in the 2½ h after) or rose late, each at least twice. */
+export interface Learned { early: boolean; late: boolean; earlyN: number; lateN: number }
+export type LearnedMap = ReadonlyMap<string, Learned>;
+export const learnedOf = (lines: { name: string; product?: string | null }[] | null | undefined, name: string | null | undefined, learned: LearnedMap | undefined): Learned | null => {
+  if (!learned?.size) return null;
+  const k = mealKey(lines, name);
+  return k ? learned.get(k) ?? null : null;
+};
+export const EARLY_MIN = 150;
 
 /** Rapid-acting doses only; long-acting insulin is not "on board" in this sense. */
 export const dosesFrom = (events: EventRow[]): Dose[] =>
@@ -113,12 +131,24 @@ export const modelLine = (p: IobParams | null, absorb: number | null) =>
  * The latest late-rise meal still inside its window (5 h), for the notice on Now; null when there is none. A meal counts
  * by its fat and protein, or by name when it rose late before in her readings (`seen`: that one says so).
  */
-export function recentFatty(history: { name: string; eaten_at: string; total_fat: number | null; total_protein: number | null }[], now: number, learned?: ReadonlySet<string>) {
+type HistoryLike = { name: string; eaten_at: string; total_fat: number | null; total_protein: number | null; lines?: { name: string; product?: string | null }[] | null };
+export function recentFatty(history: HistoryLike[], now: number, learned?: LearnedMap) {
   let best: { name: string; at: number; until: number; seen: boolean } | null = null;
   for (const h of history) {
-    const at = Date.parse(h.eaten_at), seen = learnedLate(h.name, learned);
+    const at = Date.parse(h.eaten_at), seen = !!learnedOf(h.lines, h.name, learned)?.late;
     if (at > now || now - at >= FATTY.windowMin * MIN || !(seen || isFatty(h.total_fat, h.total_protein))) continue;
     if (!best || at > best.at) best = { name: h.name, at, until: at + FATTY.windowMin * MIN, seen };
+  }
+  return best;
+}
+
+/** The latest meal that dropped her early before (learned), still inside its first 2½ hours: a notice on Now. */
+export function recentEarly(history: HistoryLike[], now: number, learned?: LearnedMap) {
+  let best: { name: string; at: number; until: number; n: number } | null = null;
+  for (const h of history) {
+    const at = Date.parse(h.eaten_at), l = learnedOf(h.lines, h.name, learned);
+    if (!l?.early || at > now || now - at >= EARLY_MIN * MIN) continue;
+    if (!best || at > best.at) best = { name: h.name, at, until: at + EARLY_MIN * MIN, n: l.earlyN };
   }
   return best;
 }

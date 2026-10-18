@@ -12,7 +12,7 @@ import { useSubmitId } from '../lib/useSubmitId';
 import { SameDose } from './SameDose';
 import { useLiveDose } from '../lib/useLiveDose';
 import { useLateRise } from '../lib/lateRise';
-import { learnedLate } from '../engine/iob';
+import { learnedOf } from '../engine/iob';
 import { UnknownMealNote } from './UnknownMealNote';
 import { eatAt, expectedDose, isFastDrink, phase, planAlerts, remindAt, upcoming, type PlanAlert, type Phase, type Slot } from '../engine/mealPlan';
 import { fmt } from '../lib/carbs';
@@ -116,7 +116,7 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
   const lastLow = events.filter((e) => e.kind === 'treatment').map((e) => Date.parse(e.occurred_at)).sort((a, b) => b - a)[0] ?? null;
   const lateRise = useLateRise();
   const fast = meal.lines.reduce((s, l) => s + (isFastDrink(l.ing, l.product?.category, l.carbs) ? l.carbs ?? 0 : 0), 0);
-  const alerts = planAlerts({ block: null, carbs: meal.total.carbs, fat: meal.missing.fat ? null : meal.total.fat, protein: meal.missing.protein ? null : meal.total.protein, maxCarbs: settings.max_meal_carbs, fastDrinkCarbs: fast, lastLowAt: lastLow, now, roseLateBefore: learnedLate(name, lateRise) });
+  const alerts = planAlerts({ block: null, carbs: meal.total.carbs, fat: meal.missing.fat ? null : meal.total.fat, protein: meal.missing.protein ? null : meal.total.protein, maxCarbs: settings.max_meal_carbs, fastDrinkCarbs: fast, lastLowAt: lastLow, now, ...learnedFlags(learnedOf(keyLines(meal.lines), name, lateRise)) });
   const ratio = ratioAt(settings.ratios ?? [], Math.round(((doseAt + KW) % 86400000) / MIN))?.cr ?? null;
   const exp = expectedDose(meal.total.carbs, ratio, settings.pen_step ?? 1);
   const addRecipe = (r: Recipe) => {
@@ -212,6 +212,11 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
   );
 }
 
+/** The meal's foods the way they are saved to the log (api.ts), so they key the same as in her history. */
+const keyLines = (lines: { ing: { label?: string | null; slot_category?: string | null }; product?: { name: string; brand?: string | null } | null }[]) =>
+  lines.map((l) => ({ name: l.ing.label ?? l.product?.name ?? l.ing.slot_category ?? '', product: l.product ? [l.product.name, l.product.brand].filter(Boolean).join(' — ') : null }));
+const learnedFlags = (l: { early: boolean; late: boolean } | null) => ({ roseLateBefore: !!l?.late, droppedEarlyBefore: !!l?.early });
+
 const ALERT_TEXT = (a: PlanAlert) => ({
   treat_first: t('منخفض أو ينزل بسرعة: عالجوا أولًا حسب خطة الرعاية (15 غ ثم إعادة القياس بعد 15 د). لا جرعة ولا أكل الآن.'),
   no_reading: t('لا قراءة حديثة أو الحساس يسخّن: قيسوا بالوخز أولًا.'),
@@ -219,6 +224,7 @@ const ALERT_TEXT = (a: PlanAlert) => ({
   recent_low: t('كان منخفضًا {time} خلال آخر 12 ساعة.', { time: a.at ? clock(a.at) : '' }),
   fast_drink: t('عصير مع الوجبة: يرفع السكر خلال 10–15 د، أسرع من الإنسولين.'),
   over_max: t('فوق الحد الأقصى للكارب في الوجبة.'),
+  early: t('صار قبل: نزل السكر بدري بعد هذي الوجبة. راقبوا أول ساعتين.'),
   fatty: t('ممكن تأثير متأخر: راقبوا السكر بعد ٣–٥ ساعات.'),
 }[a.key]);
 function Alerts({ list }: { list: PlanAlert[] }) {
@@ -278,7 +284,7 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
   const lastLow = events.filter((e) => e.kind === 'treatment').map((e) => Date.parse(e.occurred_at)).sort((a, b) => b - a)[0] ?? null;
   const lateRise = useLateRise();
   const drinks = meal.lines.map((l, i) => ({ i, l })).filter(({ l }) => isFastDrink(l.ing, l.product?.category, l.carbs));
-  const alerts = planAlerts({ block: r.block, until: r.until, carbs: meal.total.carbs, fat: meal.missing.fat ? null : meal.total.fat, protein: meal.missing.protein ? null : meal.total.protein, maxCarbs: settings.max_meal_carbs, fastDrinkCarbs: drinks.reduce((s, d) => s + (d.l.carbs ?? 0), 0), lastLowAt: lastLow, now, roseLateBefore: learnedLate(plan.name, lateRise) });
+  const alerts = planAlerts({ block: r.block, until: r.until, carbs: meal.total.carbs, fat: meal.missing.fat ? null : meal.total.fat, protein: meal.missing.protein ? null : meal.total.protein, maxCarbs: settings.max_meal_carbs, fastDrinkCarbs: drinks.reduce((s, d) => s + (d.l.carbs ?? 0), 0), lastLowAt: lastLow, now, ...learnedFlags(learnedOf(keyLines(meal.lines), plan.name, lateRise)) });
   const run = async (f: () => Promise<void>, msg: string, close = false) => {
     setBusy(true);
     try { await f(); await reload(); toast(msg); if (close) onClose(); }

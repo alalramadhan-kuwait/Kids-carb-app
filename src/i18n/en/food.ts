@@ -1660,6 +1660,10 @@ export const food: Record<string, string> = {
   'ممكن تأثير متأخر: راقبوا السكر بعد ٣–٥ ساعات.': 'May rise late: watch glucose 3–5 hours after.',
   'ممكن تأثير متأخر': 'May rise late',
   'صار قبل': 'it did before',
+  'صار قبل: نزل بدري': 'Dropped early before',
+  '{n} مرات': '{n} times',
+  'راقبوا لين {time}': 'watch until {time}',
+  'صار قبل: نزل السكر بدري بعد هذي الوجبة. راقبوا أول ساعتين.': 'Before, her glucose dropped early after this meal. Watch the first two hours.',
   'ممكن تأثير متأخر · دهون {f} غ': 'May rise late · fat {f} g',
   'تأثير متأخر: ارتفع السكر مرة ثانية بعد ٣ ساعات.': 'Late effect: glucose rose again after 3 hours.',
 };

@@ -33,7 +33,7 @@ export const upcoming = <T extends PlanTimes>(plans: T[], now: number) =>
  *  The real one is calculated at the check, with her glucose and the insulin still working then. */
 export const expectedDose = (carbs: number, cr: number | null, step: number) => (cr && cr > 0 ? Math.floor(carbs / cr / step + 1e-9) * step : null);
 
-export type AlertKey = 'treat_first' | 'no_reading' | 'gap' | 'fatty' | 'over_max' | 'fast_drink' | 'recent_low';
+export type AlertKey = 'treat_first' | 'no_reading' | 'gap' | 'fatty' | 'early' | 'over_max' | 'fast_drink' | 'recent_low';
 export interface PlanAlert { key: AlertKey; tone: 'red' | 'amber'; until?: number; at?: number }
 
 /**
@@ -42,7 +42,7 @@ export interface PlanAlert { key: AlertKey; tone: 'red' | 'amber'; until?: numbe
  */
 export function planAlerts(p: {
   block: DoseBlock | null; until?: number; carbs: number; fat: number | null; protein: number | null; maxCarbs: number;
-  fastDrinkCarbs: number; lastLowAt: number | null; now: number; roseLateBefore?: boolean;
+  fastDrinkCarbs: number; lastLowAt: number | null; now: number; roseLateBefore?: boolean; droppedEarlyBefore?: boolean;
 }): PlanAlert[] {
   const out: PlanAlert[] = [];
   if (p.block === 'low' || p.block === 'falling') out.push({ key: 'treat_first', tone: 'red' });
@@ -51,6 +51,7 @@ export function planAlerts(p: {
   if (p.lastLowAt !== null && p.now - p.lastLowAt <= 12 * 60 * MIN) out.push({ key: 'recent_low', tone: 'amber', at: p.lastLowAt });
   if (p.fastDrinkCarbs >= 10) out.push({ key: 'fast_drink', tone: 'amber' });
   if (p.carbs > p.maxCarbs) out.push({ key: 'over_max', tone: 'amber' });
+  if (p.droppedEarlyBefore) out.push({ key: 'early', tone: 'amber' });
   if (p.roseLateBefore || isFatty(p.fat, p.protein)) out.push({ key: 'fatty', tone: 'amber' });
   return out;
 }
