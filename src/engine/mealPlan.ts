@@ -42,7 +42,7 @@ export interface PlanAlert { key: AlertKey; tone: 'red' | 'amber'; until?: numbe
  */
 export function planAlerts(p: {
   block: DoseBlock | null; until?: number; carbs: number; fat: number | null; protein: number | null; maxCarbs: number;
-  fastDrinkCarbs: number; lastLowAt: number | null; now: number;
+  fastDrinkCarbs: number; lastLowAt: number | null; now: number; roseLateBefore?: boolean;
 }): PlanAlert[] {
   const out: PlanAlert[] = [];
   if (p.block === 'low' || p.block === 'falling') out.push({ key: 'treat_first', tone: 'red' });
@@ -51,7 +51,7 @@ export function planAlerts(p: {
   if (p.lastLowAt !== null && p.now - p.lastLowAt <= 12 * 60 * MIN) out.push({ key: 'recent_low', tone: 'amber', at: p.lastLowAt });
   if (p.fastDrinkCarbs >= 10) out.push({ key: 'fast_drink', tone: 'amber' });
   if (p.carbs > p.maxCarbs) out.push({ key: 'over_max', tone: 'amber' });
-  if (isFatty(p.fat, p.protein)) out.push({ key: 'fatty', tone: 'amber' });
+  if (p.roseLateBefore || isFatty(p.fat, p.protein)) out.push({ key: 'fatty', tone: 'amber' });
   return out;
 }
 

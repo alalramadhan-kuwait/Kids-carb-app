@@ -1930,6 +1930,7 @@ console.log('planned meals');
     const a = MP.planAlerts({ block: low.block, carbs: 48.8, fat: 15, protein: 12, maxCarbs: 60, fastDrinkCarbs: 18.75, lastLowAt: at(3, 52), now: at(6, 30) });
     assert.deepEqual(a.map((x) => x.key), ['treat_first', 'recent_low', 'fast_drink'], 'toast and eggs (15 g fat) is no longer a late-rise meal');
     assert.equal(a[0].tone, 'red');
+    assert.ok(MP.planAlerts({ block: null, carbs: 30, fat: 5, protein: 5, maxCarbs: 60, fastDrinkCarbs: 0, lastLowAt: null, now: at(6, 30), roseLateBefore: true }).some((x) => x.key === 'fatty'), 'a meal that rose late before gets the late-rise note');
     const after = D.suggestDose({ ...base, now: at(6, 46), carbs: 30, glucose: { mg: 90, at: at(6, 45), level: 1 } });
     assert.equal(after.block, null); assert.equal(after.dose, 1, '30 ÷ 15 = 2, minus (99 − 90) ÷ 54, rounded down');
     const normal = D.suggestDose({ ...base, now: at(6, 30), carbs: 48.8, glucose: { mg: 115, at: at(6, 29), level: 0 } });
@@ -2071,6 +2072,12 @@ console.log('fatty meals');
     const h = (min: number, fat: number | null) => ({ name: 'x' + min, eaten_at: new Date(T - min * M).toISOString(), total_fat: fat, total_protein: null });
     assert.equal(I.recentFatty([h(60, 28), h(30, 2)], T)?.name, 'x60');
     assert.equal(I.recentFatty([h(301, 28)], T), null, 'after 5 h: no notice');
+    const lean = { name: ' Nuggets ', eaten_at: new Date(T - 60 * 60000).toISOString(), total_fat: 12, total_protein: 10 };
+    assert.equal(I.recentFatty([lean], T), null, 'lean meal, nothing learned: no notice');
+    const seen = I.recentFatty([lean], T, new Set(['nuggets']));
+    assert.ok(seen && seen.seen, 'a meal that rose late twice before: notice by name, said to be from before');
+    assert.equal(I.recentFatty([h(60, 28)], T, new Set(['other']))?.seen, false);
+    assert.ok(!I.learnedLate('x', new Set()) && I.learnedLate('NUGGETS ', new Set(['nuggets'])));
   });
 }
 

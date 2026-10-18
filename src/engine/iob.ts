@@ -51,6 +51,10 @@ export const FATTY = { fatG: 25, withProteinFatG: 20, proteinG: 25, windowMin: 3
 export const isFatty = (fat: number | null | undefined, protein: number | null | undefined) =>
   fat !== null && fat !== undefined && (fat >= FATTY.fatG || (fat >= FATTY.withProteinFatG && (protein ?? 0) >= FATTY.proteinG));
 
+/** Meal names that rose late in her own readings (carb.late_rise_meals: twice or more), matched the way the server keys them. */
+export const mealKey = (name: string | null | undefined) => (name ?? '').trim().toLowerCase();
+export const learnedLate = (name: string | null | undefined, learned: ReadonlySet<string> | undefined) => !!learned?.size && learned.has(mealKey(name));
+
 /** Rapid-acting doses only; long-acting insulin is not "on board" in this sense. */
 export const dosesFrom = (events: EventRow[]): Dose[] =>
   events.filter((e) => !e.deleted_at && e.kind === 'insulin' && e.insulin_type !== 'long' && e.insulin_units)
@@ -105,13 +109,16 @@ export const modelLine = (p: IobParams | null, absorb: number | null) =>
   [p ? t('IOB: نموذج أُسّي، مدة {h} س، الذروة {m} د', { h: Math.round(p.dia / 60 * 10) / 10, m: p.peak }) : null, absorb ? t('COB: امتصاص خطّي خلال {m} د', { m: absorb }) : null]
     .filter(Boolean).join(' · ') + ' — ' + t('من الفريق الطبي، للعرض فقط');
 
-/** The latest fatty meal still inside its late-rise window (5 h), for the notice on Now; null when there is none. */
-export function recentFatty(history: { name: string; eaten_at: string; total_fat: number | null; total_protein: number | null }[], now: number) {
-  let best: { name: string; at: number; until: number } | null = null;
+/**
+ * The latest late-rise meal still inside its window (5 h), for the notice on Now; null when there is none. A meal counts
+ * by its fat and protein, or by name when it rose late before in her readings (`seen`: that one says so).
+ */
+export function recentFatty(history: { name: string; eaten_at: string; total_fat: number | null; total_protein: number | null }[], now: number, learned?: ReadonlySet<string>) {
+  let best: { name: string; at: number; until: number; seen: boolean } | null = null;
   for (const h of history) {
-    const at = Date.parse(h.eaten_at);
-    if (at > now || now - at >= FATTY.windowMin * MIN || !isFatty(h.total_fat, h.total_protein)) continue;
-    if (!best || at > best.at) best = { name: h.name, at, until: at + FATTY.windowMin * MIN };
+    const at = Date.parse(h.eaten_at), seen = learnedLate(h.name, learned);
+    if (at > now || now - at >= FATTY.windowMin * MIN || !(seen || isFatty(h.total_fat, h.total_protein))) continue;
+    if (!best || at > best.at) best = { name: h.name, at, until: at + FATTY.windowMin * MIN, seen };
   }
   return best;
 }

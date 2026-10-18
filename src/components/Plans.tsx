@@ -11,6 +11,8 @@ import { adoptDose, approveDose, ate, logPendingMeal, deletePlan, planMeal, save
 import { useSubmitId } from '../lib/useSubmitId';
 import { SameDose } from './SameDose';
 import { useLiveDose } from '../lib/useLiveDose';
+import { useLateRise } from '../lib/lateRise';
+import { learnedLate } from '../engine/iob';
 import { UnknownMealNote } from './UnknownMealNote';
 import { eatAt, expectedDose, isFastDrink, phase, planAlerts, remindAt, upcoming, type PlanAlert, type Phase, type Slot } from '../engine/mealPlan';
 import { fmt } from '../lib/carbs';
@@ -112,8 +114,9 @@ export function PlanSheet({ open, plan, seed, onClose }: { open: boolean; plan?:
   }, [past, recipeId, name, plan?.id, meal.total.carbs, settings.plan_review_rules]);
   const doseAt = at(day, time);
   const lastLow = events.filter((e) => e.kind === 'treatment').map((e) => Date.parse(e.occurred_at)).sort((a, b) => b - a)[0] ?? null;
+  const lateRise = useLateRise();
   const fast = meal.lines.reduce((s, l) => s + (isFastDrink(l.ing, l.product?.category, l.carbs) ? l.carbs ?? 0 : 0), 0);
-  const alerts = planAlerts({ block: null, carbs: meal.total.carbs, fat: meal.missing.fat ? null : meal.total.fat, protein: meal.missing.protein ? null : meal.total.protein, maxCarbs: settings.max_meal_carbs, fastDrinkCarbs: fast, lastLowAt: lastLow, now });
+  const alerts = planAlerts({ block: null, carbs: meal.total.carbs, fat: meal.missing.fat ? null : meal.total.fat, protein: meal.missing.protein ? null : meal.total.protein, maxCarbs: settings.max_meal_carbs, fastDrinkCarbs: fast, lastLowAt: lastLow, now, roseLateBefore: learnedLate(name, lateRise) });
   const ratio = ratioAt(settings.ratios ?? [], Math.round(((doseAt + KW) % 86400000) / MIN))?.cr ?? null;
   const exp = expectedDose(meal.total.carbs, ratio, settings.pen_step ?? 1);
   const addRecipe = (r: Recipe) => {
@@ -273,8 +276,9 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
   const [busy, setBusy] = useState(false);
   const unit = settings.glucose_unit, gl = (mg: number) => formatGlucose(mg, unit);
   const lastLow = events.filter((e) => e.kind === 'treatment').map((e) => Date.parse(e.occurred_at)).sort((a, b) => b - a)[0] ?? null;
+  const lateRise = useLateRise();
   const drinks = meal.lines.map((l, i) => ({ i, l })).filter(({ l }) => isFastDrink(l.ing, l.product?.category, l.carbs));
-  const alerts = planAlerts({ block: r.block, until: r.until, carbs: meal.total.carbs, fat: meal.missing.fat ? null : meal.total.fat, protein: meal.missing.protein ? null : meal.total.protein, maxCarbs: settings.max_meal_carbs, fastDrinkCarbs: drinks.reduce((s, d) => s + (d.l.carbs ?? 0), 0), lastLowAt: lastLow, now });
+  const alerts = planAlerts({ block: r.block, until: r.until, carbs: meal.total.carbs, fat: meal.missing.fat ? null : meal.total.fat, protein: meal.missing.protein ? null : meal.total.protein, maxCarbs: settings.max_meal_carbs, fastDrinkCarbs: drinks.reduce((s, d) => s + (d.l.carbs ?? 0), 0), lastLowAt: lastLow, now, roseLateBefore: learnedLate(plan.name, lateRise) });
   const run = async (f: () => Promise<void>, msg: string, close = false) => {
     setBusy(true);
     try { await f(); await reload(); toast(msg); if (close) onClose(); }

@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.20.0",
+    "date": "2026-10-18",
+    "notes": [
+      "التطبيق يتعلّم من سكر ليان: الوجبة اللي ارتفع بعدها السكر متأخر مرتين أو أكثر تطلع عليها «ممكن تأثير متأخر» حتى لو دهونها قليلة."
+    ],
+    "notes_en": [
+      "The app learns from Layan's readings: a meal that rose late twice or more now shows «May rise late», even when its fat is low."
+    ]
+  },
+  {
     "version": "4.19.2",
     "date": "2026-10-18",
     "notes": [
