@@ -12,14 +12,26 @@ Be honest about what a photo cannot show. Use low confidence when the portion or
 
 Keep it short: each name at most three words (in Arabic as people in Kuwait say it, e.g. «بسكويت شوكولاتة»), and each note at most twelve words about the one thing most worth checking, or empty. When the parents say where the food is from (a restaurant or a brand), use that place's usual portions and recipes.
 
+A nutrition label is not a plate: if the photo shows a pack's nutrition table rather than food ready to eat, set is_label to true, leave items empty, and fill label with the numbers exactly as printed per 100 g (or per 100 ml for drinks), the serving size and the pack size when printed (else null), and the product's name. Never guess how much will be eaten and never turn the per 100 numbers into a portion; the parents weigh or count what she eats. Use null for a number you cannot read. Otherwise set is_label to false and leave the label fields empty or null.
+
 Never mention insulin, doses or treatment. If there is no food or drink in the photo, set is_food to false and leave items empty.`;
 
 export const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['is_food', 'items', 'notes_ar', 'notes_en'],
+  required: ['is_food', 'is_label', 'label', 'items', 'notes_ar', 'notes_en'],
   properties: {
     is_food: { type: 'boolean' },
+    is_label: { type: 'boolean' },
+    label: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['name_ar', 'name_en', 'unit', 'carbs_per100', 'serving', 'pack'],
+      properties: {
+        name_ar: { type: 'string' }, name_en: { type: 'string' }, unit: { type: 'string', enum: ['g', 'ml'] },
+        carbs_per100: { type: ['number', 'null'] }, serving: { type: ['number', 'null'] }, pack: { type: ['number', 'null'] },
+      },
+    },
     items: {
       type: 'array',
       items: {
@@ -42,14 +54,25 @@ export interface EstItem {
   name_ar: string; name_en: string; grams: number; carbs_g: number; protein_g: number; fat_g: number; kcal: number;
   confidence: 'low' | 'medium' | 'high'; hidden_sugar: boolean;
 }
-export interface Estimate { is_food: boolean; items: EstItem[]; notes_ar: string; notes_en: string; total: { carbs_g: number; protein_g: number; fat_g: number; kcal: number } }
+/** A nutrition label photographed in place of a plate: per 100 numbers only, never a portion. */
+export interface EstLabel { name_ar: string; name_en: string; unit: 'g' | 'ml'; carbs_per100: number; serving: number | null; pack: number | null }
+export interface Estimate { is_food: boolean; label: EstLabel | null; items: EstItem[]; notes_ar: string; notes_en: string; total: { carbs_g: number; protein_g: number; fat_g: number; kcal: number } }
 
 const num = (x: unknown, max: number) => { const n = Number(x); return Number.isFinite(n) ? Math.min(max, Math.max(0, Math.round(n * 10) / 10)) : 0; };
 const str = (x: unknown, max = 120) => (typeof x === 'string' ? x.trim().slice(0, max) : '');
+const opt = (x: unknown, max: number) => { if (x === null || x === undefined || x === '') return null; const n = Number(x); return Number.isFinite(n) && n >= 0 && n <= max ? Math.round(n * 10) / 10 : null; };
 
-/** Make the model's answer safe to show: bounded numbers, carbs never above the weight, totals computed here. */
+/** Make the model's answer safe to show: bounded numbers, carbs never above the weight, totals computed here. A label
+ * comes back as its per 100 numbers with no foods, so no portion is ever assumed from it; unreadable carbs mean no label. */
 export function cleanEstimate(raw: unknown): Estimate {
   const r = (raw ?? {}) as Record<string, unknown>;
+  const l = (r.label ?? {}) as Record<string, unknown>;
+  const c100 = opt(l.carbs_per100, 100);
+  const label: EstLabel | null = r.is_label === true && c100 !== null ? {
+    name_ar: str(l.name_ar, 60) || str(l.name_en, 60), name_en: str(l.name_en, 60) || str(l.name_ar, 60), unit: l.unit === 'ml' ? 'ml' : 'g',
+    carbs_per100: c100, serving: opt(l.serving, 5000) || null, pack: opt(l.pack, 10000) || null,
+  } : null;
+  if (r.is_label === true) return { is_food: false, label, items: [], notes_ar: str(r.notes_ar, 400), notes_en: str(r.notes_en, 400), total: { carbs_g: 0, protein_g: 0, fat_g: 0, kcal: 0 } };
   const items = (Array.isArray(r.items) ? r.items : []).slice(0, 12).map((x) => {
     const i = (x ?? {}) as Record<string, unknown>;
     const grams = num(i.grams, 2000);
@@ -62,7 +85,7 @@ export function cleanEstimate(raw: unknown): Estimate {
   }).filter((i) => i.name_ar || i.name_en);
   const sum = (k: 'carbs_g' | 'protein_g' | 'fat_g' | 'kcal') => Math.round(items.reduce((s, i) => s + i[k], 0) * 10) / 10;
   return {
-    is_food: r.is_food === true && items.length > 0, items,
+    is_food: r.is_food === true && items.length > 0, label: null, items,
     notes_ar: str(r.notes_ar, 400), notes_en: str(r.notes_en, 400),
     total: { carbs_g: sum('carbs_g'), protein_g: sum('protein_g'), fat_g: sum('fat_g'), kcal: Math.round(sum('kcal')) },
   };
@@ -109,7 +132,6 @@ export interface Label {
   label_style: 'eu_fibre_excluded' | 'fibre_included' | 'unknown'; uncertain: string[];
 }
 
-const opt = (x: unknown, max: number) => { if (x === null || x === undefined || x === '') return null; const n = Number(x); return Number.isFinite(n) && n >= 0 && n <= max ? Math.round(n * 10) / 10 : null; };
 const FIELDS = ['name', 'brand', 'barcode', 'serving', 'pack', 'carbs', 'sugar', 'fiber', 'fat', 'protein', 'kcal'];
 
 /** Make a label reading safe to prefill: impossible numbers become blanks (and are flagged), nothing is invented. */

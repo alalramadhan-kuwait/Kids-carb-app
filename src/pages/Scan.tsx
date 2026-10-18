@@ -42,7 +42,9 @@ export default function Scan() {
         setStep({ s: 'working', url: photo.url, ai: true });
         try {
           const r = await estimatePhoto(photo, from ? `From: ${from}` : '');
-          if (r.estimate.is_food) return setStep({ s: 'estimated', url: photo.url, file, items: r.estimate.items, note: isEn() ? r.estimate.notes_en : r.estimate.notes_ar, scanId: r.scan_id });
+          // a label's numbers are per 100: it belongs in the product list, not logged as a portion
+          if (r.estimate.label) setErr(t('هذا ملصق: الأرقام لكل 100، مو الكمية اللي انأكلت. أضيفوه كمنتج واوزنوا اللي انأكل'));
+          else if (r.estimate.is_food) return setStep({ s: 'estimated', url: photo.url, file, items: r.estimate.items, note: isEn() ? r.estimate.notes_en : r.estimate.notes_ar, scanId: r.scan_id });
           setErr(t('ما لقيت أكل واضح بالصورة. اكتبوا الكارب بأنفسكم'));
         } catch (e) {
           const code = (e as Error).message;

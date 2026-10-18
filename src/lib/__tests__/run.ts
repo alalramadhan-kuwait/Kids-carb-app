@@ -1079,6 +1079,24 @@ test('photo estimates are cleaned: bounded numbers, carbs never above the weight
   assert.equal(SCHEMA.additionalProperties, false); assert.equal(SCHEMA.properties.items.items.additionalProperties, false);
 });
 
+test('a label in a food photo comes back per 100 only: no food, no portion, unreadable carbs mean no label', async () => {
+  const { cleanEstimate, SCHEMA } = await import('../../../supabase/functions/carb-food/estimate');
+  // the chocolate bar label that came back as «61.1 g» of carbs: now it is 61.1 per 100 g and nothing is eaten yet
+  const e = cleanEstimate({ is_food: true, is_label: true, notes_ar: '', notes_en: 'Weigh the piece',
+    label: { name_ar: 'شوكولاتة', name_en: 'Chocolate', unit: 'g', carbs_per100: 61.1, serving: null, pack: 0 },
+    items: [{ name_ar: 'شوكولاتة', name_en: 'Chocolate', grams: 100, carbs_g: 61.1, protein_g: 0, fat_g: 0, kcal: 475, confidence: 'high', hidden_sugar: false }] });
+  assert.deepEqual(e.label, { name_ar: 'شوكولاتة', name_en: 'Chocolate', unit: 'g', carbs_per100: 61.1, serving: null, pack: null });
+  assert.equal(e.items.length, 0, 'a label never becomes a food on the plate'); assert.equal(e.is_food, false); assert.equal(e.total.carbs_g, 0);
+  const ml = cleanEstimate({ is_label: true, label: { name_en: 'Cocoa', unit: 'ml', carbs_per100: '12', serving: 200, pack: 1000 } });
+  assert.equal(ml.label?.unit, 'ml'); assert.equal(ml.label?.carbs_per100, 12); assert.equal(ml.label?.serving, 200); assert.equal(ml.label?.name_ar, 'Cocoa');
+  for (const c of [null, 'x', 140, -3]) {
+    const bad = cleanEstimate({ is_label: true, label: { name_en: 'X', unit: 'g', carbs_per100: c, serving: 30, pack: null } });
+    assert.equal(bad.label, null, `carbs ${c}: nothing to prefill`); assert.equal(bad.items.length, 0, 'and still no portion');
+  }
+  assert.equal(cleanEstimate({ is_food: true, is_label: false, label: { carbs_per100: 50 }, items: [{ name_en: 'Rice', grams: 100, carbs_g: 28 }] }).label, null);
+  assert.equal(SCHEMA.properties.label.additionalProperties, false);
+});
+
 test('label readings are cleaned: impossible numbers blanked and flagged, nothing invented', async () => {
   const { cleanLabel, LABEL_SCHEMA } = await import('../../../supabase/functions/carb-food/estimate');
   const l = cleanLabel({ is_label: true, name: 'Protein Wraps', brand: 'Nano Supps', barcode: 'EAN 5 060 123 456 789', category: 'خبز', unit: 'g', serving: 40, pack: 240,

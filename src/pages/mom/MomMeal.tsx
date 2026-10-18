@@ -18,6 +18,7 @@ import { Big, Choice, MomPage, okToReplace, SourceTag } from './MomUI';
 import { carbSource } from '../../engine/source';
 import { isPer100, labelCarbs, type LabelBasis } from '../../engine/labelMath';
 import { readLabelLocal } from '../../lib/labelOcr';
+import type { EstLabel } from '../../lib/food';
 import type { Ingredient, PlanItem, Product, Recipe } from '../../lib/types';
 import { reusable } from '../../lib/entryActions';
 import { mealGi } from '../../engine/gi';
@@ -589,12 +590,17 @@ export function MomNew() {
   const nav = useNavigate();
   const { reload, products } = useData();
   const [sp] = useSearchParams();
-  const [name, setName] = useState(() => sp.get('name') ?? ''); // what she searched for
+  // a label photographed in «صوّري الأكل» arrives read: per 100 numbers and the photo, but never the amount eaten
+  const handed = (useLocation().state ?? null) as { label?: EstLabel; photo?: File } | null;
+  const got = handed?.label ?? null;
+  const [name, setName] = useState(() => sp.get('name') ?? (got ? (isEn() ? got.name_en : got.name_ar) : '')); // what she searched for
   // the label read on the phone (no AI, no internet): it only fills the boxes; she sees the numbers and the total,
   // and one tap means «these are the label's numbers». A number the reader was not sure of waits for her to touch it.
-  const [basis, setBasis] = useState<LabelBasis>('per100g');
-  const [carbsText, setCarbsText] = useState('');
+  const [basis, setBasis] = useState<LabelBasis>(got?.unit === 'ml' ? 'per100ml' : 'per100g');
+  const [carbsText, setCarbsText] = useState(got ? String(got.carbs_per100) : '');
   const [amountText, setAmountText] = useState('');
+  // the printed serving and pack, offered as one-tap amounts; the amount itself is always hers
+  const [sizes, setSizes] = useState<{ serving: number | null; pack: number | null }>({ serving: got?.serving ?? null, pack: got?.pack ?? null });
   const [unsure, setUnsure] = useState(false);
   const [reading, setReading] = useState(false);
   const num = (x: string) => (x.trim() === '' ? null : Number(x.replace(',', '.')));
@@ -602,7 +608,7 @@ export function MomNew() {
   const r = labelCarbs(basis, num(carbsText), per100 ? num(amountText) : num(amountText) ?? 1);
   // the same name already in the list: that one is offered, so a food is never entered twice
   const same = name.trim().length >= 2 ? products.find((p) => p.approved && matchTier([p.name, p.name_ar, p.name_en], [], name) === 0) ?? null : null;
-  const [file, setFile] = useState<File | null>(null);
+  const [file, setFile] = useState<File | null>(handed?.photo ?? null);
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null), camera = useRef<HTMLInputElement>(null);
   const preview = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
@@ -612,7 +618,7 @@ export function MomNew() {
     try {
       const l = await readLabelLocal(f, f, isEn() ? 'en' : 'ar');
       if (l.per100.carbs !== null) { setBasis(l.unit === 'ml' ? 'per100ml' : 'per100g'); setCarbsText(String(l.per100.carbs)); }
-      if (l.serving) setAmountText(String(l.serving));
+      setSizes({ serving: l.serving, pack: l.pack }); setAmountText('');
       setUnsure(!l.is_label || l.uncertain.includes('carbs'));
     } catch { setUnsure(true); } finally { setReading(false); }
   };
@@ -661,6 +667,11 @@ export function MomNew() {
           <label className="block"><span className="text-[14px] text-slate-500">{per100 ? (basis === 'per100ml' ? t('كم مل أكلت؟') : t('كم غرام أكلت؟')) : basis === 'serving' ? t('كم حصة؟') : t('كم حبة؟')}</span>
             <input className={cx(inputCls, 'num', r.problem === 'amount' && amountText && 'border-near')} inputMode="decimal" dir="ltr" value={amountText} onChange={(e) => setAmountText(e.target.value.replace(/[^\d.,]/g, ''))} placeholder={per100 ? (basis === 'per100ml' ? t('مل') : t('غ')) : '1'} /></label>
         </div>
+        {per100 && (sizes.serving || sizes.pack) && <div className="flex flex-wrap gap-1.5">
+          {sizes.serving ? <button onClick={() => setAmountText(String(sizes.serving))} className="min-h-[40px] rounded-full bg-brand-soft px-3 text-[14px] font-bold text-brand">{t('حصة الملصق: {n}', { n: `${fmt(sizes.serving)} ${basis === 'per100ml' ? t('مل') : t('غ')}` })}</button> : null}
+          {sizes.pack ? <button onClick={() => setAmountText(String(sizes.pack))} className="min-h-[40px] rounded-full bg-brand-soft px-3 text-[14px] font-bold text-brand">{t('العلبة كلها: {n}', { n: `${fmt(sizes.pack)} ${basis === 'per100ml' ? t('مل') : t('غ')}` })}</button> : null}
+        </div>}
+        {per100 && file && !reading && !amountText && carbsText && <p className="text-[14px] font-bold text-near">{basis === 'per100ml' ? t('الرقم لكل 100 مل · كم شربت؟') : t('الرقم لكل 100 غ · اوزني اللي بتاكله')}</p>}
         {unsure && file && !reading && <p className="text-[14px] font-bold text-near">{carbsText ? t('تأكدي من رقم الكارب مع الملصق') : t('ما قدرت أقرأ الكارب · اكتبيه من الملصق')}</p>}
         {r.problem === 'carbs' && carbsText && <p className="text-[14px] font-bold text-near">{per100 ? t('رقم الكارب لكل 100 ما يزيد عن 100') : t('رقم الكارب كبير، تأكدي منه')}</p>}
         {r.problem === 'too_much' && <p className="text-[14px] font-bold text-near">{t('المجموع كبير جدًا، تأكدي من الأرقام')}</p>}
