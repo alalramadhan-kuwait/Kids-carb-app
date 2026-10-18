@@ -89,7 +89,7 @@ export function MomSnap() {
   if (items && file) return (
     <MomPage compact title={t('راجعي الكارب')} back="/mom/actions/food" foot={<>
       <div className="flex items-baseline justify-between px-1"><span className="text-[15px] text-slate-500">{t('المجموع')}</span><b className="num text-[26px] leading-none">{fmt(total)} {t('غ')}</b></div>
-      {!allChecked && <p className="text-center text-[14px] font-bold text-near">{t('تأكدي من كل رقم: ✓ أو عدّليه')}</p>}
+      {!allChecked && <p className="text-center text-[14px] font-bold text-near">{t('✓ تستخدمين الرقم التقريبي، أو عدّليه')}</p>}
       <Big md disabled={busy || !allChecked} onClick={toPlate}>✓ {t('حطيه بالصحن')}</Big>
       <Big tone="ghost" className="!min-h-[44px]" onClick={() => cam.current?.click()}>📷 {t('صورة ثانية')}</Big>
     </>}>
@@ -102,7 +102,7 @@ export function MomSnap() {
             <span className="min-w-0 flex-1 truncate text-[17px] font-bold" dir="auto">{isEn() ? it.name_en : it.name_ar}{!it.ok && <SourceTag s="estimate" />}</span>
             <NumInput value={it.carbs_g} onChange={(v) => setItems((xs) => xs!.map((x, j) => (j === k ? { ...x, carbs_g: v ?? 0, ok: true } : x)))} className="!w-20 !min-h-[44px] text-center font-bold" />
             <span className="text-[14px] text-slate-500">{t('غ')}</span>
-            <button onClick={() => setItems((xs) => xs!.map((x, j) => (j === k ? { ...x, ok: !x.ok } : x)))} aria-label={t('الرقم صحيح')} aria-pressed={!!it.ok} className={cx('grid h-10 w-10 place-items-center rounded-full text-[18px] font-bold', it.ok ? 'bg-ok text-white' : 'bg-white text-slate-400')}>✓</button>
+            <button onClick={() => setItems((xs) => xs!.map((x, j) => (j === k ? { ...x, ok: !x.ok } : x)))} aria-label={t('استخدمي هالرقم')} aria-pressed={!!it.ok} className={cx('grid h-10 w-10 place-items-center rounded-full text-[18px] font-bold', it.ok ? 'bg-ok text-white' : 'bg-white text-slate-400')}>✓</button>
             <button onClick={() => setItems((xs) => xs!.filter((_, j) => j !== k))} aria-label={t('حذف')} className="grid h-10 w-10 place-items-center text-slate-400">✕</button>
           </div>
         ))}

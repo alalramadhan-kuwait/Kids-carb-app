@@ -3677,6 +3677,13 @@ console.log('P0: food sources, eaten part, injections untouched');
     const back = E.eatenFromLogged({ ...half.totals, lines: half.lines }, 1, 0.5);
     assert.equal(back.carbs, 44); assert.deepEqual(back.lines.map((l) => l.quantity), [150, 2]);
   });
+  test('the same meal as in the screen check: edited, «نصها», then «كلها» gives back exactly what was served', () => {
+    const served = { lines: [{ name: 'تفاح', quantity: 170, carbs: 23.5 }, { name: 'أرز أبيض مطبوخ', quantity: 100, carbs: 28.2 }], total_carbs: 51.7 };
+    const half = E.eatenFromLogged(served, 0.5);
+    assert.deepEqual(half.lines.map((l) => l.quantity), [85, 50]); assert.equal(half.carbs, 25.85);
+    const all = E.eatenFromLogged({ ...half.totals, lines: half.lines }, 1, 0.5);
+    assert.deepEqual(all.lines.map((l) => [l.quantity, l.carbs]), [[170, 23.5], [100, 28.2]]); assert.equal(all.carbs, 51.7);
+  });
   const body = (file: string, fn: string) => {
     const src = readFileSync(new URL(file, import.meta.url), 'utf8');
     const a = src.indexOf(`export async function ${fn}(`); assert.ok(a >= 0, `${fn} not found`);
