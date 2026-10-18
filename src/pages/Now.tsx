@@ -257,7 +257,7 @@ function NoticeRow({ now, open, sensor, error, onRetry }: { now: number; open: A
     list.push({ key: 'plan' + p.id, tone: 'brand', icon: 'clock', text: <><bdi className="font-bold">{p.name}</bdi> · {l.text}</>, onClick: () => sp({ plan: p.id }, { replace: true }) });
   }
   const fat = recentFatty(history, now);
-  if (fat) list.push({ key: 'fat', tone: 'warm', icon: null, emoji: '🍕', text: <>{t('وجبة دسمة')}: <bdi>{tMaybe(fat.name)}</bdi> · {t('قد يرتفع السكر متأخرًا حتى {time}', { time: fmtTime(new Date(fat.until)) })}</>, to: '/timeline' });
+  if (fat) list.push({ key: 'fat', tone: 'warm', icon: null, emoji: '🍕', text: <>{t('ممكن تأثير متأخر')}: <bdi>{tMaybe(fat.name)}</bdi> · {t('قد يرتفع السكر متأخرًا حتى {time}', { time: fmtTime(new Date(fat.until)) })}</>, to: '/timeline' });
   if (same) list.push({ key: 'same', tone: 'brand', icon: null, emoji: '🔁', text: t('نفس وجبة سابقة'), to: `/same/${same.target.id}`, action: t('قارن') });
   const setup = [
     { done: settings_has(s.glucose_low_mgdl, s.glucose_high_mgdl), label: t('تحديد نطاق السكر من الطبيب'), to: '/doctor' },

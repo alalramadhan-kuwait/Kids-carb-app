@@ -48,7 +48,7 @@ const contributorText = (c: Contributor, g: (mg: number) => string) => ({
   dose_lower: t('الجرعة المعطاة {n} و، والمحسوبة {m} و.', { n: fmt(c.n ?? 0), m: fmt(c.m ?? 0) }),
   dose_higher: t('الجرعة المعطاة {n} و، والمحسوبة {m} و.', { n: fmt(c.n ?? 0), m: fmt(c.m ?? 0) }),
   ate_less: t('أكلت {p} من الوجبة.', { p: partTxt(c.n) }),
-  fatty_late: t('وجبة دسمة: ارتفع السكر مرة أخرى بعد 3 ساعات.'),
+  fatty_late: t('تأثير متأخر: ارتفع السكر مرة ثانية بعد ٣ ساعات.'),
   carbs_estimated: t('كارب تقديري (بدون ملصق): {x}.', { x: c.text ?? '' }),
   started_low: t('بدأت تحت النطاق.'),
   started_high: t('بدأت فوق النطاق.'),

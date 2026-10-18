@@ -216,7 +216,7 @@ const ALERT_TEXT = (a: PlanAlert) => ({
   recent_low: t('كان منخفضًا {time} خلال آخر 12 ساعة.', { time: a.at ? clock(a.at) : '' }),
   fast_drink: t('عصير مع الوجبة: يرفع السكر خلال 10–15 د، أسرع من الإنسولين.'),
   over_max: t('فوق الحد الأقصى للكارب في الوجبة.'),
-  fatty: t('وجبة دسمة: قد يرتفع السكر بعد 2–5 ساعات.'),
+  fatty: t('ممكن تأثير متأخر: راقبوا السكر بعد ٣–٥ ساعات.'),
 }[a.key]);
 function Alerts({ list }: { list: PlanAlert[] }) {
   if (!list.length) return null;

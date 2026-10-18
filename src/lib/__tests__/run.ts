@@ -1928,7 +1928,7 @@ console.log('planned meals');
     const low = D.suggestDose({ ...base, now: at(6, 30), carbs: 48.8, glucose: { mg: 63, at: at(6, 29), level: -1 } });
     assert.equal(low.block, 'low');
     const a = MP.planAlerts({ block: low.block, carbs: 48.8, fat: 15, protein: 12, maxCarbs: 60, fastDrinkCarbs: 18.75, lastLowAt: at(3, 52), now: at(6, 30) });
-    assert.deepEqual(a.map((x) => x.key), ['treat_first', 'recent_low', 'fast_drink', 'fatty']);
+    assert.deepEqual(a.map((x) => x.key), ['treat_first', 'recent_low', 'fast_drink'], 'toast and eggs (15 g fat) is no longer a late-rise meal');
     assert.equal(a[0].tone, 'red');
     const after = D.suggestDose({ ...base, now: at(6, 46), carbs: 30, glucose: { mg: 90, at: at(6, 45), level: 1 } });
     assert.equal(after.block, null); assert.equal(after.dose, 1, '30 ÷ 15 = 2, minus (99 − 90) ÷ 54, rounded down');
@@ -2064,12 +2064,13 @@ console.log('fatty meals');
   const I = await import('../../engine/iob');
   test('fatty meals: flagged for the notice; their carbs keep the care team absorption time', () => {
     const T = Date.parse('2026-10-02T12:00:00Z'), M = 60000;
-    assert.ok(I.isFatty(18, 12) && I.isFatty(15, null) && I.isFatty(12, 25), 'fat 15 g, or fat and protein worth 200 kcal');
-    assert.ok(!I.isFatty(5, 3) && !I.isFatty(null, 30) && !I.isFatty(0.7, 5.8));
+    assert.ok(I.isFatty(32, 20) && I.isFatty(25, null) && I.isFatty(20, 25), 'fat 25 g, or 20 g fat with 25 g protein');
+    assert.ok(!I.isFatty(17.6, 22.2), 'toast, eggs and cheese (her early-rising breakfast) is not a late-rise meal');
+    assert.ok(!I.isFatty(16.5, 25.1) && !I.isFatty(19, 40) && !I.isFatty(5, 3) && !I.isFatty(null, 30) && !I.isFatty(0.7, 5.8));
     assert.equal(I.cobAt(T + 180 * M, [{ t: T, grams: 30 }], 180), 0, 'replayed on her data the slower curve was worse: COB is not slowed');
     const h = (min: number, fat: number | null) => ({ name: 'x' + min, eaten_at: new Date(T - min * M).toISOString(), total_fat: fat, total_protein: null });
-    assert.equal(I.recentFatty([h(60, 20), h(30, 2)], T)?.name, 'x60');
-    assert.equal(I.recentFatty([h(301, 20)], T), null, 'after 5 h: no notice');
+    assert.equal(I.recentFatty([h(60, 28), h(30, 2)], T)?.name, 'x60');
+    assert.equal(I.recentFatty([h(301, 28)], T), null, 'after 5 h: no notice');
   });
 }
 

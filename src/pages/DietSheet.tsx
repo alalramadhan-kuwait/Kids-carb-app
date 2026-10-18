@@ -341,7 +341,7 @@ function DayCard({ s, unit, low, high, ctx }: { s: DaySheet; unit: GlucoseUnit; 
                     {o.startedLow && chip(t('بدأت وهي منخفضة'), 'bg-over-soft text-over')}
                     {lowAfterText(o, g) && chip(lowAfterText(o, g)!, 'bg-over-soft text-over')}
                     {affectedText(o) && chip(affectedText(o)!)}
-                    {o.fatty && chip(t('دسمة: دهون {f} غ', { f: fmt(Math.round(o.fat.v ?? 0)) }), 'bg-near-soft text-near')}
+                    {o.fatty && chip(t('ممكن تأثير متأخر · دهون {f} غ', { f: fmt(Math.round(o.fat.v ?? 0)) }), 'bg-near-soft text-near')}
                     {o.bump && chip(t('ارتفاع متأخر +{d} بعد {h}', { d: g(o.bump.rise), h: hours(o.bump.peakAt - o.t) }), 'bg-over-soft text-over')}
                     {occFlags(o).map((f) => <span key={f}>{chip(t(FLAG_TEXT[f]))}</span>)}
                   </div>
@@ -475,7 +475,7 @@ export function SheetPage({ s, unit, low, high, child, rapidName, basalName, rat
           <tr>
             <td style={label}>{t('ملاحظات')}</td>
             {s.slots.map((x) => <td key={x.key} style={cell}>{x.occasions.length ? perOcc(x, (o) => <>
-              {o.fatty && <div style={{ color: C.high, fontWeight: 600 }}>{t('دسمة: دهون {f} غ', { f: fmt(Math.round(o.fat.v ?? 0)) })}</div>}
+              {o.fatty && <div style={{ color: C.high, fontWeight: 600 }}>{t('ممكن تأثير متأخر · دهون {f} غ', { f: fmt(Math.round(o.fat.v ?? 0)) })}</div>}
               {o.bump && <div style={{ color: C.low, fontWeight: 600 }}>{t('ارتفاع متأخر +{d} بعد {h}', { d: g(o.bump.rise), h: hours(o.bump.peakAt - o.t) })}</div>}
               {o.fatty && !o.bump && o.t + 5 * 3600000 < Date.now() && <div style={small}>{t('لم يظهر ارتفاع متأخر')}</div>}
               {o.noFatData && <div style={small}>{t('لا توجد قيم دهون مسجّلة')}</div>}

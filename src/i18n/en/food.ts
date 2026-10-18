@@ -1657,4 +1657,8 @@ export const food: Record<string, string> = {
   'حطيه بالصحن': 'Put it on the plate',
   'صورة ثانية': 'Another photo',
   'تقدير · تأكدي من الأرقام': 'Estimate · check the numbers',
+  'ممكن تأثير متأخر: راقبوا السكر بعد ٣–٥ ساعات.': 'May rise late: watch glucose 3–5 hours after.',
+  'ممكن تأثير متأخر': 'May rise late',
+  'ممكن تأثير متأخر · دهون {f} غ': 'May rise late · fat {f} g',
+  'تأثير متأخر: ارتفع السكر مرة ثانية بعد ٣ ساعات.': 'Late effect: glucose rose again after 3 hours.',
 };

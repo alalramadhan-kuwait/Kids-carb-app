@@ -39,14 +39,17 @@ export interface Dose { t: number; units: number }
 export interface CarbEntry { t: number; grams: number }
 
 /**
- * Fatty meals (the parents' choice, 2026-10-02): a meal with 15 g of fat or more, or fat and protein together worth
- * 200 kcal or more, often rises again 3–5 hours after eating. Used for a notice and a tag only. Slowing the whole meal's
- * absorption was tried and replayed against her readings (2026-10-02): it predicted worse than the normal model, so COB
- * and the forecast lines keep the care team's absorption time; a better shape is tested in the research lab.
+ * Meals that may rise late, 3–5 hours after eating (the parents' choice, 2026-10-18): 25 g of fat or more, or 20 g of
+ * fat with 25 g of protein or more. Before, 15 g of fat (or 200 kcal of fat and protein) flagged everyday breakfasts
+ * (toast, eggs and cheese, ~17 g fat) whose rise in her readings came early and went down, while a nuggets-and-fries
+ * meal (32 g fat) rose again late; the change follows the size of meals that studies in children found to rise late
+ * (ISPAD 2022's example: ~20 g fat with 25–30 g protein). Used for a notice and a tag only: never a dose.
+ * Slowing the whole meal's absorption was tried and replayed against her readings (2026-10-02): it predicted worse
+ * than the normal model, so COB and the forecast lines keep the care team's absorption time.
  */
-export const FATTY = { fatG: 15, fpuKcal: 200, windowMin: 300 } as const;
+export const FATTY = { fatG: 25, withProteinFatG: 20, proteinG: 25, windowMin: 300 } as const;
 export const isFatty = (fat: number | null | undefined, protein: number | null | undefined) =>
-  fat !== null && fat !== undefined && (fat >= FATTY.fatG || fat * 9 + (protein ?? 0) * 4 >= FATTY.fpuKcal);
+  fat !== null && fat !== undefined && (fat >= FATTY.fatG || (fat >= FATTY.withProteinFatG && (protein ?? 0) >= FATTY.proteinG));
 
 /** Rapid-acting doses only; long-acting insulin is not "on board" in this sense. */
 export const dosesFrom = (events: EventRow[]): Dose[] =>
