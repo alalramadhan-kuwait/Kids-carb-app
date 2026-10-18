@@ -52,6 +52,8 @@ export function MomSnap() {
     setFile(f); setItems(null); setBusy(true);
     try {
       const r = await estimatePhoto(await shrinkPhoto(f), from ? `From: ${from}` : '');
+      // a label is not a plate: its numbers are per 100, so it goes to «منتج جديد» where she says how much was eaten
+      if (r.estimate.label) { nav('/mom/new', { replace: true, state: { label: r.estimate.label, photo: f } }); return; }
       if (!r.estimate.is_food) { toast(t('ما بان أكل بالصورة. جربي مرة ثانية')); setFile(null); return; }
       setItems(r.estimate.items.map((i) => { const p = listMatch(i, products); return p ? { ...i, match: { id: p.id, name: p.name, c100: Number(p.carbs_per_100) }, carbs_g: carbsFromList(i.grams, p.carbs_per_100) } : i; })); setNote(isEn() ? r.estimate.notes_en : r.estimate.notes_ar);
     } catch (e) {

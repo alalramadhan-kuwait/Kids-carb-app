@@ -48,9 +48,11 @@ async function callFood<T>(body: Record<string, unknown>): Promise<T> {
 }
 /** Whether a key is saved (the photo estimate is offered only then), and today's count against the daily limit. */
 export const aiStatus = () => callFood<{ configured: boolean; used: number; limit: number }>({ action: 'status' });
-/** The foods in a photo with estimated grams and nutrients. Display only: the parents check and edit before saving. */
+/** A nutrition label photographed instead of a plate: its per 100 carbs (and printed serving and pack), never a portion. */
+export interface EstLabel { name_ar: string; name_en: string; unit: 'g' | 'ml'; carbs_per100: number; serving: number | null; pack: number | null }
+/** The foods in a photo with estimated grams and nutrients, or a label's per 100 numbers. Display only: the parents check and edit before saving. */
 export const estimatePhoto = (photo: { data: string; media_type: string }, note = '') =>
-  callFood<{ scan_id: string | null; estimate: { is_food: boolean; items: EstItem[]; notes_ar: string; notes_en: string } }>({ action: 'photo', image: photo.data, media_type: photo.media_type, note });
+  callFood<{ scan_id: string | null; estimate: { is_food: boolean; label?: EstLabel | null; items: EstItem[]; notes_ar: string; notes_en: string } }>({ action: 'photo', image: photo.data, media_type: photo.media_type, note });
 
 // ── saving ──
 /**
