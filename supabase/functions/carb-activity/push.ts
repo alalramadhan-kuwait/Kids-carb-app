@@ -71,6 +71,14 @@ export async function vapidHeader(endpoint: string, v: Vapid, now = Date.now()) 
 
 export interface PushSub { endpoint: string; p256dh: string; auth: string }
 
+/** The Topic header: at most 32 URL-safe base64 characters, and a length a base64 decoder accepts. Apple rejects a
+ * topic whose length leaves 1 over a multiple of 4 (BadWebPushTopic), which silently dropped «alert-low» (9),
+ * «activity-meal» and «activity-long» (13); one character is added so the same tag still collapses the same way. */
+export function pushTopic(tag: string): string {
+  const t = tag.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32);
+  return t.length % 4 === 1 ? (t.length === 32 ? t.slice(0, 31) : `${t}0`) : t;
+}
+
 /** Sends one message. Returns the HTTP status; 404/410 mean the subscription is gone. */
 export async function sendPush(sub: PushSub, payload: unknown, v: Vapid, o: { ttl?: number; urgency?: 'normal' | 'high'; topic?: string } = {}) {
   const body = await encryptPayload(te.encode(JSON.stringify(payload)), b64u.dec(sub.p256dh), b64u.dec(sub.auth));
@@ -78,7 +86,8 @@ export async function sendPush(sub: PushSub, payload: unknown, v: Vapid, o: { tt
     authorization: await vapidHeader(sub.endpoint, v), 'content-encoding': 'aes128gcm', 'content-type': 'application/octet-stream',
     ttl: String(o.ttl ?? 600), urgency: o.urgency ?? 'high',
   };
-  if (o.topic) headers.topic = o.topic.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32);
+  const topic = o.topic ? pushTopic(o.topic) : '';
+  if (topic) headers.topic = topic;
   const res = await fetch(sub.endpoint, { method: 'POST', headers, body: B(body) });
   const text = res.ok ? '' : (await res.text().catch(() => '')).slice(0, 200);
   return { status: res.status, error: text };

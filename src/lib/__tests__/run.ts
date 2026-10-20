@@ -1060,6 +1060,18 @@ test('pattern cards follow plan 5.7: recurring lows, overnight drift, rise after
   assert.equal(visible(cards, { [id]: now - 1000 }, now).some((c) => c.id === id), true);
 });
 
+test('push topics are always valid for Apple: never 1 over a multiple of 4, at most 32, URL-safe', async () => {
+  const { pushTopic } = await import('../../../supabase/functions/carb-glucose/push');
+  // the topics Apple refused (BadWebPushTopic): the night lows of 19 Oct were never delivered
+  for (const t of ['alert-low', 'activity-meal', 'activity-long']) assert.notEqual(pushTopic(t).length % 4, 1, t);
+  assert.equal(pushTopic('alert-low'), 'alert-low0');
+  assert.equal(pushTopic('activity-rapid'), 'activity-rapid', 'topics that worked stay the same');
+  assert.equal(pushTopic('alert-high'), 'alert-high');
+  assert.equal(pushTopic('plan-' + 'a'.repeat(40)).length, 32);
+  assert.equal(pushTopic('تنبيه'), '', 'nothing usable means no Topic header');
+  for (let n = 1; n <= 40; n++) { const t = pushTopic('x'.repeat(n)); assert.ok(t.length <= 32 && t.length % 4 !== 1, `length ${n}`); }
+});
+
 console.log('food photos and barcodes');
 
 test('photo estimates are cleaned: bounded numbers, carbs never above the weight, totals computed here, no dosing text', async () => {
