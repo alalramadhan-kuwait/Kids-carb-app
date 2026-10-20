@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.23.2",
+    "date": "2026-10-20",
+    "notes": [
+      "زر «تعديل» لأكلة مسجّلة يفتح الغرامات مباشرة، والكارب يتحسب من الملصق. الوقت والاسم والملاحظة من رابط فوق."
+    ],
+    "notes_en": [
+      "«Edit» on a logged meal now opens the grams of each food, and the carbs follow the label. Time, name and note are one link above."
+    ]
+  },
+  {
     "version": "4.23.1",
     "date": "2026-10-18",
     "notes": [

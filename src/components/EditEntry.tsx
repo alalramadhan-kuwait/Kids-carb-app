@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { editProblem, type EditDraft, type EditProblem } from '../lib/edit';
 import { carbsToMeal, updateEvent, updateMeal } from '../lib/editSave';
@@ -28,6 +29,8 @@ export function EditEntry({ e, h, onDone, onCancel, onItems }: { e?: EventRow; h
   // a carbs-only entry can be given a name and nutrition: it is then edited (and saved) as a food entry
   const [asMeal, setAsMeal] = useState(false);
   const kind = h || asMeal ? 'meal' : e!.kind;
+  // a meal of foods: its carbs come from each food's grams × label (Edit items and amounts), never typed here
+  const itemized = !!h && h.lines.length > 0;
   const food = !!h || asMeal;
   const [whenMs, setWhenMs] = useState(Date.parse(h ? h.eaten_at : e!.occurred_at));
   const [units, setUnits] = useState<number | null>(e?.insulin_units ?? null);
@@ -89,8 +92,11 @@ export function EditEntry({ e, h, onDone, onCancel, onItems }: { e?: EventRow; h
         </div>
       )}
       {kind === 'insulin' && <L label={e?.insulin_type === 'long' ? t('وحدات الإنسولين الطويل') : t('وحدات الإنسولين السريع')}><NumInput className={num} value={units} onChange={setUnits} /></L>}
-      {kind === 'meal' && <NutritionFields s={n} set={typeIn} />}
-      {kind === 'meal' && (
+      {kind === 'meal' && itemized && (
+        <p className="text-xs text-slate-500">{t('الكارب يتغيّر من الغرامات في «تعديل الأصناف والكميات».')} <Link to="/products" className="font-bold text-brand">{t('قيم الملصق غلط؟ صحّحوها في المنتج')}</Link></p>
+      )}
+      {kind === 'meal' && !itemized && <NutritionFields s={n} set={typeIn} />}
+      {kind === 'meal' && !itemized && (
         <div className="flex items-center gap-1.5">
           <span className="shrink-0 text-sm text-slate-600">{t('أكلت:')}</span>
           <div className="flex min-w-0 flex-1 gap-1">
@@ -101,7 +107,6 @@ export function EditEntry({ e, h, onDone, onCancel, onItems }: { e?: EventRow; h
           </div>
         </div>
       )}
-      {kind === 'meal' && (h?.lines.length ?? 0) > 1 && <p className="-mt-1 text-[11px] text-slate-500">{t('وجبة من عدة أصناف: أزرار «أكلت» تغيّر كل الأصناف، والكتابة تغيّر المجموع فقط.')}</p>}
       {(kind === 'carbs' || kind === 'treatment') && <L label={t('الكارب (غ)')}><NumInput className={num} value={carbs} onChange={setCarbs} /></L>}
       {kind === 'carbs' && (
         <button type="button" onClick={() => { setN(nutrStateFrom({ carbs, fat: null, protein: null, fiber: null, kcal: null })); setAsMeal(true); }}

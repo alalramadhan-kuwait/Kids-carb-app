@@ -1694,4 +1694,7 @@ export const food: Record<string, string> = {
   'كم مل أكلت؟': 'How many ml?',
   'كم حصة؟': 'How many servings?',
   'كم حبة؟': 'How many pieces?',
+  'الكارب يتغيّر من الغرامات في «تعديل الأصناف والكميات».': 'Carbs change with the grams, in “Edit items and amounts”.',
+  'قيم الملصق غلط؟ صحّحوها في المنتج': 'Wrong label values? Fix them on the product',
+  'الوقت أو الاسم أو الملاحظة': 'Time, name or note',
 };

@@ -259,7 +259,13 @@ export function LogEntryPage() {
       back();
     } catch (x) { toast((x as Error).message); }
   };
-  if (edit === 'items' && h) return <Page title={t('تعديل الأصناف')} back={back}><EditItems h={h} onCancel={back} onDone={back} /></Page>;
+  // a meal of foods is corrected by weight (carbs follow each food's label); time, name and note have their own page
+  if (edit === 'items' && h) return (
+    <Page title={t('تعديل الأصناف')} back={back}>
+      <button type="button" onClick={() => nav(`/timeline/entry/${key}?edit=entry`, { replace: true })} className="mb-2 flex min-h-[44px] w-full items-center justify-between rounded-xl bg-slate-50 px-3 text-sm font-bold text-slate-600">{t('الوقت أو الاسم أو الملاحظة')}<span>{isEn() ? '›' : '‹'}</span></button>
+      <EditItems h={h} onCancel={back} onDone={back} />
+    </Page>
+  );
   if (edit === 'entry') return (
     <Page title={t('تعديل التسجيل')} back={back}>
       <EditEntry e={e} h={h} onCancel={back} onDone={back} onItems={h && h.lines.length > 0 ? () => nav(`/timeline/entry/${key}?edit=items`, { replace: true }) : undefined} />
@@ -269,7 +275,7 @@ export function LogEntryPage() {
     <Page title={h ? mealTitle(h) : describeEvent(e!)} back={back}>
       {h && <MealDetail h={h} n={n} unit={settings.glucose_unit} onEditItems={() => nav(`/timeline/entry/${key}?edit=items`)} />}
       {e && <EventSummary e={e} who={e.source ? '' : nameOf(e.created_by)} />}
-      <EntryActions key={key} e={e} h={h} onEdit={() => nav(`/timeline/entry/${key}?edit=entry`)} onRemove={() => void remove()} onClose={() => {}} onOpenOther={(x) => nav(`/timeline/entry/h${x.id}`)} />
+      <EntryActions key={key} e={e} h={h} onEdit={() => nav(`/timeline/entry/${key}?edit=${h && h.lines.length > 0 ? 'items' : 'entry'}`)} onRemove={() => void remove()} onClose={() => {}} onOpenOther={(x) => nav(`/timeline/entry/h${x.id}`)} />
     </Page>
   );
 }
