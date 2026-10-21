@@ -2657,7 +2657,7 @@ console.log('iphone widget');
     assert.equal(m.files.get('d/layan-widget-code.js'), body, 'the widget is kept for offline use');
     for (const f of ['small', 'large', 'accessoryInline', 'accessoryCircular', 'accessoryRectangular']) assert.match((await run(f, data)).texts, /6\.1/, f);
     assert.match(m.texts, /@age 2m \|  قبل/, 'the age counts up next to the reading');
-    assert.match(m.texts, /↻ تحديث/, 'a refresh chip');
+    assert.doesNotMatch(m.texts, /↻/, 'no refresh chip: a tap anywhere refreshes');
     assert.deepEqual(m.urls, ['scriptable:///run/%D9%84%D9%8A%D8%A7%D9%86'], 'a tap runs the widget\'s script again for a fresh reading');
   });
   test('widget: offline uses the kept widget; a page that is not the widget is never run; nothing kept says so', async () => {

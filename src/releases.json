@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.24.1",
+    "date": "2026-10-21",
+    "notes": [
+      "ويدجت الآيفون: شلنا زر «تحديث». الضغط على أي مكان بالويدجت يجيب آخر قراءة."
+    ],
+    "notes_en": [
+      "iPhone widget: the «Refresh» chip is gone. A tap anywhere on the widget brings the latest reading."
+    ]
+  },
+  {
     "version": "4.24.0",
     "date": "2026-10-21",
     "notes": [

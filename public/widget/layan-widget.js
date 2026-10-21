@@ -7,13 +7,13 @@
 const WORDS = {
   ar: {
     child: "ليان", old: "قراءة قديمة", urgent: "منخفض جدًا", low: "منخفض", high: "مرتفع", ok: "ضمن النطاق", now: "الآن",
-    ago: "قبل {m} د", agoWord: "قبل", refresh: "↻ تحديث", in15: "خلال 15 د", expired: "الرابط انتهى", noReading: "لا قراءة",
+    ago: "قبل {m} د", agoWord: "قبل", in15: "خلال 15 د", expired: "الرابط انتهى", noReading: "لا قراءة",
     revoked: "الرابط انتهى أو أُلغي. أنشئوا ويدجت جديدًا من التطبيق: المزيد ← ويدجت الآيفون.",
     offline: "لا اتصال الآن. سيحاول مرة أخرى.", none: "لا توجد قراءات في آخر 3 ساعات.", cached: "بلا اتصال: آخر نسخة",
   },
   en: {
     child: "Layan", old: "Old reading", urgent: "Very low", low: "Low", high: "High", ok: "In range", now: "now",
-    ago: "{m} min ago", agoWord: "ago", refresh: "↻ Refresh", in15: "in 15 min", expired: "Link expired", noReading: "No reading",
+    ago: "{m} min ago", agoWord: "ago", in15: "in 15 min", expired: "Link expired", noReading: "No reading",
     revoked: "The link expired or was revoked. Make a new widget in the app: More → iPhone widget.",
     offline: "No connection right now. It will try again.", none: "No readings in the last 3 hours.", cached: "Offline: last copy",
   },
@@ -314,18 +314,7 @@ else {
     await who(row, v, name, fam === "large" ? 40 : 34);
     row.addSpacer();
     headline(row, v, fam === "large" ? 46 : 38);
-    w.addSpacer(2);
-    const tools = w.addStack();
-    tools.centerAlignContent();
-    tools.addSpacer();
-    if (d.offline) { text(tools, W.cached, 10, { color: C.text["high"] }); tools.addSpacer(6); }
-    const chip = tools.addStack();
-    chip.backgroundColor = new Color("#ffffff");
-    chip.borderColor = new Color(C.border);
-    chip.borderWidth = 1;
-    chip.cornerRadius = 10;
-    chip.setPadding(2, 8, 2, 8);
-    text(chip, W.refresh, 11, { bold: true, color: C.brand });
+    if (d.offline) { const o = w.addStack(); o.addSpacer(); text(o, W.cached, 10, { color: C.text["high"] }); }
     w.addSpacer();
   }
 }
