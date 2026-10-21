@@ -115,7 +115,31 @@ function widgetSize(fam) {
 
 const levelOf = (d, mg) => (mg < 54 ? "urgent" : mg < d.low ? "low" : mg > d.high ? "high" : "ok");
 
-// the background, edge to edge: her range, hour lines and labels, the readings as dots, meals and doses as markers
+// The readings as one thin line. The sensor's jitter is taken out first (a median of 3, then the average of the readings
+// within 7.5 minutes either side); the latest point stays the real reading so the line ends at the value shown. A gap
+// longer than 20 minutes is still joined, but faintly, so it is not mistaken for readings. Each stretch takes the colour
+// of her range (in range, high, low).
+function smoothed(rs) {
+  const med = rs.map((r, i) => { const w = rs.slice(Math.max(0, i - 1), i + 2).map((q) => q.v).sort((a, b) => a - b); return { t: r.t, v: w[Math.floor(w.length / 2)] }; });
+  const out = med.map((r) => { const w = med.filter((q) => Math.abs(q.t - r.t) <= 7.5 * MIN); return { t: r.t, v: w.reduce((s, q) => s + q.v, 0) / w.length }; });
+  if (out.length) out[out.length - 1] = { t: rs[rs.length - 1].t, v: rs[rs.length - 1].v };
+  return out;
+}
+
+function readingLine(ctx, d, rs, t0, x, y, width) {
+  const pts = smoothed(rs.filter((r) => r.t >= t0 - 15 * MIN));
+  let path = null, key = null;
+  const flush = () => { if (!path) return; ctx.addPath(path); ctx.setStrokeColor(new Color(key.color, key.gap ? 0.3 : 1)); ctx.setLineWidth(width); ctx.strokePath(); path = null; };
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i];
+    const k = { color: C.dot[levelOf(d, (a.v + b.v) / 2)], gap: b.t - a.t > 20 * MIN };
+    if (!path || k.color !== key.color || k.gap !== key.gap) { flush(); path = new Path(); path.move(new Point(x(a.t), y(a.v))); key = k; }
+    path.addLine(new Point(x(b.t), y(b.v)));
+  }
+  flush();
+}
+
+// the background, edge to edge: her range, hour lines and labels, the readings as a line, meals and doses as markers
 function background(d, v, size, chartTop) {
   const ctx = new DrawContext();
   ctx.size = size;
@@ -150,17 +174,13 @@ function background(d, v, size, chartTop) {
     for (const q of ob.doses || []) { const t = Date.parse(q.t); if (t >= t0) { ctx.setFillColor(new Color(C.ins)); ctx.fillRect(new Rect(x(t) - 1.5, y1 - 14, 3, 12)); } }
   }
   // the readings
-  for (const r of v.rs) {
-    if (r.t < t0) continue;
-    ctx.setFillColor(new Color(C.dot[levelOf(d, r.v)]));
-    ctx.fillEllipse(new Rect(x(r.t) - 2.5, y(r.v) - 2.5, 5, 5));
-  }
+  readingLine(ctx, d, v.rs, t0, x, y, 2);
   ctx.setFillColor(new Color(v.stale ? C.text3 : C.dot[v.level]));
   ctx.fillEllipse(new Rect(x(v.last.t) - 5, y(v.last.v) - 5, 10, 10));
   return ctx.getImage();
 }
 
-// medium and large: the graph fills the widget. Her range, the readings as dots, doses and meals as lines with the amount,
+// medium and large: the graph fills the widget. Her range, the readings as a thin line, doses and meals as lines with the amount,
 // the latest value in a bubble at the last dot, and (when the link carries on-board data) a strip of what is acting now:
 // food being absorbed above the line, insulin acting below. The strip is an estimate for display only: food follows a
 // curve that peaks at 40 minutes (the link does not say which foods are fast), insulin the same model as IOB.
@@ -207,11 +227,7 @@ function graphFirst(d, v, size, top) {
   for (const q of (ob && ob.doses) || []) mark(Date.parse(q.t), C.ins, Number(q.u).toFixed(1).replace(/\.0$/, "") + "u", false);
   for (const c of (ob && ob.carbs) || []) mark(Date.parse(c.t), C.carb, Math.round(Number(c.g)) + "g", true);
   // the readings
-  for (const r of v.rs) {
-    if (r.t < t0) continue;
-    ctx.setFillColor(new Color(C.dot[levelOf(d, r.v)]));
-    ctx.fillEllipse(new Rect(x(r.t) - 2.2, y(r.v) - 2.2, 4.4, 4.4));
-  }
+  readingLine(ctx, d, v.rs, t0, x, y, 1.8);
   const lx = x(v.last.t), ly = y(v.last.v), tone = v.stale ? C.text3 : C.text[v.level];
   ctx.setFillColor(new Color("#ffffff"));
   ctx.fillEllipse(new Rect(lx - 6.5, ly - 6.5, 13, 13));

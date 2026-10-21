@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.25.1",
+    "date": "2026-10-21",
+    "notes": [
+      "ويدجت الآيفون: السكر صار خط رفيع ناعم ومتصل بدل النقاط، بدون التذبذب الصغير."
+    ],
+    "notes_en": [
+      "iPhone widget: glucose is now a thin, smooth, connected line instead of dots, without the small jitter."
+    ]
+  },
+  {
     "version": "4.25.0",
     "date": "2026-10-21",
     "notes": [
