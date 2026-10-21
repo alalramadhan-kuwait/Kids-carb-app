@@ -7,13 +7,13 @@
 const WORDS = {
   ar: {
     child: "ليان", old: "قراءة قديمة", urgent: "منخفض جدًا", low: "منخفض", high: "مرتفع", ok: "ضمن النطاق", now: "الآن",
-    ago: "قبل {m} د", in15: "خلال 15 د", expired: "الرابط انتهى", noReading: "لا قراءة",
+    ago: "قبل {m} د", agoWord: "قبل", refresh: "↻ تحديث", in15: "خلال 15 د", expired: "الرابط انتهى", noReading: "لا قراءة",
     revoked: "الرابط انتهى أو أُلغي. أنشئوا ويدجت جديدًا من التطبيق: المزيد ← ويدجت الآيفون.",
     offline: "لا اتصال الآن. سيحاول مرة أخرى.", none: "لا توجد قراءات في آخر 3 ساعات.", cached: "بلا اتصال: آخر نسخة",
   },
   en: {
     child: "Layan", old: "Old reading", urgent: "Very low", low: "Low", high: "High", ok: "In range", now: "now",
-    ago: "{m} min ago", in15: "in 15 min", expired: "Link expired", noReading: "No reading",
+    ago: "{m} min ago", agoWord: "ago", refresh: "↻ Refresh", in15: "in 15 min", expired: "Link expired", noReading: "No reading",
     revoked: "The link expired or was revoked. Make a new widget in the app: More → iPhone widget.",
     offline: "No connection right now. It will try again.", none: "No readings in the last 3 hours.", cached: "Offline: last copy",
   },
@@ -92,7 +92,7 @@ function view(d) {
   const mmol = d.unit !== "mgdl";
   const fmt = (mg) => (mmol ? (mg / 18).toFixed(1) : String(Math.round(mg)));
   const mins = Math.max(0, Math.round((Date.now() - last.t) / MIN));
-  const stale = mins > 15;
+  const stale = mins > 10;
   const before = rs.filter((r) => r.t <= last.t - 13 * MIN).pop();
   const delta = before && last.t - before.t <= 20 * MIN ? last.v - before.v : null;
   const level = last.v < 54 ? "urgent" : last.v < d.low ? "low" : last.v > d.high ? "high" : "ok";
@@ -210,37 +210,49 @@ async function who(row, v, name, pic) {
   }
 }
 
-// value, arrow, change and time, top right
-// How old the reading is, counting up by itself: iOS redraws a relative date on its own, so it stays true even when
-// iOS has not let the widget refresh (it decides when widgets refresh, often every 15–30 minutes).
+// How old the reading is, as a timer counting up by itself ("9:57" then "قبل"/"ago"): iOS redraws it on its own,
+// so it stays true while iOS holds the widget back (it decides when widgets refresh, often every 10–30 minutes).
+// Nothing else can change between refreshes, which is why the age is the thing that stands out.
 function liveAge(stack, t, size, opts) {
   const o = opts || {};
-  const d = stack.addDate(new Date(t));
-  d.applyRelativeStyle();
-  d.font = o.medium ? Font.mediumSystemFont(size) : Font.systemFont(size);
-  d.textColor = new Color(LOCK ? "#ffffff" : o.color || C.ink);
+  const color = new Color(LOCK ? "#ffffff" : o.color || C.ink);
+  const r = stack.addStack();
+  r.centerAlignContent();
+  const d = r.addDate(new Date(t));
+  d.applyTimerStyle();
+  d.font = o.bold ? Font.boldSystemFont(size) : o.medium ? Font.mediumSystemFont(size) : Font.systemFont(size);
+  d.textColor = color;
   d.lineLimit = 1;
   d.minimumScaleFactor = 0.6;
-  return d;
+  text(r, " " + W.agoWord, size, o);
+  return r;
 }
 
-function headline(r, v, big, showDelta) {
+// value and arrow, then the change and time over the age in a pill, top right
+function headline(r, v, big) {
   text(r, v.value, big, { bold: true, color: v.color });
   r.addSpacer(4);
   text(r, v.arrow, big * 0.62, { bold: true, color: v.color });
   r.addSpacer(8);
   const side = r.addStack();
   side.layoutVertically();
-  if (showDelta) text(side, v.delta ? v.delta.split(" ")[0] : v.word, 13, { medium: true, color: C.ink });
-  text(side, v.stale ? W.old : v.clock, 12, { color: C.text2 });
-  liveAge(side, v.last.t, 11, { color: C.text2 });
+  if (v.stale) text(side, W.old + " · " + v.clock, 12, { bold: true, color: C.text["low"] });
+  else text(side, (v.delta ? v.delta.split(" ")[0] + " · " : "") + v.clock, 13, { medium: true, color: C.ink });
+  side.addSpacer(3);
+  const pill = side.addStack();
+  pill.backgroundColor = new Color("#EEE9FB");
+  pill.cornerRadius = 11;
+  pill.setPadding(3, 9, 3, 9);
+  liveAge(pill, v.last.t, 13, { bold: true, color: C.ink });
 }
 
 const d = await load();
 const fam = config.widgetFamily || "medium";
 LOCK = fam.startsWith("accessory");
 const w = new ListWidget();
-w.url = APP;
+// a tap runs this script again in Scriptable: the latest reading in a couple of seconds (iOS has no refresh button for
+// Scriptable widgets; the app itself opens from its own icon)
+w.url = "scriptable:///run/" + encodeURIComponent(Script.name());
 // a request only: iOS decides when a widget really refreshes (the reading's age below keeps counting meanwhile)
 w.refreshAfterDate = new Date(Date.now() + 3 * MIN);
 const v = d && !d.error ? view(d) : null;
@@ -301,8 +313,19 @@ else {
     row.centerAlignContent();
     await who(row, v, name, fam === "large" ? 40 : 34);
     row.addSpacer();
-    headline(row, v, fam === "large" ? 46 : 38, true);
-    if (d.offline) { const o = w.addStack(); o.addSpacer(); text(o, W.cached, 10, { color: C.text["high"] }); }
+    headline(row, v, fam === "large" ? 46 : 38);
+    w.addSpacer(2);
+    const tools = w.addStack();
+    tools.centerAlignContent();
+    tools.addSpacer();
+    if (d.offline) { text(tools, W.cached, 10, { color: C.text["high"] }); tools.addSpacer(6); }
+    const chip = tools.addStack();
+    chip.backgroundColor = new Color("#ffffff");
+    chip.borderColor = new Color(C.border);
+    chip.borderWidth = 1;
+    chip.cornerRadius = 10;
+    chip.setPadding(2, 8, 2, 8);
+    text(chip, W.refresh, 11, { bold: true, color: C.brand });
     w.addSpacer();
   }
 }

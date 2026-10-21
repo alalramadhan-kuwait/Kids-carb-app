@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.24.0",
+    "date": "2026-10-21",
+    "notes": [
+      "ويدجت الآيفون: اضغطوا عليه يجيب آخر قراءة الحين، بدل ما تنتظرون الآيفون يحدّثه.",
+      "عمر القراءة صار واضح بجنب الرقم ويعدّ بنفسه، والقراءة الأقدم من 10 دقايق تصير رمادية ومكتوب «قراءة قديمة»."
+    ],
+    "notes_en": [
+      "iPhone widget: tap it for the latest reading now, instead of waiting for the iPhone to refresh it.",
+      "The reading's age now sits next to the number and counts up by itself; a reading older than 10 minutes turns grey and says «Old reading»."
+    ]
+  },
+  {
     "version": "4.23.2",
     "date": "2026-10-20",
     "notes": [

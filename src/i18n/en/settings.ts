@@ -352,7 +352,7 @@ export const settings: Record<string, string> = {
   "نُسخ السكربت. فيه رابط خاص بالويدجت يظهر مرة واحدة فقط: لا ترسلوه لأحد.": "Script copied. It holds a link made for the widget that is shown only once: don’t send it to anyone.",
   "نسخ مرة أخرى": "Copy again",
   "الويدجت يقرأ فقط ولا يسجّل شيئًا. الآيفون يحدّثه كل 5 إلى 15 دقيقة تقريبًا، فقد يتأخر عن التطبيق: التنبيهات تبقى من التطبيق. الرابط صالح سنة، ويمكن إيقافه من": "The widget only reads and logs nothing. The iPhone refreshes it about every 5 to 15 minutes, so it can lag behind the app: alerts still come from the app. The link lasts a year and can be stopped from",
-  "السكر الآن والسهم وعمر القراءة، والإنسولين والكارب الفعّالان (IOB وCOB)، على الشاشة الرئيسية أو شاشة القفل، مع رسم آخر 3 ساعات في الحجم المتوسط. يتحدّث الويدجت بنفسه عند تحديث التطبيق.": "Glucose now, the arrow and the reading’s age, plus insulin and carbs on board (IOB and COB), on the Home Screen or Lock Screen, with the last 3 hours drawn on the medium size. The widget updates itself when the app does.",
+  "السكر الآن والسهم وعمر القراءة، والإنسولين والكارب الفعّالان (IOB وCOB)، على الشاشة الرئيسية أو شاشة القفل، مع رسم آخر 3 ساعات في الحجم المتوسط. عمر القراءة يعدّ بنفسه، واضغطوا على الويدجت لآخر قراءة الحين.": "Glucose now, the arrow and the reading’s age, plus insulin and carbs on board (IOB and COB), on the Home Screen or Lock Screen, with the last 3 hours drawn on the medium size. The age counts up by itself; tap the widget for the latest reading now.",
   "تكرار المنخفض بين 5 و60 دقيقة": "Low repeat must be 5–60 minutes",
   "تكرار المرتفع بين 15 و240 دقيقة": "High repeat must be 15–240 minutes",
   "المنخفض المتوقع بين 10 و40 دقيقة": "Low expected must be 10–40 minutes",

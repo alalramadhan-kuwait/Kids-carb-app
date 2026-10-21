@@ -2617,10 +2617,10 @@ console.log('iphone widget');
   let turn: Promise<unknown> = Promise.resolve();
   const run = (family: string, reply: unknown, opts: Opts = {}) => { const r = turn.then(() => runOne(family, reply, opts)); turn = r.catch(() => {}); return r; };
   const runOne = async (family: string, reply: unknown, opts: Opts) => {
-    const texts: string[] = []; let shown = false; let req: any = null; const files = new Map<string, string>();
+    const texts: string[] = []; const urls: string[] = []; let shown = false; let req: any = null; const files = new Map<string, string>();
     if (opts.cache !== undefined) files.set('d/layan-widget.json', JSON.stringify(opts.cache));
     if (opts.savedCode) files.set('d/layan-widget-code.js', opts.savedCode);
-    const node = (): any => new Proxy({}, { set: () => true, get: (_t, p) => p === 'then' ? undefined : p === 'addText' ? (x: string) => { texts.push(String(x)); return U; } : p === 'addDate' ? (d: Date) => { texts.push(`@age ${Math.round((Date.now() - d.getTime()) / 60000)}m`); return U; } : p === 'addStack' ? () => node() : U });
+    const node = (): any => new Proxy({}, { set: (_t, p, v) => { if (p === 'url') urls.push(v); return true; }, get: (_t, p) => p === 'then' ? undefined : p === 'addText' ? (x: string) => { texts.push(String(x)); return U; } : p === 'addDate' ? (d: Date) => { texts.push(`@age ${Math.round((Date.now() - d.getTime()) / 60000)}m`); return U; } : p === 'addStack' ? () => node() : U });
     function Request(this: any, url: string) {
       this.url = url;
       if (url.endsWith('/widget/layan-widget.js')) {
@@ -2637,9 +2637,9 @@ console.log('iphone widget');
     const g = globalThis as any;
     Object.assign(g, { Request, FileManager: { local: () => fm }, ListWidget: function () { return node(); }, DrawContext: U, Color: U, Font: U, Rect: U, SFSymbol: U,
       Size: function (this: any, w: number, h: number) { this.width = w; this.height = h; }, Device: { screenSize: () => ({ width: 393, height: 852 }) },
-      Script: { setWidget: () => { shown = true; }, complete: () => {} }, config: { widgetFamily: family, runsInWidget: true }, args: { widgetParameter: null } });
+      Script: { name: () => 'ليان', setWidget: () => { shown = true; }, complete: () => {} }, config: { widgetFamily: family, runsInWidget: true }, args: { widgetParameter: null } });
     try { await new AsyncFn(script)(); } finally { for (const k of ['Request', 'FileManager', 'ListWidget', 'DrawContext', 'Color', 'Font', 'Size', 'Rect', 'SFSymbol', 'Device', 'Script', 'config', 'args']) delete g[k]; }
-    return { texts: texts.join(' | '), shown, req, files };
+    return { texts: texts.join(' | '), shown, req, files, urls };
   };
   const now = Date.now(), at = (m: number) => new Date(now - m * 60000).toISOString();
   const data = { child: 'ليان', unit: 'mmol', low: 70, high: 180, readings: [{ t: at(30), v: 150, trend: 3 }, { t: at(15), v: 120, trend: 2 }, { t: at(2), v: 110, trend: 2 }] };
@@ -2656,6 +2656,9 @@ console.log('iphone widget');
     assert.equal(m.req.headers['Content-Profile'], 'carb');
     assert.equal(m.files.get('d/layan-widget-code.js'), body, 'the widget is kept for offline use');
     for (const f of ['small', 'large', 'accessoryInline', 'accessoryCircular', 'accessoryRectangular']) assert.match((await run(f, data)).texts, /6\.1/, f);
+    assert.match(m.texts, /@age 2m \|  قبل/, 'the age counts up next to the reading');
+    assert.match(m.texts, /↻ تحديث/, 'a refresh chip');
+    assert.deepEqual(m.urls, ['scriptable:///run/%D9%84%D9%8A%D8%A7%D9%86'], 'a tap runs the widget\'s script again for a fresh reading');
   });
   test('widget: offline uses the kept widget; a page that is not the widget is never run; nothing kept says so', async () => {
     assert.match((await run('small', data, { code: null, savedCode: body })).texts, /6\.1/);
@@ -2681,6 +2684,9 @@ console.log('iphone widget');
   test('widget: low, old reading, revoked link, offline with and without a saved copy, English', async () => {
     assert.match((await run('small', { ...data, readings: [{ t: at(1), v: 62, trend: 1 }] })).texts, /3\.4.*⇊/);
     const old = (await run('small', { ...data, readings: [{ t: at(40), v: 120, trend: 3 }] })).texts;
+    const old11 = (await run('medium', { ...data, readings: [{ t: at(11), v: 120, trend: 3 }] })).texts;
+    assert.match(old11, /قراءة قديمة/, 'old after 10 minutes'); assert.doesNotMatch(old11, /→/);
+    assert.doesNotMatch((await run('medium', { ...data, readings: [{ t: at(9), v: 120, trend: 3 }] })).texts, /قراءة قديمة/);
     assert.match(old, /قراءة قديمة/); assert.doesNotMatch(old, /→/, 'no arrow on an old reading');
     assert.match((await run('medium', { error: 'invalid' })).texts, /الرابط انتهى/);
     assert.match((await run('medium', null, { throws: true })).texts, /لا اتصال/);

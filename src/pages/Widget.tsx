@@ -40,7 +40,7 @@ export default function WidgetPage() {
     <Page title={t('ويدجت الآيفون')} back={() => nav(-1)}>
       <div className="space-y-3">
         <Card className="space-y-3">
-          <p className="text-sm text-slate-600">{t('السكر الآن والسهم وعمر القراءة، والإنسولين والكارب الفعّالان (IOB وCOB)، على الشاشة الرئيسية أو شاشة القفل، مع رسم آخر 3 ساعات في الحجم المتوسط. يتحدّث الويدجت بنفسه عند تحديث التطبيق.')}</p>
+          <p className="text-sm text-slate-600">{t('السكر الآن والسهم وعمر القراءة، والإنسولين والكارب الفعّالان (IOB وCOB)، على الشاشة الرئيسية أو شاشة القفل، مع رسم آخر 3 ساعات في الحجم المتوسط. عمر القراءة يعدّ بنفسه، واضغطوا على الويدجت لآخر قراءة الحين.')}</p>
           <ol className="space-y-2 text-sm">
             {steps.map((s, i) => (
               <li key={i} className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand text-xs font-bold text-white">{i + 1}</span><span className="pt-0.5">{s}</span></li>
