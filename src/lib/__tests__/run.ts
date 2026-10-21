@@ -2635,10 +2635,10 @@ console.log('iphone widget');
     const script = widgetLoader({ url: 'https://x.supabase.co', key: 'pk', token: 'tok"en', app: 'https://app/', lang: opts.en ? 'en' : 'ar' });
     const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
     const g = globalThis as any;
-    Object.assign(g, { Request, FileManager: { local: () => fm }, ListWidget: function () { return node(); }, DrawContext: U, Color: U, Font: U, Rect: U, SFSymbol: U,
+    Object.assign(g, { Request, FileManager: { local: () => fm }, ListWidget: function () { return node(); }, DrawContext: function () { return new Proxy({}, { set: () => true, get: (_t, p) => p === 'then' ? undefined : p === 'drawTextInRect' ? (x: string) => { texts.push(`draw ${x}`); } : U }); }, Path: U, Point: U, Color: U, Font: U, Rect: U, SFSymbol: U,
       Size: function (this: any, w: number, h: number) { this.width = w; this.height = h; }, Device: { screenSize: () => ({ width: 393, height: 852 }) },
       Script: { name: () => 'ليان', setWidget: () => { shown = true; }, complete: () => {} }, config: { widgetFamily: family, runsInWidget: true }, args: { widgetParameter: null } });
-    try { await new AsyncFn(script)(); } finally { for (const k of ['Request', 'FileManager', 'ListWidget', 'DrawContext', 'Color', 'Font', 'Size', 'Rect', 'SFSymbol', 'Device', 'Script', 'config', 'args']) delete g[k]; }
+    try { await new AsyncFn(script)(); } finally { for (const k of ['Request', 'FileManager', 'ListWidget', 'DrawContext', 'Path', 'Point', 'Color', 'Font', 'Size', 'Rect', 'SFSymbol', 'Device', 'Script', 'config', 'args']) delete g[k]; }
     return { texts: texts.join(' | '), shown, req, files, urls };
   };
   const now = Date.now(), at = (m: number) => new Date(now - m * 60000).toISOString();
@@ -2648,7 +2648,9 @@ console.log('iphone widget');
     const m = await run('medium', data);
     assert.ok(m.shown);
     const clock = (() => { const x = new Date(now - 2 * 60000); return String(x.getHours()).padStart(2, '0') + ':' + String(x.getMinutes()).padStart(2, '0'); })();
-    assert.match(m.texts, /ليان/); assert.match(m.texts, /6\.1/); assert.match(m.texts, /↘/); assert.match(m.texts, /−0\.6/); assert.ok(m.texts.includes(clock), 'the reading\'s time');
+    assert.match(m.texts, /ليان/); assert.match(m.texts, /draw 6\.1 ↘/, 'the value and arrow in the bubble on the graph');
+    assert.match(m.texts, /draw الحين/, 'the graph ends at now');
+    void clock;
     const sm = (await run('small', data)).texts;
     assert.match(sm, /6\.1/); assert.match(sm, /@age 2m/, 'the age counts up by itself');
     assert.equal(m.req.url, 'https://x.supabase.co/rest/v1/rpc/share_view');

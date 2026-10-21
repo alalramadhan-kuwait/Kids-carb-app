@@ -19,6 +19,7 @@ const WORDS = {
   },
 };
 const W = WORDS[LANG] || WORDS.ar;
+const WORDS2 = LANG === "en" ? { now: "now", food: "food", insulin: "insulin" } : { now: "الحين", food: "أكل", insulin: "إنسولين" };
 const MIN = 60000;
 const ARROW = { 1: "⇊", 2: "↘", 3: "→", 4: "↗", 5: "⇈" };
 // the app's day colours (src/index.css)
@@ -159,6 +160,111 @@ function background(d, v, size, chartTop) {
   return ctx.getImage();
 }
 
+// medium and large: the graph fills the widget. Her range, the readings as dots, doses and meals as lines with the amount,
+// the latest value in a bubble at the last dot, and (when the link carries on-board data) a strip of what is acting now:
+// food being absorbed above the line, insulin acting below. The strip is an estimate for display only: food follows a
+// curve that peaks at 40 minutes (the link does not say which foods are fast), insulin the same model as IOB.
+function graphFirst(d, v, size, top) {
+  const ctx = new DrawContext();
+  ctx.size = size;
+  ctx.opaque = true;
+  ctx.respectScreenScale = true;
+  const W = size.width, H = size.height, ob = d.onboard;
+  const lane = ob && ((ob.dia > 0 && ob.peak > 0 && ob.peak < ob.dia / 2 && (ob.doses || []).length) || (ob.carbs || []).length);
+  const x0 = 12, x1 = W - (lane ? 46 : 12), y0 = top, y1 = H - (lane ? 46 : 20), lz = H - 28;
+  ctx.setFillColor(new Color(C.bg));
+  ctx.fillRect(new Rect(0, 0, W, H));
+  const vals = v.rs.map((r) => r.v);
+  const lo = Math.min(54, ...vals), hi = Math.max(200, ...vals);
+  const y = (mg) => y1 - ((mg - lo) / (hi - lo)) * (y1 - y0);
+  const t1 = Date.now(), t0 = t1 - 3 * 60 * MIN;
+  const x = (t) => x0 + ((t - t0) / (t1 - t0)) * (x1 - x0);
+  ctx.setFillColor(new Color(C.band));
+  ctx.fillRect(new Rect(x0, y(d.high), x1 - x0, y(d.low) - y(d.high)));
+  // hour lines; their labels along the bottom, "now" at the right
+  ctx.setFont(Font.mediumSystemFont(9));
+  ctx.setTextColor(new Color(C.text3));
+  for (let h = new Date(t0).setMinutes(0, 0, 0) + 60 * MIN; h < t1; h += 60 * MIN) {
+    const px = x(h);
+    ctx.setFillColor(new Color(C.border));
+    ctx.fillRect(new Rect(px - 0.5, y0, 1, y1 - y0));
+    ctx.setTextAlignedCenter();
+    if (px - 16 >= 0 && px + 40 <= x1) ctx.drawTextInRect(hhmm(h), new Rect(px - 20, H - 13, 40, 12));
+  }
+  ctx.setTextAlignedRight();
+  ctx.drawTextInRect(WORDS2.now, new Rect(x1 - 60, H - 13, 60, 12));
+  // doses and meals: a faint line with the amount at the top
+  ctx.setFont(Font.boldSystemFont(9));
+  const mark = (t, color, label, right) => {
+    if (t < t0 || t > t1) return;
+    const px = x(t);
+    ctx.setFillColor(new Color(color, 0.35));
+    ctx.fillRect(new Rect(px - 1, y0, 2, y1 - y0));
+    ctx.setTextColor(new Color(color));
+    if (right) { ctx.setTextAlignedLeft(); ctx.drawTextInRect(label, new Rect(px + 3, y0, 40, 12)); }
+    else { ctx.setTextAlignedRight(); ctx.drawTextInRect(label, new Rect(px - 43, y0, 40, 12)); }
+  };
+  for (const q of (ob && ob.doses) || []) mark(Date.parse(q.t), C.ins, Number(q.u).toFixed(1).replace(/\.0$/, "") + "u", false);
+  for (const c of (ob && ob.carbs) || []) mark(Date.parse(c.t), C.carb, Math.round(Number(c.g)) + "g", true);
+  // the readings
+  for (const r of v.rs) {
+    if (r.t < t0) continue;
+    ctx.setFillColor(new Color(C.dot[levelOf(d, r.v)]));
+    ctx.fillEllipse(new Rect(x(r.t) - 2.2, y(r.v) - 2.2, 4.4, 4.4));
+  }
+  const lx = x(v.last.t), ly = y(v.last.v), tone = v.stale ? C.text3 : C.text[v.level];
+  ctx.setFillColor(new Color("#ffffff"));
+  ctx.fillEllipse(new Rect(lx - 6.5, ly - 6.5, 13, 13));
+  ctx.setFillColor(new Color(v.stale ? C.text3 : C.dot[v.level]));
+  ctx.fillEllipse(new Rect(lx - 5, ly - 5, 10, 10));
+  // the bubble: below the last dot when there is room, else above; kept inside the graph
+  const bw = W > 340 ? 76 : 68, bh = 26;
+  const bx = Math.max(x0, Math.min(lx - bw + 14, x1 - bw));
+  const by = ly + 10 + bh <= y1 + 4 ? ly + 10 : ly - 10 - bh;
+  const bubble = new Path();
+  bubble.addRoundedRect(new Rect(bx, by, bw, bh), 9, 9);
+  ctx.addPath(bubble);
+  ctx.setFillColor(new Color(tone));
+  ctx.fillPath();
+  ctx.setFont(Font.boldRoundedSystemFont(17));
+  ctx.setTextColor(new Color("#ffffff"));
+  ctx.setTextAlignedCenter();
+  ctx.drawTextInRect(v.value + (v.arrow ? " " + v.arrow : ""), new Rect(bx, by + 3, bw, bh - 4));
+  if (lane) {
+    // what is acting now, the last 3 hours: food (g/h) up, insulin (U/h) down
+    const step = 3 * MIN, pts = [];
+    const tau = ob.dia > 0 && ob.peak > 0 && ob.peak < ob.dia / 2 ? (ob.peak * (1 - ob.peak / ob.dia)) / (1 - (2 * ob.peak) / ob.dia) : null;
+    const a = tau ? (2 * tau) / ob.dia : 0, S = tau ? 1 / (1 - a + (1 + a) * Math.exp(-ob.dia / tau)) : 0;
+    for (let t = t0; t <= t1; t += step) {
+      let food = 0, ins = 0;
+      for (const c of ob.carbs || []) { const m = (t - Date.parse(c.t)) / MIN; if (m > 0 && m < 600) food += Number(c.g) * (m / 1600) * Math.exp(-m / 40) * 60; }
+      if (tau) for (const q of ob.doses || []) { const m = (t - Date.parse(q.t)) / MIN; if (m > 0 && m < ob.dia) ins += Number(q.u) * (S / (tau * tau)) * m * (1 - m / ob.dia) * Math.exp(-m / tau) * 60; }
+      pts.push([x(t), food, ins]);
+    }
+    const area = (f, color) => {
+      const p = new Path();
+      p.move(new Point(pts[0][0], lz));
+      for (const q of pts) p.addLine(new Point(q[0], f(q)));
+      p.addLine(new Point(pts[pts.length - 1][0], lz));
+      p.closeSubpath();
+      ctx.addPath(p);
+      ctx.setFillColor(new Color(color));
+      ctx.fillPath();
+    };
+    area((q) => lz - Math.min(q[1] / 30, 1) * 12, "#FFA83D");
+    area((q) => lz + Math.min(q[2] / 1.2, 1) * 12, "#5F97FF");
+    ctx.setFillColor(new Color("#CFD3FF"));
+    ctx.fillRect(new Rect(x0, lz - 0.5, x1 - x0, 1));
+    ctx.setFont(Font.mediumSystemFont(8));
+    ctx.setTextAlignedLeft();
+    ctx.setTextColor(new Color("#C9771A"));
+    ctx.drawTextInRect(WORDS2.food, new Rect(x1 + 4, lz - 13, 40, 11));
+    ctx.setTextColor(new Color(C.ins));
+    ctx.drawTextInRect(WORDS2.insulin, new Rect(x1 + 4, lz + 2, 40, 11));
+  }
+  return ctx.getImage();
+}
+
 async function logo() {
   const fm = FileManager.local();
   const p = fm.joinPath(fm.cacheDirectory(), "layan-logo.png");
@@ -195,19 +301,18 @@ function message(w, s) {
   text(w, s, 12, { color: C.text2 }).lineLimit = 3;
 }
 
-// header, left: her picture; her name over insulin and carbs on board
-async function who(row, v, name, pic) {
+// header: her picture and name on the left; insulin and carbs on board and the reading's age on the right
+async function header(row, v, name, pic) {
   const img = await logo();
   if (img) { const i = row.addImage(img); i.imageSize = new Size(pic, pic); i.cornerRadius = pic * 0.26; row.addSpacer(6); }
-  const col = row.addStack();
-  col.layoutVertically();
-  text(col, name, 13, { bold: true, color: C.brand });
+  text(row, name, 13, { bold: true, color: C.brand });
+  row.addSpacer();
+  if (v.stale) { text(row, W.old + " · ", 11.5, { bold: true, color: C.text["low"] }); }
   if (v.onboard) {
-    const r = col.addStack();
-    r.centerAlignContent();
-    if (v.onboard.iob) { symbol(r, "syringe.fill", C.ins, 11); r.addSpacer(2); text(r, v.onboard.iob, 12, { medium: true, color: C.ins }); r.addSpacer(6); }
-    if (v.onboard.cob) { symbol(r, "fork.knife", C.carb, 11); r.addSpacer(2); text(r, v.onboard.cob, 12, { medium: true, color: C.carb }); }
+    if (v.onboard.iob) { symbol(row, "syringe.fill", C.ins, 10); row.addSpacer(2); text(row, v.onboard.iob, 11.5, { medium: true, color: C.ins }); row.addSpacer(6); }
+    if (v.onboard.cob) { symbol(row, "fork.knife", C.carb, 10); row.addSpacer(2); text(row, v.onboard.cob, 11.5, { medium: true, color: C.carb }); row.addSpacer(6); }
   }
+  liveAge(row, v.last.t, 11.5, { bold: true, color: C.ink });
 }
 
 // How old the reading is, as a timer counting up by itself ("9:57" then "قبل"/"ago"): iOS redraws it on its own,
@@ -226,24 +331,6 @@ function liveAge(stack, t, size, opts) {
   d.minimumScaleFactor = 0.6;
   text(r, " " + W.agoWord, size, o);
   return r;
-}
-
-// value and arrow, then the change and time over the age in a pill, top right
-function headline(r, v, big) {
-  text(r, v.value, big, { bold: true, color: v.color });
-  r.addSpacer(4);
-  text(r, v.arrow, big * 0.62, { bold: true, color: v.color });
-  r.addSpacer(8);
-  const side = r.addStack();
-  side.layoutVertically();
-  if (v.stale) text(side, W.old + " · " + v.clock, 12, { bold: true, color: C.text["low"] });
-  else text(side, (v.delta ? v.delta.split(" ")[0] + " · " : "") + v.clock, 13, { medium: true, color: C.ink });
-  side.addSpacer(3);
-  const pill = side.addStack();
-  pill.backgroundColor = new Color("#EEE9FB");
-  pill.cornerRadius = 11;
-  pill.setPadding(3, 9, 3, 9);
-  liveAge(pill, v.last.t, 13, { bold: true, color: C.ink });
 }
 
 const d = await load();
@@ -305,15 +392,12 @@ else {
     if (v.onboard && v.onboard.iob) text(ar, " · IOB " + v.onboard.iob, 10, { color: ac });
     w.addSpacer();
   } else {
-    // medium and large: a header (picture, name, IOB, COB | reading); the trend spans the whole width below
-    const chartTop = fam === "large" ? size.height * 0.2 : size.height * 0.4;
-    w.backgroundImage = background(d, v, size, chartTop);
+    // medium and large: a slim header; the graph, the value bubble and what is acting now fill the rest
+    w.backgroundImage = graphFirst(d, v, size, fam === "large" ? 48 : 34);
     w.setPadding(8, 12, 0, 12);
     const row = w.addStack();
     row.centerAlignContent();
-    await who(row, v, name, fam === "large" ? 40 : 34);
-    row.addSpacer();
-    headline(row, v, fam === "large" ? 46 : 38);
+    await header(row, v, name, fam === "large" ? 26 : 22);
     if (d.offline) { const o = w.addStack(); o.addSpacer(); text(o, W.cached, 10, { color: C.text["high"] }); }
     w.addSpacer();
   }

@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.25.0",
+    "date": "2026-10-21",
+    "notes": [
+      "ويدجت الآيفون الجديد: الرسم ياخذ الويدجت كله، والرقم على آخر قراءة. الجرعة والأكل عليها الكمية، وتحت شريط يبين الأكل اللي يمتص والإنسولين الشغّال (تقدير)."
+    ],
+    "notes_en": [
+      "New iPhone widget: the graph fills it and the value sits on the last reading. Doses and meals show their amounts, and a strip below shows food being absorbed and insulin acting (an estimate)."
+    ]
+  },
+  {
     "version": "4.24.1",
     "date": "2026-10-21",
     "notes": [
