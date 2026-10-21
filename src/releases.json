@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.26.0",
+    "date": "2026-10-21",
+    "notes": [
+      "ويدجت الآيفون: خط «2h» بعد ساعتين من آخر أكلة، بنفسجي وهو جاي وأخضر «2h ✓» لما تمر الساعتين. الرسم صار يمتد نص ساعة قدّام.",
+      "عمر القراءة صار في الزاوية جنب «قبل»."
+    ],
+    "notes_en": [
+      "iPhone widget: a «2h» line two hours after the last meal, purple while it is coming and green «2h ✓» once it has passed. The graph now runs half an hour ahead.",
+      "The reading's age now sits in the corner, next to «ago»."
+    ]
+  },
+  {
     "version": "4.25.1",
     "date": "2026-10-21",
     "notes": [
