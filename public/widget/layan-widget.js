@@ -127,7 +127,7 @@ function smoothed(rs) {
 }
 
 function readingLine(ctx, d, rs, t0, x, y, width) {
-  const pts = smoothed(rs.filter((r) => r.t >= t0 - 15 * MIN));
+  const pts = smoothed(rs.filter((r) => r.t >= t0));
   let path = null, key = null;
   const flush = () => { if (!path) return; ctx.addPath(path); ctx.setStrokeColor(new Color(key.color, key.gap ? 0.3 : 1)); ctx.setLineWidth(width); ctx.strokePath(); path = null; };
   for (let i = 1; i < pts.length; i++) {
@@ -197,10 +197,21 @@ function graphFirst(d, v, size, top) {
   const vals = v.rs.map((r) => r.v);
   const lo = Math.min(54, ...vals), hi = Math.max(200, ...vals);
   const y = (mg) => y1 - ((mg - lo) / (hi - lo)) * (y1 - y0);
-  const t1 = Date.now(), t0 = t1 - 3 * 60 * MIN;
+  // the 2-hour mark after her last meal (carbs in the last 4 hours), the usual time to judge a meal: the graph then
+  // runs 30 minutes ahead so the mark is seen coming
+  const now = Date.now();
+  const meal = ((ob && ob.carbs) || []).map((c) => Date.parse(c.t)).filter((t) => t <= now && now - t < 4 * 60 * MIN).sort((a, b) => a - b).pop();
+  const ahead = meal ? 30 * MIN : 0;
+  const t1 = now + ahead, t0 = t1 - 3 * 60 * MIN;
   const x = (t) => x0 + ((t - t0) / (t1 - t0)) * (x1 - x0);
   ctx.setFillColor(new Color(C.band));
   ctx.fillRect(new Rect(x0, y(d.high), x1 - x0, y(d.low) - y(d.high)));
+  if (ahead) {
+    ctx.setFillColor(new Color(C.border, 0.45)); // the next 30 minutes: no readings yet
+    ctx.fillRect(new Rect(x(now), y0, x1 - x(now), y1 - y0));
+    ctx.setFillColor(new Color(C.text3));
+    ctx.fillRect(new Rect(x(now) - 0.5, y0, 1, y1 - y0));
+  }
   // hour lines; their labels along the bottom, "now" at the right
   ctx.setFont(Font.mediumSystemFont(9));
   ctx.setTextColor(new Color(C.text3));
@@ -209,10 +220,10 @@ function graphFirst(d, v, size, top) {
     ctx.setFillColor(new Color(C.border));
     ctx.fillRect(new Rect(px - 0.5, y0, 1, y1 - y0));
     ctx.setTextAlignedCenter();
-    if (px - 16 >= 0 && px + 40 <= x1) ctx.drawTextInRect(hhmm(h), new Rect(px - 20, H - 13, 40, 12));
+    if (px - 16 >= 0 && px + 40 <= x1 && (!ahead || Math.abs(px - x(now)) > 34)) ctx.drawTextInRect(hhmm(h), new Rect(px - 20, H - 13, 40, 12));
   }
-  ctx.setTextAlignedRight();
-  ctx.drawTextInRect(WORDS2.now, new Rect(x1 - 60, H - 13, 60, 12));
+  if (ahead) { ctx.setTextAlignedCenter(); ctx.drawTextInRect(WORDS2.now, new Rect(x(now) - 30, H - 13, 60, 12)); }
+  else { ctx.setTextAlignedRight(); ctx.drawTextInRect(WORDS2.now, new Rect(x1 - 60, H - 13, 60, 12)); }
   // doses and meals: a faint line with the amount at the top
   ctx.setFont(Font.boldSystemFont(9));
   const mark = (t, color, label, right) => {
@@ -226,6 +237,21 @@ function graphFirst(d, v, size, top) {
   };
   for (const q of (ob && ob.doses) || []) mark(Date.parse(q.t), C.ins, Number(q.u).toFixed(1).replace(/\.0$/, "") + "u", false);
   for (const c of (ob && ob.carbs) || []) mark(Date.parse(c.t), C.carb, Math.round(Number(c.g)) + "g", true);
+  if (meal) {
+    // purple and dashed while waiting, green once the 2 hours have passed
+    const at = meal + 120 * MIN, done = now >= at, px = x(at), tone2 = done ? "#1F9D6B" : "#7A6BD8";
+    ctx.setFillColor(new Color(tone2));
+    if (done) ctx.fillRect(new Rect(px - 0.8, y0, 1.6, y1 - y0));
+    else for (let yy = y0; yy < y1; yy += 6) ctx.fillRect(new Rect(px - 0.8, yy, 1.6, Math.min(3, y1 - yy)));
+    const pill = new Path();
+    pill.addRoundedRect(new Rect(px - 17, y1 - 15, 34, 15), 7.5, 7.5);
+    ctx.addPath(pill);
+    ctx.fillPath();
+    ctx.setFont(Font.boldSystemFont(9.5));
+    ctx.setTextColor(new Color("#ffffff"));
+    ctx.setTextAlignedCenter();
+    ctx.drawTextInRect(done ? "2h ✓" : "2h", new Rect(px - 17, y1 - 13.5, 34, 13));
+  }
   // the readings
   readingLine(ctx, d, v.rs, t0, x, y, 1.8);
   const lx = x(v.last.t), ly = y(v.last.v), tone = v.stale ? C.text3 : C.text[v.level];
@@ -251,7 +277,7 @@ function graphFirst(d, v, size, top) {
     const step = 3 * MIN, pts = [];
     const tau = ob.dia > 0 && ob.peak > 0 && ob.peak < ob.dia / 2 ? (ob.peak * (1 - ob.peak / ob.dia)) / (1 - (2 * ob.peak) / ob.dia) : null;
     const a = tau ? (2 * tau) / ob.dia : 0, S = tau ? 1 / (1 - a + (1 + a) * Math.exp(-ob.dia / tau)) : 0;
-    for (let t = t0; t <= t1; t += step) {
+    for (let t = t0; t <= now; t += step) {
       let food = 0, ins = 0;
       for (const c of ob.carbs || []) { const m = (t - Date.parse(c.t)) / MIN; if (m > 0 && m < 600) food += Number(c.g) * (m / 1600) * Math.exp(-m / 40) * 60; }
       if (tau) for (const q of ob.doses || []) { const m = (t - Date.parse(q.t)) / MIN; if (m > 0 && m < ob.dia) ins += Number(q.u) * (S / (tau * tau)) * m * (1 - m / ob.dia) * Math.exp(-m / tau) * 60; }
@@ -270,7 +296,7 @@ function graphFirst(d, v, size, top) {
     area((q) => lz - Math.min(q[1] / 30, 1) * 12, "#FFA83D");
     area((q) => lz + Math.min(q[2] / 1.2, 1) * 12, "#5F97FF");
     ctx.setFillColor(new Color("#CFD3FF"));
-    ctx.fillRect(new Rect(x0, lz - 0.5, x1 - x0, 1));
+    ctx.fillRect(new Rect(x0, lz - 0.5, x(now) - x0, 1));
     ctx.setFont(Font.mediumSystemFont(8));
     ctx.setTextAlignedLeft();
     ctx.setTextColor(new Color("#C9771A"));
@@ -328,7 +354,7 @@ async function header(row, v, name, pic) {
     if (v.onboard.iob) { symbol(row, "syringe.fill", C.ins, 10); row.addSpacer(2); text(row, v.onboard.iob, 11.5, { medium: true, color: C.ins }); row.addSpacer(6); }
     if (v.onboard.cob) { symbol(row, "fork.knife", C.carb, 10); row.addSpacer(2); text(row, v.onboard.cob, 11.5, { medium: true, color: C.carb }); row.addSpacer(6); }
   }
-  liveAge(row, v.last.t, 11.5, { bold: true, color: C.ink });
+  liveAge(row, v.last.t, 11.5, { bold: true, color: C.ink, right: true });
 }
 
 // How old the reading is, as a timer counting up by itself ("9:57" then "قبل"/"ago"): iOS redraws it on its own,
@@ -345,6 +371,7 @@ function liveAge(stack, t, size, opts) {
   d.textColor = color;
   d.lineLimit = 1;
   d.minimumScaleFactor = 0.6;
+  if (o.right) d.rightAlignText(); // a timer takes the whole width it is given: keep its digits next to "ago"
   text(r, " " + W.agoWord, size, o);
   return r;
 }
