@@ -334,3 +334,82 @@ export function MomAte() {
     </MomPage>
   );
 }
+
+/**
+ * «أكلت قبل»: a meal nobody logged at the time (logged afterwards). When she ate, then the NovoRapid for it: already in
+ * the log, given but not recorded (its units and time are recorded now), or none. No dose is worked out for a meal in
+ * the past: only what was done is recorded.
+ */
+export function MomPast() {
+  const nav = useNavigate();
+  const { settings: s, events, products, reload } = useData();
+  const d = useDraft();
+  const { c, mealCarbs, nameOf } = useCatalog();
+  const carbs = mealCarbs(d.items);
+  const now = Date.now();
+  const eatAfter = s.dose_to_meal_min ?? 10;
+  const [at, setAt] = useState(() => now - 60 * 60000);
+  const [ins, setIns] = useState<'logged' | 'given' | 'none' | null>(null);
+  const [units, setUnits] = useState(0);
+  const [doseAt, setDoseAt] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [mealId] = useState(() => crypto.randomUUID());
+  const [cid] = useSubmitId();
+  const step = s.pen_step ?? 1;
+  const dAt = doseAt ?? at - eatAfter * 60000;
+  // the NovoRapid already in the log around that meal (the other parent may have recorded it)
+  const near = events.filter((e) => e.kind === 'insulin' && e.insulin_type !== 'long' && !e.deleted_at && Math.abs(Date.parse(e.occurred_at) - at) <= 90 * 60000)
+    .sort((a, b) => Date.parse(a.occurred_at) - Date.parse(b.occurred_at));
+  const timeProblem = at > now + 5 * 60000 ? t('الوقت في المستقبل') : at < now - 24 * 3600000 ? t('أكثر من يوم: سجّليها من السجل') : null;
+  const ready = carbs !== null && d.items.length > 0 && !timeProblem && ins !== null && (ins !== 'given' || (units > 0 && dAt <= now + 5 * 60000));
+  const mealName = () => { const names = d.items.map(nameOf).filter(Boolean); return d.name ?? (names.length ? (names.length > 3 ? `${names.slice(0, 3).join(' + ')} +${names.length - 3}` : names.join(' + ')) : SLOT[slotNow(at)]); };
+  const save = async () => {
+    if (!ready) return;
+    setBusy(true);
+    try {
+      if (ins === 'given') {
+        // the same dose already recorded near that time: say so instead of recording it twice
+        const dup = (await insulinNear('rapid', dAt, 15)).filter((e) => e.client_id !== cid);
+        if (dup.length) { toast(t('في إبرة مسجّلة بنفس الوقت · اختاري «مسجّلة»')); setBusy(false); return; }
+        await saveEvent({ client_id: cid, kind: 'insulin', occurred_at: new Date(dAt).toISOString(), insulin_units: units, insulin_type: 'rapid', bolus_purpose: 'meal',
+          carbs_g: null, treatment: null, note: 'سُجّلت بعدين', activity_min: null, activity_level: null, ends_at: null, dose_calc: null, bg_mgdl: null }); // i18n-ok: stored note
+      }
+      const items = planItems(d.items, c)!;
+      const meal = planMeal(items, products, s);
+      const notes = ['سُجّلت بعد الأكل' /* i18n-ok: stored note */, ins === 'none' ? 'بدون إبرة' /* i18n-ok: stored note */ : null,
+        d.left.length ? `${d.left.join(' · ')} ${t('ما ينحسب بالإبرة · كلّمي بابا')}` : null, weighedNote(d.items)].filter(Boolean).join(' · ');
+      await logMeal({ kind: 'meal', recipe_id: null, name: mealName(), category: null, meal, modified: true, notes, eatenAt: new Date(at).toISOString(), client_id: mealId, meal_slot: slotNow(at) });
+      draftOps.clear(); await reload(); toast(t('انسجّلت الوجبة ✓')); nav('/mom', { replace: true });
+    } catch (e) { toast((e as Error).message); setBusy(false); }
+  };
+  return (
+    <MomPage compact title={t('أكلت قبل')} back="/mom/meal" foot={
+      <Big md disabled={busy || !ready} onClick={() => void save()}>✓ {t('سجّلي الوجبة')}</Big>
+    }>
+      <div className="rounded-2xl bg-white px-4 py-3 text-center">
+        <div className="text-[15px] text-slate-500"><bdi>{mealName()}</bdi></div>
+        <div className="num text-[26px] font-extrabold">{carbs === null ? '—' : `${fmt(Math.round(carbs * 10) / 10)} ${t('غ')}`}</div>
+      </div>
+      <div className="text-center text-[17px] font-bold">🍽️ {t('متى أكلت؟')}</div>
+      <TimePicker compact value={at} onChange={(v) => { setAt(v); setDoseAt(null); }} />
+      {timeProblem && <p className="rounded-2xl bg-near-soft px-4 py-2 text-center text-[15px] text-near">{timeProblem}</p>}
+      <div className="text-center text-[17px] font-bold">💉 {t('أخذت نوفورابيد للأكل؟')}</div>
+      <div className="space-y-2">
+        <Choice icon="📋" label={t('أخذت · مسجّلة')} on={ins === 'logged'} onClick={() => setIns('logged')}
+          sub={near.length ? near.map((e) => `${fmt(e.insulin_units ?? 0)} ${t('وحدة')} ${clock(Date.parse(e.occurred_at))}`).join(' · ') : t('ما في إبرة مسجّلة قريب من هالوقت')} />
+        <Choice icon="✍️" label={t('أخذت · مو مسجّلة')} on={ins === 'given'} onClick={() => setIns('given')} sub={t('سجّلي كم وحدة ومتى')} />
+        <Choice icon="🚫" label={t('ما أخذت')} on={ins === 'none'} onClick={() => setIns('none')} />
+      </div>
+      {ins === 'given' && <>
+        <div className="flex items-center justify-center gap-6">
+          <button aria-label="+" className="grid h-12 w-12 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => setUnits(Math.round((units + step) * 10) / 10)}>+</button>
+          <span className="num w-16 text-center text-[38px] font-extrabold leading-none">{fmt(units)}</span>
+          <button aria-label="−" className="grid h-12 w-12 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => setUnits(Math.max(0, Math.round((units - step) * 10) / 10))}>−</button>
+        </div>
+        <div className="text-center text-[15px] font-bold">{t('وقت الإبرة')}</div>
+        <TimePicker compact value={dAt} onChange={setDoseAt} />
+      </>}
+      <p className="text-center text-[12px] text-slate-400">{t('للأكل اللي فات: نسجّل اللي صار بس، بدون حسبة إبرة')}</p>
+    </MomPage>
+  );
+}

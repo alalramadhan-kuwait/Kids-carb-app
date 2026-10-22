@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.27.0",
+    "date": "2026-10-22",
+    "notes": [
+      "وجبة نسيتوا تسجلونها: «أكلت قبل · نسينا نسجّلها» تحت أزرار الوجبة. تختارون متى أكلت، وإذا أخذت نوفورابيد (مسجّلة، مو مسجّلة مع الوحدات والوقت، أو ما أخذت). ما في حسبة إبرة للأكل اللي فات."
+    ],
+    "notes_en": [
+      "A meal you forgot to log: «Already ate · we forgot to log it» under the meal buttons. Pick when she ate and whether she had NovoRapid (already recorded, not recorded with its units and time, or none). No dose is worked out for a past meal."
+    ]
+  },
+  {
     "version": "4.26.1",
     "date": "2026-10-22",
     "notes": [

@@ -125,6 +125,10 @@ export function MomMeal() {
           <Big md tone="soft" disabled={total === null || review.length > 0} onClick={() => { draftOps.setMode('plan'); nav('/mom/when'); }}>📅 {t('وقت ثاني')}</Big>
         </div>
       )}
+      {/* a meal nobody logged at the time: when she ate and the insulin then, no dose worked out */}
+      {!d.planId && (
+        <button disabled={total === null || review.length > 0} onClick={() => nav('/mom/past')} className="min-h-[44px] w-full rounded-2xl text-[16px] font-bold text-brand disabled:opacity-40">🕘 {t('أكلت قبل · نسينا نسجّلها')}</button>
+      )}
     </>}>
       {fromHome && (
         <div className="flex items-center gap-2 rounded-2xl bg-near-soft px-3 py-2 text-near">

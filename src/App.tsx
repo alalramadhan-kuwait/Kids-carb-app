@@ -19,7 +19,7 @@ import { MomSnap } from './pages/mom/MomSnap';
 import { MomAdd, MomFoodItem, MomGroup, MomKidsMeal, MomMeal, MomNew, MomParts, MomPortion, MomRestaurant } from './pages/mom/MomMeal';
 import { MomPlate } from './pages/mom/MomPlate';
 import { MomCompare } from './pages/mom/MomCompare';
-import { MomAte, MomDose, MomGiven } from './pages/mom/MomDose';
+import { MomAte, MomDose, MomGiven, MomPast } from './pages/mom/MomDose';
 import { MomMealEdit } from './pages/mom/MomMealEdit';
 import { MomJuice, MomRecordDose, MomShot, MomSite, MomSites, MomTresiba } from './pages/mom/MomShots';
 import { MomFoodMenu, MomMedicalMenu } from './pages/mom/MomActions';
@@ -266,6 +266,7 @@ function Shell() {
         <Route path="/mom/new" element={<MomNew />} />
         <Route path="/mom/out" element={<MomOut />} />
         <Route path="/mom/dose" element={<MomDose />} />
+        <Route path="/mom/past" element={<MomPast />} />
         <Route path="/mom/given/:id" element={<MomGiven />} />
         <Route path="/mom/ate/:id" element={<MomAte />} />
         <Route path="/mom/juice" element={<MomJuice />} />
