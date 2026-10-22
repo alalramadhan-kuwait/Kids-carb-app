@@ -1697,4 +1697,5 @@ export const food: Record<string, string> = {
   'الكارب يتغيّر من الغرامات في «تعديل الأصناف والكميات».': 'Carbs change with the grams, in “Edit items and amounts”.',
   'قيم الملصق غلط؟ صحّحوها في المنتج': 'Wrong label values? Fix them on the product',
   'الوقت أو الاسم أو الملاحظة': 'Time, name or note',
+  'الاسم أو الملاحظة': 'Name or note',
 };

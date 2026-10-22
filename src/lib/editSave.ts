@@ -73,13 +73,16 @@ export async function carbsToMeal(e: EventRow, d: EditDraft, me: string | null):
   return (data as { id: string }).id;
 }
 
-/** The items of a logged meal changed (amounts, removed or added): its lines and totals are replaced; the recipe is not touched. */
-export async function updateMealItems(h: HistoryEntry, r: { lines: HistoryLine[]; carbs: number; totals: Record<Nut, number | null> }, me: string | null) {
+/** The items of a logged meal changed (amounts, removed or added): its lines and totals are replaced; the recipe is not
+ *  touched. `at`: its time moved as well (either can change alone). */
+export async function updateMealItems(h: HistoryEntry, r: { lines: HistoryLine[]; carbs: number; totals: Record<Nut, number | null> } | null, me: string | null, at: number | null = null) {
   const { error } = await supabase.from('meal_history').update({
-    lines: r.lines, total_carbs: r.carbs, carbs_unknown: false, ...totalsPatch(r.totals), modified: true, edited_by: me, edited_at: new Date().toISOString(),
+    ...(r ? { lines: r.lines, total_carbs: r.carbs, carbs_unknown: false, ...totalsPatch(r.totals), modified: true } : {}),
+    ...(at !== null ? { eaten_at: new Date(at).toISOString() } : {}),
+    edited_by: me, edited_at: new Date().toISOString(),
   }).eq('id', h.id);
   if (error) throw new Error(error.message);
-  await recordRecalc(h, r.carbs, 'items');
+  if (r) await recordRecalc(h, r.carbs, 'items');
 }
 
 /** A meal logged as carbs only (no items): its carbs corrected. The other totals cannot follow a typed number, so

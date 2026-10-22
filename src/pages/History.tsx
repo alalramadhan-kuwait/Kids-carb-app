@@ -262,7 +262,7 @@ export function LogEntryPage() {
   // a meal of foods is corrected by weight (carbs follow each food's label); time, name and note have their own page
   if (edit === 'items' && h) return (
     <Page title={t('تعديل الأصناف')} back={back}>
-      <button type="button" onClick={() => nav(`/timeline/entry/${key}?edit=entry`, { replace: true })} className="mb-2 flex min-h-[44px] w-full items-center justify-between rounded-xl bg-slate-50 px-3 text-sm font-bold text-slate-600">{t('الوقت أو الاسم أو الملاحظة')}<span>{isEn() ? '›' : '‹'}</span></button>
+      <button type="button" onClick={() => nav(`/timeline/entry/${key}?edit=entry`, { replace: true })} className="mb-2 flex min-h-[44px] w-full items-center justify-between rounded-xl bg-slate-50 px-3 text-sm font-bold text-slate-600">{t('الاسم أو الملاحظة')}<span>{isEn() ? '›' : '‹'}</span></button>
       <EditItems h={h} onCancel={back} onDone={back} />
     </Page>
   );
@@ -436,7 +436,8 @@ function PartEaten({ h }: { h: HistoryEntry }) {
     if (!pending && part === cur && !p.part_auto) return;
     setBusy(true);
     try {
-      const at = p.eating_at ? Date.parse(p.eating_at) : Math.min(Date.now(), Date.parse(h.eaten_at));
+      // once logged, the entry's time is the truth (it may have been corrected); before that, when she started eating
+      const at = !pending ? Date.parse(h.eaten_at) : p.eating_at ? Date.parse(p.eating_at) : Math.min(Date.now(), Date.parse(h.eaten_at));
       await ate(p, part, at, products, settings, { change: !pending }); await reload(); setP(await fetchPlan(p.id)); toast(t('سُجّلت الوجبة ✓'));
     } catch (e) { toast((e as Error).message === 'already_eaten' ? t('هذه الوجبة مسجّلة من قبل') : (e as Error).message); } finally { setBusy(false); }
   };

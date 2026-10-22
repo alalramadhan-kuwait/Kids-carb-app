@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useData } from '../lib/data';
 import { addRow, carbsOfRow, recompute, rowsOf, type ItemRow } from '../lib/mealItems';
 import { updateMealItems } from '../lib/editSave';
+import { TimePicker } from './TimePicker';
 import { fmt } from '../lib/carbs';
 import type { HistoryEntry } from '../lib/types';
 import { ProductPicker } from './ProductPicker';
@@ -24,13 +25,18 @@ export function EditItems({ h, onCancel, onDone, onSave, saveLabel, note, extra,
   const [rows, setRows] = useState<ItemRow[]>(() => rowsOf(h, products));
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
+  // the time is changed here too (the Edit button opens this page for a meal of foods)
+  const [when, setWhen] = useState(Date.parse(h.eaten_at));
+  const moved = !onSave && when !== Date.parse(h.eaten_at);
   const r = useMemo(() => recompute(h, rows, settings), [h, rows, settings]);
   const setQty = (i: number, q: number | null) => setRows((xs) => xs.map((x, k) => (k === i ? { ...x, line: { ...x.line, quantity: q ?? 0 } } : x)));
-  const changed = !!onSave || rows.some((x) => x.added || x.line.quantity !== x.q0);
+  const itemsChanged = rows.some((x) => x.added || x.line.quantity !== x.q0);
+  const changed = !!onSave || itemsChanged || moved;
   const save = async () => {
     if (!r.lines.length) return toast(t('أبقوا صنفًا واحدًا على الأقل، أو احذفوا التسجيل كله'));
+    if (moved && when > Date.now() + 5 * 60000) return toast(t('الوقت في المستقبل'));
     setBusy(true);
-    try { if (onSave) await onSave(r); else { await updateMealItems(h, r, me); await reload(); toast(t('تم التعديل ✓')); } onDone(); }
+    try { if (onSave) await onSave(r); else { await updateMealItems(h, itemsChanged ? r : null, me, moved ? when : null); await reload(); toast(t('تم التعديل ✓')); } onDone(); }
     catch (e) { toast((e as Error).message); } finally { setBusy(false); }
   };
 
@@ -43,6 +49,7 @@ export function EditItems({ h, onCancel, onDone, onSave, saveLabel, note, extra,
 
   return (
     <div className="space-y-3">
+      {!onSave && <TimePicker value={when} onChange={setWhen} />}
       <ul className="divide-y divide-slate-100">
         {rows.map((x, i) => {
           const gone = x.line.quantity <= 0;

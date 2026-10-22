@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.26.1",
+    "date": "2026-10-22",
+    "notes": [
+      "«تعديل» لأكلة من أصناف: صار فيها الوقت فوق الغرامات، تغيّرون الاثنين في نفس الصفحة.",
+      "تغيير «كم أكلت؟» ما يرجّع وقت الأكلة اللي صحّحتوه."
+    ],
+    "notes_en": [
+      "«Edit» on a meal made of foods now has the time above the grams, so both change on one page.",
+      "Changing «How much did she eat?» no longer resets a meal time you corrected."
+    ]
+  },
+  {
     "version": "4.26.0",
     "date": "2026-10-21",
     "notes": [
