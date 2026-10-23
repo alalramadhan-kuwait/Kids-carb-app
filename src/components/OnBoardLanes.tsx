@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
-import { carbLane, carbsFrom, dosesFrom, insulinLane, iobParamsOk, type OnBoardLane } from '../engine/iob';
+import { dosesFrom, insulinLane, iobParamsOk, type OnBoardLane } from '../engine/iob';
+import { foodLane, foodsFrom } from '../engine/absorb';
 import { fmtTime } from '../lib/constants';
 import { fmt } from '../lib/carbs';
 import { Icon } from './Icon';
@@ -25,10 +26,10 @@ export function OnBoardLanes({ statusLink = true }: { statusLink?: boolean }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(id); }, []);
   const doses = useMemo(() => dosesFrom(events), [events]);
-  const carbs = useMemo(() => carbsFrom(history, events), [history, events]);
+  const foods = useMemo(() => foodsFrom(history, events), [history, events]);
   const p = s.iob_dia_min && s.iob_peak_min ? { dia: s.iob_dia_min, peak: s.iob_peak_min } : null;
   const ins = iobParamsOk(p) ? insulinLane(doses, now, p) : null;
-  const cob = s.cob_absorb_min ? carbLane(carbs, now, s.cob_absorb_min) : null;
+  const cob = s.cob_absorb_min ? foodLane(foods, now) : null;
 
   return (
     <section aria-label={t('ما زال يعمل')} className="space-y-2">
@@ -36,7 +37,7 @@ export function OnBoardLanes({ statusLink = true }: { statusLink?: boolean }) {
         <div className="space-y-3 rounded-2xl border border-slate-100 bg-white px-3 py-2.5">
           {ins && <Lane lane={ins} now={now} icon="insulin" tone="ins" num={ins.left.toFixed(2)} unit={t('وحدة')}
             line={t('آخر جرعة قبل {d}', { d: dur(now - ins.last) })} />}
-          {cob && <Lane lane={cob} now={now} icon="meals" tone="carb" num={fmt(Math.round(cob.left * 10) / 10)} unit={t('غ')}
+          {cob && <Lane lane={cob} now={now} icon="meals" tone="carb" num={fmt(Math.round(cob.left))} unit={t('غ')}
             line={t('آخر أكل قبل {d}', { d: dur(now - cob.last) })} />}
         </div>
       )}

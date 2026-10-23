@@ -1,6 +1,8 @@
 // The Status page (Gluroo-style "On board"). Pure, tested in Node. Display only: it adds up what was already
 // logged with the doctor's numbers. Nothing here, or anywhere in the app, turns it into an amount to give.
-import { carbsFrom, cobAt, dosesFrom, iobAt, iobParamsOk, type IobParams } from './iob';
+import { carbsFrom, dosesFrom, iobAt, iobParamsOk, type IobParams } from './iob';
+import { foodsFrom, stillToAbsorb } from './absorb';
+import { ONBOARD_VALIDATED } from './forecast';
 import type { EventRow, HistoryEntry } from '../lib/types';
 
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
@@ -34,6 +36,8 @@ export interface OnBoardInput {
   glucose: { mg: number; at: number } | null;
   history: HistoryEntry[]; events: EventRow[];
   iob: IobParams | null; absorbMin: number | null; ratios: Ratio[];
+  /** the estimate from the curves is shown only once validated (forecast.ts ONBOARD_VALIDATED); tests set it */
+  validated?: boolean;
 }
 
 /** The estimate needs a reading no older than 15 minutes, both models and the doctor's ratios. */
@@ -41,13 +45,14 @@ export function onBoard(p: OnBoardInput): OnBoard {
   const iobP = iobParamsOk(p.iob) ? p.iob : null;
   const doses = dosesFrom(p.events), carbs = carbsFrom(p.history, p.events);
   const iob = iobP ? iobAt(p.now, doses, iobP) : null;
-  const cob = p.absorbMin ? cobAt(p.now, carbs, p.absorbMin) : null;
+  // carbs on board: the same curves as the food strip and the «active carbs» card (engine/absorb)
+  const cob = p.absorbMin ? stillToAbsorb(foodsFrom(p.history, p.events), p.now) : null;
   const ratio = ratioAt(p.ratios, p.kuwaitMin);
   let estBy: number | null = null;
   if (iobP) for (const d of doses) if (d.t <= p.now && p.now - d.t < iobP.dia * MIN) estBy = Math.max(estBy ?? 0, d.t + iobP.dia * MIN);
   if (p.absorbMin) for (const c of carbs) if (c.t <= p.now && p.now - c.t < p.absorbMin * MIN) estBy = Math.max(estBy ?? 0, c.t + p.absorbMin * MIN);
   const fresh = p.glucose && p.now - p.glucose.at <= 15 * MIN;
-  const est = fresh && ratio && iob !== null && cob !== null
+  const est = (p.validated ?? ONBOARD_VALIDATED) && fresh && ratio && iob !== null && cob !== null
     ? p.glucose!.mg + (cob / ratio.cr) * ratio.isf - iob * ratio.isf : null;
   return { iob, cob, est, estBy: est !== null ? estBy ?? p.now : null, ratio };
 }

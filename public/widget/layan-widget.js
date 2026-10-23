@@ -72,11 +72,17 @@ function onboard(ob, now) {
       if (t <= now && now - t < ob.dia * MIN) iob += Number(d.u) * iobFraction((now - t) / MIN, ob.dia, ob.peak);
     }
   }
+  // carbs still to absorb, from the same fast and slow curves as the app (src/engine/absorb.ts stillToAbsorb); the care
+  // team's absorption time only switches it on. An estimate, not a measurement.
   if (ob.absorb > 0) {
     cob = 0;
+    const left = (m, tau) => (1 + m / tau) * Math.exp(-m / tau);
     for (const c of ob.carbs || []) {
-      const t = Date.parse(c.t);
-      if (t <= now && now - t < ob.absorb * MIN) cob += Number(c.g) * (1 - (now - t) / (ob.absorb * MIN));
+      const m = (now - Date.parse(c.t)) / MIN, g = Number(c.g);
+      if (!(m >= 0 && m <= 720 && g > 0)) continue;
+      if (c.d) { cob += g * left(m, 12); continue; }
+      const sh = slowShare(c.f);
+      cob += g * ((1 - sh) * left(m, 40) + sh * left(m, 120));
     }
   }
   if (iob === null && cob === null) return null;
@@ -304,14 +310,14 @@ function graphFirst(d, v, size, top) {
       ctx.setFillColor(new Color(color));
       ctx.fillPath();
     };
-    area((q) => lz - Math.min(q[1] / 30, 1) * 12, "#FFCF94");
-    area((q) => lz - Math.min(q[3] / 30, 1) * 12, "#E8892B"); // the slow part of a fatty meal, darker
+    area((q) => lz - Math.min(q[1] / 30, 1) * 12, "#F6B8D1"); // quick part, light pink
+    area((q) => lz - Math.min(q[3] / 30, 1) * 12, "#C2185B"); // the slow part of a fatty meal, dark pink
     area((q) => lz + Math.min(q[2] / 1.2, 1) * 12, "#5F97FF");
     ctx.setFillColor(new Color("#CFD3FF"));
     ctx.fillRect(new Rect(x0, lz - 0.5, x(now) - x0, 1));
     ctx.setFont(Font.mediumSystemFont(8));
     ctx.setTextAlignedLeft();
-    ctx.setTextColor(new Color("#C9771A"));
+    ctx.setTextColor(new Color(C.carb));
     ctx.drawTextInRect(WORDS2.food, new Rect(x1 + 4, lz - 13, 40, 11));
     ctx.setTextColor(new Color(C.ins));
     ctx.drawTextInRect(WORDS2.insulin, new Rect(x1 + 4, lz + 2, 40, 11));

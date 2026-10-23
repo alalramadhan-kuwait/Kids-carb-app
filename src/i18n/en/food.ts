@@ -1698,6 +1698,8 @@ export const food: Record<string, string> = {
   'قيم الملصق غلط؟ صحّحوها في المنتج': 'Wrong label values? Fix them on the product',
   'الوقت أو الاسم أو الملاحظة': 'Time, name or note',
   'الاسم أو الملاحظة': 'Name or note',
+  'كارب سريع': 'fast carbs',
+  'كارب بطيء': 'slow carbs',
   'الأكل اللي يمتص (تقدير)': 'Food being absorbed (estimate)',
   'الأكل اللي يمتص · تقدير': 'Food being absorbed · estimate',
   'الغامق: الجزء البطيء للأكل الدسم': 'darker: the slow part of a fatty meal',

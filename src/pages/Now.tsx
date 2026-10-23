@@ -31,7 +31,8 @@ import { trendFrom, libreOf } from '../engine/trend';
 import { useGraphExtras } from '../hooks/useGraphExtras';
 import { fmtTime } from '../lib/constants';
 import { useLateRise } from '../lib/lateRise';
-import { carbLane, carbsFrom, dosesFrom, insulinLane, iobParamsOk, recentEarly, recentFatty, type OnBoardLane } from '../engine/iob';
+import { dosesFrom, insulinLane, iobParamsOk, recentEarly, recentFatty, type OnBoardLane } from '../engine/iob';
+import { foodLane, foodsFrom } from '../engine/absorb';
 import { GraphHelp } from '../components/ForecastKey';
 import { TrendArrow, TrendLine } from '../components/Trend';
 import { dur } from '../components/OnBoardLanes';
@@ -163,11 +164,11 @@ export default function Now() {
 function ActiveCards({ now }: { now: number }) {
   const { settings: s, history, events } = useData();
   const doses = useMemo(() => dosesFrom(events), [events]);
-  const carbs = useMemo(() => carbsFrom(history, events), [history, events]);
+  const foods = useMemo(() => foodsFrom(history, events), [history, events]);
   const p = s.iob_dia_min && s.iob_peak_min ? { dia: s.iob_dia_min, peak: s.iob_peak_min } : null;
   const insOn = iobParamsOk(p), carbOn = !!s.cob_absorb_min;
   const ins = insOn ? insulinLane(doses, now, p!) : null;
-  const cob = carbOn ? carbLane(carbs, now, s.cob_absorb_min!) : null;
+  const cob = carbOn ? foodLane(foods, now) : null;
   return (
     <div className="grid shrink-0 grid-cols-2 gap-2">
       <ActiveCard tone="ins" icon="insulin" label={t('الإنسولين النشط')} lane={ins} now={now} off={!insOn}
@@ -412,7 +413,7 @@ function HomeChart({ live }: { live: Reading[] }) {
         {h > 60 && <Timeline series={series} view={view} now={now} onView={onView} unit={settings.glucose_unit} height={h + 48} compact
           range={rng} marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={AHEAD} night={nightOf(settings)} />}
       </div>
-      <div className="shrink-0"><FoodLane view={view} now={now} height={28} /></div>
+      <div className="shrink-0"><FoodLane view={view} now={now} height={44} /></div>
       <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
     </section>
   );

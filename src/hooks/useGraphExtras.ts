@@ -1,8 +1,9 @@
 // IOB / COB tracks and forecast lines for a glucose graph (Now and Analysis). Display only.
 import { useMemo } from 'react';
 import { useData } from '../lib/data';
-import { ACT_DELAY_MIN, activityAt, activityFraction, activityPeaks, carbsFrom, cobAt, dosesFrom, iobAt, iobParamsOk } from '../engine/iob';
-import { onboardForecast, pastForecasts, trendForecast, type Forecast } from '../engine/forecast';
+import { ACT_DELAY_MIN, activityAt, activityFraction, activityPeaks, carbsFrom, dosesFrom, iobAt, iobParamsOk } from '../engine/iob';
+import { ONBOARD_VALIDATED, onboardForecast, pastForecasts, trendForecast, type Forecast } from '../engine/forecast';
+import { foodsFrom, stillToAbsorb } from '../engine/absorb';
 import { ratioAt } from '../engine/status';
 import { kuwaitClock } from '../lib/schedule';
 import type { Tracks } from '../engine/Timeline';
@@ -18,15 +19,17 @@ export function useGraphExtras({ series, now, iob, cob, act = false, forecast, p
   const iobOk = iobParamsOk(iobP), cobOk = !!s.cob_absorb_min;
   const doses = useMemo(() => dosesFrom(events), [events]);
   const carbs = useMemo(() => carbsFrom(history, events), [history, events]);
+  const foods = useMemo(() => foodsFrom(history, events), [history, events]);
 
   const tracks = useMemo<Tracks | undefined>(() => {
     const t: Tracks = {};
     if (iob && iobOk) t.iob = (x) => iobAt(x, doses, iobP!);
-    if (cob && cobOk) t.cob = (x) => cobAt(x, carbs, s.cob_absorb_min!);
+    // carbs on board: the same curves as the food strip and the «active carbs» card (engine/absorb)
+    if (cob && cobOk) t.cob = (x) => stillToAbsorb(foods, x);
     // activity: starts ACT_DELAY_MIN after each shot; peaks found once per view (minute by minute); scaled so 1 unit at its peak fills the band
     if (act && iobOk) t.act = { at: (x) => activityAt(x, doses, iobP!, ACT_DELAY_MIN), peaks: activityPeaks(doses, iobP!, start - (iobP!.dia + ACT_DELAY_MIN) * 60000, Math.max(end, now) + iobP!.dia * 60000, ACT_DELAY_MIN), ref: 60 * activityFraction(iobP!.peak, iobP!) };
     return t.iob || t.cob || t.act ? t : undefined;
-  }, [iob, cob, act, Math.floor(start / 600000), Math.floor(end / 600000), iobOk, cobOk, doses, carbs, s.iob_dia_min, s.iob_peak_min, s.cob_absorb_min]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [iob, cob, act, Math.floor(start / 600000), Math.floor(end / 600000), iobOk, cobOk, doses, foods, s.iob_dia_min, s.iob_peak_min, s.cob_absorb_min]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const n = series.t.length;
   const last = n ? { t: series.t[n - 1], v: series.v[n - 1] } : null;
@@ -34,7 +37,7 @@ export function useGraphExtras({ series, now, iob, cob, act = false, forecast, p
   const live = useMemo(() => {
     if (!forecast) return [] as Forecast[];
     const ratio = ratioAt(s.ratios ?? [], kuwaitClock(now).min);
-    return [onboardForecast(last, now, doses, carbs, iobOk ? iobP : null, s.cob_absorb_min, ratio), trendForecast(last, projected30, now)]
+    return [ONBOARD_VALIDATED ? onboardForecast(last, now, doses, carbs, iobOk ? iobP : null, s.cob_absorb_min, ratio) : null, trendForecast(last, projected30, now)]
       .filter((f): f is Forecast => !!f);
   }, [forecast, lastKey, Math.floor(now / 60000), doses, carbs, projected30, s.ratios, s.cob_absorb_min, iobOk]); // eslint-disable-line react-hooks/exhaustive-deps
   const old = useMemo(() => (forecast && past ? pastForecasts(past, start, end) : []), [forecast, past, start, end]);

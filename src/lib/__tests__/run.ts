@@ -1179,7 +1179,7 @@ console.log('status page');
   });
   const ev = (units: number, at: number) => ({ id: 'e', kind: 'insulin', insulin_type: 'rapid', insulin_units: units, occurred_at: new Date(at).toISOString(), deleted_at: null }) as never;
   const meal = (g: number, at: number) => ({ eaten_at: new Date(at).toISOString(), total_carbs: g }) as never;
-  const base = { now: T0, kuwaitMin: 12 * 60 + 30, iob: { dia: 360, peak: 65 }, absorbMin: 180, ratios: R };
+  const base = { now: T0, kuwaitMin: 12 * 60 + 30, iob: { dia: 360, peak: 65 }, absorbMin: 180, ratios: R, validated: true };
   test('estimate = current + carbs left ÷ CR × ISF − insulin left × ISF', () => {
     const o = onBoard({ ...base, glucose: { mg: 120, at: T0 }, history: [meal(40, T0)], events: [ev(2, T0)] });
     assert.equal(o.iob, 2); assert.equal(o.cob, 40);
@@ -1191,6 +1191,10 @@ console.log('status page');
     assert.equal(onBoard({ ...base, ratios: [], glucose: { mg: 120, at: T0 }, history: [], events: [] }).est, null);
     const idle = onBoard({ ...base, glucose: { mg: 120, at: T0 }, history: [], events: [] });
     assert.equal(idle.est, 120); assert.equal(idle.estBy, T0);
+  });
+  test('no estimate while the curve forecast is not validated against her readings (the default)', () => {
+    const o = onBoard({ ...base, validated: undefined, glucose: { mg: 120, at: T0 }, history: [meal(40, T0)], events: [ev(2, T0)] });
+    assert.equal(o.est, null); assert.equal(o.cob, 40, 'active carbs still shown');
   });
   test('sensor life and its reminders, once each per serial', () => {
     const start = new Date(T0 - 13.5 * 24 * H).toISOString();
@@ -2667,11 +2671,12 @@ console.log('iphone widget');
     assert.match((await run('small', data, { code: '<html>not found</html>' })).texts, /تعذّر تحميل الويدجت/);
     assert.match((await run('small', data, { code: null })).texts, /تعذّر تحميل الويدجت/);
   });
-  test('widget: IOB and COB match the app (engine/iob.ts) for the same doses and carbs', async () => {
-    const ob = { dia: 360, peak: 65, absorb: 180, doses: [{ t: at(50), u: 3 }, { t: at(200), u: 4 }, { t: at(400), u: 2 }], carbs: [{ t: at(50), g: 45 }, { t: at(120), g: 15 }, { t: at(200), g: 30 }] };
+  test('widget: IOB and COB match the app (engine/iob.ts, engine/absorb.ts) for the same doses and carbs', async () => {
+    const ob = { dia: 360, peak: 65, absorb: 180, doses: [{ t: at(50), u: 3 }, { t: at(200), u: 4 }, { t: at(400), u: 2 }], carbs: [{ t: at(50), g: 45, f: 25 }, { t: at(120), g: 15, d: true }, { t: at(200), g: 30 }] };
     const P = { dia: 360, peak: 65 };
     const iob = iobAt(now, ob.doses.map((d) => ({ t: Date.parse(d.t), units: d.u })), P);
-    const cob = cobAt(now, ob.carbs.map((c) => ({ t: Date.parse(c.t), grams: c.g })), 180);
+    const { stillToAbsorb } = await import('../../engine/absorb');
+    const cob = stillToAbsorb(ob.carbs.map((c) => ({ t: Date.parse(c.t), carbs: c.g, fat: c.f, drink: c.d })), now);
     const m = await run('accessoryRectangular', { ...data, onboard: ob });
     const got = /IOB ([\d.]+)u  COB (\d+)g/.exec(m.texts);
     assert.ok(got, m.texts);
@@ -3762,7 +3767,7 @@ console.log('P0: food sources, eaten part, injections untouched');
 }
 
 {
-  const { slowShare, isDrink, absorbing, stillToAbsorb } = await import('../../engine/absorb');
+  const { slowShare, isDrink, absorbing, stillToAbsorb, foodEnd, foodLane, foodsFrom } = await import('../../engine/absorb');
   const T = Date.UTC(2026, 9, 21, 16, 20), M = 60000;
   test('fatty meals: the slow share grows with fat (none under 8 g, fat ÷ 50, at most 60 %); drinks are a quick pulse', () => {
     assert.equal(slowShare(null), 0); assert.equal(slowShare(5), 0); assert.equal(slowShare(10), 0.2); assert.equal(slowShare(20), 0.4); assert.equal(slowShare(32), 0.6);
@@ -3778,6 +3783,18 @@ console.log('P0: food sources, eaten part, injections untouched');
     assert.ok(at3(lean) < 0.08 && at3(fatty) > 0.3 && at3(fatty) < 0.4, `${at3(lean)} ${at3(fatty)}`);
     assert.ok(stillToAbsorb(drink, T + 60 * M) / 15 < 0.1);
     assert.equal(absorbing(lean, T + 60 * M).slow, 0);
+  });
+  test('one engine: active carbs, the strip and COB give the same grams; the end is later for a fatty meal', () => {
+    const lean = [{ t: T, carbs: 37, fat: 2 }], fatty = [{ t: T, carbs: 37, fat: 32 }];
+    const endL = (foodEnd(lean, T + M)! - T) / M, endF = (foodEnd(fatty, T + M)! - T) / M;
+    assert.ok(endL >= 140 && endL <= 170 && endF > 300 && endF < 480, `${endL} ${endF}`);
+    const at = T + 90 * M, l = foodLane(fatty, at)!;
+    assert.equal(l.left, stillToAbsorb(fatty, at)); assert.equal(l.end, foodEnd(fatty, at)); assert.equal(l.first, T);
+    assert.equal(foodLane(lean, T + 200 * M), null, 'nothing once absorbed'); assert.equal(foodEnd(lean, T - M), null, 'nothing before eating');
+    const fs = foodsFrom([{ eaten_at: new Date(T).toISOString(), total_carbs: 20, total_fat: 10, name: 'x', deleted_at: null, intake: 'pending' },
+      { eaten_at: new Date(T).toISOString(), total_carbs: 30, total_fat: 10, name: 'x', deleted_at: null }] as never,
+      [{ kind: 'treatment', carbs_g: 15, occurred_at: new Date(T).toISOString(), deleted_at: null }] as never);
+    assert.deepEqual(fs.map((f) => [f.carbs, !!f.drink]), [[30, false], [15, true]], 'a pending meal is not eaten yet; a treatment is a drink');
   });
 }
 

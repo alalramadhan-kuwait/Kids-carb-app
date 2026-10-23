@@ -1,5 +1,23 @@
 [
   {
+    "version": "4.29.0",
+    "date": "2026-10-23",
+    "notes": [
+      "شريط الامتصاص تحت الرسم: الكارب السريع وردي فاتح، والبطيء (الأكل الدسم) وردي غامق، والخط فوقهم مجموعهم. الإنسولين أزرق.",
+      "علامة ووقت تقريبي لنهاية امتصاص الكارب ونهاية مفعول النوفورابيد، على نفس وقت الرسم ومن وقت الإبرة الفعلي.",
+      "التريسيبا شريط خفيف ثابت لحاله، مو إنسولين أكل.",
+      "«الكارب النشط» والشريط والويدجت صاروا يعطون نفس الرقم من نفس الحسبة.",
+      "النسب والغرامات الباقية تقدير، مو قياس. توقّع السكر من منحنيات الكارب والإنسولين موقوف لين يثبت على قراءات ليان (الخطأ حالياً تقريباً 3 إلى 5 مليمول)."
+    ],
+    "notes_en": [
+      "Absorption strip under the graph: fast carbs light pink, slow carbs (fatty meals) dark pink, with a line for the two together. Insulin stays blue.",
+      "A mark and approximate time for when carb absorption and NovoRapid action end, on the graph's time axis from the actual injection time.",
+      "Tresiba is a faint steady band of its own, not meal insulin.",
+      "«Active carbs», the strip and the widget now give the same number from the same calculation.",
+      "Percentages and grams left are estimates, not measurements. The glucose forecast from carb and insulin curves is held back until it is proven on Layan's readings (its error is currently about 3 to 5 mmol/L)."
+    ]
+  },
+  {
     "version": "4.28.0",
     "date": "2026-10-23",
     "notes": [

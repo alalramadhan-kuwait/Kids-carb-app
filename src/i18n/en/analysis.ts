@@ -57,7 +57,7 @@ export const analysis: Record<string, string> = {
   'إنسولين نشط': 'Insulin on board',
   'كارب نشط': 'Carbs on board',
   'IOB: نموذج أُسّي، مدة {h} س، الذروة {m} د': 'IOB: exponential model, duration {h} h, peak {m} min',
-  'COB: امتصاص خطّي خلال {m} د': 'COB: linear absorption over {m} min',
+  'COB: تقدير سريع وبطيء حسب الدهون': 'COB: estimated fast and slow parts, by fat',
   'من الفريق الطبي، للعرض فقط': 'from the care team, for display only',
 
   // ── numbers (Advanced) ──

@@ -6,6 +6,15 @@ import type { Ratio } from './status';
 import { DAMP } from './trend';
 
 const MIN = 60000;
+
+/**
+ * The glucose worked out from the carb and insulin curves (start + carbs ÷ CR × ISF − insulin × ISF) is shown only
+ * once it has proved itself. Checked 2026-10-23 against the 148 predictions frozen at her meals with the same
+ * arithmetic: average miss 3.3 mmol/L at 1 h and 3.4 at 2 h (about 40 % within ±2), 4.9 at the end (too high by
+ * 2.9). Not good enough: the line on the graph and the estimate on Status stay hidden; the frozen predictions keep
+ * being checked (Status › accuracy), and this turns on only when they are good.
+ */
+export const ONBOARD_VALIDATED = false;
 export interface Pt { t: number; v: number }
 export interface Forecast { kind: 'trend' | 'onboard' | 'past'; pts: Pt[]; key: string }
 

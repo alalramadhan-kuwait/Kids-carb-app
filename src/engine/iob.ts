@@ -127,7 +127,7 @@ export function cobAt(t: number, carbs: CarbEntry[], absorbMin: number): number 
   return sum;
 }
 export const modelLine = (p: IobParams | null, absorb: number | null) =>
-  [p ? t('IOB: نموذج أُسّي، مدة {h} س، الذروة {m} د', { h: Math.round(p.dia / 60 * 10) / 10, m: p.peak }) : null, absorb ? t('COB: امتصاص خطّي خلال {m} د', { m: absorb }) : null]
+  [p ? t('IOB: نموذج أُسّي، مدة {h} س، الذروة {m} د', { h: Math.round(p.dia / 60 * 10) / 10, m: p.peak }) : null, absorb ? t('COB: تقدير سريع وبطيء حسب الدهون') : null]
     .filter(Boolean).join(' · ') + ' — ' + t('من الفريق الطبي، للعرض فقط');
 
 /**
