@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
+import { isShiftAccount, loginEmail, shownLogin } from './lib/login';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import type { Session } from '@supabase/supabase-js';
 import { openedFromRecovery, supabase } from './lib/supabase';
@@ -94,12 +95,13 @@ function Login() {
   const [sent, setSent] = useState(false);
   const go = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setErr('');
-    const id = email.trim();
-    // the shift app (Timekeeper) shares the sign-in system and the web address, so the phone may fill in its
-    // username: that account is not Layan's family, say so instead of opening the setup screen
-    if (!id.includes('@') || /\.local$/i.test(id)) { setErr(t('هذا حساب تطبيق المناوبات. ادخل ببريدك الخاص بتطبيق ليان.')); setBusy(false); return; }
+    // a short username («rawan») or an email (lib/login); the shift app (Timekeeper) shares the sign-in system, so its
+    // accounts are refused here instead of opening the setup screen
+    const id = loginEmail(email);
+    if (!id) { setErr(t('اكتب اسم المستخدم أو البريد')); setBusy(false); return; }
+    if (isShiftAccount(id)) { setErr(t('هذا حساب تطبيق المناوبات. ادخل بحسابك الخاص بتطبيق ليان.')); setBusy(false); return; }
     const { error } = await supabase.auth.signInWithPassword({ email: id, password });
-    if (error) setErr(t('البريد أو كلمة المرور غير صحيحة')); setBusy(false);
+    if (error) setErr(t('اسم المستخدم أو كلمة المرور غير صحيحة')); setBusy(false);
   };
   const reset = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setErr('');
@@ -119,6 +121,7 @@ function Login() {
         {forgot ? (
           <form onSubmit={reset} className="space-y-3">
             <p className="text-sm text-slate-600">{t('اكتب بريدك الإلكتروني الحقيقي وسيصلك رابط لتعيين كلمة مرور جديدة.')}</p>
+            <p className="text-sm text-slate-500">{t('إذا تدخل باسم مستخدم: اطلب من أحد الوالدين يغيّر كلمة المرور من المزيد ← الحسابات.')}</p>
             <Field label={t('البريد الإلكتروني')}><input className={inputCls} dir="ltr" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></Field>
             {sent && <Alert tone="ok">{t('إن كان البريد مسجّلًا فقد أُرسل إليه رابط. افتحه من نفس الجوال.')}</Alert>}
             {err && <Alert tone="over">{err}</Alert>}
@@ -127,7 +130,7 @@ function Login() {
           </form>
         ) : (
           <form onSubmit={go} className="space-y-3">
-            <Field label={t('البريد الإلكتروني')}><input className={inputCls} dir="ltr" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></Field>
+            <Field label={t('اسم المستخدم أو البريد')}><input className={inputCls} dir="ltr" type="text" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></Field>
             <Field label={t('كلمة المرور')}><input className={inputCls} dir="ltr" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></Field>
             {err && <Alert tone="over">{err}</Alert>}
             <Btn kind="primary" block disabled={busy}>{t('دخول')}</Btn>
@@ -186,7 +189,7 @@ function Claim({ onDone }: { onDone: () => void }) {
       <img src={`${import.meta.env.BASE_URL}icons/layan-logo-256.webp`} alt="" width={96} height={96} className="mx-auto h-24 w-24" />
       <h1 className="text-center text-2xl font-bold">{t('تفعيل التطبيق')}</h1>
       <Card className="space-y-3">
-        <Alert tone="info">{t('هذا الحساب غير مضاف لتطبيق ليان:')} <b dir="ltr" className="break-all">{who || '…'}</b></Alert>
+        <Alert tone="info">{t('هذا الحساب غير مضاف لتطبيق ليان:')} <b dir="ltr" className="break-all">{shownLogin(who) || '…'}</b></Alert>
         <Btn kind="primary" block type="button" onClick={() => supabase.auth.signOut()}>{t('الدخول بحساب آخر')}</Btn>
         <p className="text-xs text-slate-500">{t('إذا كان بريدك جديد: اطلب من الأم أو الأب إضافته من المزيد ← إضافة أحد الوالدين.')}</p>
         <details>

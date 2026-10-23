@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { isShiftAccount, shownLogin } from '../lib/login';
 import { TimeField } from '../components/TimeField';
 import { Link, useNavigate } from 'react-router-dom';
 import { setAlarmSound, testAlarm, useAlarmSound } from '../components/Alarm';
@@ -88,7 +89,7 @@ export function More() {
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
   useEffect(() => { supabase.auth.getUser().then(({ data }) => setMe(data.user?.email ?? '')); }, []);
-  const shared = me.endsWith('.local');
+  const shared = isShiftAccount(me);
   const changePw = async () => {
     if (pw.length < 8) return toast(t('كلمة المرور 8 خانات على الأقل'));
     if (pw !== pw2) return toast(t('الكلمتان غير متطابقتين'));
@@ -143,7 +144,7 @@ export function More() {
         {group(t('العائلة والحساب'), <>
           <li className="flex min-h-[56px] items-center gap-3 px-4 py-2">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-brand"><Icon name="user" size={22} /></span>
-            <span dir="ltr" className="min-w-0 flex-1 truncate text-start text-sm">{me || '…'}</span>
+            <span dir="ltr" className="min-w-0 flex-1 truncate text-start text-sm">{shownLogin(me) || '…'}</span>
           </li>
           <MemberRows />
           {link('/accounts', 'family', t('الحسابات'), t('إضافة حساب، تغيير الاسم والبريد وكلمة المرور'))}

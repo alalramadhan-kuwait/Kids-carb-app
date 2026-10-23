@@ -3927,5 +3927,15 @@ console.log('P0: food sources, eaten part, injections untouched');
   });
 }
 
+{
+  const { loginEmail, shownLogin, isShiftAccount } = await import('../login');
+  test('sign-in names: a short username or a real email; shift-app accounts recognised', () => {
+    assert.equal(loginEmail('Rawan'), 'rawan@layan.local'); assert.equal(loginEmail(' mama.1 '), 'mama.1@layan.local');
+    assert.equal(loginEmail('Al@Gmail.com'), 'al@gmail.com'); assert.equal(loginEmail('a'), null); assert.equal(loginEmail('two words'), null); assert.equal(loginEmail('x@y'), null);
+    assert.equal(shownLogin('rawan@layan.local'), 'rawan'); assert.equal(shownLogin('al@gmail.com'), 'al@gmail.com');
+    assert.equal(isShiftAccount('ali@manpower-control.local'), true); assert.equal(isShiftAccount('rawan@layan.local'), false); assert.equal(isShiftAccount('al@gmail.com'), false);
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);

@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.33.1",
+    "date": "2026-10-23",
+    "notes": [
+      "الدخول باسم مستخدم قصير (مثل rawan) بدل البريد. البريد يشتغل بعد.",
+      "الحسابات: الحساب الجديد ينسوّى باسم مستخدم قصير، ويبين اسم المستخدم بدل البريد."
+    ],
+    "notes_en": [
+      "Sign in with a short username (like rawan) instead of an email. Emails still work.",
+      "Accounts: a new account is made with a short username, and the username is shown instead of an email."
+    ]
+  },
+  {
     "version": "4.33.0",
     "date": "2026-10-23",
     "notes": [

@@ -7,6 +7,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type' };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...cors, 'content-type': 'application/json' } });
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// the shift app's own accounts (…@manpower-control.local); Layan's short usernames are …@layan.local (src/lib/login.ts)
+const shift = (email: string | null | undefined) => /\.local$/i.test(email ?? '') && !/@layan\.local$/i.test(email ?? '');
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
@@ -38,7 +40,7 @@ Deno.serve(async (req) => {
       const out = [];
       for (const m of ms ?? []) {
         const { data } = await admin.auth.admin.getUserById(m.user_id);
-        out.push({ ...m, email: data.user?.email ?? null, last_sign_in_at: data.user?.last_sign_in_at ?? null, shared: /\.local$/i.test(data.user?.email ?? '') });
+        out.push({ ...m, email: data.user?.email ?? null, last_sign_in_at: data.user?.last_sign_in_at ?? null, shared: shift(data.user?.email) });
       }
       return json({ members: out, me: me.id });
     }
@@ -71,7 +73,7 @@ Deno.serve(async (req) => {
         const email = body.email.trim().toLowerCase();
         if (!EMAIL.test(email)) return json({ error: 'bad_email' }, 400);
         const cur = (await admin.auth.admin.getUserById(id)).data.user;
-        if (/\.local$/i.test(cur?.email ?? '')) return json({ error: 'shared_account' }, 400); // the shift app's username
+        if (shift(cur?.email)) return json({ error: 'shared_account' }, 400); // the shift app's username
         if (email !== cur?.email) { const other = await findByEmail(email); if (other) return json({ error: 'email_taken' }, 400); patch.email = email; patch.email_confirm = true; }
       }
       if (typeof body.password === 'string' && body.password) {
