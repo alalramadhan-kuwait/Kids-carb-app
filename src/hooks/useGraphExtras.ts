@@ -2,7 +2,7 @@
 import { useMemo } from 'react';
 import { useData } from '../lib/data';
 import { ACT_DELAY_MIN, activityAt, activityFraction, activityPeaks, carbsFrom, dosesFrom, iobAt, iobParamsOk } from '../engine/iob';
-import { ONBOARD_VALIDATED, onboardForecast, pastForecasts, trendForecast, type Forecast } from '../engine/forecast';
+import { ONBOARD_VALIDATED, TREND_AHEAD_VALIDATED, onboardForecast, pastForecasts, trendForecast, type Forecast } from '../engine/forecast';
 import { foodsFrom, stillToAbsorb } from '../engine/absorb';
 import { ratioAt } from '../engine/status';
 import { kuwaitClock } from '../lib/schedule';
@@ -37,7 +37,7 @@ export function useGraphExtras({ series, now, iob, cob, act = false, forecast, p
   const live = useMemo(() => {
     if (!forecast) return [] as Forecast[];
     const ratio = ratioAt(s.ratios ?? [], kuwaitClock(now).min);
-    return [ONBOARD_VALIDATED ? onboardForecast(last, now, doses, carbs, iobOk ? iobP : null, s.cob_absorb_min, ratio) : null, trendForecast(last, projected30, now)]
+    return [ONBOARD_VALIDATED ? onboardForecast(last, now, doses, carbs, iobOk ? iobP : null, s.cob_absorb_min, ratio) : null, TREND_AHEAD_VALIDATED ? trendForecast(last, projected30, now) : null]
       .filter((f): f is Forecast => !!f);
   }, [forecast, lastKey, Math.floor(now / 60000), doses, carbs, projected30, s.ratios, s.cob_absorb_min, iobOk]); // eslint-disable-line react-hooks/exhaustive-deps
   const old = useMemo(() => (forecast && past ? pastForecasts(past, start, end) : []), [forecast, past, start, end]);

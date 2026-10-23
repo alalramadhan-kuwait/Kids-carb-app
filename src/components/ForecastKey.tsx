@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ONBOARD_VALIDATED, TREND_AHEAD_VALIDATED } from '../engine/forecast';
 import { Sheet } from './ui';
 import { t } from '../i18n';
 
@@ -21,8 +22,8 @@ export function GraphHelp({ past, tracks, act, className }: { past?: boolean; tr
   const rows: [Swatch, string, string][] = [
     ['line', t('السكر'), t('القراءات من الحساس.')],
     ['band', t('النطاق'), t('المنطقة الخضراء: النطاق الذي حددتموه.')],
-    ['dash', t('التقدير مع ما في الجسم'), t('إلى أين يتجه السكر حتى ينتهي مفعول الكارب والإنسولين المسجّلين. الرقم في آخره هو التقدير.')],
-    ['dot', t('الاتجاه 30 د'), t('لو استمر السكر بنفس سرعته الآن، أين يكون بعد 30 دقيقة.')],
+    ...(ONBOARD_VALIDATED ? [['dash', t('التقدير مع ما في الجسم'), t('إلى أين يتجه السكر حتى ينتهي مفعول الكارب والإنسولين المسجّلين. الرقم في آخره هو التقدير.')] as [Swatch, string, string]] : []),
+    ...(TREND_AHEAD_VALIDATED ? [['dot', t('الاتجاه 30 د'), t('لو استمر السكر بنفس سرعته الآن، أين يكون بعد 30 دقيقة.')] as [Swatch, string, string]] : []),
     ...(past ? [['past', t('توقع آخر وجبة'), t('ما توقّعه التطبيق وقت آخر وجبة. قارنوه بخط السكر لتروا دقة التوقع.')] as [Swatch, string, string]] : []),
     ...(act ? [['ins', t('مفعول الإنسولين'), t('قوة عمل الإنسولين السريع: يبدأ بعد الإبرة بـ 10 دقائق، يصعد، أعلى شي عند «ذروة» (الساعة مكتوبة)، ثم يخف. بعد «الآن» متقطع.')] as [Swatch, string, string]] : []),
     ...(tracks ? [

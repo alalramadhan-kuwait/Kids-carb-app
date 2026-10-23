@@ -60,11 +60,11 @@ export const foodsFrom = (history: HistoryEntry[], events: EventRow[]): FoodIn[]
     .map((e) => ({ t: Date.parse(e.occurred_at), carbs: Number(e.carbs_g), drink: e.kind === 'treatment' })),
 ];
 
-/** When one entry is about done (90 % absorbed), in minutes after eating. */
-function doneMin(f: FoodIn): number {
+/** When one entry is down to `rest` of its carbs (0.1: 90 % absorbed), in minutes after eating. */
+function doneMin(f: FoodIn, rest = 0.1): number {
   const share = (m: number) => (f.drink ? left(m, DRINK_MIN) : (1 - slowShare(f.fat)) * left(m, FAST_MIN) + slowShare(f.fat) * left(m, SLOW_MIN));
   let m = 0;
-  while (share(m) > 0.1 && m < 12 * 60) m += 5;
+  while (share(m) > rest && m < 12 * 60) m += 5;
   return m;
 }
 
@@ -77,6 +77,19 @@ export function foodEnd(foods: FoodIn[], now: number): number | null {
     if (e > now) end = Math.max(end ?? 0, e);
   }
   return end;
+}
+
+/** About when absorption ends, as a range (an estimate, not a clock): from 85 % to 95 % of the food eaten up to `now`
+ *  absorbed, the latest entry deciding; null when nothing is left. */
+export function foodEndRange(foods: FoodIn[], now: number): { from: number; to: number } | null {
+  let from: number | null = null, to: number | null = null;
+  for (const f of foods) {
+    if (f.t > now || !(f.carbs > 0)) continue;
+    const b = f.t + doneMin(f, 0.05) * MIN;
+    if (b <= now) continue;
+    from = Math.max(from ?? 0, f.t + doneMin(f, 0.15) * MIN); to = Math.max(to ?? 0, b);
+  }
+  return from === null || to === null ? null : { from: Math.max(from, now), to };
 }
 
 /** «Active carbs» for the cards, from the same curves as the strip: grams left now (the same number as the strip and

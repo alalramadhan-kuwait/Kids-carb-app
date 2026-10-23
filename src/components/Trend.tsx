@@ -1,6 +1,7 @@
 import { Icon } from './Icon';
 import type { IconName } from '../icons/defs';
 import type { Level, Trend } from '../engine/trend';
+import { TREND_AHEAD_VALIDATED } from '../engine/forecast';
 import { shownLevel, useArrowChoice } from '../lib/arrowChoice';
 import { formatGlucose, type GlucoseUnit } from '../lib/glucose';
 import { locale, t, tr } from '../i18n';
@@ -30,7 +31,8 @@ export function LevelArrow({ level, size }: { level: Level; size: number }) {
   );
 }
 
-/** "Falling slowly · −0.8 in 15 min · ≈ 5.6 at 1:15", and the other arrow when it says something else. */
+/** "Falling slowly · −0.8 in 15 min" (and «≈ 5.6 at 1:15» once the trend proves itself, engine/forecast.ts), and the
+ *  other arrow when it says something else. */
 /** `compact`: without the direction word and the other source's arrow (the Now card already says both). */
 export function TrendLine({ trend, libre, unit, className, compact, noAhead }: { trend: Trend | null; libre: number | null; unit: GlucoseUnit; className?: string; compact?: boolean; noAhead?: boolean }) {
   const { source } = useArrowChoice();
@@ -41,7 +43,7 @@ export function TrendLine({ trend, libre, unit, className, compact, noAhead }: {
     <p className={className}>
       {!compact && <span className="font-medium">{LEVEL_WORDS[s.level]}</span>}
       {trend && <>{compact ? '' : ' · '}<span className="num">{sign}{formatGlucose(Math.abs(trend.change15), unit)}</span> {t('خلال 15 د')}</>}
-      {trend?.projected30 != null && !noAhead && <>{' · '}{t('≈ {v} عند {time}', { v: formatGlucose(trend.projected30, unit), time: clock(trend.at + 30 * 60000) })}</>}
+      {TREND_AHEAD_VALIDATED && trend?.projected30 != null && !noAhead && <>{' · '}{t('≈ {v} عند {time}', { v: formatGlucose(trend.projected30, unit), time: clock(trend.at + 30 * 60000) })}</>}
       {!compact && s.other && <span className="text-slate-400">{' · '}{s.other.from === 'libre' ? t('Libre: {a}', { a: ARROW[s.other.level] }) : t('التطبيق: {a}', { a: ARROW[s.other.level] })}</span>}
     </p>
   );

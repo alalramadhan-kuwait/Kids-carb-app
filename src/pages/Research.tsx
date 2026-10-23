@@ -6,6 +6,7 @@ import { goals, VERDICT_RULES, type Goal, type ModelScore } from '../engine/lab'
 import { arrowSource } from '../lib/arrowChoice';
 import { answerText } from '../components/ResearchQuestion';
 import { Alert, Btn, Card, Chip, cx, toast } from '../components/ui';
+import { ForecastCheck } from '../components/ForecastCheck';
 import { isEn, locale, t, tr } from '../i18n';
 
 const HOUR = 3600000;
@@ -63,6 +64,7 @@ export function ResearchPanel() {
 
   return (
       <div className="space-y-4">
+        <ForecastCheck unit={unit} />
         <Card className="space-y-2">
           <h2 className="font-bold">{t('الأهداف')}</h2>
           {last?.metrics && last.data ? <Goals list={goals(last.metrics.all, last.metrics.bySituation ?? {}, last.data, arrowSource() === 'ours' ? 'trend' : 'libre')} /> : <p className="text-sm text-slate-500">{t('ستظهر النتائج بعد أول تشغيل.')}</p>}

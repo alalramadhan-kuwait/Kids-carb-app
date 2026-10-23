@@ -3798,6 +3798,12 @@ console.log('P0: food sources, eaten part, injections untouched');
     assert.ok(stillToAbsorb(drink, T + 60 * M) / 15 < 0.1);
     assert.equal(absorbing(lean, T + 60 * M).slow, 0);
   });
+  test('the end of absorption is a range around the estimate (85 % to 95 % absorbed), never before now', async () => {
+    const { foodEndRange } = await import('../../engine/absorb');
+    const fatty = [{ t: T, carbs: 37, fat: 32 }], at = T + 60 * M, r = foodEndRange(fatty, at)!, mid = foodEnd(fatty, at)!;
+    assert.ok(r.from <= mid && mid <= r.to && r.to - r.from >= 60 * M, `${(r.from - T) / M} ${(mid - T) / M} ${(r.to - T) / M}`);
+    assert.equal(foodEndRange(fatty, T + 11 * 3600000), null); assert.ok(foodEndRange([{ t: T, carbs: 20 }], T + 140 * M)!.from >= T + 140 * M);
+  });
   test('one engine: active carbs, the strip and COB give the same grams; the end is later for a fatty meal', () => {
     const lean = [{ t: T, carbs: 37, fat: 2 }], fatty = [{ t: T, carbs: 37, fat: 32 }];
     const endL = (foodEnd(lean, T + M)! - T) / M, endF = (foodEnd(fatty, T + M)! - T) / M;

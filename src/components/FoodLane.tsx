@@ -1,6 +1,7 @@
 import { useId, useMemo } from 'react';
 import { useData } from '../lib/data';
-import { absorbing, foodEnd, foodsFrom, stillToAbsorb } from '../engine/absorb';
+import { absorbing, foodEnd, foodEndRange, foodsFrom, stillToAbsorb } from '../engine/absorb';
+import { iobFraction } from '../engine/insulinCurve';
 import { dosesFrom, iobParamsOk } from '../engine/iob';
 import { fmt } from '../lib/carbs';
 import { fmtTime } from '../lib/constants';
@@ -53,10 +54,16 @@ export function FoodLane({ view, now, height = 34 }: { view: View; now: number; 
   const left = stillToAbsorb(foods, now);
   const carbEnd = foodEnd(foods, now);
   const insEnd = rapid.length ? Math.max(...rapid.map((d) => d.t)) + dia * MIN : null;
+  // each end as a range, never one exact clock: food from 85 % to 95 % absorbed; NovoRapid from 85 % used to the end of
+  // the care team's duration. The tick sits at 90 % (food) and at the end (insulin).
+  const carbRange = foodEndRange(foods, now);
+  const lastDose = rapid.length ? Math.max(...rapid.map((d) => d.t)) : null;
+  let insFrom = lastDose;
+  if (lastDose !== null && on) { let m = 0; while (m < dia && iobFraction(m, p!) > 0.15) m += 5; insFrom = lastDose + m * MIN; }
   const ends = [
-    carbEnd !== null && carbEnd >= start ? { at: carbEnd, cls: 'text-kcarb', fill: SLOW_FILL } : null,
-    insEnd !== null && insEnd > now && insEnd >= start ? { at: insEnd, cls: 'text-kins', fill: INS_FILL } : null,
-  ].filter(Boolean) as { at: number; cls: string; fill: string }[];
+    carbEnd !== null && carbRange && carbEnd >= start ? { at: carbEnd, from: carbRange.from, to: carbRange.to, cls: 'text-kcarb', fill: SLOW_FILL } : null,
+    insEnd !== null && insEnd > now && insEnd >= start ? { at: insEnd, from: Math.max(now, insFrom!), to: insEnd, cls: 'text-kins', fill: INS_FILL } : null,
+  ].filter(Boolean) as { at: number; from: number; to: number; cls: string; fill: string }[];
   const pct = (at: number) => `${Math.min(97, Math.max(3, ((at - start) / view.span) * 100))}%`;
 
   return (
@@ -92,7 +99,7 @@ export function FoodLane({ view, now, height = 34 }: { view: View; now: number; 
           return (
             <span key={e.at} dir="ltr" className={`num pointer-events-none absolute rounded bg-white/85 px-0.5 text-[10.5px] font-bold leading-none ${e.cls} ${past ? '' : '-translate-x-1/2'}`}
               style={{ ...(past ? { right: 0 } : { left: pct(e.at) }), top: i && (past ? ends[0].at > view.end : Math.abs(e.at - ends[0].at) < view.span * 0.1) ? 12 : 0 }}>
-              ~{clock(e.at)}{past ? ' →' : ''}
+              {clock(e.from) === clock(e.to) || e.to - e.from < 10 * MIN ? `~${clock(e.to)}` : `${clock(e.from)}–${clock(e.to)}`}{past ? ' →' : ''}
             </span>
           );
         })}

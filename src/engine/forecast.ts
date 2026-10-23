@@ -15,6 +15,16 @@ const MIN = 60000;
  * being checked (Status › accuracy), and this turns on only when they are good.
  */
 export const ONBOARD_VALIDATED = false;
+
+/**
+ * The fading 30-minute trend (Home «≈ X at hh:mm» and the dotted line) is shown only while it beats «glucose stays
+ * where it is». The benchmark (engine/benchmark.ts, run daily by carb-benchmark) on the week held out, 16–23 Oct
+ * 2026, 660 forecasts: average miss 1.55 mmol/L against 1.49 for «no change» (difference +0.05, 95 % interval
+ * 0 to +0.11), and for real moves of 1 mmol/L or more it named the direction right 52 % of the time. It adds nothing
+ * a parent can rely on, so it stays hidden; the arrow and the measured change over 15 minutes stay. Turn on only
+ * when the daily benchmark says «better» for trend:30.
+ */
+export const TREND_AHEAD_VALIDATED = false;
 export interface Pt { t: number; v: number }
 export interface Forecast { kind: 'trend' | 'onboard' | 'past'; pts: Pt[]; key: string }
 
