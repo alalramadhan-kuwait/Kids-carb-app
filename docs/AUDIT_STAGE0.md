@@ -141,3 +141,21 @@ reassurance; time-ordered with the last 7 days untouched. Then 2–4 weeks of sh
 
 **Needs the care team:** confirm DIA 240 min; agree the low-safety criteria for the benchmark before results are
 seen; read the Tresiba step-down nights.
+
+## 7. Stage 1 — applied 23 Oct 2026 (migration `20261023050525_stage1_learning_foundation`)
+
+Additive only: nothing dropped, no row of `events` or `meal_history` rewritten (`entry_audit` still 250 rows), no push
+sent, the app and the dose calculator unchanged.
+
+| Change | Result |
+|---|---|
+| `predictions.model_version` | all 153 rows `v1-linear`; new rows default to it until a v2 exists |
+| `events.treat_purpose` (low / drink) | empty for the past (never inferred); the app does not ask yet |
+| `events.tags` (illness, stress) | empty; the app does not ask yet |
+| `dose_meal_links` | 45 of 60 meal doses linked as `inferred` (the only meal and the only dose −30/+20 min); 15 ambiguous left unlinked |
+| `param_history` + trigger on `settings` | 5 reconstructed periods (DIA 360 → 240 on 4 Oct; ISF 54 → 72 → 90; CR 15 → 13), approximate; the current values; every future change recorded with who and when |
+| `glucose_quality` view | 29,309 readings: 15 jumps, 5 gaps > 20 min, 0 in a sensor's first hour (Libre sends none then) |
+
+Rollback (no data lost from the originals): `drop view carb.glucose_quality; drop trigger settings_param_history on
+carb.settings; drop function carb.param_history_record(); drop table carb.param_history, carb.dose_meal_links; alter
+table carb.events drop column tags, drop column treat_purpose; alter table carb.predictions drop column model_version;`
