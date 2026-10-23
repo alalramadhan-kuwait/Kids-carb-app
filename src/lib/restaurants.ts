@@ -14,6 +14,7 @@ export const RESTAURANTS: Restaurant[] = [
   { key: 'shakeshack', brand: 'Shake Shack', label: 'شيك شاك', bg: '#1F1F1F', fg: '#6CB33F', mark: 'SS', logo: 'brands/shakeshack.png' }, // i18n-ok
   { key: 'goodstuff', brand: 'Good Stuff', label: 'جود ستف', bg: '#1E6B3A', fg: '#F3EDE2', mark: 'GS' }, // i18n-ok
   { key: 'pick', brand: 'PICK', label: 'بيك', bg: '#722C80', fg: '#FFFFFF', mark: 'PICK', lead: 'frozen', logo: 'brands/pick.webp' }, // i18n-ok: frozen yogurt first
+  { key: 'applebees', brand: "Applebee's", label: 'أبل بيز', bg: '#B5121B', fg: '#FFFFFF', mark: 'A', lead: 'meals' }, // i18n-ok: kids meals (each with fries) first
   { key: 'baskin', brand: 'Baskin Robbins', label: 'باسكن روبنز', bg: '#DA1884', fg: '#FFFFFF', mark: 'BR', lead: 'frozen', logo: 'brands/baskin.webp' }, // i18n-ok
 ];
 
