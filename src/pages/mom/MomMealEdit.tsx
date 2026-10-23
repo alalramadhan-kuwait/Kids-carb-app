@@ -79,7 +79,7 @@ export function MomMealEdit() {
                   </div>
                 )}
                 {!gone && (() => { const w = servingWeight(x); return w && (
-                  <p className="mt-1 text-[13.5px] text-slate-500">{t('الحصة {e} · المجموع ≈ {n}', { e: `${fmt(w.each)} ${w.unit === 'ml' ? t('مل') : t('غ')}`, n: `${fmt(w.total)} ${w.unit === 'ml' ? t('مل') : t('غ')}` })}</p>
+                  <p className="mt-1 text-[13.5px] text-slate-500">{t('{q} حصة = {n} (الحصة {e})', { q: fmt(x.line.quantity), e: `${fmt(w.each)} ${w.unit === 'ml' ? t('مل') : t('غ')}`, n: `${fmt(w.total)} ${w.unit === 'ml' ? t('مل') : t('غ')}` })}</p>
                 ); })()}
               </li>
             );

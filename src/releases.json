@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.30.2",
+    "date": "2026-10-23",
+    "notes": [
+      "«عدّلي الأكل»: سطر وزن الحصة صار أوضح: «1.5 حصة = 45 غ (الحصة 30 غ)»."
+    ],
+    "notes_en": [
+      "«Edit the food»: the serving weight line is clearer: «1.5 servings = 45 g (1 serving = 30 g)»."
+    ]
+  },
+  {
     "version": "4.30.1",
     "date": "2026-10-23",
     "notes": [

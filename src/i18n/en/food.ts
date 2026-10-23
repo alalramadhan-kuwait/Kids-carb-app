@@ -1698,7 +1698,7 @@ export const food: Record<string, string> = {
   'قيم الملصق غلط؟ صحّحوها في المنتج': 'Wrong label values? Fix them on the product',
   'الوقت أو الاسم أو الملاحظة': 'Time, name or note',
   'الاسم أو الملاحظة': 'Name or note',
-  'الحصة {e} · المجموع ≈ {n}': '1 serving {e} · in all ≈ {n}',
+  '{q} حصة = {n} (الحصة {e})': '{q} servings = {n} (1 serving = {e})',
   'التوقع مقابل الواقع': 'Forecast vs what happened',
   'يبقى كما هو': 'No change',
   'الكارب والإنسولين': 'Carbs & insulin',
