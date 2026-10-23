@@ -116,6 +116,8 @@ export interface Settings {
   alert_nodata_on: boolean;
   /** the high alert as the full-screen alarm; off = the notification only */
   alert_high_screen: boolean;
+  /** master switch for glucose alarms (off: LibreLink gives them; no alarm is opened, nothing rings) */
+  glucose_alarms_on?: boolean;
   night_start: string | null; night_end: string | null;
   night_low_mgdl: number | null; night_high_mgdl: number | null;
   night_high_silent: boolean; night_theme: boolean;
@@ -242,7 +244,7 @@ export const DEFAULT_SETTINGS: Settings = {
   alert_fall_rate: null,
   alert_rise_rate: null,
   alert_predict_low_min: null,
-  alert_high_on: true, alert_predict_on: true, alert_fall_on: false, alert_rise_on: false, alert_sensor_on: true, alert_plan_on: true, alert_recheck_on: true, alert_nodata_on: true, alert_high_screen: true,
+  alert_high_on: true, alert_predict_on: true, alert_fall_on: false, alert_rise_on: false, alert_sensor_on: true, alert_plan_on: true, alert_recheck_on: true, alert_nodata_on: true, alert_high_screen: true, glucose_alarms_on: true,
   night_start: null, night_end: null, night_low_mgdl: null, night_high_mgdl: null, night_high_silent: false, night_theme: true,
   school_days: [0, 1, 2, 3, 4], school_start: null, school_end: null, school_low_mgdl: null, school_high_mgdl: null,
   escalate_min: 10,

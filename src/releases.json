@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.32.0",
+    "date": "2026-10-23",
+    "notes": [
+      "تنبيهات السكر مقفلة: التنبيهات صارت من تطبيق LibreLink. هذا التطبيق ما يرن ولا ياخذ الشاشة ولا يرسل تنبيه سكر.",
+      "التنبيهات ← «تنبيهات السكر»: مفتاح واحد ترجعونها فيه أي وقت. تذكيرات الوجبة وإعادة القياس والحساس باقية لحالها."
+    ],
+    "notes_en": [
+      "Glucose alarms are off: the alarms now come from the LibreLink app. This app does not ring, take the screen or send glucose alarms.",
+      "Alerts › «Glucose alarms»: one switch to bring them back any time. Meal-plan, recheck and sensor reminders stay on their own switches."
+    ]
+  },
+  {
     "version": "4.31.1",
     "date": "2026-10-23",
     "notes": [

@@ -94,6 +94,13 @@ export default function AlertsPage() {
     if (error) { setS({ ...s, [k]: !v }); return toast(error.message); }
     await reload();
   };
+  const alarmsOn = s.glucose_alarms_on !== false;
+  const setAlarms = async (v: boolean) => {
+    setS({ ...s, glucose_alarms_on: v });
+    const { error } = await supabase.from('settings').update({ glucose_alarms_on: v }).eq('id', true);
+    if (error) { setS({ ...s, glucose_alarms_on: !v }); return toast(error.message); }
+    await reload(); toast(v ? t('تنبيهات السكر شغّالة') : t('تنبيهات السكر مقفلة'));
+  };
   const save = async () => {
     const patch = Object.fromEntries(KEYS.map((k) => [k, s[k]]));
     const { error } = await supabase.from('settings').update(patch).eq('id', true);
@@ -108,6 +115,25 @@ export default function AlertsPage() {
         {ps !== null && ps !== 'on' && <Link to="/more" className="block"><Alert tone="near">{t('التنبيهات غير مفعّلة على هذا الجوال. فعّلها من «المزيد ← هذا الجوال».')}</Alert></Link>}
 
 
+        <Card className="space-y-2">
+          <div className="flex min-h-[48px] items-center justify-between gap-3">
+            <span className="min-w-0"><b className="block">{t('تنبيهات السكر')}</b><span className="block text-xs text-slate-500">{t('منخفض، منخفض جدًا، متوقع، مرتفع، ما في قراءة')}</span></span>
+            <Toggle on={alarmsOn} label={t('تنبيهات السكر')} onChange={setAlarms} />
+          </div>
+          {!alarmsOn && <Alert tone="near">{t('مقفلة: التنبيهات من تطبيق LibreLink. هذا التطبيق ما يرن ولا يرسل تنبيه سكر. تأكدوا إن تنبيه المنخفض شغّال في LibreLink.')}</Alert>}
+        </Card>
+        {!alarmsOn && (
+          <Card className="space-y-1">
+            <h2 className="font-bold">{t('التذكيرات')}</h2>
+            {OPTIONAL.filter(([k]) => k === 'alert_sensor_on' || k === 'alert_plan_on' || k === 'alert_recheck_on').map(([key, label, hint]) => (
+              <div key={key} className="flex min-h-[48px] items-center justify-between gap-3">
+                <span className="min-w-0"><span className="block">{t(label)}</span><span className="block text-xs text-slate-500">{t(hint)}</span></span>
+                <Toggle on={!!s[key]} label={t(label)} onChange={(v) => setOn(key, v)} />
+              </div>
+            ))}
+          </Card>
+        )}
+        {alarmsOn && (<>
         <Card className="space-y-1">
           <h2 className="font-bold">{t('أي تنبيه يصلكم')}</h2>
           <p className="pb-1 text-sm text-slate-600">{t('كل تنبيه هنا له مفتاحه. الأول والثاني للسلامة ويبقون شغّالين دائمًا.')}</p>
@@ -199,6 +225,7 @@ export default function AlertsPage() {
           </Field>
           <Btn kind="primary" block disabled={!!problem} onClick={save}>{t('حفظ')}</Btn>
         </Card>
+        </>)}
 
         <Card>
           <h2 className="mb-2 font-bold">{t('الأجهزة')}</h2>

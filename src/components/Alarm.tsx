@@ -160,7 +160,9 @@ export function Alarm() {
   // readings were coming in (within 6 hours) and stopped; a sensor that is off or not connected does not ring all day
   const localStale = nodataOn && (offline || (checked && staleMin !== null && staleMin >= STALE_MIN && staleMin < 6 * 60));
   const localQuiet = quiet && quiet.reading === fresh.reading && now < quiet.until;
-  const level: AlarmLevel | null = server ? LEVEL_OF[server.kind]! : localStale && !localQuiet ? 'nodata' : null;
+  // glucose alarms switched off (Alerts page): LibreLink gives them, so this phone never takes the screen or rings
+  const alarmsOn = settings.glucose_alarms_on !== false;
+  const level: AlarmLevel | null = !alarmsOn ? null : server ? LEVEL_OF[server.kind]! : localStale && !localQuiet ? 'nodata' : null;
 
   // the sound: repeats while the alarm is up and this phone's switch is on
   const timer = useRef<number | null>(null);
