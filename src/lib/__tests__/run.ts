@@ -3913,5 +3913,19 @@ console.log('P0: food sources, eaten part, injections untouched');
   });
 }
 
+{
+  const { brandMark, brandLook, BRAND_COLOURS } = await import('../brandLook');
+  test('brand badges: initials, a colour that stays the same, a picture from its own food, the family\'s choice first', () => {
+    assert.equal(brandMark('KDD'), 'KDD'); assert.equal(brandMark('PICK'), 'PICK'); assert.equal(brandMark('Diet Care'), 'DC');
+    assert.equal(brandMark('Almarai'), 'AL'); assert.equal(brandMark("Lay's"), 'LA'); assert.equal(brandMark('المطاحن'), 'مط');
+    const milk = [{ category: 'حليب' }, { category: 'لبن' }, { category: 'عصير طبيعي' }];
+    const a = brandLook('KDD', milk), b = brandLook('KDD', milk);
+    assert.equal(a.emoji, '🥛'); assert.equal(a.bg, b.bg); assert.ok(BRAND_COLOURS.includes(a.bg)); assert.equal(a.kind, 'brand');
+    const c = brandLook('KDD', milk, { brand: 'KDD', kind: 'restaurant', bg: '#123456', emoji: '🍦', photo_path: 'brands/x.jpg' });
+    assert.deepEqual([c.bg, c.emoji, c.photo, c.kind], ['#123456', '🍦', 'brands/x.jpg', 'restaurant']);
+    assert.equal(brandLook('X', []).emoji, '🛒');
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);

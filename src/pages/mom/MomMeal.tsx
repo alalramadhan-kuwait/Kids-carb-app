@@ -23,6 +23,9 @@ import type { Ingredient, PlanItem, Product, Recipe } from '../../lib/types';
 import { reusable } from '../../lib/entryActions';
 import { mealGi } from '../../engine/gi';
 import { GiBadge, MealGiLine } from '../../components/Gi';
+import { BrandBadge } from '../../components/BrandBadge';
+import { BRAND_COLOURS, BRAND_EMOJI, brandLook, type BrandLookRow } from '../../lib/brandLook';
+import { saveBrandLook, useBrandLooks } from '../../lib/brandLooks';
 
 /** The catalogue Mom mode reads, and the carbs of any item or meal (null if any part is unknown). */
 export function useCatalog() {
@@ -267,7 +270,7 @@ export function MomAdd({ browse = false }: { browse?: boolean }) {
   const [sp, setSp] = useSearchParams();
   const { meals } = useSavedMeals();
   // browse: the «التغذية» tab — the same food list, but a tap opens the item's nutrition values
-  const tab = (sp.get('tab') ?? 'products') as 'saved' | 'recipes' | 'products' | 'restaurants';
+  const tab = (sp.get('tab') ?? 'products') as 'saved' | 'recipes' | 'products' | 'restaurants' | 'brands';
   // the query lives in the address, so Back from a food comes back to the same results
   const [q, setQ] = useUrlQuery();
   const { c, mealCarbs, nameOf, products, recipes, homeFirst, tile } = useFoods(browse);
@@ -280,20 +283,29 @@ export function MomAdd({ browse = false }: { browse?: boolean }) {
   const missing = q.trim() && !found.length && !foundRecipes.length;
   const base = browse ? '/mom/food' : '/mom/add';
   const bar = useCompareBar(browse);
+  const looks = useBrandLooks();
+  // product brands (KDD, Almarai…) apart from restaurants; one the family marked as a restaurant sits with them
+  const brandList = brandsIn(products).map((b) => ({ ...b, look: brandLook(b.brand, b.items, looks.get(b.brand)) }));
   return (
     <MomPage title={browse ? t('التغذية') : t('شنو بتاكل؟')} back={browse ? null : '/mom/meal'} tabs={browse} foot={bar}>
-      <div className={cx('grid gap-1 rounded-full bg-slate-100 p-1', browse ? 'grid-cols-3 text-[15px]' : 'grid-cols-4 text-[14px]')}>
-        {(browse ? ['products', 'recipes', 'restaurants'] as const : ['saved', 'recipes', 'products', 'restaurants'] as const).map((k) => <button key={k} onClick={() => setSp({ tab: k }, { replace: true })} className={cx('min-h-[44px] rounded-full px-1 leading-tight', tab === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{k === 'saved' ? t('وجباتها') : k === 'recipes' ? t('طبخ البيت') : k === 'restaurants' ? t('مطاعم') : t('أكل')}</button>)}
+      <div className={cx('grid gap-1 rounded-full bg-slate-100 p-1', 'grid-cols-4 text-[13.5px]')}>
+        {(browse ? ['products', 'recipes', 'restaurants', 'brands'] as const : ['saved', 'recipes', 'products', 'restaurants'] as const).map((k) => <button key={k} onClick={() => setSp({ tab: k }, { replace: true })} className={cx('min-h-[44px] truncate whitespace-nowrap rounded-full px-0.5 leading-tight tracking-tight', tab === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{k === 'saved' ? t('وجباتها') : k === 'recipes' ? t('طبخ البيت') : k === 'restaurants' ? t('مطاعم') : k === 'brands' ? t('ماركات') : t('أكل')}</button>)}
       </div>
       {tab === 'restaurants' && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {RESTAURANTS.map((r) => ({ r, n: products.filter((p) => restaurantOf(p.brand)?.key === r.key).length })).filter((x) => x.n).map(({ r, n }) => (
-            <button key={r.key} onClick={() => nav(`${base}/r/${r.key}`)} className="flex min-h-[150px] flex-col items-center justify-center gap-2 rounded-2xl border border-slate-100 bg-white p-3 active:opacity-80">
-              <RestaurantLogo r={r} size={72} />
-              <span className="text-[17px] font-bold">{tMaybe(r.label)}</span>
-              <span className="num text-[14px] text-slate-500">{n}</span>
+            <button key={r.key} onClick={() => nav(`${base}/r/${r.key}`)} className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl border border-slate-100 bg-white px-1.5 py-3 active:opacity-80">
+              <RestaurantLogo r={r} size={60} />
+              <span className="w-full truncate text-center text-[15px] font-bold">{tMaybe(r.label)}</span>
+              <span className="num text-[13px] text-slate-500">{n}</span>
             </button>
           ))}
+          {brandList.filter((b) => b.look.kind === 'restaurant').map((b) => <BrandTile key={b.brand} b={b} onClick={() => nav(`${base}/b/${encodeURIComponent(b.brand)}`)} />)}
+        </div>
+      )}
+      {tab === 'brands' && (
+        <div className="grid grid-cols-3 gap-2">
+          {brandList.filter((b) => b.look.kind === 'brand').map((b) => <BrandTile key={b.brand} b={b} onClick={() => nav(`${base}/b/${encodeURIComponent(b.brand)}`)} />)}
         </div>
       )}
       {tab === 'saved' && (meals.length ? meals.map((m) => {
@@ -321,6 +333,86 @@ export function MomAdd({ browse = false }: { browse?: boolean }) {
       )}
       <Big tone="ghost" className={cx('shrink-0', missing ? '' : 'mt-auto')} onClick={() => nav('/mom/new')}>{t('مو موجود؟')}</Big>
     </MomPage>
+  );
+}
+
+/** Product brands among these foods (restaurants and home-made apart), most foods first. */
+function brandsIn(products: Product[]) {
+  const m = new Map<string, Product[]>();
+  for (const p of products) { const b = p.brand?.trim(); if (b && !restaurantOf(b) && b.toLowerCase() !== 'home') m.set(b, [...(m.get(b) ?? []), p]); }
+  return [...m].map(([brand, items]) => ({ brand, items })).sort((a, b) => b.items.length - a.items.length || a.brand.localeCompare(b.brand));
+}
+
+/** One brand as a tile: its badge, its name on one line, how many foods. */
+export function BrandTile({ b, onClick }: { b: { brand: string; items: Product[]; look: ReturnType<typeof brandLook> }; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="flex min-w-0 flex-col items-center gap-1.5 rounded-2xl border border-slate-100 bg-white px-1.5 py-3 active:opacity-80">
+      <BrandBadge look={b.look} size={60} />
+      <bdi className="w-full truncate text-center text-[15px] font-bold">{tMaybe(b.brand)}</bdi>
+      <span className="num text-[13px] text-slate-500">{b.items.length}</span>
+    </button>
+  );
+}
+
+/** One brand: its badge and name, a search, its foods as tiles; «✎» changes how it looks and under which button. */
+export function MomBrand({ browse = false }: { browse?: boolean }) {
+  const { brand: raw } = useParams() as { brand: string };
+  const brand = decodeURIComponent(raw);
+  const [q, setQ] = useUrlQuery();
+  const { products, homeFirst, tile, grid } = useFoods(browse);
+  const looks = useBrandLooks();
+  const [edit, setEdit] = useState(false);
+  const items = products.filter((p) => p.brand?.trim() === brand);
+  const look = brandLook(brand, items, looks.get(brand));
+  const shown = homeFirst(q.trim() ? items.filter((p) => matches([p.name, p.name_ar, p.name_en, p.category], q)) : items);
+  return (
+    <MomPage title={tMaybe(brand)} back={-1} foot={useCompareBar(browse)}>
+      <div className="flex items-center gap-4 rounded-3xl border border-slate-100 bg-white p-3">
+        <BrandBadge look={look} size={68} />
+        <div className="min-w-0 flex-1">
+          <bdi className="block truncate text-[19px] font-bold">{tMaybe(brand)}</bdi>
+          <span className="text-[14px] text-slate-500">{t('{n} أكلة', { n: items.length })} · {look.kind === 'restaurant' ? t('مطعم') : t('ماركة')}</span>
+        </div>
+        <button onClick={() => setEdit(true)} aria-label={t('غيّري الشكل')} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-brand-soft text-[18px] text-brand">✎</button>
+      </div>
+      {items.length > 6 && <input className={inputCls} type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('ابحثي في {b}…', { b: tMaybe(brand) })} />}
+      {grid(shown.map((p) => tile('product', p)))}
+      {edit && <BrandLookSheet brand={brand} look={look} onClose={() => setEdit(false)} />}
+    </MomPage>
+  );
+}
+
+/** «كيف يبين؟»: under which button (restaurant or brand), its colour and food picture, or a photo of its logo. */
+function BrandLookSheet({ brand, look, onClose }: { brand: string; look: ReturnType<typeof brandLook>; onClose: () => void }) {
+  const [row, setRow] = useState<BrandLookRow>({ brand, kind: look.kind, bg: look.bg, emoji: look.emoji, photo_path: look.photo });
+  const [busy, setBusy] = useState(false);
+  const preview = { ...look, bg: row.bg ?? look.bg, emoji: row.emoji ?? look.emoji, photo: row.photo_path, kind: row.kind ?? look.kind };
+  const photo = async (f: File | undefined) => { if (!f) return; setBusy(true); try { setRow((r) => ({ ...r, photo_path: null })); const path = await uploadPhoto(f, 'brands'); setRow((r) => ({ ...r, photo_path: path })); } catch (e) { toast((e as Error).message); } finally { setBusy(false); } };
+  const save = async () => { setBusy(true); try { await saveBrandLook(row); toast(t('تم ✓')); onClose(); } catch (e) { toast((e as Error).message); } finally { setBusy(false); } };
+  const opt = (on: boolean) => cx('min-h-[46px] flex-1 rounded-2xl border-2 px-2 text-[15px] font-bold', on ? 'border-brand bg-brand-soft text-brand' : 'border-slate-100 bg-white text-slate-700');
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/35" onClick={onClose}>
+      <div className="max-h-[92vh] space-y-3 overflow-y-auto rounded-t-[28px] bg-white px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3" onClick={(e) => e.stopPropagation()}>
+        <div className="mx-auto h-1.5 w-11 rounded-full bg-slate-200" />
+        <h2 className="text-[19px] font-bold">{t('كيف يبين؟')}</h2>
+        <div className="flex items-center gap-4 rounded-2xl bg-slate-50 p-3"><BrandBadge look={preview} size={64} /><bdi className="truncate text-[17px] font-bold">{tMaybe(brand)}</bdi></div>
+        <div className="flex gap-2">
+          <button className={opt(row.kind === 'restaurant')} onClick={() => setRow((r) => ({ ...r, kind: 'restaurant' }))}>🍽️ {t('مطعم')}</button>
+          <button className={opt(row.kind !== 'restaurant')} onClick={() => setRow((r) => ({ ...r, kind: 'brand' }))}>🛒 {t('ماركة')}</button>
+        </div>
+        <div className="text-[14px] font-bold text-slate-500">{t('اللون')}</div>
+        <div className="flex flex-wrap gap-2">{BRAND_COLOURS.map((c) => <button key={c} aria-label={c} onClick={() => setRow((r) => ({ ...r, bg: c, photo_path: null }))} className={cx('h-10 w-10 rounded-xl', row.bg === c && !row.photo_path && 'ring-[3px] ring-brand ring-offset-2')} style={{ background: c }} />)}</div>
+        <div className="text-[14px] font-bold text-slate-500">{t('صورة الأكل')}</div>
+        <div className="flex flex-wrap gap-2">{BRAND_EMOJI.map((e) => <button key={e} onClick={() => setRow((r) => ({ ...r, emoji: e }))} className={cx('grid h-11 w-11 place-items-center rounded-xl bg-slate-50 text-[24px]', row.emoji === e && 'bg-brand-soft ring-2 ring-brand')}>{e}</button>)}</div>
+        <div className="text-[14px] font-bold text-slate-500">{t('أو صورة الشعار')}</div>
+        <div className="flex gap-2">
+          <label className={opt(false) + ' grid cursor-pointer place-items-center'}>📷 {t('صوّري')}<input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => photo(e.target.files?.[0])} /></label>
+          <label className={opt(false) + ' grid cursor-pointer place-items-center'}>🖼️ {t('من الصور')}<input type="file" accept="image/*" className="hidden" onChange={(e) => photo(e.target.files?.[0])} /></label>
+          {row.photo_path && <button className={opt(false)} onClick={() => setRow((r) => ({ ...r, photo_path: null }))}>✕ {t('بدون صورة')}</button>}
+        </div>
+        <Big disabled={busy} onClick={save}>✓ {t('احفظي')}</Big>
+      </div>
+    </div>
   );
 }
 

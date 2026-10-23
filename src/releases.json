@@ -1,5 +1,21 @@
 [
   {
+    "version": "4.31.0",
+    "date": "2026-10-23",
+    "notes": [
+      "التغذية: أربع أزرار بسطر واحد: أكل · طبخ البيت · مطاعم · ماركات.",
+      "«ماركات» زر جديد: كل ماركة (KDD، المراعي، المطاحن…) لها شعار ملوّن بحروفها وصورة أكل، وتفتح صفحتها بأكلاتها.",
+      "داخل الماركة زر ✎ «كيف يبين؟»: اختاري اللون وصورة الأكل، أو صوّري الشعار، وحطيها تحت مطاعم أو ماركات.",
+      "الأسماء صارت بسطر واحد."
+    ],
+    "notes_en": [
+      "Nutrition: four buttons on one line: Food · Recipes · Restaurants · Brands.",
+      "«Brands» is new: each brand (KDD, Almarai, Al Mataheen…) has a coloured badge with its initials and a food picture, and opens its own page of foods.",
+      "Inside a brand, ✎ «How should it look?»: choose the colour and food picture, or take a photo of the logo, and put it under Restaurants or Brands.",
+      "Names now fit on one line."
+    ]
+  },
+  {
     "version": "4.30.2",
     "date": "2026-10-23",
     "notes": [

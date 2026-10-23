@@ -19,7 +19,9 @@ import { Big, MomPage } from './MomUI';
 import { useLow } from './MomActions';
 import { useOpenPlans } from './MomPlan';
 import { repeatPlate } from '../../lib/repeatMeal';
-import { FoodRow, GroupTile, RestaurantLogo, gramsText, recent, shownName, useCatalog, useUrlQuery } from './MomMeal';
+import { BrandTile, FoodRow, GroupTile, RestaurantLogo, gramsText, recent, shownName, useCatalog, useUrlQuery } from './MomMeal';
+import { brandLook } from '../../lib/brandLook';
+import { useBrandLooks } from '../../lib/brandLooks';
 
 type Food = { kind: 'product'; x: Product } | { kind: 'recipe'; x: Recipe } | { kind: 'meal'; x: SavedMeal };
 
@@ -61,6 +63,9 @@ export function MomFind() {
     for (const p of products) { const b = p.brand?.trim(); if (b && !restaurantOf(b)) m.set(b, (m.get(b) ?? 0) + 1); }
     return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [products]);
+  const looks = useBrandLooks();
+  // a brand as a badge tile, opening its own page
+  const brandTile = ([b]: [string, number]) => { const items = products.filter((p) => p.brand?.trim() === b); return <BrandTile key={b} b={{ brand: b, items, look: brandLook(b, items, looks.get(b)) }} onClick={() => nav(`/mom/add/b/${encodeURIComponent(b)}`)} />; };
   const open = (kind: 'product' | 'recipe', id: string) => nav(`/mom/item/${kind}/${id}`);
   const takeMeal = (m: SavedMeal) => { if (d.items.length) m.items.forEach((i) => draftOps.add({ ...i } as MomItem)); else draftOps.load(m); nav('/mom/meal'); };
   const row = (f: Food) => {
@@ -134,14 +139,7 @@ export function MomFind() {
     return (
       <MomPage compact title={brand ? tMaybe(brand) : t('الماركات')} back={-1}>
         {brand ? <div className="space-y-2">{mine.map((x) => row({ kind: 'product', x }))}</div> : (
-          <div className="grid grid-cols-2 gap-2">
-            {brands.map(([b, n]) => (
-              <button key={b} onClick={() => nav(`/mom/add?browse=brands&b=${encodeURIComponent(b)}`)} className="flex min-h-[72px] flex-col items-center justify-center gap-0.5 rounded-2xl border border-slate-100 bg-white px-2 py-2 text-center active:opacity-80">
-                <bdi className="line-clamp-2 text-[16px] font-bold leading-snug">{tMaybe(b)}</bdi>
-                <span className="num text-[13px] text-slate-500">{n}</span>
-              </button>
-            ))}
-          </div>
+          <div className="grid grid-cols-3 gap-2">{brands.map(brandTile)}</div>
         )}
       </MomPage>
     );
@@ -164,13 +162,7 @@ export function MomFind() {
       {browse === 'restaurants' && brands.length > 0 && (
         <>
           <h2 className="pt-2 text-[16px] font-bold">{t('الماركات')}</h2>
-          <div className="grid grid-cols-2 gap-2">
-            {brands.map(([b, n]) => (
-              <button key={b} onClick={() => nav(`/mom/add?browse=brands&b=${encodeURIComponent(b)}`)} className="flex min-h-[64px] flex-col items-center justify-center gap-0.5 rounded-2xl border border-slate-100 bg-white px-2 py-2 text-center active:opacity-80">
-                <bdi className="line-clamp-2 text-[16px] font-bold leading-snug">{tMaybe(b)}</bdi><span className="num text-[13px] text-slate-500">{n}</span>
-              </button>
-            ))}
-          </div>
+          <div className="grid grid-cols-3 gap-2">{brands.map(brandTile)}</div>
         </>
       )}
       {browse === 'groups' && (

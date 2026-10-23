@@ -16,7 +16,7 @@ import { LangSwitch } from './components/LangSwitch';
 import { MomGraphPage, MomHome } from './pages/mom/MomHome';
 import { MomFind } from './pages/mom/MomFind';
 import { MomSnap } from './pages/mom/MomSnap';
-import { MomAdd, MomFoodItem, MomGroup, MomKidsMeal, MomMeal, MomNew, MomParts, MomPortion, MomRestaurant } from './pages/mom/MomMeal';
+import { MomAdd, MomFoodItem, MomGroup, MomKidsMeal, MomMeal, MomNew, MomParts, MomPortion, MomRestaurant, MomBrand } from './pages/mom/MomMeal';
 import { MomPlate } from './pages/mom/MomPlate';
 import { MomCompare } from './pages/mom/MomCompare';
 import { MomAte, MomDose, MomGiven, MomPast } from './pages/mom/MomDose';
@@ -289,6 +289,8 @@ function Shell() {
         <Route path="/mom/food/g/:key" element={<MomGroup browse />} />
         <Route path="/mom/food/g/:key/:sub" element={<MomGroup browse />} />
         <Route path="/mom/food/r/:key" element={<MomRestaurant browse />} />
+        <Route path="/mom/food/b/:brand" element={<MomBrand browse />} />
+        <Route path="/mom/add/b/:brand" element={<MomBrand />} />
         <Route path="/mom/add/r/:key" element={<MomRestaurant />} />
         <Route path="/mom/add/r/:key/kids" element={<MomKidsMeal />} />
         <Route path="/mom/snap" element={<MomSnap />} />
