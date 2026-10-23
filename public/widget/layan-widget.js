@@ -182,8 +182,13 @@ function background(d, v, size, chartTop) {
 
 // medium and large: the graph fills the widget. Her range, the readings as a thin line, doses and meals as lines with the amount,
 // the latest value in a bubble at the last dot, and (when the link carries on-board data) a strip of what is acting now:
-// food being absorbed above the line, insulin acting below. The strip is an estimate for display only: food follows a
-// curve that peaks at 40 minutes (the link does not say which foods are fast), insulin the same model as IOB.
+// food being absorbed above the line, insulin acting below. The strip is an estimate for display only: food follows
+// the app's split (engine/absorb.ts: drinks quick, fatty meals with a slow part), insulin the same model as IOB.
+// the food strip follows the app's rule (src/engine/absorb.ts): a curve peaking at 40 minutes, a drink at 12, and for
+// a fatty meal a slow part peaking at 2 hours, its share fat ÷ 50 (none under 8 g, at most 60 %)
+const rate = (m, tau) => (m > 0 ? (m / (tau * tau)) * Math.exp(-m / tau) * 60 : 0);
+const slowShare = (fat) => (fat == null || !(Number(fat) >= 8) ? 0 : Math.min(0.6, Number(fat) / 50));
+
 function graphFirst(d, v, size, top) {
   const ctx = new DrawContext();
   ctx.size = size;
@@ -278,10 +283,16 @@ function graphFirst(d, v, size, top) {
     const tau = ob.dia > 0 && ob.peak > 0 && ob.peak < ob.dia / 2 ? (ob.peak * (1 - ob.peak / ob.dia)) / (1 - (2 * ob.peak) / ob.dia) : null;
     const a = tau ? (2 * tau) / ob.dia : 0, S = tau ? 1 / (1 - a + (1 + a) * Math.exp(-ob.dia / tau)) : 0;
     for (let t = t0; t <= now; t += step) {
-      let food = 0, ins = 0;
-      for (const c of ob.carbs || []) { const m = (t - Date.parse(c.t)) / MIN; if (m > 0 && m < 600) food += Number(c.g) * (m / 1600) * Math.exp(-m / 40) * 60; }
+      let food = 0, slow = 0, ins = 0;
+      for (const c of ob.carbs || []) {
+        const m = (t - Date.parse(c.t)) / MIN, g = Number(c.g);
+        if (!(m > 0 && m < 720)) continue;
+        if (c.d) { food += g * rate(m, 12); continue; }
+        const sh = slowShare(c.f);
+        food += g * (1 - sh) * rate(m, 40); slow += g * sh * rate(m, 120);
+      }
       if (tau) for (const q of ob.doses || []) { const m = (t - Date.parse(q.t)) / MIN; if (m > 0 && m < ob.dia) ins += Number(q.u) * (S / (tau * tau)) * m * (1 - m / ob.dia) * Math.exp(-m / tau) * 60; }
-      pts.push([x(t), food, ins]);
+      pts.push([x(t), food + slow, ins, slow]);
     }
     const area = (f, color) => {
       const p = new Path();
@@ -293,7 +304,8 @@ function graphFirst(d, v, size, top) {
       ctx.setFillColor(new Color(color));
       ctx.fillPath();
     };
-    area((q) => lz - Math.min(q[1] / 30, 1) * 12, "#FFA83D");
+    area((q) => lz - Math.min(q[1] / 30, 1) * 12, "#FFCF94");
+    area((q) => lz - Math.min(q[3] / 30, 1) * 12, "#E8892B"); // the slow part of a fatty meal, darker
     area((q) => lz + Math.min(q[2] / 1.2, 1) * 12, "#5F97FF");
     ctx.setFillColor(new Color("#CFD3FF"));
     ctx.fillRect(new Rect(x0, lz - 0.5, x(now) - x0, 1));

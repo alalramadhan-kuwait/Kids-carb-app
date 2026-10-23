@@ -3761,5 +3761,25 @@ console.log('P0: food sources, eaten part, injections untouched');
   });
 }
 
+{
+  const { slowShare, isDrink, absorbing, stillToAbsorb } = await import('../../engine/absorb');
+  const T = Date.UTC(2026, 9, 21, 16, 20), M = 60000;
+  test('fatty meals: the slow share grows with fat (none under 8 g, fat ÷ 50, at most 60 %); drinks are a quick pulse', () => {
+    assert.equal(slowShare(null), 0); assert.equal(slowShare(5), 0); assert.equal(slowShare(10), 0.2); assert.equal(slowShare(20), 0.4); assert.equal(slowShare(32), 0.6);
+    assert.ok(isDrink('1.2.3 Mango Nectar (Kids) 125ml') && isDrink('مشروب كوكتيل') && !isDrink('مرق ملوخية مع عيش'));
+  });
+  test('absorption: every gram is counted once; a fatty meal keeps more for later; a drink is done in about an hour', () => {
+    const lean = [{ t: T, carbs: 37, fat: 2 }], fatty = [{ t: T, carbs: 37, fat: 32 }], drink = [{ t: T, carbs: 15, drink: true }];
+    // the area under the rate is the carbs (minute steps over 12 hours)
+    let area = 0; for (let m = 0; m < 720; m++) { const r = absorbing(fatty, T + m * M); area += (r.fast + r.slow) / 60; }
+    assert.ok(Math.abs(area - 37) < 0.5, `area ${area}`);
+    assert.ok(Math.abs(stillToAbsorb(fatty, T) - 37) < 1e-9 && stillToAbsorb(fatty, T - M) === 0);
+    const at3 = (f: typeof lean) => stillToAbsorb(f, T + 180 * M) / 37;
+    assert.ok(at3(lean) < 0.08 && at3(fatty) > 0.3 && at3(fatty) < 0.4, `${at3(lean)} ${at3(fatty)}`);
+    assert.ok(stillToAbsorb(drink, T + 60 * M) / 15 < 0.1);
+    assert.equal(absorbing(lean, T + 60 * M).slow, 0);
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Timeline } from '../engine/Timeline';
 import { useSeries } from '../engine/useSeries';
 import { GraphLoadNotice } from '../components/GraphLoadNotice';
+import { FoodLane } from '../components/FoodLane';
 import { limitEnd, type View } from '../engine/series';
 import { buildMarks, defaultLayers, type Group } from '../engine/events';
 import { EventSheet } from '../components/EventSheet';
@@ -411,6 +412,7 @@ function HomeChart({ live }: { live: Reading[] }) {
         {h > 60 && <Timeline series={series} view={view} now={now} onView={onView} unit={settings.glucose_unit} height={h + 48} compact
           range={rng} marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={AHEAD} night={nightOf(settings)} />}
       </div>
+      <div className="shrink-0"><FoodLane view={view} now={now} height={28} /></div>
       <EventSheet group={picked} series={series} onClose={() => setPicked(null)} />
     </section>
   );

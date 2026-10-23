@@ -29,6 +29,7 @@ import { useGraphExtras } from '../hooks/useGraphExtras';
 import { GraphHelp } from '../components/ForecastKey';
 import { LAYERS, buildMarks, defaultLayers, type Group, type Layer } from '../engine/events';
 import { isEn, t } from '../i18n';
+import { FoodLane } from '../components/FoodLane';
 
 const loadLayers = (): Set<Layer> => {
   try {
@@ -231,6 +232,7 @@ function Live() {
           range={rng}
           marks={marks} layers={layers} onSelect={setPicked} tracks={tracks} forecasts={forecasts} ahead={ahead} night={nightOf(settings)}
           measure={measure} onMeasure={setMeasure} />
+        <FoodLane view={view} now={now} height={40} />
         {loading && <div className="absolute start-28 top-3 text-xs text-slate-400">…</div>}
         <button onClick={() => setWide(true)} aria-label={t('ملء الشاشة')} className="absolute left-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-white/90 text-lg font-bold text-slate-600 shadow-sm ring-1 ring-slate-200">⤢</button>
         <button onClick={toggleMeasure} aria-pressed={!!measure} aria-label={t('قياس بين نقطتين')}

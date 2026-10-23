@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.28.0",
+    "date": "2026-10-23",
+    "notes": [
+      "تحت الرسم: شريط يبين الأكل اللي يمتص (تقدير). الأكل الدسم ينقسم: جزء سريع وجزء بطيء (الغامق) يكمّل لين 4 أو 5 ساعات، والعصير نبضة قصيرة.",
+      "الويدجت يمشي على نفس الطريقة للأكل الدسم والعصير."
+    ],
+    "notes_en": [
+      "Under the graph: a strip showing the food being absorbed (an estimate). A fatty meal splits into a quick part and a slow part (darker) that lasts 4 to 5 hours; a juice is a short pulse.",
+      "The widget follows the same rule for fatty meals and juice."
+    ]
+  },
+  {
     "version": "4.27.0",
     "date": "2026-10-22",
     "notes": [
