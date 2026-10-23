@@ -47,6 +47,7 @@ const Status = lazy(() => import('./pages/Status'));
 const ImportPage = lazy(() => import('./pages/Import'));
 const SensorAccuracy = lazy(() => import('./pages/SensorAccuracy'));
 const AlertsPage = lazy(() => import('./pages/Alerts'));
+const AccountsPage = lazy(() => import('./pages/Accounts').then((m) => ({ default: m.AccountsPage })));
 const CarePlanPage = lazy(() => import('./pages/CarePlan'));
 const Night = lazy(() => import('./pages/Night'));
 const SharePage = lazy(() => import('./pages/Share'));
@@ -328,6 +329,7 @@ function Shell() {
         <Route path="/import" element={<ImportPage />} />
         <Route path="/sensor-accuracy" element={<SensorAccuracy />} />
         <Route path="/alerts" element={<AlertsPage />} />
+        <Route path="/accounts" element={<AccountsPage />} />
         <Route path="/care-plan" element={<CarePlanPage />} />
         <Route path="/night" element={<Night />} />
         <Route path="/share" element={<SharePage />} />

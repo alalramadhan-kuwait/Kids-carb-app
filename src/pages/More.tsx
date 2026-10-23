@@ -146,17 +146,7 @@ export function More() {
             <span dir="ltr" className="min-w-0 flex-1 truncate text-start text-sm">{me || '…'}</span>
           </li>
           <MemberRows />
-          <li><details className="group px-4">
-            <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between font-medium">{t('إضافة أحد الوالدين')}<span className="text-slate-300">{isEn() ? '›' : '‹'}</span></summary>
-            <div className="space-y-2 pb-4">
-              <p className="text-sm text-slate-600">{t('يُنشئ الأب حسابه أولًا (بالبريد وكلمة المرور)، ثم اكتب بريده هنا.')}</p>
-              <input className={inputCls} dir="ltr" type="email" placeholder="email@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-              <Btn block disabled={!email} onClick={async () => {
-                const { error } = await supabase.rpc('add_member_by_email', { p_email: email });
-                if (error) toast(error.message.includes('no account') ? t('لا يوجد حساب بهذا البريد بعد') : error.message); else { toast(t('تمت الإضافة ✓')); setEmail(''); }
-              }}>{t('إضافة')}</Btn>
-            </div>
-          </details></li>
+          {link('/accounts', 'family', t('الحسابات'), t('إضافة حساب، تغيير الاسم والبريد وكلمة المرور'))}
           <li><details className="px-4">
             <summary className="flex min-h-[52px] cursor-pointer list-none items-center justify-between font-medium">{t('تغيير كلمة المرور')}<span className="text-slate-300">{isEn() ? '›' : '‹'}</span></summary>
             <div className="space-y-2 pb-4">

@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.33.0",
+    "date": "2026-10-23",
+    "notes": [
+      "المزيد ← «الحسابات»: إضافة حساب جديد (الاسم والبريد وكلمة المرور) من التطبيق نفسه، وتغيير الاسم والبريد وكلمة المرور لأي حساب في العائلة، وإزالة أحد من تطبيق ليان (حسابه وتسجيلاته تبقى)."
+    ],
+    "notes_en": [
+      "More › «Accounts»: add a new account (name, email and password) from the app itself, change the name, email or password of anyone in the family, and remove someone from Layan's app (their account and entries stay)."
+    ]
+  },
+  {
     "version": "4.32.0",
     "date": "2026-10-23",
     "notes": [
