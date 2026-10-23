@@ -1,5 +1,25 @@
 [
   {
+    "version": "4.30.0",
+    "date": "2026-10-23",
+    "notes": [
+      "رقم «≈ … عند …» والخط المنقّط بعد «الآن» انشالوا: قسناهم على أسبوع كامل وما كانوا أدق من «يبقى السكر مثل ما هو»، والاتجاه صح بنص المرات بس. السهم والتغيّر خلال 15 دقيقة باقين لأنهم قياس.",
+      "شريط الامتصاص: نهاية الكارب والنوفورابيد صارت فترة تقريبية (مثلاً 12:40–3:30)، مو ساعة بالضبط.",
+      "الملاحظة فيها 🤒 مريضة و😟 متوترة (اختياري)، عشان نشوف أثرهم مع الوقت.",
+      "علاج الانخفاض ينحفظ كعلاج انخفاض، فما ينحسب كأكل عادي في التحليل.",
+      "التحليل › مختبر التوقعات: بطاقة «التوقع مقابل الواقع» تبين كل يوم كم يخطئ كل توقع. أي توقع ما يرجع للرسم إلا إذا صار أدق من «يبقى مثل ما هو».",
+      "حاسبة الجرعة والتنبيهات ما تغيّرت."
+    ],
+    "notes_en": [
+      "The «≈ … at …» number and the dotted line after «now» are gone: measured over a full week they were no more accurate than «glucose stays where it is», and got the direction right only half the time. The arrow and the change over 15 minutes stay, because they are measured.",
+      "Absorption strip: the end of carbs and of NovoRapid is now an approximate range (e.g. 12:40–3:30), not one exact time.",
+      "A note can carry 🤒 Sick and 😟 Stressed (optional), so their effect can be seen over time.",
+      "A low treatment is saved as a low treatment, so it is never counted as ordinary food in the analysis.",
+      "Analysis › Prediction lab: a «Forecast vs what happened» card shows every day how far each forecast misses. A forecast comes back to the graph only when it beats «stays where it is».",
+      "The dose calculator and the alerts are unchanged."
+    ]
+  },
+  {
     "version": "4.29.0",
     "date": "2026-10-23",
     "notes": [

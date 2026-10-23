@@ -3866,5 +3866,32 @@ console.log('P0: food sources, eaten part, injections untouched');
   });
 }
 
+{
+  // the master plan's non-negotiable tests (§11) not already covered above
+  const A = await import('../../engine/absorb'), N = await import('../../engine/nightTresiba'), I = await import('../../engine/iob');
+  const M = 60000, T = Date.UTC(2026, 9, 20, 15, 0), iso = (t: number) => new Date(t).toISOString();
+  test('§11: 37 g with 32 g fat keeps 37 g; what is left is never negative and never more than what was eaten', () => {
+    const f = [{ t: T, carbs: 37, fat: 32 }];
+    for (let m = -30; m <= 13 * 60; m += 5) { const l = A.stillToAbsorb(f, T + m * M); assert.ok(l >= 0 && l <= 37 + 1e-9, `${m}: ${l}`); }
+    assert.equal(A.stillToAbsorb(f, T), 37);
+  });
+  test('§11: overlapping meals and doses are each counted once; a deleted meal and a pending one are not counted', () => {
+    const h = (id: string, g: number, x: object = {}) => ({ id, eaten_at: iso(T), total_carbs: g, total_fat: 2, name: 'x', deleted_at: null, ...x });
+    const foods = A.foodsFrom([h('a', 30), h('b', 20), h('c', 50, { deleted_at: iso(T) }), h('d', 40, { intake: 'pending' })] as never,
+      [{ kind: 'treatment', carbs_g: 15, occurred_at: iso(T), deleted_at: null }, { kind: 'carbs', carbs_g: 10, occurred_at: iso(T), deleted_at: iso(T) }] as never);
+    assert.equal(A.stillToAbsorb(foods, T), 30 + 20 + 15);
+    const doses = I.dosesFrom([{ kind: 'insulin', insulin_type: 'rapid', insulin_units: 2, occurred_at: iso(T - 10 * M), deleted_at: null },
+      { kind: 'insulin', insulin_type: 'rapid', insulin_units: 1, occurred_at: iso(T + 60 * M), deleted_at: null },
+      { kind: 'insulin', insulin_type: 'long', insulin_units: 7, occurred_at: iso(T), deleted_at: null }] as never);
+    assert.deepEqual(doses.map((d) => [d.units, d.t]), [[2, T - 10 * M], [1, T + 60 * M]], 'the recorded injection times, Tresiba apart');
+  });
+  test('§11: a dose change to 7 U starts a new transition; the 9 U nights before keep their own label', () => {
+    const ev = [9, 9, 9, 9, 7, 7].map((u, i) => ({ kind: 'insulin', insulin_type: 'long', insulin_units: u, occurred_at: iso(T + i * 86400000), deleted_at: null }));
+    const rows = N.doseRows(ev as never);
+    assert.deepEqual(rows.map((r) => [r.units, r.nth, r.nth >= N.STEADY_DOSES]), [[9, 1, false], [9, 2, false], [9, 3, false], [9, 4, true], [7, 1, false], [7, 2, false]]);
+    assert.equal(rows[4].prev, 9);
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);
