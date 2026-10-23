@@ -14,7 +14,7 @@ import { useBack } from './MomMeal';
 import { mergeSeries, type Series } from '../../engine/series';
 import { levelFromLibre, trendFrom } from '../../engine/trend';
 import { effectiveRange } from '../../lib/glucose';
-import { bigGraphScale, curvePoints, layanFace, moodOf, nextRapidAllowed, type LayanFace, type Mood } from '../../engine/mom';
+import { bigGraphScale, visibleMax, curvePoints, layanFace, moodOf, nextRapidAllowed, type LayanFace, type Mood } from '../../engine/mom';
 import { useAlerts } from '../../hooks/useAlerts';
 import { usePlans } from '../../lib/plans';
 import { draftOps, useSensor } from '../../lib/mom';
@@ -361,11 +361,9 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
   const end = endAt === null ? now : Math.min(now, Math.max(minEnd, endAt));
   const live = endAt === null;
   const t0 = end - span * H;
-  // the scale: fixed steps chosen by the highest reading loaded, so it does not change while swiping (see bigGraphScale)
-  let maxSeen: number | null = null;
-  for (let i = 0; i < s.t.length; i++) if (s.t[i] <= now + 60000 && (maxSeen === null || s.v[i] > maxSeen)) maxSeen = s.v[i];
-  for (const p of pricks) if (p.t <= now && (maxSeen === null || p.bg > maxSeen)) maxSeen = p.bg;
-  const { top, bottom, ticks } = bigGraphScale(maxSeen, unit);
+  // the scale fits the hours on screen: the highest reading in view picks one of a few fixed steps (bigGraphScale), so
+  // a quiet morning fills the graph instead of sitting under yesterday's high, and the scale only moves a whole step
+  const { top, bottom, ticks } = bigGraphScale(visibleMax(s, pricks, t0 - 10 * 60000, Math.min(end, now) + 60000), unit);
   const XR = W - PR - 9;
   const x = (t: number) => PL + ((t - t0) / (span * H)) * (XR - PL);
   const y = (v: number) => PT + PH - ((Math.min(Math.max(v, bottom), top) - bottom) / (top - bottom)) * PH;

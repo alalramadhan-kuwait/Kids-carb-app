@@ -707,6 +707,14 @@ test('a new meal from the Log: meals with items, the last 30 days, the same meal
 
 
 test('simple-mode graph scale: the smallest of a few fixed steps that holds the highest reading, never cutting a low', async () => {
+  test('simple-mode graph: the scale fits the hours on screen, not the highest reading of the day', async () => {
+    const { bigGraphScale: sc, visibleMax } = await import('../../engine/mom');
+    const H = 3600000, day = { t: [0, 2 * H, 20 * H, 22 * H], v: [380, 300, 160, 120] }; // a high at night, a quiet morning
+    assert.equal(visibleMax(day, [], 18 * H, 24 * H), 160); assert.equal(Math.round(sc(visibleMax(day, [], 18 * H, 24 * H), 'mmol').top / 18.016), 12);
+    assert.equal(visibleMax(day, [{ t: 21 * H, bg: 210 }], 18 * H, 24 * H), 210, 'a finger-prick in view counts');
+    assert.equal(Math.round(sc(visibleMax(day, [], 0, 6 * H), 'mmol').top / 18.016), 21);
+    assert.equal(visibleMax(day, [], 5 * H, 6 * H), null); assert.equal(Math.round(sc(null, 'mmol').top / 18.016), 12, 'nothing in view: the smallest scale, high line still shown');
+  });
   const { bigGraphScale } = await import('../../engine/mom');
   const mm = (x: number) => x * 18.016, top = (v: number | null) => Math.round(bigGraphScale(v, 'mmol').top / 18.016);
   assert.equal(top(mm(9)), 12); assert.equal(top(mm(12.5)), 15); assert.equal(top(mm(16)), 18); assert.equal(top(mm(19.6)), 21); assert.equal(top(mm(25)), 21);

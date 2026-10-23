@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.30.1",
+    "date": "2026-10-23",
+    "notes": [
+      "الوضع البسيط: الرسم يتكبّر على الساعات اللي قدامك، فإذا كان السكر هادي ما يبقى صغير تحت قراءة عالية من أمس."
+    ],
+    "notes_en": [
+      "Simple mode: the graph scales to the hours on screen, so a quiet morning fills it instead of sitting small under yesterday's high."
+    ]
+  },
+  {
     "version": "4.30.0",
     "date": "2026-10-23",
     "notes": [

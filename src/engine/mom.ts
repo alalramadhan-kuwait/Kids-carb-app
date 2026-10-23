@@ -178,6 +178,14 @@ export function layanFace(mood: Mood, mg: number | null, urgentLow: number, lowE
  * above it, so the curve uses the height without the axis jumping with every reading. The bottom sits under the
  * very-low range (2 mmol/L, 40 mg/dL) so a deep low is drawn at its real depth. Values in mg/dL.
  */
+/** The highest reading (sensor or finger-prick) inside the window the graph shows, for its scale; null when none. */
+export function visibleMax(s: { t: ArrayLike<number>; v: ArrayLike<number> }, pricks: { t: number; bg: number }[], from: number, to: number): number | null {
+  let m: number | null = null;
+  for (let i = 0; i < s.t.length; i++) if (s.t[i] >= from && s.t[i] <= to && (m === null || s.v[i] > m)) m = s.v[i];
+  for (const p of pricks) if (p.t >= from && p.t <= to && (m === null || p.bg > m)) m = p.bg;
+  return m;
+}
+
 export function bigGraphScale(maxVisible: number | null, unit: 'mmol' | 'mgdl'): { bottom: number; top: number; ticks: number[] } {
   const MM = 18.016;
   if (unit === 'mmol') {
