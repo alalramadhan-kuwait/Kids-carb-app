@@ -275,6 +275,8 @@ export interface AlertRow {
 export interface CarePlan { hypo: string | null; hyper: string | null; sick_day: string | null; contacts: string | null; updated_by: string | null; updated_at: string }
 
 export type EventKind = 'insulin' | 'carbs' | 'treatment' | 'note' | 'exercise' | 'sleep' | 'bg_check';
+export type EventTag = 'illness' | 'stress';
+
 export interface EventRow {
   id: string;
   client_id: string;
@@ -298,6 +300,10 @@ export interface EventRow {
   injection_site?: InjectionSite | null;
   edited_at?: string | null; edited_by?: string | null;
   ends_at?: string | null;
+  /** kind treatment: 'low' when logged from a low-treatment button; null for older entries (never guessed) */
+  treat_purpose?: 'low' | 'drink' | null;
+  /** influences a parent marked on a note */
+  tags?: EventTag[] | null;
   created_by: string;
   deleted_at: string | null;
   deleted_by?: string | null;

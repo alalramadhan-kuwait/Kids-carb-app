@@ -1,7 +1,7 @@
 // The Status page (Gluroo-style "On board"). Pure, tested in Node. Display only: it adds up what was already
 // logged with the doctor's numbers. Nothing here, or anywhere in the app, turns it into an amount to give.
-import { carbsFrom, dosesFrom, iobAt, iobParamsOk, type IobParams } from './iob';
-import { foodsFrom, stillToAbsorb } from './absorb';
+import { dosesFrom, iobAt, iobParamsOk, type IobParams } from './iob';
+import { foodEnd, foodsFrom, stillToAbsorb } from './absorb';
 import { ONBOARD_VALIDATED } from './forecast';
 import type { EventRow, HistoryEntry } from '../lib/types';
 
@@ -43,14 +43,15 @@ export interface OnBoardInput {
 /** The estimate needs a reading no older than 15 minutes, both models and the doctor's ratios. */
 export function onBoard(p: OnBoardInput): OnBoard {
   const iobP = iobParamsOk(p.iob) ? p.iob : null;
-  const doses = dosesFrom(p.events), carbs = carbsFrom(p.history, p.events);
+  const doses = dosesFrom(p.events), foods = foodsFrom(p.history, p.events);
   const iob = iobP ? iobAt(p.now, doses, iobP) : null;
   // carbs on board: the same curves as the food strip and the «active carbs» card (engine/absorb)
-  const cob = p.absorbMin ? stillToAbsorb(foodsFrom(p.history, p.events), p.now) : null;
+  const cob = p.absorbMin ? stillToAbsorb(foods, p.now) : null;
   const ratio = ratioAt(p.ratios, p.kuwaitMin);
   let estBy: number | null = null;
   if (iobP) for (const d of doses) if (d.t <= p.now && p.now - d.t < iobP.dia * MIN) estBy = Math.max(estBy ?? 0, d.t + iobP.dia * MIN);
-  if (p.absorbMin) for (const c of carbs) if (c.t <= p.now && p.now - c.t < p.absorbMin * MIN) estBy = Math.max(estBy ?? 0, c.t + p.absorbMin * MIN);
+  const foodBy = p.absorbMin ? foodEnd(foods, p.now) : null;
+  if (foodBy !== null) estBy = Math.max(estBy ?? 0, foodBy);
   const fresh = p.glucose && p.now - p.glucose.at <= 15 * MIN;
   const est = (p.validated ?? ONBOARD_VALIDATED) && fresh && ratio && iob !== null && cob !== null
     ? p.glucose!.mg + (cob / ratio.cr) * ratio.isf - iob * ratio.isf : null;

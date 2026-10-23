@@ -38,6 +38,7 @@ export async function eventAgain(e: EventRow): Promise<string> {
   const { data, error } = await supabase.from('events').insert({
     client_id: crypto.randomUUID(), kind: e.kind, occurred_at: new Date().toISOString(),
     carbs_g: e.carbs_g, treatment: e.treatment, note: e.note, activity_min: e.activity_min ?? null, activity_level: e.activity_level ?? null,
+    treat_purpose: e.treat_purpose ?? null, tags: e.tags ?? null,
   }).select('id').single();
   if (error) throw new Error(error.message);
   return (data as { id: string }).id;

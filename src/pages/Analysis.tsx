@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAlerts } from '../hooks/useAlerts';
+import { lowOpen } from '../lib/lowOpen';
 import { useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { useGlucose } from '../hooks/useGlucose';
@@ -157,7 +159,9 @@ function Live() {
 
   const { series, loading, error: loadError, retry } = useSeries(view.end - view.span, view.end, g?.readings);
   const past = usePredictions(g?.sensor?.started_at ? Date.parse(g.sensor.started_at) : null);
-  const projected30 = useMemo(() => (g?.readings ? trendFrom(g.readings, now)?.projected30 ?? null : null), [g?.readings, now]);
+  const alerts = useAlerts();
+  const noAhead = lowOpen(alerts.open); // the alert decides; no reassuring number beside it
+  const projected30 = useMemo(() => (g?.readings && !noAhead ? trendFrom(g.readings, now)?.projected30 ?? null : null), [g?.readings, now, noAhead]);
   const { tracks, forecasts, ahead } = useGraphExtras({ series, now, iob: layers.has('iob'), cob: layers.has('cob'), act: layers.has('act'), forecast: layers.has('forecast'),
     projected30, past: view.span <= 24 * 3600000 ? past : null, start: view.end - view.span, end: view.end });
   const model = tracks ? modelLine(tracks.iob || tracks.act ? iobP : null, tracks.cob ? settings.cob_absorb_min : null) : null;

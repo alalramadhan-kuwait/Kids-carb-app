@@ -11,7 +11,7 @@
 //   International consensus on CGM metrics (Battelino et al., Diabetes Care 2019 / 2023): a CGM episode lasts ≥ 15 min.
 //   Tresiba (insulin degludec) prescribing information: steady state after 3–4 days; half-life about 25 h.
 //   ±1.7 mmol/L (30 mg/dL) over a fasting test: an informal basal-testing reference, shown only as such.
-import { doseRows, juicesOf, questioned, type DoseRow, type Prick } from './nightTresiba';
+import { doseRows, juicesOf, questioned, STEADY_DOSES, type DoseRow, type Prick } from './nightTresiba';
 import { entriesFrom } from './predict';
 import { prickPoints } from './prick';
 import { agreesWith } from './fingerprick';
@@ -33,7 +33,7 @@ export const BC = {
   minLenMin: 60,                  // shorter periods are listed as excluded
   coverage: 0.7, gapMin: 20,      // less than 70 % of the period with readings, or gaps of 20 min, make it uncertain
   lowEpisodeMin: 15,              // a CGM low episode lasts 15 minutes or more (international CGM consensus)
-  steadyDoses: 4,                 // Tresiba reaches steady state after 3–4 days: doses 1–3 at new units are a transition
+  steadyDoses: STEADY_DOSES,      // Tresiba reaches steady state after 3–4 days: doses 1–3 at new units are a transition
   doseMaxH: 30,                   // without a Tresiba dose in the 30 h before, the dosing history is incomplete
   fewN: 3,                        // under 3 clean periods: insufficient evidence
   nightFromH: 0, nightToH: 6,     // the Night filter: 12 AM–6 AM (Kuwait time)

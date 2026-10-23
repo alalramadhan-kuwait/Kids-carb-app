@@ -56,7 +56,7 @@ export function MomJuice() {
     const u = usual[sel] ?? { name: 'عصير', carbs: 15 }; // i18n-ok: stored value
     setBusy(true);
     try {
-      await saveEvent({ client_id: cid, kind: 'treatment', occurred_at: new Date().toISOString(), carbs_g: u.carbs, treatment: u.name,
+      await saveEvent({ client_id: cid, kind: 'treatment', treat_purpose: 'low', occurred_at: new Date().toISOString(), carbs_g: u.carbs, treatment: u.name,
         insulin_units: null, insulin_type: null, bolus_purpose: null, note: null, activity_min: null, activity_level: null, ends_at: null, dose_calc: null, bg_mgdl: null });
       await reload(); setDoneAt(Date.now());
     } catch (e) { toast((e as Error).message); } finally { setBusy(false); }

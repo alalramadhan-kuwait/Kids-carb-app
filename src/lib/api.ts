@@ -147,7 +147,7 @@ export async function callGlucose(body: Record<string, unknown>): Promise<Glucos
 }
 
 // ── events (insulin, carbs, treatment, note) ──────────────────────────────────
-export type NewEvent = Pick<EventRow, 'client_id' | 'kind' | 'occurred_at' | 'insulin_units' | 'insulin_type' | 'bolus_purpose' | 'carbs_g' | 'treatment' | 'note' | 'activity_min' | 'activity_level' | 'ends_at' | 'dose_calc' | 'bg_mgdl'> & { injection_site?: EventRow['injection_site'] };
+export type NewEvent = Pick<EventRow, 'client_id' | 'kind' | 'occurred_at' | 'insulin_units' | 'insulin_type' | 'bolus_purpose' | 'carbs_g' | 'treatment' | 'note' | 'activity_min' | 'activity_level' | 'ends_at' | 'dose_calc' | 'bg_mgdl'> & { injection_site?: EventRow['injection_site']; treat_purpose?: EventRow['treat_purpose']; tags?: EventRow['tags'] };
 
 /** Returns the new id. The same submission sent again (a double tap, a retry after a weak connection: the same
  *  client_id) is saved once, and its id comes back. */

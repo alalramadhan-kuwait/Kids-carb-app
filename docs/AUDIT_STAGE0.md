@@ -62,7 +62,7 @@ or the dose calculator was changed for this audit.
 | 6 | Insulin activity (U/h) | `activityAt` with 10-min onset delay after the **recorded** time | Different quantity from IOB, correctly separate | **Keep**; label the 10 min as onset, not a pre-meal offset |
 | 7 | Insulin effect on glucose (mmol/L) | only inside gated forecasts and frozen predictions | — | **Requires validation** (Stage 3) |
 | 8 | Tresiba | excluded from `dosesFrom`; flat band on the strip; Basal Check / Night | Correctly separate | **Keep** |
-| 9 | "Settled" Tresiba | `basalCheck` = from dose 4; `nightTresiba` = from night 4 (`settle: 3`) | Nearly, but counted differently | **Consolidate** to one rule in `basalCheck` |
+| 9 | "Settled" Tresiba | `basalCheck` = from dose 4; `nightTresiba` = nights 1–3 settling (`settle: 3`) | Yes, the same rule held in two constants (corrected in Stage 2) | **Consolidate** to one constant |
 | 10 | Short look-ahead | Home «≈ X at hh:mm» (`trend.ts`, damping 0.5) vs alert "low expected" (`alerts.ts`, fade 0.7 per 5 min) | **No**: two formulas for the next 30 min | **Requires review**: alerts stay as they are; align or relabel the Home projection so it can't read as contradicting an alert |
 | 11 | Meal glucose prediction | `predict.ts` frozen curves (linear COB, doctor's ratios) | v1 record | **Keep** as history; add `model_version` |
 | 12 | Curve forecast on graph / Status | `onboardForecast`, `onBoard.est` | Not validated (MAE 3.3 / 3.4 / 4.9 mmol/L at 1 h / 2 h / end) | **Replace** only through the benchmark gate; off since 4.29.0 |
@@ -159,3 +159,17 @@ sent, the app and the dose calculator unchanged.
 Rollback (no data lost from the originals): `drop view carb.glucose_quality; drop trigger settings_param_history on
 carb.settings; drop function carb.param_history_record(); drop table carb.param_history, carb.dose_meal_links; alter
 table carb.events drop column tags, drop column treat_purpose; alter table carb.predictions drop column model_version;`
+
+## 8. Stage 2 — on branch `audit/stage0`, not deployed
+
+| # | Change | Where |
+|---|---|---|
+| 9 | One Tresiba settling rule: `STEADY_DOSES = 4` (doses 1–3 at new units are a transition), used by Night and Basal Check | `engine/nightTresiba.ts`, `engine/basalCheck.ts` |
+| 10 | While a low, low expected or fast-fall alert is open, Home and Analysis show no «≈ X at hh:mm» and no dashed trend line; the alert's own look-ahead (server, unchanged) decides | `lib/lowOpen.ts`, `components/Trend.tsx`, `pages/Now.tsx`, `pages/Analysis.tsx` |
+| 2 | `carbLane` (linear) removed; the Status estimate ends when the shared engine says the food is absorbed (`foodEnd`), not after a fixed 180 min. `cobAt` stays only as the named v1 model of frozen predictions and the lab | `engine/iob.ts`, `engine/status.ts` |
+| 17 | Every treatment saved from a low-treatment button (Log «علاج انخفاض», Mom's juice page, treat before a meal, a product logged as a low) is saved with `treat_purpose = 'low'`; drinks with food were already meals. «Again» copies it. No new question | `LogSheet`, `ProductSheet`, `lib/plans.ts`, `MomShots`, `lib/entrySave.ts` |
+| 5D | A note can carry 🤒 Sick / 😟 Stressed (optional chips; the note text may then be empty) | `LogSheet` |
+
+Analysis already took active carbs from the shared engine since 4.29.0 (`useGraphExtras`). Tests: 313 + 11 + 6 + 44
+pass (new: estimate end from the engine, one settling rule, which alerts hide «≈»). Dose calculator and server alerts
+unchanged.

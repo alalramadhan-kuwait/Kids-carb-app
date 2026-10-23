@@ -149,7 +149,7 @@ export async function adoptDose(planId: string, ev: DoseConflict): Promise<'link
 export async function treatFromPlan(p: PlannedMeal, t: { grams: number; name: string; itemIndex?: number }, recheckMin = 15, clientId: string = uuid()) {
   const now = new Date();
   const id = await saveEvent({
-    client_id: clientId, kind: 'treatment', occurred_at: now.toISOString(), carbs_g: Math.round(t.grams * 10) / 10, treatment: t.name,
+    client_id: clientId, kind: 'treatment', treat_purpose: 'low', occurred_at: now.toISOString(), carbs_g: Math.round(t.grams * 10) / 10, treatment: t.name,
     insulin_units: null, insulin_type: null, bolus_purpose: null, note: null, activity_min: null, activity_level: null, ends_at: null, dose_calc: null, bg_mgdl: null,
   });
   const items = t.itemIndex === undefined ? p.items : p.items.filter((_, i) => i !== t.itemIndex);

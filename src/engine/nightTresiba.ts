@@ -18,12 +18,16 @@ import { entriesFrom } from './predict';
 import type { Series } from './series';
 import type { EventRow, HistoryEntry } from '../lib/types';
 
+/** Tresiba (degludec) reaches steady state after 3–4 days (prescribing information): doses 1–3 at new units are a
+ *  transition, from the 4th it is settled. The one rule for Night, Basal Check and the reports. */
+export const STEADY_DOSES = 4;
+
 const MIN = 60000, H = 3600000, DAY = 86400000;
 
 export const NT = {
   evening: '21:00', morning: '07:00',  // the night (Kuwait time)
   coreFromH: 24, coreToH: 30,          // the rate is measured 00:00–06:00 (hours after the evening's day start)
-  settle: 3,                           // nights 1–3 on a new dose are "settling" (Tresiba takes 3–4 days to level)
+  settle: STEADY_DOSES - 1,            // nights 1–3 on a new dose are "settling" (STEADY_DOSES)
   cleanMin: 180,                       // a clean night has at least 3 hours of long-acting-only readings in 00:00–06:00
   coverage: 0.7,                       // less than this share of 00:00–06:00 with readings = missing data
   fastFall: 3,                         // mg/dL per minute over 10–20 minutes: faster than glucose usually falls

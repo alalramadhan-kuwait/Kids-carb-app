@@ -5,7 +5,7 @@ import { useData } from '../lib/data';
 import { deleteEvent, restoreEvent, saveEvent, type NewEvent } from '../lib/api';
 import { findDuplicate, sinceText } from '../lib/now';
 import { LEVEL_TEXT, describeEvent, sleepWindow } from '../lib/events';
-import type { EventKind, InjectionSite } from '../lib/types';
+import type { EventKind, EventTag, InjectionSite } from '../lib/types';
 import { Icon } from './Icon';
 import type { IconName } from '../icons/defs';
 import { Alert, Btn, Chip, Field, NumInput, Sheet, cx, inputCls, toast } from './ui';
@@ -26,6 +26,7 @@ import type { DoseCalc } from '../lib/types';
 
 // the less used kinds sit under "أخرى" (from what the family logs: food, insulin, lows and finger-pricks)
 const OTHER: EventKind[] = ['note', 'exercise', 'sleep'];
+const TAG_WORD: Record<EventTag, string> = { illness: 'مريضة', stress: 'متوترة' }; // i18n-ok: stored in the note, translated when shown
 const KINDS: { kind: EventKind; label: string; icon: IconName }[] = [
   { kind: 'insulin', label: 'إنسولين', icon: 'insulin' }, // i18n-ok
   { kind: 'carbs', label: 'كارب', icon: 'carbs' }, // i18n-ok
@@ -59,6 +60,7 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
   const [grams, setGrams] = useState<number | null>(null);
   const [treat, setTreat] = useState('عصير'); // i18n-ok: stored value
   const [note, setNote] = useState('');
+  const [tags, setTags] = useState<EventTag[]>([]);            // note: illness / stress, for the patterns (optional)
   const [mins, setMins] = useState<number | null>(null);
   const [level, setLevel] = useState<'light' | 'moderate' | 'hard'>('moderate');
   const [sleepFrom, setSleepFrom] = useState('21:00');
@@ -87,7 +89,7 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
 
   const reset = () => {
     setKind(null); setClientId(crypto.randomUUID()); setUnits(null); setType('rapid'); setPurpose(null); setSite(null);
-    setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault()); setCalc(null); setNewCarbs(0); setCarbsId(crypto.randomUUID()); setBg(null); setClean(true);
+    setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setTags([]); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault()); setCalc(null); setNewCarbs(0); setCarbsId(crypto.randomUUID()); setBg(null); setClean(true);
   };
   const close = () => { reset(); setMore(false); onClose(); };
 
@@ -102,17 +104,20 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
       insulin_units: kind === 'insulin' ? units : null, insulin_type: kind === 'insulin' ? type : null,
       bolus_purpose: kind === 'insulin' && type === 'rapid' ? purpose : null,
       carbs_g: kind === 'carbs' || kind === 'treatment' ? grams : null,
-      treatment: kind === 'treatment' ? treat : null, note: note.trim() || null,
+      treatment: kind === 'treatment' ? treat : null,
+      note: note.trim() || (kind === 'note' && tags.length ? tags.map((x) => TAG_WORD[x]).join('، ') : null), // i18n-ok: stored words
+      ...(kind === 'treatment' ? { treat_purpose: 'low' as const } : {}),
+      ...(kind === 'note' && tags.length ? { tags } : {}),
       dose_calc: kind === 'insulin' && type === 'rapid' ? calc : null,
       bg_mgdl: kind === 'bg_check' && bg !== null ? toMgdl(bg, settings.glucose_unit) : null,
       ...(kind === 'insulin' ? { injection_site: site ?? rot.suggest } : {}),
     };
-  }, [kind, clientId, units, type, purpose, grams, treat, note, ago, mins, level, sleepFrom, sleepTo, calc, bg, settings.glucose_unit, site, rot.suggest]);
+  }, [kind, clientId, units, type, purpose, grams, treat, note, tags, ago, mins, level, sleepFrom, sleepTo, calc, bg, settings.glucose_unit, site, rot.suggest]);
 
   const valid = !!draft && (
     (kind === 'insulin' && !!units && units > 0 && units < 100) ||
     ((kind === 'carbs' || kind === 'treatment') && grams !== null && grams >= 0 && grams < 500) ||
-    (kind === 'note' && !!note.trim()) ||
+    (kind === 'note' && (!!note.trim() || tags.length > 0)) ||
     (kind === 'bg_check' && !!draft.bg_mgdl && draft.bg_mgdl >= 20 && draft.bg_mgdl <= 600) ||
     (kind === 'exercise' && !!mins && mins > 0 && mins <= 600) ||
     (kind === 'sleep' && !!draft.ends_at && sleepWindow(sleepFrom, sleepTo).minutes <= 16 * 60));
@@ -219,7 +224,17 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
               <div className="min-w-0 flex-1">
                 <div className="mb-1 text-sm font-medium text-slate-600">{kind === 'insulin' ? t('عدد الوحدات') : kind === 'exercise' ? t('المدة (دقائق)') : kind === 'note' ? t('الملاحظة') : kind === 'bg_check' ? t('السكر بالوخز ({unit})', { unit: unitLabel(settings.glucose_unit) }) : t('الكارب (غرام)')}</div>
                 {kind === 'note'
-                  ? <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('مثلًا: مريضة، حفلة، تغيير الحساس')} autoFocus />
+                  ? <>
+                      <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('مثلًا: مريضة، حفلة، تغيير الحساس')} autoFocus />
+                      <div className="mt-2 flex gap-2">
+                        {(['illness', 'stress'] as const).map((x) => (
+                          <button key={x} type="button" aria-pressed={tags.includes(x)} onClick={() => setTags((a) => (a.includes(x) ? a.filter((y) => y !== x) : [...a, x]))}
+                            className={cx('min-h-[40px] rounded-full border px-3 text-[14px] font-medium', tags.includes(x) ? 'border-brand bg-brand-soft text-brand' : 'border-slate-200 text-slate-600')}>
+                            {x === 'illness' ? '🤒 ' : '😟 '}{t(TAG_WORD[x])}
+                          </button>
+                        ))}
+                      </div>
+                    </>
                   : <NumInput value={kind === 'insulin' ? units : kind === 'exercise' ? mins : kind === 'bg_check' ? bg : grams} onChange={kind === 'insulin' ? setUnits : kind === 'exercise' ? setMins : kind === 'bg_check' ? setBg : setGrams}
                       className="!min-h-[56px] !text-center !text-3xl font-bold" autoFocus={kind !== 'insulin' && !(kind === 'treatment' && usualLow.length > 0)} />}
               </div>

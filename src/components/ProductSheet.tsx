@@ -56,7 +56,7 @@ function Body({ p, onClose, start, onBack }: { p: Product; onClose: () => void; 
     try {
       if (kind === 'low') {
         // a low treatment is an event, not food: kept out of meals and shown in the treatments row
-        const id = await saveEvent({ client_id: uuid(), kind: 'treatment', occurred_at: new Date(at).toISOString(), carbs_g: Math.round(x!.carbs * 10) / 10, treatment: p.name,
+        const id = await saveEvent({ client_id: uuid(), kind: 'treatment', treat_purpose: 'low', occurred_at: new Date(at).toISOString(), carbs_g: Math.round(x!.carbs * 10) / 10, treatment: p.name,
           insulin_units: null, insulin_type: null, bolus_purpose: null, note: null, activity_min: null, activity_level: null, ends_at: null, dose_calc: null, bg_mgdl: null });
         await reload(); onClose();
         toast(t('سُجّل علاج انخفاض: {x}', { x: `${p.name} · ${t('{g} غ', { g: fmt(x!.carbs) })}` }), id ? { label: t('تراجع'), run: async () => { await deleteEvent(id, me); await reload(); } } : undefined);

@@ -167,11 +167,6 @@ export function insulinLane(doses: Dose[], now: number, p: IobParams): OnBoardLa
   const left = iobAt(now, act, p);
   return act.length && left >= 0.05 ? lane(act.map((d) => ({ t: d.t, v: d.units })), left, p.dia) : null;
 }
-export function carbLane(carbs: CarbEntry[], now: number, absorbMin: number): OnBoardLane | null {
-  const act = carbs.filter((c) => c.t <= now && now - c.t < absorbMin * MIN && c.grams > 0);
-  const left = cobAt(now, act, absorbMin);
-  return act.length && left >= 0.5 ? lane(act.map((c) => ({ t: c.t, v: c.grams })), left, absorbMin) : null;
-}
 function lane(xs: { t: number; v: number }[], left: number, durMin: number): OnBoardLane {
   const ts = xs.map((x) => x.t);
   const first = Math.min(...ts), last = Math.max(...ts);

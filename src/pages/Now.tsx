@@ -21,6 +21,7 @@ import { isNight } from '../lib/schedule';
 import layanWebp from '../assets/layan_peek.webp';
 import layanPng from '../assets/layan_peek.png';
 import { useAlerts } from '../hooks/useAlerts';
+import { lowOpen } from '../lib/lowOpen';
 import { unitsWord } from '../lib/events';
 import { Card, asset, cx } from '../components/ui';
 import { isEn, t, tMaybe } from '../i18n';
@@ -122,7 +123,7 @@ export default function Now() {
             ) : latest ? (
               <p className="mt-1 text-[15px] text-near">{t('آخر قراءة')} <span className="num font-bold">{formatGlucose(latest.mg_dl, unit)}</span> {sinceText(latest.taken_at, now)}. {t('تحقق من جوال ليان والحساس.')}</p>
             ) : <div className="h-12" />}
-            {latest && age?.state === 'fresh' && <TrendLine compact trend={trend} libre={latest.trend} unit={unit} className="truncate text-[13.5px] text-slate-600" />}
+            {latest && age?.state === 'fresh' && <TrendLine compact noAhead={lowOpen(alerts.open)} trend={trend} libre={latest.trend} unit={unit} className="truncate text-[13.5px] text-slate-600" />}
           </div>
           <CardGirl className="-bottom-1" />
         </Card>
@@ -130,7 +131,7 @@ export default function Now() {
 
       {/* 2 · the graph takes all the height that is left, and never less than about half the screen: on a short phone
           the cards below scroll instead of the graph shrinking */}
-      {g?.connected ? <HomeChart live={g.readings} /> : <div className="min-h-0 flex-1" />}
+      {g?.connected ? <HomeChart live={g.readings} noAhead={lowOpen(alerts.open)} /> : <div className="min-h-0 flex-1" />}
 
       {/* 3 · what is still working, side by side */}
       {!notConnected && <ActiveCards now={now} />}
@@ -355,7 +356,7 @@ const RANGES = [3, 6, 12, 24] as const;
  * insulin's working curve, what was logged on one row of icons, the dashed forecast ahead of now), as tall as the
  * screen leaves. Drag it back in time; tap a point or an icon to read it; «الآن» comes back; ⤢ opens it full size.
  */
-function HomeChart({ live }: { live: Reading[] }) {
+function HomeChart({ live, noAhead }: { live: Reading[]; noAhead: boolean }) {
   const { settings, history, events } = useData();
   const nav = useNavigate();
   const [now, setNow] = useState(Date.now());
@@ -387,7 +388,7 @@ function HomeChart({ live }: { live: Reading[] }) {
   const projected30 = useMemo(() => trendFrom(live, now)?.projected30 ?? null, [live, now]);
   // a forecast only from a fresh reading: from an old one it would read as more than it is
   const fresh = live.some((r) => now - Date.parse(r.taken_at) < 15 * 60000);
-  const { tracks, forecasts } = useGraphExtras({ series, now, iob: false, cob: false, act: true, forecast: fresh, projected30: fresh ? projected30 : null, start: view.end - view.span, end: view.end });
+  const { tracks, forecasts } = useGraphExtras({ series, now, iob: false, cob: false, act: true, forecast: fresh, projected30: fresh && !noAhead ? projected30 : null, start: view.end - view.span, end: view.end });
   const rng = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
   const hours = Math.round(view.span / 3600000);
   return (

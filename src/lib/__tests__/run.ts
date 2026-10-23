@@ -16,7 +16,7 @@ import { seriesStats } from '../../engine/stats';
 import { buildCsv } from '../export';
 import { adrrBand, grid, hbgiBand, lbgiBand, riskF, variability } from '../../engine/variability';
 import { findPatterns, visible } from '../../engine/patterns';
-import { ACT_DELAY_MIN, activityAt, activityFraction, activityPeaks, carbLane, cobAt, dosesFrom, insulinLane, iobAt, iobFraction, iobParamsOk } from '../../engine/iob';
+import { ACT_DELAY_MIN, activityAt, activityFraction, activityPeaks, cobAt, dosesFrom, insulinLane, iobAt, iobFraction, iobParamsOk } from '../../engine/iob';
 import { doseSteps, mealChangeDose, suggestDose } from '../../engine/dose';
 import { GRID, alignCurve, assess, buildOccurrence, coverage, medianCurve, summary, windowSeries } from '../../engine/meals';
 import { ackMessage, alertMessage, evaluate, lowForecast, profileAt, rate15, recipients, type AlertCfg, type OpenAlert } from '../../../supabase/functions/carb-glucose/alerts';
@@ -975,9 +975,6 @@ test('on-board timelines: left of how much, from what, ending at the last one + 
   assert.equal(two.total, 3); assert.equal(two.n, 2); assert.equal(two.last, t0 + 60 * M); assert.equal(two.end, t0 + 420 * M);
   assert.equal(insulinLane([{ t: now + 5 * M, units: 2 }], now, p), null, 'a dose logged ahead does not count yet');
   assert.equal(insulinLane([{ t: t0, units: 2 }], t0 + 359.9 * M, p), null, 'almost nothing left: no lane');
-  const c = carbLane([{ t: t0, grams: 27.5 }], now, 180)!;
-  assert.equal(c.total, 27.5); assert.equal(c.end, t0 + 180 * M); assert.ok(Math.abs(c.left - 27.5 * (1 - 112 / 180)) < 1e-9);
-  assert.equal(carbLane([{ t: t0, grams: 27.5 }], t0 + 181 * M, 180), null);
 });
 
 test('graph axis fits the readings: 3 mmol/L up to 2 above the high limit, more only when a reading needs it', () => {
@@ -1195,6 +1192,23 @@ console.log('status page');
   test('no estimate while the curve forecast is not validated against her readings (the default)', () => {
     const o = onBoard({ ...base, validated: undefined, glucose: { mg: 120, at: T0 }, history: [meal(40, T0)], events: [ev(2, T0)] });
     assert.equal(o.est, null); assert.equal(o.cob, 40, 'active carbs still shown');
+  });
+  test('the estimate ends when the shared engine says the food is absorbed, not after a fixed 180 minutes', async () => {
+    const { foodEnd, foodsFrom } = await import('../../engine/absorb');
+    const fatty = [{ eaten_at: new Date(T0).toISOString(), total_carbs: 40, total_fat: 30 }] as never;
+    const o = onBoard({ ...base, glucose: { mg: 120, at: T0 }, history: fatty, events: [] }); // no dose: the food alone sets the end
+    assert.equal(o.estBy, foodEnd(foodsFrom(fatty, []), T0));
+    assert.ok(o.estBy! - T0 > 300 * 60000, 'a fatty meal runs past 5 hours');
+  });
+  test('one Tresiba settling rule: doses 1–3 at new units are a transition, from the 4th it is settled (Night and Basal Check)', async () => {
+    const N = await import('../../engine/nightTresiba'), B = await import('../../engine/basalCheck');
+    assert.equal(N.STEADY_DOSES, 4); assert.equal(N.NT.settle, N.STEADY_DOSES - 1); assert.equal(B.BC.steadyDoses, N.STEADY_DOSES);
+  });
+  test('no «≈ later» beside an open low, low expected or fast fall; a high alert does not hide it', async () => {
+    const { lowOpen } = await import('../lowOpen');
+    const a = (kind: string) => ({ id: 'a', kind, state: 'active', started_at: '', active_at: null, value_mgdl: null }) as never;
+    assert.equal(lowOpen([]), false); assert.equal(lowOpen([a('high')]), false); assert.equal(lowOpen([a('no_data')]), false);
+    for (const k of ['urgent_low', 'low', 'predicted_low', 'rapid_fall']) assert.equal(lowOpen([a('high'), a(k)]), true, k);
   });
   test('sensor life and its reminders, once each per serial', () => {
     const start = new Date(T0 - 13.5 * 24 * H).toISOString();
