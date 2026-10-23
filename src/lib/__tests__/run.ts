@@ -3812,5 +3812,53 @@ console.log('P0: food sources, eaten part, injections untouched');
   });
 }
 
+{
+  const B = await import('../../engine/benchmark');
+  const M = 60000, T0 = Date.UTC(2026, 9, 1, 0, 0);
+  const P = [{ from: 0, dia: 240, peak: 65, absorb: 180, cr: 13, isf: 90 }];
+  const flat = (from: number, to: number, v: (t: number) => number) => { const r = []; for (let t = from; t <= to; t += 5 * M) r.push({ t, v: v(t), trend: 3 }); return r; };
+  test('benchmark: persistence is the last reading; a reading older than 10 minutes gives no forecast', () => {
+    const d = { readings: flat(T0, T0 + 120 * M, () => 120), doses: [], foods: [], params: P };
+    const f = B.forecastAt(d, T0 + 60 * M)!;
+    assert.deepEqual(f.pred.persist, [120, 120, 120, 120]); assert.deepEqual(f.pred.v2, [120, 120, 120, 120], 'nothing logged: no change');
+    assert.equal(B.forecastAt(d, T0 + 135 * M), null);
+  });
+  test('benchmark: an entry logged later than the origin is not used, even with an earlier time (no leakage)', () => {
+    const meal = { t: T0 + 50 * M, carbs: 39, fat: 2, meal: true };
+    const d = (known: number) => ({ readings: flat(T0, T0 + 600 * M, () => 120), doses: [], foods: [{ ...meal, known }], params: P });
+    const at = T0 + 60 * M;
+    assert.equal(B.forecastAt(d(T0 + 90 * M), at)!.pred.v2[3], 120, 'logged at 90 min: unknown at 60');
+    const seen = B.forecastAt(d(T0 + 55 * M), at)!.pred.v2;
+    assert.ok(seen[3] > 120 + 0.8 * 39 / 13 * 90 * 0.9, `known: rises by most of 39 g ÷ CR × ISF (${seen[3]})`);
+    assert.ok(seen[0] < seen[3], 'still rising later');
+  });
+  test('benchmark: v1 is linear over the absorption time; insulin pulls down by units × ISF over its duration', () => {
+    const d = { readings: flat(T0, T0 + 600 * M, () => 200), doses: [{ t: T0 + 59 * M, known: T0 + 59 * M, units: 1 }], foods: [{ t: T0 + 59 * M, known: T0 + 59 * M, carbs: 26, meal: true }], params: P };
+    const f = B.forecastAt(d, T0 + 60 * M)!;
+    const want = 200 + (26 * 179 / 180 / 13) * 90 - 1 * 90 * (1 - 0) ; // at 240 min: carbs done, insulin almost done
+    assert.ok(Math.abs(f.pred.v1[3] - want) < 6, `${f.pred.v1[3]} vs ${want}`);
+  });
+  test('benchmark: retrospective correction carries an unexplained rise, fading over 60 minutes', () => {
+    const d = { readings: flat(T0, T0 + 600 * M, (t) => (t <= T0 + 60 * M ? 100 + Math.max(0, (t - T0 - 30 * M) / M) : 130)), doses: [], foods: [], params: P };
+    const f = B.forecastAt(d, T0 + 60 * M)!;
+    assert.equal(f.pred.v2[0], 130); assert.ok(Math.abs(f.pred.v2rc[1] - 160) < 1 && Math.abs(f.pred.v2rc[3] - 160) < 1, `${f.pred.v2rc}`);
+  });
+  test('benchmark: scores in mmol/L; a low forecast as safe counts as false reassurance', () => {
+    const r = (pred: number, actual: number) => ({ o: 0, h: 30, model: 'trend' as const, pred, actual, g0: 100, ctx: 'other' as const, night: false, clean: true });
+    const s = B.score([r(100, 60), r(60, 65), r(120, 120)], { lo: -10, hi: 10 });
+    assert.equal(s.n, 3); assert.equal(s.lowN, 2); assert.equal(s.missedLow, 0.5); assert.equal(s.lowAlarms, 1); assert.equal(s.falseLowAlarm, 0);
+    assert.equal(s.mae, Math.round(((40 + 5 + 0) / 18.016 / 3) * 100) / 100); assert.equal(s.coverage, 0.67);
+  });
+  test('benchmark: the test week is untouched by the training band and no window spans both', () => {
+    const d = { readings: flat(T0, T0 + 12 * 86400000, (t) => 120 + 40 * Math.sin(t / 3600000)), doses: [], foods: [], params: P };
+    const res = B.benchmark(d)!;
+    assert.equal(res.days.test, 7); assert.ok(res.days.train >= 4);
+    assert.ok(res.test['persist:30'].n > 500 && res.bands['trend:30'] && res.test['trend:30'].coverage !== null);
+    assert.ok(['better', 'no_different', 'worse'].includes(res.verdict['trend:30']));
+    const sh = B.shadowNow(d, T0 + 12 * 86400000, res.bands);
+    assert.equal(sh.length, 5 * 4); assert.ok(sh.every((x) => x.model_version && x.lo_mgdl !== null));
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);
