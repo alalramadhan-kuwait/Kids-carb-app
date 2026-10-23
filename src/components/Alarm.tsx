@@ -31,12 +31,16 @@ export function useAlarmSound() {
 
 /* ------------------------------------------------------------ the sound (Web Audio, no files) */
 let ctx: AudioContext | null = null;
+/** iPhone (Safari 16.4+): «ambient» mixes with music, videos and calls and stays quiet, so opening the app never stops
+ *  what the phone is playing; «playback» takes over and rings even on silent, used only while an alarm sounds. */
+function session(type: 'ambient' | 'playback') {
+  try { const s = (navigator as unknown as { audioSession?: { type: string } }).audioSession; if (s && s.type !== type) s.type = type; } catch { /* older phones */ }
+}
 function audio(): AudioContext | null {
   if (ctx) return ctx;
   const A = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!A) return null;
-  // iPhone: play even with the ring switch on silent (Safari 16.4+)
-  try { (navigator as unknown as { audioSession?: { type: string } }).audioSession!.type = 'playback'; } catch { /* older phones */ }
+  session('ambient');
   ctx = new A();
   return ctx;
 }
@@ -57,6 +61,7 @@ const PATTERN: Record<AlarmLevel, { notes: [number, number][]; every: number; vo
 };
 function play(level: AlarmLevel) {
   const c = audio();
+  session('playback');
   try { navigator.vibrate?.(PATTERN[level].buzz); } catch { /* no vibration */ }
   if (!c || c.state !== 'running') return;
   let at = c.currentTime + 0.02;
@@ -73,7 +78,10 @@ function play(level: AlarmLevel) {
   }
 }
 /** One play of a level's sound, for «جربي الصوت». */
-export function testAlarm(level: AlarmLevel = 'low') { const c = audio(); if (c && c.state !== 'running') void c.resume().then(() => play(level)); else play(level); }
+export function testAlarm(level: AlarmLevel = 'low') {
+  const c = audio(); const after = () => window.setTimeout(() => session('ambient'), 2500); // the test plays once, then hands the sound back
+  if (c && c.state !== 'running') void c.resume().then(() => { play(level); after(); }); else { play(level); after(); }
+}
 
 /* ------------------------------------------------------------ what is sounding */
 /** Open alerts nobody has answered yet (their own live channel, separate from the strip's). */
@@ -158,10 +166,10 @@ export function Alarm() {
   const timer = useRef<number | null>(null);
   useEffect(() => {
     if (timer.current) { clearInterval(timer.current); timer.current = null; }
-    if (!level || !soundOn) return;
+    if (!level || !soundOn) { session('ambient'); return; } // nothing ringing: give the sound back to the phone
     play(level);
     timer.current = window.setInterval(() => play(level), PATTERN[level].every * 1000);
-    return () => { if (timer.current) clearInterval(timer.current); };
+    return () => { if (timer.current) clearInterval(timer.current); session('ambient'); };
   }, [level, soundOn, ready]);
 
   if (!level) return null;

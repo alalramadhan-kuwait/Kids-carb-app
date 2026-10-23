@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.31.1",
+    "date": "2026-10-23",
+    "notes": [
+      "فتح التطبيق ما يوقّف الأغاني أو الفيديو أو الصوت اللي شغّال في الجوال. التطبيق ياخذ الصوت بس وقت ما يرن تنبيه (ويرن حتى لو الجوال على الصامت)."
+    ],
+    "notes_en": [
+      "Opening the app no longer stops music, videos or anything else playing on the phone. The app takes the sound only while an alarm rings (it still rings on silent)."
+    ]
+  },
+  {
     "version": "4.31.0",
     "date": "2026-10-23",
     "notes": [
