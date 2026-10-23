@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
-import { addRow, carbsOfRow, recompute, rowsOf, scaledRows, type ItemRow } from '../../lib/mealItems';
+import { addRow, carbsOfRow, recompute, rowsOf, scaledRows, servingWeight, type ItemRow } from '../../lib/mealItems';
 import { setMealCarbs, updateMealItems } from '../../lib/editSave';
 import { fmt, unitText } from '../../lib/carbs';
 import { ProductPicker } from '../../components/ProductPicker';
@@ -78,6 +78,9 @@ export function MomMealEdit() {
                     <button className="ms-auto min-h-[48px] px-2 text-[16px] text-over" onClick={() => setQty(i, 0)}>✕ {t('شيليه')}</button>
                   </div>
                 )}
+                {!gone && (() => { const w = servingWeight(x); return w && (
+                  <p className="mt-1 text-[13.5px] text-slate-500">{t('الحصة {e} · المجموع ≈ {n}', { e: `${fmt(w.each)} ${w.unit === 'ml' ? t('مل') : t('غ')}`, n: `${fmt(w.total)} ${w.unit === 'ml' ? t('مل') : t('غ')}` })}</p>
+                ); })()}
               </li>
             );
           })}

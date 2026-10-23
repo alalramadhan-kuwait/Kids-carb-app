@@ -109,3 +109,13 @@ export function totalsPatch(t: Record<Nut, number | null>) {
 /** The rows as they will be saved when she ate only part of it: each amount times that part. */
 export const scaledRows = (rows: ItemRow[], part: number): ItemRow[] =>
   part === 1 ? rows : rows.map((x) => ({ ...x, line: { ...x.line, quantity: Math.round(x.line.quantity * part * 10) / 10 } }));
+
+/** For reference beside a count of servings or pieces: what one weighs on the product, and the amount in all
+ *  («1 serving = 30 g · ≈ 45 g»). Null when the row is already in grams or ml, or the product gives no real weight
+ *  (a per-piece product stores a placeholder 100 g, so it is never shown). */
+export function servingWeight(r: ItemRow): { each: number; total: number; unit: 'g' | 'ml' } | null {
+  const p = r.product;
+  if (r.line.unit !== 'serving' || !p || p.per_item || !(Number(p.serving_size) > 0)) return null;
+  const each = Number(p.serving_size);
+  return { each, total: Math.round(each * r.line.quantity), unit: p.unit === 'ml' ? 'ml' : 'g' };
+}

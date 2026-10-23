@@ -3901,5 +3901,17 @@ console.log('P0: food sources, eaten part, injections untouched');
   });
 }
 
+{
+  const { servingWeight } = await import('../mealItems');
+  const row = (unit: string, q: number, p: object | null) => ({ line: { name: 'x', unit, quantity: q }, q0: q, carbs0: 0, product: p }) as never;
+  test('Edit the food: servings show what one weighs and the amount in all; grams, per-piece and unknown weights show nothing', () => {
+    assert.deepEqual(servingWeight(row('serving', 1.5, { serving_size: 30, unit: 'g', per_item: false })), { each: 30, total: 45, unit: 'g' });
+    assert.equal(servingWeight(row('serving', 2, { serving_size: 100, unit: 'g', per_item: true })), null, 'a per-piece product stores a placeholder 100');
+    assert.equal(servingWeight(row('serving', 2, { serving_size: null, unit: 'g' })), null);
+    assert.equal(servingWeight(row('g', 50, { serving_size: 30, unit: 'g' })), null);
+    assert.equal(servingWeight(row('serving', 1, { serving_size: 200, unit: 'ml' }))!.unit, 'ml');
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);
