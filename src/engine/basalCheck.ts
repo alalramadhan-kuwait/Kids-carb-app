@@ -31,6 +31,9 @@ export const BC = {
   targetN: 7,                     // clean periods per dose the app aims for (app-defined, not a medical number)
   exerciseMin: 720,               // activity in the 12 h before: its effect can be delayed (night lows after exercise)
   minLenMin: 60,                  // shorter periods are listed as excluded
+  judgeMinMin: 240,               // a period that ends at a planned meal or dose must last 4 h to be judged; one ended by a juice
+                                  // is judged at any length (it is short because she fell, and leaving it out would hide the falls)
+  startLowMg: 70, startHighMg: 250, // a basal test starts in range: below 3.9 (just treated) or above 13.9 it is uncertain
   coverage: 0.7, gapMin: 20,      // less than 70 % of the period with readings, or gaps of 20 min, make it uncertain
   lowEpisodeMin: 15,              // a CGM low episode lasts 15 minutes or more (international CGM consensus)
   steadyDoses: STEADY_DOSES,      // Tresiba reaches steady state after 3–4 days: doses 1–3 at new units are a transition
@@ -42,7 +45,7 @@ export const BC = {
 
 export type Status = 'clean' | 'affected' | 'uncertain' | 'excluded';
 export const STATUSES: Status[] = ['clean', 'affected', 'uncertain', 'excluded'];
-export type Reason = 'short' | 'no_readings' | 'rapid_recent' | 'iob_residual' | 'exercise' | 'coverage' | 'artifact' | 'prick_disagrees' | 'no_dose';
+export type Reason = 'short' | 'short_planned' | 'start_range' | 'no_readings' | 'rapid_recent' | 'iob_residual' | 'exercise' | 'coverage' | 'artifact' | 'prick_disagrees' | 'no_dose';
 export type Win = 'night' | 'day';
 export type Filter = Win | 'all';
 export type Phase = 'stable' | 'transition' | 'unknown';
@@ -188,6 +191,8 @@ export function basalCheck(inp: BasalInputs): BasalReport {
     // classification: the first that applies decides the status; every reason found is kept
     if (!idx.length) reasons.push('no_readings');
     if (minutes < BC.minLenMin) reasons.push('short');
+    else if (minutes < BC.judgeMinMin && endedBy !== 'treatment' && endedBy !== 'rapid_mark') reasons.push('short_planned');
+    if (start !== null && (start < BC.startLowMg || start > BC.startHighMg)) reasons.push('start_range');
     if (coverage < BC.coverage) reasons.push('coverage');
     if (q.some((x) => x.why === 'fast_fall' || x.why === 'v_shape')) reasons.push('artifact');
     if (q.some((x) => x.why === 'prick')) reasons.push('prick_disagrees');
@@ -196,8 +201,8 @@ export function basalCheck(inp: BasalInputs): BasalReport {
     const iob = inp.iob ? Math.round(iobAt(a, rapidDoses, inp.iob) * 100) / 100 : null;
     if (!reasons.includes('rapid_recent') && iob !== null && iob >= BC.iobFlagU) reasons.push('iob_residual');
     if (ex !== null) reasons.push('exercise');
-    const status: Status = reasons.some((r) => r === 'no_readings' || r === 'short' || r === 'rapid_recent') ? 'excluded'
-      : reasons.some((r) => r === 'coverage' || r === 'artifact' || r === 'no_dose' || r === 'iob_residual') ? 'uncertain'
+    const status: Status = reasons.some((r) => r === 'no_readings' || r === 'short' || r === 'short_planned' || r === 'rapid_recent') ? 'excluded'
+      : reasons.some((r) => r === 'coverage' || r === 'artifact' || r === 'no_dose' || r === 'iob_residual' || r === 'start_range') ? 'uncertain'
         : reasons.includes('exercise') ? 'affected' : 'clean'; // a finger-prick that disagrees is kept as a note: the sensor is relied on (family's choice)
     return {
       id: String(a), from: a, to: b, minutes, win: nightMin * 2 >= minutes ? 'night' : 'day', nightMin, status, reasons, dose,

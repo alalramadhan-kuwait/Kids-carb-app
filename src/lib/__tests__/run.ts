@@ -3526,24 +3526,27 @@ console.log('basal check');
     assert.equal(p.dose!.units, 9); assert.equal(p.dose!.phase, 'stable');
   });
   test('basal check: the first 4 h after NovoRapid are never analysed; only the part after the mark is, and the rest stays listed', () => {
-    const corr = (h: number, m = 0) => [{ kind: 'insulin', insulin_type: 'rapid', insulin_units: 1, occurred_at: new Date(kw(6, h, m)).toISOString() }];
-    const r = B.basalCheck(mk({ g: fall, extra: corr(1) }) as any);
-    const after = r.periods.find((x: any) => x.from === kw(6, 5))!;
-    assert.equal(after.status, 'clean', '01:00 correction + 4 h = 05:00, two hours to breakfast'); assert.equal(after.to, kw(6, 7));
-    const inside = r.periods.find((x: any) => x.from === kw(6, 1))!;
-    assert.equal(inside.status, 'excluded'); assert.ok(inside.reasons.includes('rapid_recent')); assert.equal(inside.to, kw(6, 5)); assert.equal(inside.endedBy, 'rapid_mark');
-    assert.ok(!r.periods.some((x: any) => x.status === 'clean' && x.from < kw(6, 5) && x.to > kw(6, 1)), 'nothing clean overlaps the first 4 h');
+    const corr = (h: number, m = 0, d = 6) => [{ kind: 'insulin', insulin_type: 'rapid', insulin_units: 1, occurred_at: new Date(kw(d, h, m)).toISOString() }];
+    const r = B.basalCheck(mk({ g: fall, extra: corr(22, 30, 5) }) as any);
+    const after = r.periods.find((x: any) => x.from === kw(6, 2, 30))!;
+    assert.equal(after.status, 'clean', '22:30 correction + 4 h = 02:30, four and a half hours to breakfast'); assert.equal(after.to, kw(6, 7));
+    const inside = r.periods.find((x: any) => x.from === kw(6, 0))!;
+    assert.equal(inside.status, 'excluded'); assert.ok(inside.reasons.includes('rapid_recent')); assert.equal(inside.to, kw(6, 2, 30)); assert.equal(inside.endedBy, 'rapid_mark');
+    assert.ok(!r.periods.some((x: any) => x.status === 'clean' && x.from < kw(6, 2, 30) && x.to > kw(6, 0)), 'nothing clean overlaps the first 4 h');
+    const r1 = B.basalCheck(mk({ g: fall, extra: corr(1) }) as any);
+    const short = r1.periods.find((x: any) => x.from === kw(6, 5))!;
+    assert.equal(short.status, 'excluded', '01:00 correction + 4 h = 05:00, only two hours to breakfast'); assert.ok(short.reasons.includes('short_planned'));
     const r2 = B.basalCheck(mk({ g: fall, extra: corr(2, 30) }) as any);
     const p2 = r2.periods.find((x: any) => x.from === kw(6, 2, 30))!;
     assert.equal(p2.status, 'excluded', 'only 30 min after the mark before breakfast: all of it excluded'); assert.ok(p2.reasons.includes('rapid_recent'));
     assert.ok(!B.doseStats(r2, 'all').some((g) => g.clean && r2.periods.filter((x) => x.status === 'clean').some((x) => x.from === kw(6, 2, 30))));
   });
   test('basal check: when the insulin model still shows NovoRapid after 4 h, the period is uncertain, not clean', () => {
-    const corr = [{ kind: 'insulin', insulin_type: 'rapid', insulin_units: 2, occurred_at: new Date(kw(6, 1)).toISOString() }];
+    const corr = [{ kind: 'insulin', insulin_type: 'rapid', insulin_units: 2, occurred_at: new Date(kw(5, 22, 30)).toISOString() }];
     const b = mk({ g: fall, extra: corr }); (b as any).iob = { dia: 420, peak: 90 };
-    const p = B.basalCheck(b as any).periods.find((x) => x.from === kw(6, 5))!;
+    const p = B.basalCheck(b as any).periods.find((x) => x.from === kw(6, 2, 30))!;
     assert.ok(p.iobAtStart! >= 0.1); assert.equal(p.status, 'uncertain'); assert.ok(p.reasons.includes('iob_residual'));
-    const q = B.basalCheck(mk({ g: fall, extra: corr }) as any).periods.find((x) => x.from === kw(6, 5))!;
+    const q = B.basalCheck(mk({ g: fall, extra: corr }) as any).periods.find((x) => x.from === kw(6, 2, 30))!;
     assert.ok(q.iobAtStart! < 0.1, 'a 5-hour model has almost nothing left at 4 h'); assert.equal(q.status, 'clean');
   });
   test('basal check: a juice ends the period; the finger-prick before it confirms the low, or the low is CGM-only', () => {
@@ -3581,6 +3584,14 @@ console.log('basal check');
     for (const k of ['total', 'clean', 'affected', 'uncertain', 'excluded', 'cleanStable', 'below'] as const) assert.equal(o.night[k] + o.day[k], o.all[k], k);
     assert.equal(new Set(r.periods.map((p) => p.id)).size, r.periods.length);
     assert.ok(o.day.total > 0 && o.night.total > 0);
+  });
+  test('basal check: a short period is judged when a juice ended it, not when a meal did; a start out of 3.9–13.9 is uncertain', () => {
+    const juice = { kind: 'treatment', carbs_g: 15, treatment: 'juice', occurred_at: new Date(kw(6, 2)).toISOString() };
+    const pj = nightOf(B.basalCheck(mk({ g: fall, extra: [juice] }) as any), 6);
+    assert.equal(pj.to - pj.from, 2 * H); assert.equal(pj.status, 'clean', 'two hours, ended by a juice: counted');
+    const high = (x: number) => { const k = clock(x); return k < 7 ? 290 - 5 * k : 140; };
+    const ph = nightOf(B.basalCheck(mk({ g: high }) as any), 6);
+    assert.equal(ph.status, 'uncertain'); assert.ok(ph.reasons.includes('start_range'));
   });
   test('basal check: a period under an hour is listed as excluded with its reason, not dropped', () => {
     const r = B.basalCheck(mk({ g: fall, hist: [{ id: 'snack', kind: 'snack', name: 'snack', recipe_id: null, total_carbs: 10, eaten_at: new Date(kw(6, 0, 30)).toISOString() }] }) as any);

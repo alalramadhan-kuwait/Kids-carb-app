@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.33.4",
+    "date": "2026-10-24",
+    "notes": [
+      "فحص القاعدية: الفترة تنحسب إذا طولها ٤ ساعات أو أكثر، أو إذا انتهت بعصير بأي طول.",
+      "فحص القاعدية: الفترة اللي تبدأ والسكر تحت 3.9 أو فوق 13.9 تنعرض «غير أكيدة» وما تدخل الأرقام."
+    ],
+    "notes_en": [
+      "Basal Check: a period counts when it lasts 4 h or more, or when it ended with a juice at any length.",
+      "Basal Check: a period that starts below 3.9 or above 13.9 is shown as uncertain and left out of the numbers."
+    ]
+  },
+  {
     "version": "4.33.3",
     "date": "2026-10-24",
     "notes": [
