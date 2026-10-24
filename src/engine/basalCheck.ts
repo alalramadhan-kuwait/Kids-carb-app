@@ -25,7 +25,7 @@ const MIN = 60000, H = 3600000, DAY = 86400000, KW = 3 * H;
 export const BC = {
   lowMg: 70, veryLowMg: 54,       // ISPAD 2022 level 1 and level 2
   stableMg: 30,                   // ±1.7 mmol/L over the period: informal reference for "stable"
-  foodGapMin: 180,                // a period starts 3 h after food, carbs or a treatment
+  foodGapMin: 360,                // a period starts 6 h after any food, carbs or a treatment: what was eaten is not known (family's rule)
   rapidCleanMin: 240,             // …and 4 h after NovoRapid: the first 4 h are never in the analysis (listed as excluded)
   iobFlagU: 0.1,                  // the insulin model still shows this much NovoRapid at the start: uncertain (app-defined)
   targetN: 7,                     // clean periods per dose the app aims for (app-defined, not a medical number)
@@ -120,7 +120,7 @@ export function basalCheck(inp: BasalInputs): BasalReport {
   const isFood = (m: Mark) => m.kind !== 'rapid', isRapid = (m: Mark) => m.kind === 'rapid';
   const lastSeries = s.t.length ? s.t[s.t.length - 1] : now;
 
-  // the gaps between interruptions. A gap gives one analysed period from 3 h after food and 4 h after NovoRapid; the
+  // the gaps between interruptions. A gap gives one analysed period from 6 h after food and 4 h after NovoRapid; the
   // part inside the first 4 h after NovoRapid is listed as excluded when it is an hour or more, never analysed
   const bounds = [...marks.map((m) => m.t)];
   const periods: Period[] = [];

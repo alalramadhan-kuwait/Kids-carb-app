@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.33.3",
+    "date": "2026-10-24",
+    "notes": [
+      "فحص القاعدية: فترة الصيام تبدأ بعد ٦ ساعات من أي أكل أو عصير (كانت ٣)، عشان ما يدخل أكل للحين يمتص."
+    ],
+    "notes_en": [
+      "Basal Check: a fasting period now starts 6 h after any food or juice (was 3 h), so food still being absorbed is never counted."
+    ]
+  },
+  {
     "version": "4.33.2",
     "date": "2026-10-23",
     "notes": [
