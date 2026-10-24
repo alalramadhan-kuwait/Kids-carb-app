@@ -40,6 +40,7 @@ export const BC = {
   doseMaxH: 30,                   // without a Tresiba dose in the 30 h before, the dosing history is incomplete
   fewN: 3,                        // under 3 clean periods: insufficient evidence
   nightFromH: 0, nightToH: 6,     // the Night filter: 12 AM–6 AM (Kuwait time)
+  nightEndH: 7,                   // Nights by dose: 12 AM–7 AM, every night, no fasting rule
   treatPrickBeforeMin: 30, treatPrickAfterMin: 5,
 } as const;
 
@@ -80,7 +81,17 @@ export interface DoseStat {
   lows: number; treated: number; insufficient: boolean;
 }
 export interface BasalInputs { series: Series; history: HistoryEntry[]; events: EventRow[]; from: number; now: number; iob?: IobParams | null }
-export interface BasalReport { from: number; to: number; periods: Period[]; lows: LowEvent[]; doses: DoseRow[]; pricks: Prick[] }
+export interface BasalReport { from: number; to: number; periods: Period[]; lows: LowEvent[]; doses: DoseRow[]; pricks: Prick[]; nights: NightRow[] }
+/** One whole night, 12 AM–7 AM Kuwait time, with no fasting rule: every night counts, whatever was eaten or given. */
+export interface NightRow {
+  date: number;                   // 12 AM of the night
+  dose: { units: number; phase: Phase } | null;
+  covered: number; complete: boolean; // minutes with readings; complete = 70 % or more of the 7 hours, and the night is over
+  belowMin: number; lowEpisode: boolean; lowest: number | null; mean: number | null;
+  juices: number; preventive: number; // preventive: given with the sensor and any finger-prick at 3.9 or above
+}
+/** Nights grouped by Tresiba units, in the order the doses were first given. */
+export interface NightStat { units: number; nights: number; transition: number; lowNights: number; pctBelow: number | null; lowest: number | null; mean: number | null; juices: number; preventive: number }
 
 const median = (xs: number[]) => { if (!xs.length) return null; const d = [...xs].sort((a, b) => a - b), m = d.length >> 1; return d.length % 2 ? d[m] : (d[m - 1] + d[m]) / 2; };
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -223,7 +234,33 @@ export function basalCheck(inp: BasalInputs): BasalReport {
     return { ...e, win: inNight(e.t) ? 'night' as const : 'day' as const, brief: e.minutes < BC.lowEpisodeMin,
       confirmed: ps.some((p) => p.bg < BC.lowMg) ? 'finger' as const : ps.length ? 'finger_higher' as const : 'cgm_only' as const };
   });
-  return { from: inp.from, to: now, periods, lows, doses, pricks: pricks.filter((p) => p.t >= inp.from && p.t <= now) };
+  // every night, 12 AM–7 AM: time under 3.9, lows, lowest, average, and the juices with what was measured when each was given
+  const nights: NightRow[] = [];
+  const allJuices = juices.map((j) => j.t);
+  for (let a = Math.ceil((inp.from + KW) / DAY) * DAY - KW; a < now; a += DAY) {
+    const b = a + BC.nightEndH * H;
+    let seen = 0, below = 0, sum = 0, n = 0, lowest: number | null = null;
+    for (let i = 0; i < s.t.length; i++) {
+      if (s.t[i] < a || s.t[i] >= b) continue;
+      const span = Math.max(0, Math.min(15 * MIN, (i + 1 < s.t.length ? s.t[i + 1] : s.t[i] + 5 * MIN) - s.t[i], b - s.t[i]));
+      seen += span; if (s.v[i] < BC.lowMg) below += span;
+      sum += s.v[i]; n++; if (lowest === null || s.v[i] < lowest) lowest = s.v[i];
+    }
+    let d: DoseRow | null = null;
+    for (const x of doses) { if (x.t <= a) d = x; else break; }
+    const dose = d && a - d.t <= BC.doseMaxH * H ? { units: d.units, phase: (d.nth >= BC.steadyDoses ? 'stable' : d.prev === null ? 'unknown' : 'transition') as Phase } : null;
+    const js = allJuices.filter((t) => t >= a && t < b);
+    const preventive = js.filter((t) => {
+      const fp = pricks.find((p) => p.t >= t - BC.treatPrickBeforeMin * MIN && p.t <= t + BC.treatPrickAfterMin * MIN);
+      if (fp) return fp.bg >= BC.lowMg;
+      let v: number | null = null; for (let i = 0; i < s.t.length && s.t[i] <= t; i++) if (t - s.t[i] <= 10 * MIN) v = s.v[i];
+      return v !== null && v >= BC.lowMg;
+    }).length;
+    nights.push({ date: a, dose, covered: Math.round(seen / MIN), complete: b <= now && seen >= BC.coverage * (b - a),
+      belowMin: Math.round(below / MIN), lowEpisode: n > 0 && lowEpisodes(s, a, b, BC.lowMg, BC.lowEpisodeMin).length > 0,
+      lowest, mean: n ? sum / n : null, juices: js.length, preventive });
+  }
+  return { from: inp.from, to: now, periods, lows, doses, pricks: pricks.filter((p) => p.t >= inp.from && p.t <= now), nights };
 }
 
 export const inFilter = (w: Win, f: Filter) => f === 'all' || f === w;
@@ -290,4 +327,20 @@ export function overview(r: BasalReport): Record<Filter, Overview> {
       change: median(clean.map((p) => p.change).filter((x): x is number => x !== null)), below: ps.filter((p) => p.low !== null && p.low < BC.lowMg).length };
   };
   return { night: one('night'), day: one('day'), all: one('all') };
+}
+
+/** Complete nights by Tresiba units: how many had a low of 15 minutes or more, the share of time under 3.9, the lowest,
+ *  the average and the juices (and how many were preventive). Every night counts, so a juice never hides a night. */
+export function nightStats(r: BasalReport): NightStat[] {
+  const out: NightStat[] = [];
+  for (const units of [...new Set(r.nights.filter((n) => n.complete && n.dose).map((n) => n.dose!.units))]) {
+    const ns = r.nights.filter((n) => n.complete && n.dose?.units === units);
+    const cov = ns.reduce((a, n) => a + n.covered, 0), lows = ns.map((n) => n.lowest).filter((x): x is number => x !== null), ms = ns.map((n) => n.mean).filter((x): x is number => x !== null);
+    out.push({ units, nights: ns.length, transition: ns.filter((n) => n.dose!.phase !== 'stable').length, lowNights: ns.filter((n) => n.lowEpisode).length,
+      pctBelow: cov ? Math.round((1000 * ns.reduce((a, n) => a + n.belowMin, 0)) / cov) / 10 : null,
+      lowest: lows.length ? Math.min(...lows) : null, mean: ms.length ? ms.reduce((a, x) => a + x, 0) / ms.length : null,
+      juices: ns.reduce((a, n) => a + n.juices, 0), preventive: ns.reduce((a, n) => a + n.preventive, 0) });
+  }
+  const firstOf = (u: number) => r.nights.find((n) => n.dose?.units === u)?.date ?? 0;
+  return out.sort((a, b) => firstOf(a.units) - firstOf(b.units));
 }

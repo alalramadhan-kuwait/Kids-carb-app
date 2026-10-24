@@ -6,7 +6,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { useBasalCheck, BASAL_DAYS } from '../lib/nightTresiba';
-import { BC, doseStats, overview, inFilter, summary, type BasalReport, type Filter, type Period, type Phase, type Reason, type Status } from '../engine/basalCheck';
+import { BC, doseStats, nightStats, overview, inFilter, summary, type BasalReport, type Filter, type Period, type Phase, type Reason, type Status } from '../engine/basalCheck';
 import { formatGlucose, unitLabel, type GlucoseUnit } from '../lib/glucose';
 import { fmtTime } from '../lib/constants';
 import { fmt } from '../lib/carbs';
@@ -66,6 +66,7 @@ export function BasalCheck() {
       {error && <p className="px-1 text-sm text-over">{t('تعذّر تحميل البيانات: {e}', { e: error })}</p>}
       {!report && !error && <p className="px-1 py-6 text-center text-slate-500">{t('جاري التحميل…')}</p>}
       {report && <>
+        <NightsByDose report={report} unit={unit} />
         <Headline report={report} f={f} unit={unit} />
         <Overview24 report={report} unit={unit} />
         <DoseCompare report={report} f={f} unit={unit} selected={dose} onPick={(u) => setDose(dose === u ? null : u)} />
@@ -81,20 +82,58 @@ export function BasalCheck() {
   );
 }
 
-/** Three numbers: fasting periods, the typical change, the lows. */
+/** Every night 12 AM–7 AM by Tresiba units, no fasting rule: nights with a low, time under 3.9, lowest, average, juices.
+ *  A juice never removes a night here, so this is the fairest view of how the nights went on each dose. */
+function NightsByDose({ report, unit }: { report: BasalReport; unit: GlucoseUnit }) {
+  const rows = nightStats(report);
+  if (!rows.length) return null;
+  const g = (mg: number | null) => (mg === null ? '–' : formatGlucose(mg, unit));
+  const worst = Math.max(...rows.map((r) => r.pctBelow ?? 0));
+  return (
+    <Card className="space-y-2 !p-3">
+      <div>
+        <h2 className="font-bold">{t('الليالي حسب الجرعة')}</h2>
+        <p className="text-[12px] text-slate-500">{t('كل ليلة من ١٢ إلى ٧ الصبح، بدون شروط صيام · الليلة تنحسب إذا القراءات تغطي ٧٠٪ منها')}</p>
+      </div>
+      <table className="w-full text-center text-[12.5px]">
+        <thead><tr className="text-[11px] text-slate-500">
+          <th className="text-start font-medium">{t('الجرعة')}</th><th className="font-medium">{t('ليالي')}</th><th className="font-medium">{t('فيها انخفاض')}</th>
+          <th className="font-medium">{t('تحت {v}', { v: g(BC.lowMg) })}</th><th className="font-medium">{t('أقل قراءة')}</th><th className="font-medium">{t('المعدل')}</th><th className="font-medium">{t('عصير (وقائي)')}</th>
+        </tr></thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.units} className="border-t border-slate-100">
+              <td className="py-1.5 text-start"><b className="text-brand"><span className="num">{fmt(r.units)}</span>U</b>
+                {r.transition === r.nights && <span className="block text-[10.5px] leading-tight text-slate-500">{t('أول ٣ أيام')}</span>}</td>
+              <td><span className="num">{r.nights}</span></td>
+              <td><span className="num">{r.lowNights}</span></td>
+              <td className={cx(r.pctBelow !== null && r.pctBelow === worst && worst > 0 ? 'font-bold text-over' : '')}><span dir="ltr" className="num">{r.pctBelow === null ? '–' : `${fmt(r.pctBelow)}%`}</span></td>
+              <td className={cx(r.lowest !== null && r.lowest < BC.veryLowMg ? 'font-bold text-over' : '')}><span className="num">{g(r.lowest)}</span></td>
+              <td><span className="num">{g(r.mean)}</span></td>
+              <td><span className="num">{r.juices}</span> <span className="num text-slate-500">({r.preventive})</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="text-[11.5px] text-slate-500">{t('فيها انخفاض = تحت {v} لمدة ١٥ دقيقة أو أكثر. وقائي = انعطى والحساس (أو الوخز) {w} أو أكثر. أول ٣ جرعات بعد تغيير الوحدات ما استقرت بعد. يوصف اللي صار بس، وما يقترح جرعة.', { v: g(BC.lowMg), w: g(BC.lowMg) })}</p>
+    </Card>
+  );
+}
+
+/** Three numbers: fasting periods, the change per hour (periods differ in length, so per hour compares them fairly), the lows. */
 function Headline({ report, f, unit }: { report: BasalReport; f: Filter; unit: GlucoseUnit }) {
   const s = summary(report, f);
   return (
     <Card className="!p-3">
       <div className="grid grid-cols-3 gap-2 text-center">
         <div><div className="num text-[24px] font-extrabold leading-tight">{s.eligible}</div><div className="text-[11.5px] text-slate-500">{t('فترة نظيفة')}</div></div>
-        <div><div dir="ltr" className="num text-[24px] font-extrabold leading-tight">{s.change === null ? '–' : fmtDiff(s.change, unit)}</div>
-          <div className="text-[11.5px] text-slate-500">{t('التغيّر المعتاد')}</div></div>
+        <div><div dir="ltr" className="num text-[24px] font-extrabold leading-tight">{s.perHour === null ? '–' : fmtDiff(s.perHour, unit)}</div>
+          <div className="text-[11.5px] text-slate-500">{t('التغيّر بالساعة')}</div></div>
         <div><div className="num text-[24px] font-extrabold leading-tight">{s.lows.all}</div><div className="text-[11.5px] text-slate-500">{t('انخفاض تحت {v}', { v: formatGlucose(BC.lowMg, unit) })}</div></div>
       </div>
       <p className={cx('mt-2 rounded-xl px-2 py-1 text-center text-[12px]', s.insufficient ? 'bg-near-soft text-near' : 'bg-slate-50 text-slate-600')}>
         {s.insufficient ? t('بيانات غير كافية: أقل من ٣ فترات نظيفة') : t('من الفترات النظيفة فقط')}
-        {s.perHour !== null && <> · <span dir="ltr" className="num">{fmtDiff(s.perHour, unit)}</span>{t('/ساعة')}</>}
+        {s.change !== null && <> · {t('الفترة كاملة')} <span dir="ltr" className="num">{fmtDiff(s.change, unit)}</span></>}
         {s.lows.all + s.lows.brief > 0 && <> · {t('مؤكد بالوخز {k}', { k: s.lows.finger })}</>}
       </p>
     </Card>
@@ -330,6 +369,8 @@ export function doctorLines(report: BasalReport, f: Filter, unit: GlucoseUnit): 
     t('انخفاض تحت {v} لـ١٥ دقيقة أو أكثر: {n} (بالوخز {f}، الوخز أعلى {h}، من الحساس فقط {o})؛ تحت {w}: {k}؛ ونزلات أقصر: {b}.', { v: g(BC.lowMg), w: g(BC.veryLowMg), n: s.lows.all, f: s.lows.finger, h: s.lows.fingerHigher, o: s.lows.cgmOnly, k: s.lows.below54, b: s.lows.brief }),
     t('{n} فترة انتهت بعلاج (عصير)؛ مؤكد بالوخز قبلها: {c}.', { n: s.treated, c: s.treatedConfirmed }),
   ];
+  const ns = nightStats(report);
+  if (ns.length) facts.unshift(t('كل ليلة ١٢–٧ الصبح حسب الجرعة: {list}.', { list: ns.map((r) => t('{u}U: {l} من {n} ليالي فيها انخفاض، {p}٪ تحت {v}، أقل قراءة {m}، عصير {j} ({k} وقائي)', { u: fmt(r.units), l: r.lowNights, n: r.nights, p: r.pctBelow === null ? '–' : fmt(r.pctBelow), v: g(BC.lowMg), m: g(r.lowest), j: r.juices, k: r.preventive })).join(isEn() ? '; ' : '؛ ') })); // i18n-ok: list
   const pr = report.pricks.filter((p) => p.libre !== null && p.bg < 144);
   if (pr.length) facts.push(t('تحت 8: الحساس أقل من الوخز في {k} من {n} وخزات.', { k: pr.filter((p) => p.libre! < p.bg).length, n: pr.length }));
   const limits = [

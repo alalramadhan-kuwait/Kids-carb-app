@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.34.0",
+    "date": "2026-10-24",
+    "notes": [
+      "فحص القاعدية: بطاقة جديدة «الليالي حسب الجرعة» تقارن كل ليلة من ١٢ إلى ٧: الليالي اللي فيها انخفاض، الوقت تحت 3.9، أقل قراءة، المعدل، والعصير (والوقائي منه).",
+      "فحص القاعدية: التغيّر صار يبين بالساعة، عشان الفترات القصيرة والطويلة تنقارن بعدل."
+    ],
+    "notes_en": [
+      "Basal Check: a new «Nights by dose» card compares every night 12–7 AM: nights with a low, time under 3.9, lowest reading, average, and juices (and how many were preventive).",
+      "Basal Check: the change is now shown per hour, so short and long periods compare fairly."
+    ]
+  },
+  {
     "version": "4.33.4",
     "date": "2026-10-24",
     "notes": [

@@ -3622,6 +3622,22 @@ console.log('basal check');
     const s = B.summary(r, 'night');
     assert.equal(s.lows.finger, 1); assert.equal(s.lows.cgmOnly, s.lows.all - 1); assert.equal(B.summary(r, 'day').lows.all, 0);
   });
+  test('basal check: nights by dose count every night 12–7 AM, juices included, with preventive juices apart', () => {
+    const low = (x: number) => { const k = clock(x); return k >= 3 && k < 4 ? 60 : 140; };
+    const juice = { kind: 'treatment', carbs_g: 15, treatment: 'juice', occurred_at: new Date(kw(6, 3, 30)).toISOString() };
+    const prev = { kind: 'treatment', carbs_g: 15, treatment: 'juice', occurred_at: new Date(kw(7, 2)).toISOString() };
+    const r = B.basalCheck(mk({ g: low, units: (d) => (d <= 4 ? 10 : 9), extra: [juice, prev] }) as any);
+    const n6 = r.nights.find((n) => n.date === kw(6, 0))!;
+    assert.ok(n6.complete && n6.lowEpisode); assert.equal(n6.juices, 1); assert.equal(n6.preventive, 0, 'given at 3.3: not preventive');
+    assert.equal(r.nights.find((n) => n.date === kw(7, 0))!.preventive, 1, 'given at 7.8: preventive');
+    assert.equal(n6.belowMin, 60); assert.equal(n6.lowest, 60);
+    const st = B.nightStats(r);
+    assert.deepEqual(st.map((x) => x.units), [10, 9]);
+    const nine = st.find((x) => x.units === 9)!;
+    assert.equal(nine.lowNights, nine.nights, 'a low every night'); assert.equal(nine.juices, 2); assert.equal(nine.preventive, 1);
+    const b = mk({ g: low }); (b as any).now = kw(10, 4);
+    assert.equal(B.basalCheck(b as any).nights.find((n) => n.date === kw(10, 0))!.complete, false, 'a night still going on is not counted');
+  });
   test('basal check: the robust slope ignores one wild reading', () => {
     const t = Array.from({ length: 30 }, (_, i) => i * 5 * M), v = t.map((x) => 150 - 12 * (x / H));
     v[15] = 40;
