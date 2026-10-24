@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.34.1",
+    "date": "2026-10-24",
+    "notes": [
+      "الوضع البسيط: تقدرين تسجلين نوفورابيد قبل ما تمر ساعتين من الإبرة اللي قبلها. يطلع لك تنبيه بس، وما يحسب جرعة."
+    ],
+    "notes_en": [
+      "Simple mode: a NovoRapid can be recorded before 2 hours have passed since the last one. It shows a warning and calculates no dose."
+    ]
+  },
+  {
     "version": "4.34.0",
     "date": "2026-10-24",
     "notes": [

@@ -17,7 +17,7 @@ import { fmt } from '../../lib/carbs';
 import { cx, toast } from '../../components/ui';
 import { t, tMaybe } from '../../i18n';
 import type { InjectionSite } from '../../lib/types';
-import { Big, BodyMap, Choice, MomPage, PEN, PEN_NAME, PenBar, SITE_NAME, ago, clock, left } from './MomUI';
+import { Big, BodyMap, Choice, MomPage, PEN, PEN_NAME, PenBar, SITE_NAME, ago, clock, left, span } from './MomUI';
 
 /** Where this injection goes: the site chosen on the body page (?site=), else the rotation's suggestion. */
 export function useSite(type: 'rapid' | 'long', exclude: string | null = null) {
@@ -91,16 +91,20 @@ export function MomShot() {
   const lr = last(false), ll = last(true);
   const nextAt = nextRapidAllowed(lr ? Date.parse(lr.occurred_at) : null, settings.dose_gap_min ?? 120, now);
   const longToday = ll && now - Date.parse(ll.occurred_at) < 20 * 3600000;
-  const Card = ({ type, sub, onClick, off }: { type: 'rapid' | 'long'; sub: string; onClick: () => void; off?: string | null }) => (
-    <button onClick={onClick} disabled={!!off} className="flex w-full items-center gap-4 rounded-3xl border-[3px] bg-white px-4 py-4 text-start disabled:opacity-50" style={{ borderColor: PEN[type], background: type === 'rapid' ? '#fff3e6' : '#f1f9e6', color: '#231b3d' }}>
+  // within the doctor's gap the calculator stays closed, but a NovoRapid that was given can still be recorded: it opens
+  // the record page (no calculation) with a warning, never a dose
+  const Card = ({ type, sub, onClick, warn }: { type: 'rapid' | 'long'; sub: string; onClick: () => void; warn?: string | null }) => (
+    <button onClick={onClick} className="flex w-full items-center gap-4 rounded-3xl border-[3px] bg-white px-4 py-4 text-start" style={{ borderColor: PEN[type], background: type === 'rapid' ? '#fff3e6' : '#f1f9e6', color: '#231b3d' }}>
       <span className="h-16 w-4 rounded-full" style={{ background: PEN[type] }} />
-      <span className="flex-1"><b className="block text-[24px]">{t(PEN_NAME[type])}</b><span className="text-[15px]" style={{ color: '#4b4565' }}>{off ?? sub}</span></span>
+      <span className="flex-1"><b className="block text-[24px]">{t(PEN_NAME[type])}</b><span className="text-[15px]" style={{ color: '#4b4565' }}>{sub}</span>
+        {warn && <span className="mt-0.5 block text-[15px] font-bold text-over">⚠️ {warn}</span>}</span>
     </button>
   );
   return (
     <MomPage title={t('أي إبرة؟')} back="/mom">
       <Card type="rapid" sub={lr ? t('آخر وحدة {u} · {when}', { u: lr.insulin_units ?? 0, when: ago(Date.parse(lr.occurred_at)) }) : t('السريعة')}
-        off={nextAt ? t('لا نوفورابيد قبل الساعة {c}', { c: clock(nextAt) }) : null} onClick={() => nav(`/mom/site?type=rapid&next=${encodeURIComponent('/mom/dose?correction=1')}`)} />
+        warn={nextAt ? t('ما مرت {d} من آخر نوفورابيد · تسجيل فقط', { d: span(settings.dose_gap_min ?? 120) }) : null}
+        onClick={() => nav(nextAt ? '/mom/record?type=rapid' : `/mom/site?type=rapid&next=${encodeURIComponent('/mom/dose?correction=1')}`)} />
       <Card type="long" sub={longToday ? t('انعطت {when} · {u} وحدة', { when: ago(Date.parse(ll!.occurred_at)), u: ll!.insulin_units ?? 0 }) : t('ما انعطت اليوم')} onClick={() => nav(longToday ? '/mom/tresiba' : `/mom/site?type=long&next=${encodeURIComponent('/mom/tresiba')}`)} />
       {/* a dose someone already gave (school, Dad, earlier): recorded as it happened, no calculation */}
       <button onClick={() => nav('/mom/record')} className="mt-2 flex min-h-[64px] w-full items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-slate-300 bg-white text-[18px] font-bold text-slate-700">📝 {t('إبرة انعطت؟ سجّليها')}</button>
@@ -162,7 +166,7 @@ export function MomTresiba() {
 export function MomRecordDose() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
-  const { settings, reload } = useData();
+  const { settings, reload, events } = useData();
   const [type, setType] = useState<'rapid' | 'long'>(sp.get('type') === 'long' ? 'long' : 'rapid');
   const [units, setUnits] = useState(0);
   const [at, setAt] = useState(() => Date.now());
@@ -170,6 +174,10 @@ export function MomRecordDose() {
   const [cid] = useSubmitId();
   const [clash, setClash] = useState<EventRow | null>(null);
   const step = type === 'rapid' ? settings.pen_step ?? 1 : 1;
+  // a NovoRapid within the doctor's gap of another (before or after this time): allowed, with a warning
+  const gap = settings.dose_gap_min ?? 120;
+  const early = type === 'rapid' ? events.filter((e) => !e.deleted_at && e.kind === 'insulin' && e.insulin_type === 'rapid' && Math.abs(Date.parse(e.occurred_at) - at) < gap * 60000)
+    .sort((a, b) => Math.abs(Date.parse(a.occurred_at) - at) - Math.abs(Date.parse(b.occurred_at) - at))[0] ?? null : null;
   const save = async (separate = false) => {
     if (units <= 0) return;
     setBusy(true);
@@ -195,6 +203,10 @@ export function MomRecordDose() {
   return (
     <MomPage title={t('سجّلي إبرة انعطت')} back="/mom/shot" foot={<Big disabled={busy || units <= 0} onClick={() => save()}>📝 {t('سجّلي')}</Big>}>
       <p className="text-center text-[16px] text-slate-500">{t('تسجيل فقط · ما يحسب جرعة')}</p>
+      {early && <div className="rounded-3xl border-2 border-over/40 bg-over-soft p-4 text-center text-over">
+        <div className="text-[19px] font-bold">⚠️ {t('ما مرت {d} من آخر نوفورابيد', { d: span(gap) })}</div>
+        <div className="mt-1 text-[16px]">{t('آخر وحدة {u} الساعة {c} · خطة الدكتور: {d} بين الجرعتين. تقدرين تسجلينها، بس تأكدي مع بابا أو الدكتور.', { u: fmt(early.insulin_units ?? 0), c: clock(Date.parse(early.occurred_at)), d: span(gap) })}</div>
+      </div>}
       <div className="grid grid-cols-2 gap-2">
         {(['rapid', 'long'] as const).map((k) => (
           <button key={k} onClick={() => { setType(k); setUnits(0); }} className={cx('flex min-h-[64px] items-center justify-center gap-2 rounded-3xl border-[3px] text-[20px] font-bold', type === k ? 'bg-white' : 'border-transparent bg-white/60 opacity-70')} style={{ borderColor: type === k ? PEN[k] : undefined }}>
