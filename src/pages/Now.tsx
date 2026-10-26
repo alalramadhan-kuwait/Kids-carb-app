@@ -32,7 +32,7 @@ import { trendFrom, libreOf } from '../engine/trend';
 import { useGraphExtras } from '../hooks/useGraphExtras';
 import { fmtTime } from '../lib/constants';
 import { useLateRise } from '../lib/lateRise';
-import { dosesFrom, insulinLane, iobParamsOk, recentEarly, recentFatty, type OnBoardLane } from '../engine/iob';
+import { dosesFrom, recentEarly, recentFatty, type OnBoardLane } from '../engine/iob';
 import { foodLane, foodsFrom } from '../engine/absorb';
 import { GraphHelp } from '../components/ForecastKey';
 import { TrendArrow, TrendLine } from '../components/Trend';
@@ -165,16 +165,12 @@ export default function Now() {
  *  Carbs on board are a model estimate and say so. Display only: nothing here is an amount to give. */
 function ActiveCards({ now }: { now: number }) {
   const { settings: s, history, events } = useData();
-  const doses = useMemo(() => dosesFrom(events), [events]);
   const foods = useMemo(() => foodsFrom(history, events), [history, events]);
-  const p = s.iob_dia_min && s.iob_peak_min ? { dia: s.iob_dia_min, peak: s.iob_peak_min } : null;
-  const insOn = iobParamsOk(p), carbOn = !!s.cob_absorb_min;
-  const ins = insOn ? insulinLane(doses, now, p!) : null;
+  const carbOn = !!s.cob_absorb_min;
   const cob = carbOn ? foodLane(foods, now) : null;
+  // the active-insulin card is switched off on this page (family's choice, 26 Oct 2026); the carb card takes the row
   return (
-    <div className="grid shrink-0 grid-cols-2 gap-2">
-      <ActiveCard tone="ins" icon="insulin" label={t('الإنسولين النشط')} lane={ins} now={now} off={!insOn}
-        num={ins ? ins.left.toFixed(2) : '0'} unit={t('وحدة')} empty={t('لا يوجد إنسولين نشط')} />
+    <div className="grid shrink-0 grid-cols-1 gap-2">
       <ActiveCard tone="carb" icon="meals" label={t('الكارب النشط')} tag={t('تقدير')} lane={cob} now={now} off={!carbOn}
         num={cob ? fmt(Math.round(cob.left)) : '0'} unit={t('غ')} empty={t('لا يوجد كارب نشط')} />
     </div>

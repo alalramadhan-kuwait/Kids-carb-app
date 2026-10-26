@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.34.4",
+    "date": "2026-10-26",
+    "notes": [
+      "الشاشة الرئيسية: بطاقة «الإنسولين النشط» وكم باقي منه انطفت. تبقى بطاقة الكارب النشط."
+    ],
+    "notes_en": [
+      "Home: the «Active insulin» card and its time left are switched off. The active carbs card stays."
+    ]
+  },
+  {
     "version": "4.34.3",
     "date": "2026-10-26",
     "notes": [
