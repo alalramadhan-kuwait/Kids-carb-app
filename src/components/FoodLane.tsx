@@ -104,7 +104,7 @@ export function FoodLane({ view, now, height = 34 }: { view: View; now: number; 
           );
         })}
       </div>
-      <p className="mt-0.5 flex flex-wrap items-center justify-between gap-x-2 text-[11px] text-slate-500">
+      <p className="mt-0.5 flex flex-wrap items-center justify-between gap-x-2 px-3 text-[11px] text-slate-500 lg:px-0">
         <span className="flex flex-wrap items-center gap-x-1">
           {peak >= 1 && <><Dot c={FAST_FILL} />{t('كارب سريع')} <Dot c={SLOW_FILL} />{t('كارب بطيء')}</>}
           {rapid.length > 0 && <> <Dot c={INS_FILL} />{t('نوفورابيد')}</>}

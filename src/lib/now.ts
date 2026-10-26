@@ -33,7 +33,8 @@ export function sinceText(iso: string, now = Date.now()): string {
   if (min < 1) return t('الآن');
   if (min < 60) return t('قبل {m} د', { m: min });
   const h = Math.floor(min / 60), m = min % 60;
-  if (h < 24) return t('قبل {hm}', { hm: `${h}:${String(m).padStart(2, '0')}` });
+  // «قبل 1:42» read like a clock time; hours and minutes in words instead
+  if (h < 24) return m ? t('قبل {h} س {m} د', { h, m }) : t('قبل {h} س', { h });
   return t('قبل {n} يوم', { n: Math.floor(h / 24) });
 }
 

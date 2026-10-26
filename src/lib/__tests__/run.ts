@@ -347,7 +347,7 @@ test('time since, Kuwait day start, hours per day, GMI', () => {
   const now = Date.parse('2026-10-01T12:00:00Z');
   assert.equal(sinceText('2026-10-01T11:59:40Z', now), 'الآن');
   assert.equal(sinceText('2026-10-01T11:35:00Z', now), 'قبل 25 د');
-  assert.equal(sinceText('2026-10-01T10:40:00Z', now), 'قبل 1:20');
+  assert.equal(sinceText('2026-10-01T10:40:00Z', now), 'قبل 1 س 20 د'); assert.equal(sinceText('2026-10-01T10:00:00Z', now), 'قبل 2 س');
   assert.equal(kuwaitDayStart(new Date('2026-10-01T12:00:00Z')).toISOString(), '2026-09-30T21:00:00.000Z');
   assert.equal(kuwaitDayStart(new Date('2026-10-01T22:30:00Z')).toISOString(), '2026-10-01T21:00:00.000Z'); // 01:30 Kuwait next day
   assert.equal(hoursOfDay(82), '19 س 41 د');

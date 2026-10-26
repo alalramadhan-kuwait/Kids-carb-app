@@ -168,7 +168,7 @@ export function MomHome() {
           <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-[15px] text-slate-600">⤢</span>
         </button>
         {!picking && <div role="radiogroup" aria-label={t('المدة')} dir="ltr" className="absolute left-[46px] top-[7px] z-10 flex rounded-full bg-slate-100/90 p-[3px] text-[12px] font-bold text-slate-500">
-          {[3, 6, 12, 24].map((h) => <button key={h} role="radio" aria-checked={hours === h} onClick={() => setHours(h)} className={cx('h-[26px] min-w-[34px] rounded-full px-2', hours === h ? (dark ? 'bg-white text-[#4AC6CA] shadow-sm' : 'bg-white text-[#17707A] shadow-sm') : '')}>{h}h</button>)}
+          {[3, 6, 12, 24].map((h) => <button key={h} role="radio" aria-checked={hours === h} onClick={() => setHours(h)} className={cx('h-[26px] min-w-[34px] rounded-full px-2', hours === h ? (dark ? 'bg-white text-[#4AC6CA] shadow-sm' : 'bg-white text-[#17707A] shadow-sm') : '')}>{t('{n}س', { n: h })}</button>)}
         </div>}
         <div ref={box} className="min-h-0 flex-1">
           {merged && <BigGraph key={`${focusAt ?? 0}-${hours}`} span={hours} onPick={setPicking} onOlder={loadOlder} at={focusAt} aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} alarmHigh={s.alert_high_mgdl ?? 240}
@@ -475,7 +475,8 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
         const mark = (at: number, up: boolean) => x(at) > PL + 1 && x(at) < W - PR - 1 && (
           <g key={at}><line x1={x(at)} x2={x(at)} y1={Y0} y2={PT + PH} stroke={P.sun} strokeOpacity="0.5" strokeWidth="1" />
             <g transform={`translate(${x(at)},${SY})`}><path d="M-5 1.5a5 5 0 0 1 10 0z" fill={P.sun} /><path d={up ? 'M0 -5.5v2.4M-2 -4.2l2-2 2 2' : 'M0 -6.5v2.4M-2 -4.8l2 2 2-2'} stroke={P.sun} strokeWidth="1.1" fill="none" strokeLinecap="round" /><line x1={-6.5} x2={6.5} y1={1.9} y2={1.9} stroke={P.sun} strokeWidth="1" /></g>
-            <text x={x(at) + (up ? -9 : 9)} y={SY + 2} fontSize="9" fontWeight="600" fill="rgb(var(--text-3))" textAnchor={up ? 'end' : 'start'} direction="ltr">{clock(at)}</text></g>);
+            {(() => { const left = up ? x(at) - 9 - 46 > 0 : x(at) + 9 + 46 > W - PR; // the time beside the mark, on the side with room for it
+              return <text x={x(at) + (left ? -9 : 9)} y={SY + 2} fontSize="9" fontWeight="600" fill="rgb(var(--text-3))" textAnchor={left ? 'end' : 'start'} direction="ltr">{clock(at)}</text>; })()}</g>);
         return (
           <g key={set} pointerEvents="none">
             {parts.map(([a, b, f]) => cl(b) - cl(a) >= 0.5 && <rect key={a} x={x(a)} y={Y0} width={x(b) - x(a)} height={HH2} fill={f} fillOpacity={f === P.night ? P.nightA : 1} clipPath={`url(#plot${uid})`} />)}
@@ -488,7 +489,7 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
       {hours.map((h) => <line key={'g' + h} x1={x(h)} x2={x(h)} y1={PT} y2={PT + PH} stroke="rgb(var(--text-3))" strokeOpacity="0.07" strokeWidth="0.8" />)}
       {GRAPH_HIGH <= top && <g><line x1={PL} x2={W - PR} y1={hiY} y2={hiY} stroke={P.high} strokeWidth="1.6" strokeDasharray="6 4" /><text x={PL + 2} y={hiY - 4} fontSize="9.5" fontWeight="700" fill={P.highText} direction="ltr">▲ {t('مرتفع')}</text></g>}
       <line x1={PL} x2={W - PR} y1={y(low)} y2={y(low)} stroke={P.low} strokeWidth="1.7" strokeDasharray="7 4" /><text x={PL + 2} y={y(low) + 12} fontSize="9.5" fontWeight="700" fill={P.lowText} direction="ltr">▼ {t('منخفض')}</text>
-      {midnights.map((m) => <g key={m} pointerEvents="none"><line x1={x(m)} x2={x(m)} y1={PT} y2={PT + PH} stroke="rgb(var(--text-3))" strokeWidth="1" strokeDasharray="3 4" /><text x={x(m) + 4} y={PT + PH - 5} fontSize="10" fontWeight="700" fill="#8a84a0" direction={dir()}>{shortDate(m)}</text></g>)}
+      {midnights.map((m) => <g key={m} pointerEvents="none"><line x1={x(m)} x2={x(m)} y1={PT} y2={PT + PH} stroke="rgb(var(--text-3))" strokeWidth="1" strokeDasharray="3 4" /><text x={x(m) + 4} y={PT + PH - 5} fontSize="10" fontWeight="700" fill="#8a84a0" direction={dir()} textAnchor={dir() === 'rtl' ? 'end' : 'start'}>{shortDate(m)}</text></g>)}
       {at && at >= t0 && at <= end && <rect x={x(at) - 1.5} y={PT} width={3} height={PH + 26} rx={1.5} fill={P.meal} opacity="0.35" pointerEvents="none" />}
       <g clipPath={`url(#plot${uid})`}>
         {P.fill && <path d={d.split('M').filter(Boolean).map((seg) => { const xs = [...seg.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)]; const a = xs[0], b = xs[xs.length - 1]; return `M${a[1]},${PT + PH}L${seg}L${b[1]},${PT + PH}Z`; }).join('')} fill={`url(#gfill${uid})`} stroke="none" />}
@@ -519,7 +520,7 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
         <path d={`M${m.x - 2.3} ${rowFood - 3.6}v7.2M${m.x - 3.6} ${rowFood - 3.6}v2.2a1.3 1.3 0 0 0 2.6 0v-2.2M${m.x + 2.4} ${rowFood + 3.6}v-7.2c-1.4 .6 -1.6 2.6 -1.3 4.2h1.3`} stroke="#fff" strokeWidth="1.1" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </g>)}
       {care.map((e) => { const lab = `${e.u}U`, w = lab.length * 5.6 + 9; return <g key={e.k}><rect x={e.x - w / 2} y={rowCare - 7} width={w} height={14} rx={7} fill={e.type === 'rapid' ? P.ins : 'rgb(var(--surface))'} stroke={P.ins} strokeWidth="1.4" /><text x={e.x} y={rowCare + 3.5} fontSize="9.5" fontWeight="800" fill={e.type === 'rapid' ? P.insText : P.ins} textAnchor="middle" direction="ltr">{lab}</text></g>; })}
-      {hours.map((h) => <text key={h} x={x(h)} y={HH - 3} fontSize="10.5" fill="rgb(var(--text-3))" textAnchor="middle" opacity={pick ? 0.3 : 1}>{clock(h)}</text>)}
+      {hours.map((h) => <text key={h} x={Math.min(W - 24, Math.max(24, x(h)))} y={HH - 3} fontSize="10.5" fill="rgb(var(--text-3))" textAnchor="middle" opacity={pick ? 0.3 : 1}>{clock(h)}</text>)}{/* kept inside the edges so no time is cut */}
       {/* back to the newest readings: only while looking at older hours */}
       {!live && <g style={{ cursor: 'pointer' }} onPointerDown={(e) => { e.stopPropagation(); }} onClick={() => { setEndAt(null); setPick(null); }} role="button" aria-label={t('الحين')}>
         <rect x={XR - 52} y={PT + PH - 30} width={56} height={24} rx={12} fill={P.curve} style={{ filter: 'drop-shadow(0 2px 4px rgb(0 0 0 / 0.18))' }} />

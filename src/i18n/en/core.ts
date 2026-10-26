@@ -26,6 +26,8 @@ export const core: Record<string, string> = {
   'الآن': 'Now',
   'قبل {m} د': '{m} min ago',
   'قبل {hm}': '{hm} ago',
+  'قبل {h} س {m} د': '{h} h {m} min ago',
+  'قبل {h} س': '{h} h ago',
   'قبل {n} يوم': '{n} day ago|{n} days ago',
   '{h} س {m} د': '{h} h {m} min',
   'خفيف': 'Light',

@@ -14,7 +14,7 @@ export const unitsWord = (n: number) => (isEn() ? (n === 1 ? 'unit' : 'units') :
 
 export const describeEvent = (e: Describable) => {
   if (e.kind === 'insulin') return `${e.insulin_units} ${unitsWord(e.insulin_units ?? 0)} · ${e.insulin_type === 'long' ? t('طويل المفعول') : t('سريع')}`;
-  if (e.kind === 'carbs') return t('{g}غ كارب', { g: e.carbs_g });
+  if (e.kind === 'carbs') return t('{g} غ كارب', { g: e.carbs_g });
   if (e.kind === 'bg_check' && e.bg_mgdl) return t('وخز إصبع {v} مليمول/ل', { v: (Math.round((e.bg_mgdl / 18.016) * 10) / 10).toFixed(1) });
   if (e.kind === 'treatment') return t('علاج انخفاض {g}غ', { g: e.carbs_g }) + (e.treatment ? ` · ${tMaybe(e.treatment)}` : '');
   if (e.kind === 'exercise') return t('رياضة {d}', { d: hm(e.activity_min ?? 0) }) + (e.activity_level ? ` · ${LEVEL_TEXT[e.activity_level]}` : '');

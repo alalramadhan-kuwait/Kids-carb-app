@@ -1,5 +1,23 @@
 [
   {
+    "version": "4.34.2",
+    "date": "2026-10-26",
+    "notes": [
+      "«قبل 1:42» صارت «قبل 1 س 42 د»، عشان ما تنقرا كأنها ساعة.",
+      "الرسم في الوضع البسيط: أزرار المدة بالعربي، ووقت الشروق والتاريخ وأول ساعة ما عادت تنقص على الطرف.",
+      "شريط الامتصاص: «باقي ~ غ» ما عاد ينقص على طرف الشاشة.",
+      "المزيد: وصف التقارير ما عاد ينقص من أوله.",
+      "السجل: «40 غ كارب» بمسافة."
+    ],
+    "notes_en": [
+      "«1:42 ago» now reads «1 h 42 min ago», so it is not mistaken for a clock time.",
+      "Simple-mode graph: range buttons in Arabic; the sunrise time, the date and the first hour are no longer cut at the edge.",
+      "Absorption strip: «~ g left» is no longer cut at the screen edge.",
+      "More: report descriptions are no longer cut at their start.",
+      "Log: «40 g carbs» with a space."
+    ]
+  },
+  {
     "version": "4.34.1",
     "date": "2026-10-24",
     "notes": [
