@@ -136,7 +136,7 @@ export default function Now() {
       {/* 3 · what is still working, side by side */}
       {!notConnected && <ActiveCards now={now} />}
 
-      {/* 4 · what was logged last; each opens that entry in the Log. The + sits beside them, covering nothing */}
+      {/* 4 · what was logged last; each opens that entry in the Log */}
       <div className="flex shrink-0 items-stretch gap-2">
         <LastCard to={lastMeal ? `/timeline?open=${lastMeal.key}` : '/timeline'} tone="carb" icon="meals" label={t('آخر أكل')}
           main={lastMeal ? <bdi>{tMaybe(lastMeal.name)}</bdi> : t('لا توجد وجبة مسجّلة')}
@@ -144,10 +144,11 @@ export default function Now() {
         <LastCard to={lastInsulin ? `/timeline?open=e${lastInsulin.id}` : '/timeline'} tone="ins" icon="insulin" label={t('آخر جرعة')}
           main={lastInsulin ? <><span className="num">{fmt(lastInsulin.insulin_units ?? 0)}</span> {unitsWord(lastInsulin.insulin_units ?? 0)} · <span className="font-medium">{lastInsulin.insulin_type === 'long' ? t('طويل المفعول') : t('سريع')}</span></> : t('لا يوجد إنسولين مسجّل')}
           sub={lastInsulin ? <>{sinceText(lastInsulin.occurred_at, now)}{nameOf(lastInsulin.created_by) ? <> · <bdi>{nameOf(lastInsulin.created_by)}</bdi></> : null}</> : null} />
-        <button onClick={() => setLogOpen(true)} aria-label={t('سجّل')} className={cx('grid h-12 w-12 shrink-0 self-center place-items-center rounded-full bg-brand text-white shadow-[0_6px_18px_rgba(91,72,214,0.30)] active:scale-[0.96]', logOpen && 'invisible')}>
-          <Icon name="plus" size={24} />
-        </button>
       </div>
+      {/* the + as its own labelled row under the cards: the two cards keep their full width */}
+      <button onClick={() => setLogOpen(true)} className={cx('flex min-h-[48px] shrink-0 items-center justify-center gap-2 rounded-2xl bg-brand text-[16px] font-bold text-white shadow-[0_6px_18px_rgba(91,72,214,0.25)] active:scale-[0.99]', logOpen && 'invisible')}>
+        <Icon name="plus" size={22} />{t('سجّل')}
+      </button>
 
       {/* 5 · one notice at most, the most important; the rest one tap away */}
       <NoticeRow now={now} open={alerts.open} sensor={sensor} error={g?.error ?? null} onRetry={reload} />

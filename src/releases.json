@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.34.3",
+    "date": "2026-10-26",
+    "notes": [
+      "الشاشة الرئيسية: زر «+» الصغير اللي جنب البطاقات صار زر «سجّل» كامل تحتها، والبطاقتين أعرض."
+    ],
+    "notes_en": [
+      "Home: the small «+» beside the cards is now a full «Log» button under them, and the two cards are wider."
+    ]
+  },
+  {
     "version": "4.34.2",
     "date": "2026-10-26",
     "notes": [
