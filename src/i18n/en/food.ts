@@ -1208,8 +1208,6 @@ export const food: Record<string, string> = {
   "تم: الأكل بدون إبرة ✓": "Done: food without an injection ✓",
   "أنت عطيتيها {u} وحدة {when}": "You gave {u} units {when}",
   "لا نوفورابيد قبل الساعة {c}": "No NovoRapid before {c}",
-  "سكر {n}": "{n}'s glucose",
-  "التالي بعد {c}": "next after {c}",
   "ما مرت {d} من آخر نوفورابيد · تسجيل فقط": "Less than {d} since the last NovoRapid · record only",
   "ما مرت {d} من آخر نوفورابيد": "Less than {d} since the last NovoRapid",
   "آخر وحدة {u} الساعة {c} · خطة الدكتور: {d} بين الجرعتين. تقدرين تسجلينها، بس تأكدي مع بابا أو الدكتور.": "Last {u} units at {c} · doctor's plan: {d} between doses. You can record it, but check with Dad or the doctor.",

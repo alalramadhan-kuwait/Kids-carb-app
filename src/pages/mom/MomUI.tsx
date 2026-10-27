@@ -198,16 +198,15 @@ export function BodyMap({ allowed, last, suggest, sel, onPick, now, sensor = nul
 /** Mom mode's bottom tabs: home, the log, nutrition (the food list with its values), more. */
 export function MomTabs({ pathname }: { pathname: string }) {
   const nav = useNavigate();
-  const tabs: { to: string; icon: IconName; label: string }[] = [{ to: '/mom', icon: 'home', label: 'الرئيسية' }, { to: '/mom/log', icon: 'history', label: 'السجل' }, { to: '/mom/food', icon: 'meals', label: 'التغذية' }, { to: '/mom/more', icon: 'more', label: 'المزيد' }]; // i18n-ok: translated where shown
+  const tabs = [{ to: '/mom', icon: '🏠', label: 'الرئيسية' }, { to: '/mom/log', icon: '📋', label: 'السجل' }, { to: '/mom/food', icon: '🥗', label: 'التغذية' }, { to: '/mom/more', icon: '☰', label: 'المزيد' }]; // i18n-ok: translated where shown
   return (
-    // the iOS tab bar: line icons, a translucent bar with a hairline on top
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[rgba(var(--ios-sep),0.2)] bg-[rgba(var(--ios-card),0.88)] pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-100 bg-white pb-[env(safe-area-inset-bottom)]">
       <ul className="mx-auto grid max-w-md grid-cols-4">
         {tabs.map((x) => {
           const on = pathname === x.to;
           return (
-            <li key={x.to}><button onClick={() => nav(x.to, { replace: true })} aria-current={on ? 'page' : undefined} className="flex min-h-[58px] w-full items-center justify-center">
-              <span className={cx('flex flex-col items-center gap-0.5 px-3 py-1 text-[11.5px] font-medium', on ? 'text-brand' : 'text-slate-500')}><Icon name={x.icon} size={26} active={on} />{t(x.label)}</span>
+            <li key={x.to}><button onClick={() => nav(x.to, { replace: true })} aria-current={on ? 'page' : undefined} className="flex min-h-[60px] w-full items-center justify-center">
+              <span className={cx('flex flex-col items-center rounded-2xl px-3 py-1 text-[15px]', on ? 'bg-brand-soft font-bold text-brand' : 'text-slate-500')}><span className="text-[22px] leading-none">{x.icon}</span>{t(x.label)}</span>
             </button></li>
           );
         })}

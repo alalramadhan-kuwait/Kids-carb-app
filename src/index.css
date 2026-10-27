@@ -23,8 +23,6 @@
   --k-sleep: 79 91 213; --k-sleep-soft: 230 232 251;
   --k-note: 100 116 139; --k-note-soft: 236 239 243;
   --k-bg: 180 35 24;    --k-bg-soft: 252 232 230;
-  /* the home screen's iOS look: grouped background, plain white cards, hairline separators */
-  --ios-bg: 242 242 247; --ios-card: 255 255 255; --ios-sep: 60 60 67; --ios-fill: 118 118 128;
 
   color-scheme: light;
 }
@@ -56,13 +54,11 @@
     --k-bg: 255 138 128;   --k-bg-soft: 70 34 40;
 
     --shadow-card: none;
-    --ios-bg: 0 0 0; --ios-card: 28 28 30; --ios-sep: 84 84 88; --ios-fill: 118 118 128;
     color-scheme: dark;
   }
 }
 :root[data-theme="night"] {
   --bg: 21 27 40; --surface: 30 38 56; --surface-2: 40 50 72;
-  --ios-bg: 0 0 0; --ios-card: 28 28 30; --ios-sep: 84 84 88; --ios-fill: 118 118 128;
     --border: 52 63 88; --border-strong: 72 85 114;
     --text: 236 240 247; --text-2: 184 194 214; --text-3: 136 148 174; --toast: 236 240 247;
     --primary: 176 160 247; --primary-strong: 124 104 232; --primary-soft: 48 48 92; --primary-muted: 104 92 170;
