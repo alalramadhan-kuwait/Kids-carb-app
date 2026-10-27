@@ -68,7 +68,7 @@ export function SitesPage() {
             <span><i className="me-1 inline-block h-2.5 w-2.5 rounded-full border-2 border-[#f472b6] bg-[#fde4f0] align-middle" />{t('مرتاح')}</span>
             {rapid.sensor && <span>📡 {t('الحساس: {s} · لا إبرة فيه', { s: t(SITE_NAME[rapid.sensor]) })}</span>}
           </div>
-          <p className="mt-1 text-center text-xs text-slate-500">{focus ? t('تعرض إبر {s} فقط · اضغط عليه مرة ثانية للكل', { s: t(SITE_NAME[focus]) }) : t('على كل مكان: آخر مرة استُخدم. اضغط مكانًا لترى إبره.')}</p>
+          <p className="mt-1 text-center text-xs text-slate-500">{focus ? t('تعرض إبر {s} فقط · اضغط عليه مرة ثانية للكل', { s: t(SITE_NAME[focus]) }) : t('اضغطي مكانًا لترى إبره.')}</p>
         </section>
 
         <section className="space-y-1.5 rounded-2xl border border-slate-100 bg-white p-4">

@@ -136,7 +136,6 @@ export default function AlertsPage() {
         {alarmsOn && (<>
         <Card className="space-y-1">
           <h2 className="font-bold">{t('أي تنبيه يصلكم')}</h2>
-          <p className="pb-1 text-sm text-slate-600">{t('كل تنبيه هنا له مفتاحه. الأول والثاني للسلامة ويبقون شغّالين دائمًا.')}</p>
           {[t('منخفض جدًا'), t('منخفض')].map((label) => (
             <div key={label} className="flex min-h-[44px] items-center justify-between gap-3"><span>{label}</span><span className="text-sm text-slate-500" aria-label={t('دائمًا شغّال')}>🔒 {t('دائمًا شغّال')}</span></div>
           ))}

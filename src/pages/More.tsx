@@ -213,14 +213,13 @@ export function SettingsPage({ part = 'food' }: { part?: SettingsPart }) {
         </Link>
         <Card className="space-y-3">
           <h2 className="font-bold">{t('هامش الأمان')}</h2>
-          <Field label={t('الحد الأقصى لكارب الوجبة (غ)')} hint={t('فوقه يظهر تحذير واضح ولا تُقترح الوصفة. لا نمنع التسجيل بالقوة.')}>
+          <Field label={t('الحد الأقصى لكارب الوجبة (غ)')} hint={t('فوقه تحذير، والتسجيل ما ينمنع.')}>
             <NumInput value={s.max_meal_carbs} onChange={(v) => setS({ ...s, max_meal_carbs: v ?? 0 })} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('المدى المفضّل: من')}><NumInput value={s.preferred_min} onChange={(v) => setS({ ...s, preferred_min: v ?? 0 })} /></Field>
             <Field label={t('إلى')}><NumInput value={s.preferred_max} onChange={(v) => setS({ ...s, preferred_max: v ?? 0 })} /></Field>
           </div>
-          <p className="text-sm text-slate-600">{rich(t('≤ {a} عادي • حتى {b} قريب من الحد • أعلى من ذلك تحذير.'), { a: s.preferred_max, b: s.max_meal_carbs })}</p>
           {foodBad && <Alert tone="near">{t('المدى المفضّل يجب أن يكون ضمن الحد الأقصى.')}</Alert>}
           <Field label={t('الملعقة الكبيرة (غ أو مل)')} hint={t('تُستخدم للكاتشب والمايونيز وغيرها.')}><NumInput value={s.tbsp_size} onChange={(v) => setS({ ...s, tbsp_size: v ?? 15 })} /></Field>
         </Card>
@@ -228,7 +227,7 @@ export function SettingsPage({ part = 'food' }: { part?: SettingsPart }) {
         {part === 'food' && <>
         <Card className="space-y-3">
           <h2 className="font-bold">{t('أهداف اختيار المنتجات')}</h2>
-          <p className="text-sm text-slate-600">{t('تنبيه فقط عند تسجيل منتج يتجاوز الهدف.')}</p>
+          <p className="text-sm text-slate-600">{t('تنبيه فقط.')}</p>
           {s.category_targets.map((ct, i) => (
             <div key={i} className="grid grid-cols-[1fr_1fr_5rem_2.5rem] items-end gap-2">
               <input aria-label={t('الفئة')} list="tcats" className={inputCls} value={ct.category} onChange={(e) => setT(i, { category: e.target.value })} />
@@ -246,7 +245,7 @@ export function SettingsPage({ part = 'food' }: { part?: SettingsPart }) {
         {part === 'doctor' && <>
         <Card className="space-y-3">
           <h2 className="font-bold">{t('الجرعات')}</h2>
-          <Alert tone="info">{t('تُستخدم لحاسبة الجرعة في «سجّل ← إنسولين» ولتقدير صفحة الحالة. اكتبوها كما في خطة الطبيب بالضبط.')}</Alert>
+          <Alert tone="info">{t('اكتبوها كما في خطة الطبيب بالضبط.')}</Alert>
           {ratios.length > 0 && (
             <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.5rem] gap-2 text-xs text-slate-500">
               <span>{t('من الساعة')}</span><span>{t('غ لكل وحدة')}</span><span>{t('{unit} لكل وحدة', { unit: unitLabel(s.glucose_unit) })}</span><span />
@@ -260,7 +259,7 @@ export function SettingsPage({ part = 'food' }: { part?: SettingsPart }) {
               <button aria-label={t('حذف')} className="h-11 rounded-xl bg-slate-100 text-slate-500" onClick={() => setS({ ...s, ratios: ratios.filter((_, n) => n !== i) })}>✕</button>
             </div>
           ))}
-          <p className="text-sm text-slate-600">{ratios.length ? t('كل فترة تبدأ من ساعتها حتى الفترة التالية. فترة واحدة تكفي لليوم كله.') : t('اتركوها فارغة ليبقى التقدير مطفأً.')}</p>
+          <p className="text-sm text-slate-600">{ratios.length ? t('كل فترة تمتد حتى التالية.') : t('اتركوها فارغة ليبقى التقدير مطفأً.')}</p>
           {ratios.length < 8 && <Btn kind="ghost" block onClick={() => setS({ ...s, ratios: [...ratios, { from: ratios.length ? '12:00' : '00:00', cr: ratios[ratios.length - 1]?.cr ?? 0, isf: ratios[ratios.length - 1]?.isf ?? 0 }] })}>{t('+ فترة')}</Btn>}
           {ratioBad && <p className="text-sm font-bold text-brand">{ratioBad}</p>}
 
@@ -272,7 +271,7 @@ export function SettingsPage({ part = 'food' }: { part?: SettingsPart }) {
               <NumInput value={s.target_high_mgdl === null ? null : Number(formatGlucose(s.target_high_mgdl, s.glucose_unit))} onChange={(v) => setS({ ...s, target_high_mgdl: v === null ? null : toMgdl(v, s.glucose_unit) })} />
             </Field>
           </div>
-          <p className="text-sm text-slate-600">{t('داخل الهدف لا تصحيح. فوقه يُصحَّح إلى أعلاه، وتحته تقل جرعة الأكل. اتركوه فارغًا لتبقى الحاسبة مطفأة.')}</p>
+          <p className="text-sm text-slate-600">{t('فوق الهدف: تصحيح إلى أعلاه. تحته: جرعة الأكل تقل. فارغ = الحاسبة مطفأة.')}</p>
           {targetBad && <p className="text-sm font-bold text-brand">{targetBad}</p>}
           <div className="grid grid-cols-2 gap-3">
             <Field label={t('خطوة القلم')}>
@@ -296,7 +295,7 @@ export function SettingsPage({ part = 'food' }: { part?: SettingsPart }) {
               <datalist id="basal-ins">{['Tresiba (insulin degludec)', 'Lantus (insulin glargine)', 'Toujeo (glargine 300)', 'Levemir (insulin detemir)'].map((x) => <option key={x} value={x} />)}</datalist>
             </Field>
           </div>
-          <p className="text-xs text-slate-500">{t('للتقرير الطبي فقط؛ منحنى الإنسولين تحدده مدة العمل والذروة أدناه.')}</p>
+          <p className="text-xs text-slate-500">{t('للتقرير الطبي فقط.')}</p>
         </Card>
         </>}
         {part === 'doctor' && <>

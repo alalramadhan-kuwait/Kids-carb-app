@@ -65,7 +65,7 @@ export default function SharePage() {
                 ? <Btn className="min-h-[44px]" onClick={() => void navigator.share({ url: fresh }).catch(() => {})}>{t('مشاركة')}</Btn>
                 : null}
             </div></div></Alert>}
-          <p className="text-xs text-slate-500">{t('من معه الرابط يرى القراءة بدون حساب. لا يستطيع التسجيل أو التعديل. أوقفه متى شئتم.')}</p>
+          <p className="text-xs text-slate-500">{t('عرض فقط، بدون حساب. أوقفوه متى شئتم.')}</p>
         </Card>
 
         {active.length > 0 && (

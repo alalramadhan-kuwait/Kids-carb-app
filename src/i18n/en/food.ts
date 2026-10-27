@@ -1094,7 +1094,9 @@ export const food: Record<string, string> = {
   "تغيير الوحدة": "Change unit",
   "عالجتها · سجّل العلاج": "Treated · log it",
   "أعطيتها {u} وحدة · سجّل": "Given {u} U · save",
-  "أعطيت رقمًا آخر: ضع الرقم لأعدّله": "Gave a different amount: put the number in to edit it",
+  "كارب نشط الآن ~{a} غ": "Active carbs now ~{a} g",
+  "بدون جرعة من آخر إبرة: {b} غ": "no dose since the last injection: {b} g",
+  "أعطيت رقمًا آخر": "Gave a different amount",
   "اختاروا الكمية": "choose the amount",
   // mom mode
   "الشاشة تبقى شغّالة": "Keep the screen on",

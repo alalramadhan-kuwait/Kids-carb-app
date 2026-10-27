@@ -97,7 +97,7 @@ export default function Status() {
           </div>
 
           <EstimateNote s={s} o={o} fresh={age?.state === 'fresh'} />
-          <p className="text-xs text-slate-500">ⓘ {t('تقدير من المسجّل فقط. للجرعة: الحاسبة في «سجّل ← إنسولين».')}</p>
+          <p className="text-xs text-slate-500">ⓘ {t('تقدير من المسجّل فقط.')}</p>
         </Card>
 
         <PredictionAccuracy rows={predictions} unit={unit} />

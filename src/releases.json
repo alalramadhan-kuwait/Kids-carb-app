@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.36.1",
+    "date": "2026-10-27",
+    "notes": [
+      "تسجيل الإنسولين: نصوص أقصر في الحاسبة ومكان الإبرة، وسطر جديد يبيّن الكارب النشط الآن والكارب اللي انسجل بعد آخر إبرة بدون جرعة (للمعلومة، ما يدخل في الحساب).",
+      "نصوص أقصر في أرقام الطبيب، التنبيهات، الأكل والكميات، المشاركة، أماكن الإبر، والحالة."
+    ],
+    "notes_en": [
+      "Logging insulin: shorter texts in the calculator and the injection site row, and a new line showing the active carbs now and the carbs logged since the last injection without a dose (information only, not part of the arithmetic).",
+      "Shorter texts in Doctor's numbers, Alerts, Food & portions, Sharing, Injection sites and Status."
+    ]
+  },
+  {
     "version": "4.36.0",
     "date": "2026-10-27",
     "notes": [

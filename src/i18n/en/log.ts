@@ -98,7 +98,7 @@ export const log: Record<string, string> = {
   "خلال يومين": "Used in the last 2 days",
   "مرتاح": "Rested",
   "تعرض إبر {s} فقط · اضغط عليه مرة ثانية للكل": "Showing {s} only · tap it again for all",
-  "على كل مكان: آخر مرة استُخدم. اضغط مكانًا لترى إبره.": "Each site shows when it was last used. Tap a site to see its doses.",
+  "اضغطي مكانًا لترى إبره.": "Tap a site to see its doses.",
   "{s} استُخدم كثيرًا · جرّبوا مكانًا آخر": "{s} used a lot · try another site",
   "{n} جرعات بلا مكان مسجّل · حدّدوه من القائمة إن تذكّرتم": "{n} doses have no site · set it from the list if you remember",
   "بلا مكان": "No site",

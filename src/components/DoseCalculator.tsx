@@ -6,6 +6,7 @@ import { useData } from '../lib/data';
 import { formatGlucose, unitLabel } from '../lib/glucose';
 import { fmt } from '../lib/carbs';
 import { carbsFrom, dosesFrom } from '../engine/iob';
+import { foodsFrom, stillToAbsorb } from '../engine/absorb';
 import type { DoseBlock } from '../engine/dose';
 import type { DoseCalc } from '../lib/types';
 import { NumInput, cx } from './ui';
@@ -30,6 +31,10 @@ export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'mea
   const recentCarbs = useMemo(() => carbsFrom(history, events)
     .filter((c) => c.t <= now && now - c.t <= 30 * MIN && (lastRapidAt === null || c.t > lastRapidAt))
     .reduce((sum, c) => sum + c.grams, 0), [history, events, now, lastRapidAt]);
+  // for information only, never in the arithmetic: the carbs still being absorbed (the same estimate as the Now screen) and
+  // the carbs logged since the last rapid dose that no dose was given for. The parent decides what to do with them.
+  const cob = useMemo(() => stillToAbsorb(foodsFrom(history, events), now), [history, events, now]);
+  const undosed = useMemo(() => carbsFrom(history, events).filter((c) => c.t <= now && (lastRapidAt === null || c.t > lastRapidAt)).reduce((s, c) => s + c.grams, 0), [history, events, now, lastRapidAt]);
   const box = useRef<HTMLElement>(null);
   // when the keyboard opens for the carbs, bring the whole calculator up so its answer stays in view
   const lift = () => window.setTimeout(() => box.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 350);
@@ -58,6 +63,7 @@ export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'mea
         {/* the answer right next to what is being typed, visible even with the keyboard up */}
         {!r.block && <b className="num w-16 shrink-0 text-end text-lg">= {fmt(r.dose)}</b>}
       </label>
+      {cob >= 1 && <p className="text-xs text-slate-500">{t('كارب نشط الآن ~{a} غ', { a: fmt(Math.round(cob)) })}{undosed > recentCarbs + 0.5 && <> · {t('بدون جرعة من آخر إبرة: {b} غ', { b: fmt(Math.round(undosed)) })}</>}</p>}
       {(recentCarbs > 0 || newCarbs > 0) && <p className="text-xs text-slate-500">
         {recentCarbs > 0 && t('مسجّل قبل شوي: {g} غ', { g: fmt(Math.round(recentCarbs * 10) / 10) })}{recentCarbs > 0 && newCarbs > 0 && ' · '}
         {newCarbs > 0 && t('{g} غ تنحفظ مع الإبرة', { g: fmt(newCarbs) })}</p>}
@@ -90,12 +96,12 @@ export function DoseCalculator({ onUse }: { onUse: (units: number, purpose: 'mea
             return (
               <div className="space-y-1.5">
                 <button className={cx('min-h-[52px] w-full rounded-xl text-lg font-bold', KIND_STYLE.insulin.solid)} onClick={() => onUse(r.dose, purpose, c, true, newCarbs)}>{t('أعطيتها {u} وحدة · سجّل', { u: fmt(r.dose) })}</button>
-                <button className="min-h-[40px] w-full rounded-xl text-sm font-medium text-slate-600 underline" onClick={() => onUse(r.dose, purpose, c, false, newCarbs)}>{t('أعطيت رقمًا آخر: ضع الرقم لأعدّله')}</button>
+                <button className="min-h-[40px] w-full rounded-xl text-sm font-medium text-slate-600 underline" onClick={() => onUse(r.dose, purpose, c, false, newCarbs)}>{t('أعطيت رقمًا آخر')}</button>
               </div>
             );
           })()
             : <p className="text-sm font-medium text-slate-700">{t('لا حاجة لجرعة الآن.')}</p>}
-          <p className="text-xs leading-relaxed text-slate-500">{t('من خطة الطبيب. راجعوا الرقم قبل الإعطاء؛ الرياضة والمرض والأكل غير المسجّل غير محسوبة.')}</p>
+          <p className="text-xs leading-relaxed text-slate-500">{t('من خطة الطبيب. راجعوا الرقم قبل الإعطاء.')}</p>
         </>
       )}
     </section>
@@ -115,11 +121,11 @@ function Line({ label, math, value }: { label: string; math: string; value: stri
 /** Why the calculator gives no number now, in words (shared with the extra-dose check after a meal changes). */
 export function blockTexts(gapMin: number, until?: number): Record<DoseBlock, string> {
   return {
-    no_plan: t('أكملوا خطة الطبيب في الإعدادات: نسبة الكارب، معامل التصحيح، الهدف، ومدة عمل الإنسولين.'),
-    recent_dose: t('آخر جرعة سريعة قبل أقل من {h} س. الجرعة التالية بعد {time}.', { h: gapMin / 60, time: until ? clock(until) : '' }),
-    no_reading: t('لا توجد قراءة سكر حديثة (آخر 15 دقيقة). قيسوا بالجهاز أو انتظروا القراءة.'),
+    no_plan: t('أكملوا أرقام الطبيب أولًا:'),
+    recent_dose: t('الجرعة التالية بعد {time} · فرق {h} س بين الجرعتين', { h: gapMin / 60, time: until ? clock(until) : '' }),
+    no_reading: t('لا قراءة حديثة (15 د): قيسوا بالوخز أو انتظروا.'),
     warmup: t('الحساس في ساعة التسخين الأولى. قيسوا بجهاز الوخز.'),
-    low: t('السكر منخفض: عالجوا الانخفاض أولًا. لا جرعة الآن.'),
-    falling: t('السكر ينزل بسرعة. لا جرعة الآن؛ راقبوا وأعيدوا الحساب بعد قليل.'),
+    low: t('السكر منخفض: عالجوه أولًا.'),
+    falling: t('السكر ينزل بسرعة: لا جرعة الآن.'),
   };
 }

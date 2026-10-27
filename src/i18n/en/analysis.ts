@@ -429,7 +429,7 @@ export const analysis: Record<string, string> = {
   "± متوسط الفرق · ↑↓ ميل الحساس عن التقدير · الشريط: نسبة ضمن 1.0": "± average difference · ↑↓ sensor's lean vs the estimate · bar: share within 1.0",
   "كارب يُمتص": "Carbs absorbing",
   "إنسولين يعمل": "Insulin working",
-  "تقدير من المسجّل فقط. للجرعة: الحاسبة في «سجّل ← إنسولين».": "Estimated from what was logged only. For a dose: the calculator in Log → Insulin.",
+  "تقدير من المسجّل فقط.": "Estimated from what was logged only.",
   "خطة الطبيب من {from}": "Doctor's plan from {from}",
   "1 وحدة = {cr} غ كارب": "1 u = {cr} g carbs",
   "1 وحدة = −{isf} {unit}": "1 u = −{isf} {unit}",
