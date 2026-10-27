@@ -94,11 +94,12 @@ export function drawEventsPdf(doc: JsPdf, m: VisitModels, p: PatientInfo, appVer
 }
 
 /** The doctor's sections, each starting on its own page of `doc`: AGP, overview, weekly or monthly, mealtime, events. */
-export function drawVisitDoctor(doc: JsPdf, m: VisitModels, p: PatientInfo, appVersion = '') {
+/** short: the visit's essentials only (AGP, overview, mealtimes, lows and highs), without the weeks or the month. */
+export function drawVisitDoctor(doc: JsPdf, m: VisitModels, p: PatientInfo, appVersion = '', short = false) {
   doc.addPage('a4', 'portrait'); drawAgpPdf(doc, m.agp, p, appVersion);
   doc.addPage('a4', 'portrait'); drawSnapshotPdf(doc, m.snapshot, p, appVersion);
-  if (m.weekly) { doc.addPage('a4', 'portrait'); drawWeeklyPdf(doc, m.weekly, p, m.now, appVersion); }
-  if (m.monthly) { doc.addPage('a4', 'landscape'); drawMonthlyPdf(doc, m.monthly, p, m.now, appVersion); }
+  if (m.weekly && !short) { doc.addPage('a4', 'portrait'); drawWeeklyPdf(doc, m.weekly, p, m.now, appVersion); }
+  if (m.monthly && !short) { doc.addPage('a4', 'landscape'); drawMonthlyPdf(doc, m.monthly, p, m.now, appVersion); }
   doc.addPage('a4', 'portrait'); drawMealtimePdf(doc, m.mealtime, p, m.now, appVersion);
   doc.addPage('a4', 'portrait'); drawEventsPdf(doc, m, p, appVersion);
 }

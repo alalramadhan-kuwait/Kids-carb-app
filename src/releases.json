@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.35.0",
+    "date": "2026-10-27",
+    "notes": [
+      "تقرير الزيارة: خيار «مختصر للزيارة» (صار هو الأساسي): الغلاف، AGP والملخص، أنماط الوجبات، الانخفاضات والارتفاعات، ملخص التغذية، الليل والتريسيبا، والملاحظات. بدون الأسابيع وجداول كل يوم. «كامل» باقي لمن يبي كل الصفحات."
+    ],
+    "notes_en": [
+      "Visit report: a «Short, for the visit» option (now the default): cover, AGP and overview, mealtime patterns, lows and highs, nutrition summary, nights and Tresiba, and the notes. No weeks and no daily sheets. «Full» is still there for every page."
+    ]
+  },
+  {
     "version": "4.34.4",
     "date": "2026-10-26",
     "notes": [

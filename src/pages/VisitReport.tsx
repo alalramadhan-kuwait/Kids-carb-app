@@ -33,7 +33,7 @@ import { isEn, lang, swapLang, t, type Lang } from '../i18n';
 
 const DAY = 86400000;
 type FoodDays = 7 | 14;
-interface Job { models: VisitModels; data: ReportData; sheets: DaySheet[]; lang: Lang; done: () => void }
+interface Job { models: VisitModels; data: ReportData; sheets: DaySheet[]; lang: Lang; short: boolean; done: () => void }
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 async function waitFor(ok: () => boolean, ms = 25000) {
@@ -51,6 +51,7 @@ export default function VisitReport() {
   const patient = usePatient();
   const [days, setDays] = useState<VisitDays>(14);
   const [foodDays, setFoodDays] = useState<FoodDays>(7);
+  const [short, setShort] = useState(true); // the short report: what the doctor and the dietitian read at the visit, about 10 pages
   const [pageLang, setPageLang] = useState<Lang>(lang());
   const [job, setJob] = useState<Job | null>(null);
   const [step, setStep] = useState<string | null>(null);
@@ -82,11 +83,11 @@ export default function VisitReport() {
       const models = buildVisitModels(data, days, now);
       if (pageLang !== lang()) restore = swapLang(pageLang);
       const today = dayStartOf(now);
-      const sheets = await loadDaySheets(today - (foodDays - 1) * DAY, today, loadStarts(), { products, recipes, low, high });
+      const sheets = short ? [] : await loadDaySheets(today - (foodDays - 1) * DAY, today, loadStarts(), { products, recipes, low, high });
       setStep(W.pages);
-      await new Promise<void>((done) => setJob({ models, data, sheets, lang: pageLang, done }));
+      await new Promise<void>((done) => setJob({ models, data, sheets, lang: pageLang, short, done }));
       const root = holder.current!;
-      await waitFor(() => Array.from(root.querySelectorAll<HTMLElement>('[data-part]')).every((el) => el.dataset.ready === '1') && !!root.querySelector('[data-part="plans"] main[data-ready="1"]'));
+      await waitFor(() => Array.from(root.querySelectorAll<HTMLElement>('[data-part]')).every((el) => el.dataset.ready === '1') && (short || !!root.querySelector('[data-part="plans"] main[data-ready="1"]')));
       root.querySelectorAll<HTMLDetailsElement>('[data-part="growth"] details').forEach((d) => { d.open = true; }); // growth's sections open on paper (the meal plans open their own)
       await wait(800); // the daily sheets shrink busy days to fit their page
       setStep(W.pdf);
@@ -95,12 +96,12 @@ export default function VisitReport() {
       doc.setProperties({ title: `Visit report ${models.agp.label}`, subject: 'Clinic visit: doctor and dietitian', creator: "Layan's carb & insulin app" });
       const part = (k: string) => Array.from(root.querySelectorAll<HTMLElement>(`[data-part="${k}"] > *`));
       await addHtmlPages(doc, part('cover'), { orientation: 'portrait', fit: 'flow', firstOnCurrent: true });
-      drawVisitDoctor(doc, models, patient, __APP_VERSION__);
-      await addHtmlPages(doc, Array.from(root.querySelectorAll<HTMLElement>('[data-part="plans"] main > *')), { orientation: 'portrait', fit: 'flow' });
+      drawVisitDoctor(doc, models, patient, __APP_VERSION__, short);
+      if (!short) await addHtmlPages(doc, Array.from(root.querySelectorAll<HTMLElement>('[data-part="plans"] main > *')), { orientation: 'portrait', fit: 'flow' });
       await addHtmlPages(doc, part('growth'), { orientation: 'portrait', fit: 'flow' });
       const dietPages = Array.from(root.querySelectorAll<HTMLElement>('[data-part="diet"] .diet-page'));
       if (dietPages.length) await addHtmlPages(doc, dietPages, { orientation: 'landscape', fit: 'page' });
-      await addHtmlPages(doc, part('doctorcheck'), { orientation: 'portrait', fit: 'flow' });
+      if (!short) await addHtmlPages(doc, part('doctorcheck'), { orientation: 'portrait', fit: 'flow' });
       await addHtmlPages(doc, part('night'), { orientation: 'portrait', fit: 'flow' });
       await addHtmlPages(doc, part('notes'), { orientation: 'portrait', fit: 'flow' });
       restore?.(); restore = null;
@@ -130,9 +131,17 @@ export default function VisitReport() {
             <p className="text-xs text-slate-500">{t('تقارير الطبيب تبقى بالإنجليزي كما تتوقعها العيادة.')}</p>
           </div>
           <div className="space-y-1.5">
+            <div className="text-sm font-medium text-slate-600">{t('حجم التقرير')}</div>
+            <div className="grid grid-cols-2 gap-1 rounded-full bg-slate-50 p-1" role="radiogroup">
+              <button role="radio" aria-checked={short} onClick={() => setShort(true)} className={seg(short)}>{t('مختصر للزيارة')}</button>
+              <button role="radio" aria-checked={!short} onClick={() => setShort(false)} className={seg(!short)}>{t('كامل')}</button>
+            </div>
+            <p className="text-xs text-slate-500">{short ? t('المختصر: الغلاف، AGP والملخص، أنماط الوجبات، الانخفاضات والارتفاعات، ملخص التغذية، الليل والتريسيبا، والملاحظات. بدون الأسابيع وجداول كل يوم.') : t('الكامل فيه كل الصفحات، وممكن يوصل 40 صفحة.')}</p>
+          </div>
+          {!short && <div className="space-y-1.5">
             <div className="text-sm font-medium text-slate-600">{t('جدول التغذية اليومي')}</div>
             <div className="flex gap-1.5">{([7, 14] as const).map((d) => <Chip key={d} active={foodDays === d} onClick={() => setFoodDays(d)}>{t('آخر {n} أيام', { n: d })}</Chip>)}</div>
-          </div>
+          </div>}
           <Btn kind="primary" block disabled={!!step} onClick={make}>{step ?? (blob ? t('PDF جاهز · اضغطوا للمشاركة') : t('أنشئ تقرير الزيارة'))}</Btn>
         </Card>
         <Card className="space-y-1.5 text-sm">
@@ -200,11 +209,11 @@ function VisitPages({ job, low, high, days }: { job: Job; low: number; high: num
   const period = days > 14 ? 'd30' as const : 'd7' as const;
   return (
     <>
-      <div data-part="cover" data-ready="1" className="space-y-3 p-4"><Cover m={job.models} /></div>
-      <div data-part="plans" className="p-4" data-ready="1"><PlanReport print fixedDays={days} /></div>
+      <div data-part="cover" data-ready="1" className="space-y-3 p-4"><Cover m={job.models} short={job.short} /></div>
+      {!job.short && <div data-part="plans" className="p-4" data-ready="1"><PlanReport print fixedDays={days} /></div>}
       <div data-part="growth" data-ready={g.ready ? '1' : '0'} className="space-y-3 p-4">
         <h1 className="text-xl font-bold">{t('النمو والتغذية')}</h1>
-        {g.ready && <><Summary g={g} period={period} /><DailyAverage g={g} period={period} /><GrowthSection g={g} onAdd={() => {}} onEdit={() => {}} /><MealPatterns g={g} period={period} /></>}
+        {g.ready && <><Summary g={g} period={period} /><DailyAverage g={g} period={period} />{!job.short && <><GrowthSection g={g} onAdd={() => {}} onEdit={() => {}} /><MealPatterns g={g} period={period} /></>}</>}
       </div>
       <div data-part="diet" data-ready="1" style={{ width: '281mm' }}>
         {job.sheets.map((s) => <div key={s.start}>
@@ -212,7 +221,7 @@ function VisitPages({ job, low, high, days }: { job: Job; low: number; high: num
           <EventsPages s={s} unit={settings.glucose_unit} low={low} high={high} child={child} ctx={ctx} />
         </div>)}
       </div>
-      <div data-part="doctorcheck" data-ready={dc.check || dc.error ? '1' : '0'} className="p-4">{dc.check && <DoctorCheckSection check={dc.check} unit={settings.glucose_unit} />}</div>
+      {!job.short && <div data-part="doctorcheck" data-ready={dc.check || dc.error ? '1' : '0'} className="p-4">{dc.check && <DoctorCheckSection check={dc.check} unit={settings.glucose_unit} />}</div>}
       <div data-part="night" data-ready={(night.report || night.error) && (basal.report || basal.error) ? '1' : '0'} className="p-4">{night.report && <NightSection report={night.report} series={night.series} basal={basal.report} unit={settings.glucose_unit} />}</div>
       <div data-part="notes" data-ready={obs ? '1' : '0'} className="space-y-3 p-4">{obs && <ObservationsSection obs={obs} unit={settings.glucose_unit} />}</div>
     </>
@@ -224,7 +233,7 @@ const Row = ({ k, v, goal }: { k: string; v: string; goal?: string }) => (
   <tr className="border-b border-slate-100"><td className="py-1 pe-3 text-slate-600">{k}</td><td className="num py-1 pe-3 font-bold" dir="ltr">{v}</td><td className="py-1 text-xs text-slate-500">{goal}</td></tr>
 );
 
-function Cover({ m }: { m: VisitModels }) {
+function Cover({ m, short }: { m: VisitModels; short: boolean }) {
   const { settings: s } = useData();
   const patient = usePatient();
   const f = visitFacts(m);
@@ -270,10 +279,16 @@ function Cover({ m }: { m: VisitModels }) {
       <section className="rounded-xl border border-slate-200 p-3 text-sm">
         <h2 className="mb-1 font-bold">{t('محتويات التقرير')}</h2>
         <ol className="list-decimal space-y-0.5 ps-5">
+          {short ? <>
+            <li>{t('للطبيب (بالإنجليزي): تقرير AGP، الملخص، أنماط الوجبات، الانخفاضات والارتفاعات')}</li>
+            <li>{t('التغذية: ملخص الطاقة والتوازن')}</li>
+            <li>{t('الليل والتريسيبا')}</li>
+          </> : <>
           <li>{t('للطبيب (بالإنجليزي): تقرير AGP، الملخص، الأسابيع أو الشهر، أنماط الوجبات، الانخفاضات والارتفاعات')}</li>
           <li>{t('الوجبات المخططة: الجرعة المحسوبة والمعطاة')}</li>
           <li>{t('النمو والتغذية: الوزن والطول، الطاقة، التوازن')}</li>
           <li>{t('جدول التغذية: صفحة لكل يوم')}</li>
+          </>}
           <li>{t('ملاحظات وأسئلة لفريق الرعاية: ما وجده التطبيق في بياناتها، بالدليل، مع سؤال لكل ملاحظة ومكان لملاحظات الطبيب')}</li>
         </ol>
       </section>
