@@ -84,7 +84,7 @@ export function BasalCheck() {
 
 /** Every night 12 AM–7 AM by Tresiba units, no fasting rule: nights with a low, time under 3.9, lowest, average, juices.
  *  A juice never removes a night here, so this is the fairest view of how the nights went on each dose. */
-function NightsByDose({ report, unit }: { report: BasalReport; unit: GlucoseUnit }) {
+export function NightsByDose({ report, unit }: { report: BasalReport; unit: GlucoseUnit }) {
   const rows = nightStats(report);
   if (!rows.length) return null;
   const g = (mg: number | null) => (mg === null ? '–' : formatGlucose(mg, unit));

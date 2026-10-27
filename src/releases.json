@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.36.0",
+    "date": "2026-10-27",
+    "notes": [
+      "تقرير الزيارة المختصر صار حوالي 10 صفحات: غلاف فيه الإنسولين والأكل والنمو وتاريخ التريسيبا، AGP والملفات اليومية، أنماط الوجبات، الانخفاضات والارتفاعات، صفحة الليل (خريطة الليالي، الليالي حسب الجرعة، إنسولين اليوم)، ملاحظات الطبيب في صفحة وحدة، وصفحة أخصائية التغذية فيها التغذية ووجبات الأسبوع.",
+      "انشالت من المختصر: صفحة الملخص المكررة، رسوم الليالي الفارغة، قوائم العصير والوخز، والتفسيرات الطويلة. كلها باقية في «كامل»."
+    ],
+    "notes_en": [
+      "The short visit report is now about 10 pages: a cover with insulin, food, growth and the Tresiba history; AGP and daily profiles; mealtime patterns; lows and highs; a nights page (night map, nights by dose, daily insulin); the doctor's findings on one page; and a dietitian page with nutrition and this week's meals.",
+      "Dropped from the short report: the duplicated snapshot page, the empty night charts, the juice and finger-prick lists, and the long explanations. All still in «Full»."
+    ]
+  },
+  {
     "version": "4.35.0",
     "date": "2026-10-27",
     "notes": [

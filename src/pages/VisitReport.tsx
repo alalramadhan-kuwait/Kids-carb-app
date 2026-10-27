@@ -14,22 +14,29 @@ import { addHtmlPages, sharePdf } from '../lib/pdfShare';
 import { VISIT_PERIODS, buildVisitModels, drawVisitDoctor, visitFacts, type VisitDays, type VisitModels } from '../lib/visitPdf';
 import { ageText } from '../lib/reportPdf';
 import { dayStartOf } from '../engine/day';
-import { effectiveRange, formatGlucose, unitLabel } from '../lib/glucose';
+import { effectiveRange, formatGlucose, unitLabel, type GlucoseUnit } from '../lib/glucose';
 import { DEFAULT_STARTS, SLOT_KEYS, type DaySheet, type SlotStarts } from '../lib/dietSheet';
 import { EventsPages, STARTS_KEY, SheetPage, loadDaySheets, type Ctx } from './DietSheet';
 import { DailyAverage, GrowthSection, MealPatterns, Summary } from './Growth';
 import { PlanReport } from './PlanReport';
-import { ObservationsSection } from './visit/Observations';
+import { ObservationsCompact, ObservationsSection, findingWords } from './visit/Observations';
 import { DoctorCheckSection } from './visit/DoctorCheckSection';
 import { useDoctorCheck } from '../lib/doctorCheck';
 import { useBasalCheck, useNightReport } from '../lib/nightTresiba';
-import { NightSection } from './visit/NightSection';
+import { NightSection, NightShort } from './visit/NightSection';
+import { changesOf, clockOf, type NightReport } from '../engine/nightTresiba';
+import { dayLabel, hourLabel } from './visit/nightParts';
+import { setCompactFooter } from '../lib/reportPdf';
+import type { Observations } from '../engine/report/observations';
+import type { GrowthNutrition } from '../lib/growth';
+import { fmt } from '../lib/carbs';
 import { useGlucose } from '../hooks/useGlucose';
 import { buildObservations, type NutritionIn } from '../engine/report/observations';
 import { nightOf } from '../lib/schedule';
 import { useGrowthNutrition } from '../lib/growth';
 import { kwDate, reportPeriod, VALIDATION_NOTE } from '../engine/report/agpReport';
-import { isEn, lang, swapLang, t, type Lang } from '../i18n';
+import { fmtTime } from '../lib/constants';
+import { isEn, lang, locale, swapLang, t, tMaybe, type Lang } from '../i18n';
 
 const DAY = 86400000;
 type FoodDays = 7 | 14;
@@ -88,6 +95,7 @@ export default function VisitReport() {
       await new Promise<void>((done) => setJob({ models, data, sheets, lang: pageLang, short, done }));
       const root = holder.current!;
       await waitFor(() => Array.from(root.querySelectorAll<HTMLElement>('[data-part]')).every((el) => el.dataset.ready === '1') && (short || !!root.querySelector('[data-part="plans"] main[data-ready="1"]')));
+      setCompactFooter(short);
       root.querySelectorAll<HTMLDetailsElement>('[data-part="growth"] details').forEach((d) => { d.open = true; }); // growth's sections open on paper (the meal plans open their own)
       await wait(800); // the daily sheets shrink busy days to fit their page
       setStep(W.pdf);
@@ -98,18 +106,19 @@ export default function VisitReport() {
       await addHtmlPages(doc, part('cover'), { orientation: 'portrait', fit: 'flow', firstOnCurrent: true });
       drawVisitDoctor(doc, models, patient, __APP_VERSION__, short);
       if (!short) await addHtmlPages(doc, Array.from(root.querySelectorAll<HTMLElement>('[data-part="plans"] main > *')), { orientation: 'portrait', fit: 'flow' });
-      await addHtmlPages(doc, part('growth'), { orientation: 'portrait', fit: 'flow' });
+      if (!short) await addHtmlPages(doc, part('growth'), { orientation: 'portrait', fit: 'flow' });
       const dietPages = Array.from(root.querySelectorAll<HTMLElement>('[data-part="diet"] .diet-page'));
       if (dietPages.length) await addHtmlPages(doc, dietPages, { orientation: 'landscape', fit: 'page' });
       if (!short) await addHtmlPages(doc, part('doctorcheck'), { orientation: 'portrait', fit: 'flow' });
       await addHtmlPages(doc, part('night'), { orientation: 'portrait', fit: 'flow' });
       await addHtmlPages(doc, part('notes'), { orientation: 'portrait', fit: 'flow' });
+      if (short) await addHtmlPages(doc, part('dietitian'), { orientation: 'portrait', fit: 'flow' });
       restore?.(); restore = null;
       setJob(null); setStep(null);
       await share(doc.output('blob'));
     } catch (e) {
       toast(t('تعذّر إنشاء PDF: {e}', { e: (e as Error).message }));
-    } finally { restore?.(); unprint(); setJob(null); setStep(null); }
+    } finally { restore?.(); unprint(); setCompactFooter(false); setJob(null); setStep(null); }
   };
 
   const seg = (on: boolean) => cx('min-h-[40px] rounded-full px-3 text-sm font-bold', on ? 'bg-brand text-white' : 'text-slate-600');
@@ -147,6 +156,13 @@ export default function VisitReport() {
         <Card className="space-y-1.5 text-sm">
           <div className="font-bold">{t('ما في التقرير')}</div>
           <ol className="list-decimal space-y-0.5 ps-5 text-slate-600">
+            {short ? <>
+              <li>{t('الغلاف: الفترة، بيانات الحساس، أرقام الطبيب المستخدمة، وملخص سريع')}</li>
+              <li>{t('للطبيب (بالإنجليزي): تقرير AGP، الملخص، أنماط الوجبات، الانخفاضات والارتفاعات')}</li>
+              <li>{t('الليل والتريسيبا')}</li>
+              <li>{t('ملاحظات وأسئلة للطبيب')}</li>
+              <li>{t('لأخصائية التغذية: الطاقة والتوازن، ملاحظاتها، ووجبات هذا الأسبوع')}</li>
+            </> : <>
             <li>{t('الغلاف: الفترة، بيانات الحساس، أرقام الطبيب المستخدمة، وملخص سريع')}</li>
             <li>{t('للطبيب (بالإنجليزي): تقرير AGP، الملخص، الأسابيع أو الشهر، أنماط الوجبات، الانخفاضات والارتفاعات')}</li>
             <li>{t('الوجبات المخططة: الجرعة المحسوبة والمعطاة')}</li>
@@ -154,6 +170,7 @@ export default function VisitReport() {
             <li>{t('جدول التغذية: صفحة لكل يوم')}</li>
             <li>{t('أرقام الطبيب والسكر الفعلي: هل انتهت الوجبات والتصحيح حيث توقعت الأرقام المحفوظة، مع الأسئلة')}</li>
             <li>{t('ملاحظات وأسئلة لفريق الرعاية: ما وجده التطبيق في بياناتها، بالدليل، مع سؤال لكل ملاحظة ومكان لملاحظات الطبيب')}</li>
+            </>}
           </ol>
           <p className="text-xs text-slate-500">{t('ملاحظات من بياناتها، وليست توصية بجرعة.')}</p>
         </Card>
@@ -209,12 +226,12 @@ function VisitPages({ job, low, high, days }: { job: Job; low: number; high: num
   const period = days > 14 ? 'd30' as const : 'd7' as const;
   return (
     <>
-      <div data-part="cover" data-ready="1" className="space-y-3 p-4"><Cover m={job.models} short={job.short} /></div>
+      <div data-part="cover" data-ready={!job.short || (obs && (night.report || night.error)) ? '1' : '0'} className="space-y-3 p-4"><Cover m={job.models} short={job.short} night={night.report} obs={obs} /></div>
       {!job.short && <div data-part="plans" className="p-4" data-ready="1"><PlanReport print fixedDays={days} /></div>}
-      <div data-part="growth" data-ready={g.ready ? '1' : '0'} className="space-y-3 p-4">
+      {!job.short && <div data-part="growth" data-ready={g.ready ? '1' : '0'} className="space-y-3 p-4">
         <h1 className="text-xl font-bold">{t('النمو والتغذية')}</h1>
-        {g.ready && <><Summary g={g} period={period} /><DailyAverage g={g} period={period} />{!job.short && <><GrowthSection g={g} onAdd={() => {}} onEdit={() => {}} /><MealPatterns g={g} period={period} /></>}</>}
-      </div>
+        {g.ready && <><Summary g={g} period={period} /><DailyAverage g={g} period={period} /><GrowthSection g={g} onAdd={() => {}} onEdit={() => {}} /><MealPatterns g={g} period={period} /></>}
+      </div>}
       <div data-part="diet" data-ready="1" style={{ width: '281mm' }}>
         {job.sheets.map((s) => <div key={s.start}>
           <SheetPage s={s} unit={settings.glucose_unit} low={low} high={high} child={child} rapidName={settings.rapid_insulin} basalName={settings.basal_insulin} ratios={settings.ratios} ctx={ctx} />
@@ -222,8 +239,15 @@ function VisitPages({ job, low, high, days }: { job: Job; low: number; high: num
         </div>)}
       </div>
       {!job.short && <div data-part="doctorcheck" data-ready={dc.check || dc.error ? '1' : '0'} className="p-4">{dc.check && <DoctorCheckSection check={dc.check} unit={settings.glucose_unit} />}</div>}
-      <div data-part="night" data-ready={(night.report || night.error) && (basal.report || basal.error) ? '1' : '0'} className="p-4">{night.report && <NightSection report={night.report} series={night.series} basal={basal.report} unit={settings.glucose_unit} />}</div>
-      <div data-part="notes" data-ready={obs ? '1' : '0'} className="space-y-3 p-4">{obs && <ObservationsSection obs={obs} unit={settings.glucose_unit} />}</div>
+      <div data-part="night" data-ready={(night.report || night.error) && (basal.report || basal.error) ? '1' : '0'} className="p-4">{night.report && (job.short
+        ? <NightShort report={night.report} series={night.series} basal={basal.report} unit={settings.glucose_unit} />
+        : <NightSection report={night.report} series={night.series} basal={basal.report} unit={settings.glucose_unit} />)}</div>
+      <div data-part="notes" data-ready={obs ? '1' : '0'} className="space-y-3 p-4">{obs && (job.short
+        ? <ObservationsCompact obs={obs} unit={settings.glucose_unit} audience="doctor" title={t('ملاحظات وأسئلة للطبيب')} />
+        : <ObservationsSection obs={obs} unit={settings.glucose_unit} />)}</div>
+      {job.short && <div data-part="dietitian" data-ready={obs && g.ready ? '1' : '0'} className="space-y-1.5 p-4">
+        {obs && g.ready && <DietitianPage obs={obs} g={g} period={period} unit={settings.glucose_unit} readings={job.data.readings} />}
+      </div>}
     </>
   );
 }
@@ -233,7 +257,7 @@ const Row = ({ k, v, goal }: { k: string; v: string; goal?: string }) => (
   <tr className="border-b border-slate-100"><td className="py-1 pe-3 text-slate-600">{k}</td><td className="num py-1 pe-3 font-bold" dir="ltr">{v}</td><td className="py-1 text-xs text-slate-500">{goal}</td></tr>
 );
 
-function Cover({ m, short }: { m: VisitModels; short: boolean }) {
+function Cover({ m, short, night, obs }: { m: VisitModels; short: boolean; night?: NightReport | null; obs?: Observations | null }) {
   const { settings: s } = useData();
   const patient = usePatient();
   const f = visitFacts(m);
@@ -276,7 +300,8 @@ function Cover({ m, short }: { m: VisitModels; short: boolean }) {
           {s.basal_insulin && <div>{t('الإنسولين الطويل')}: <bdi>{s.basal_insulin}</bdi>{longs != null ? <> · {t('المتوسط {v} وحدة يوميًا', { v: longs.toFixed(1) })}</> : null}</div>}
         </div>
       </section>
-      <section className="rounded-xl border border-slate-200 p-3 text-sm">
+      {short && <CoverExtras m={m} night={night ?? null} obs={obs ?? null} />}
+      {!short && <section className="rounded-xl border border-slate-200 p-3 text-sm">
         <h2 className="mb-1 font-bold">{t('محتويات التقرير')}</h2>
         <ol className="list-decimal space-y-0.5 ps-5">
           {short ? <>
@@ -291,7 +316,7 @@ function Cover({ m, short }: { m: VisitModels; short: boolean }) {
           </>}
           <li>{t('ملاحظات وأسئلة لفريق الرعاية: ما وجده التطبيق في بياناتها، بالدليل، مع سؤال لكل ملاحظة ومكان لملاحظات الطبيب')}</li>
         </ol>
-      </section>
+      </section>}
       <p className="text-xs text-slate-500" dir="ltr">{VALIDATION_NOTE}</p>
       <p className="text-xs text-slate-500">{t('ملاحظات من بياناتها، وليست توصية بجرعة.')}</p>
     </>
@@ -303,4 +328,82 @@ function pnorm(z: number) {
   const x = Math.abs(z) / Math.SQRT2, k = 1 / (1 + 0.3275911 * x);
   const erf = 1 - (((((1.061405429 * k - 1.453152027) * k) + 1.421413741) * k - 0.284496736) * k + 0.254829592) * k * Math.exp(-x * x);
   return z >= 0 ? (1 + erf) / 2 : (1 - erf) / 2;
+}
+
+/** The short cover's extra lines: insulin and food per day, the Tresiba history, growth, and the night finger-pricks. */
+function CoverExtras({ m, night, obs }: { m: VisitModels; night: NightReport | null; obs: Observations | null }) {
+  const ins = m.snapshot.insulin, cb = m.snapshot.carbs;
+  const list = (xs: string[]) => xs.join(isEn() ? ', ' : '، '); // i18n-ok: list commas
+  const changes = night ? changesOf(night.doses) : [], last = night?.doses[night.doses.length - 1];
+  const growth = obs?.dietitian.find((f) => f.kind === 'growth')?.data;
+  const pricks = night ? night.nights.flatMap((n) => n.pricks) : [], lower = pricks.filter((p) => p.agrees === false && p.diff! < 0).length;
+  const n1 = (x: number | null | undefined, d = 0) => (x == null ? '–' : x.toFixed(d));
+  const rows: [string, string][] = [
+    [t('الإنسولين باليوم'), ins.total == null ? '–' : t('{t} وحدة: نوفورابيد {r} ({k} جرعات)، تريسيبا {l} ({p}٪ من المجموع)', { t: n1(ins.total, 1), r: n1(ins.rapid, 1), k: n1(ins.rapidDosesPerDay, 1), l: n1(ins.long, 1), p: n1(ins.basalPct) })],
+    [t('الكارب باليوم'), cb.perDay == null ? '–' : t('{g} غ في {n} وجبات', { g: n1(cb.perDay), n: n1(cb.mealsPerDay, 1) })],
+  ];
+  if (changes.length) rows.push([t('تريسيبا'), list(changes.map((c) => t('{u} وحدة من {d}', { u: fmt(c.units), d: dayLabel(c.t) }))) + (last ? ' · ' + t('وقت الإبرة حوالي {a}.', { a: hourLabel(clockOf(last.t)) }) : '')]);
+  if (growth) rows.push([t('النمو'), t('آخر قياس ({on}): الوزن {w} كغ (المئين {pw})، الطول {h} سم (المئين {ph})، مؤشر الكتلة في المئين {pb}.', { on: growth.on, w: n1(growth.weight, 1), pw: n1(growth.pW), h: n1(growth.height, 1), ph: n1(growth.pH), pb: n1(growth.pBmi) })]);
+  if (pricks.length) rows.push([t('الوخز بالليل'), t('{n} وخز، الحساس كان أقل من الوخز في {k} منها.', { n: pricks.length, k: lower })]);
+  return (
+    <section className="rounded-xl border border-slate-200 p-3">
+      <h2 className="mb-1 font-bold">{t('الإنسولين والأكل والنمو')}</h2>
+      <table className="w-full text-sm"><tbody>{rows.map(([k, v]) => <tr key={k} className="border-b border-slate-100"><td className="py-1 pe-3 align-top text-slate-600 whitespace-nowrap">{k}</td><td className="py-1">{v}</td></tr>)}</tbody></table>
+    </section>
+  );
+}
+
+/** The dietitian's page of the short report: energy and balance in four lines, her findings, and this week's meals. */
+function DietitianPage({ obs, g, period, unit, readings }: { obs: Observations; g: GrowthNutrition; period: 'd7' | 'd30'; unit: GlucoseUnit; readings: { t: number; mg: number }[] }) {
+  const { history, events } = useData();
+  const a = g.avg[period], r = g.energyRef, st = g.energy[period];
+  const n1 = (x: number | null | undefined, d = 0) => (x == null ? '–' : x.toFixed(d));
+  const E = a.totalKcal, share = (k: 'carbs' | 'fat' | 'protein', kcalPerG: number) => { const v = a.nutrients[k]?.est; return v != null && E ? Math.round((v * kcalPerG * 100) / E) : null; };
+  const word = st === 'within' ? t('ضمن المدى ✓') : st === 'below' ? t('أقل من المدى') : st === 'above' ? t('أعلى من المدى') : t('بيانات غير كافية بعد');
+  // this week's meals: each confirmed meal with its carbs, fat, the NovoRapid given around it, and glucose 2 h after
+  const today = dayStartOf(Date.now()), from = today - 6 * DAY;
+  const rapid = events.filter((e) => !e.deleted_at && e.kind === 'insulin' && e.insulin_type === 'rapid' && e.insulin_units).map((e) => ({ t: Date.parse(e.occurred_at), u: Number(e.insulin_units) }));
+  const meals = history.filter((h) => !h.deleted_at && h.intake !== 'pending' && Date.parse(h.eaten_at) >= from).sort((x, y) => Date.parse(x.eaten_at) - Date.parse(y.eaten_at));
+  const at = (ms: number) => { let best: { t: number; mg: number } | null = null; for (const x of readings) { if (Math.abs(x.t - ms) <= 10 * 60000 && (!best || Math.abs(x.t - ms) < Math.abs(best.t - ms))) best = x; } return best; };
+  const gl = (mg: number | null | undefined) => (mg == null ? '–' : formatGlucose(mg, unit));
+  const day = (ms: number) => new Date(ms).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', timeZone: 'Asia/Kuwait', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
+  const days: [string, typeof meals][] = [];
+  for (const h of meals) { const d = day(Date.parse(h.eaten_at)); const last = days[days.length - 1]; if (last && last[0] === d) last[1].push(h); else days.push([d, [h]]); }
+  const COLS = { gridTemplateColumns: '52px 58px 1fr 40px 40px 60px 44px 60px' };
+  return (
+    <>
+      <h1 className="text-xl font-bold">{t('لأخصائية التغذية')}</h1>
+      <section className="rounded-xl border border-slate-200 p-3 text-sm">
+        <h2 className="mb-1 font-bold">{t('التغذية')} <span className="font-normal text-slate-500">· {period === 'd7' ? t('آخر 7 أيام') : t('آخر 30 يومًا')}</span></h2>
+        <table className="w-full"><tbody>
+          <tr className="border-b border-slate-100"><td className="py-1 pe-3 text-slate-600">{t('الطاقة')}</td><td className="py-1">{E == null ? '–' : t('{kcal} سعرة باليوم', { kcal: Math.round(E) })}{r ? ` · ${t('الاحتياج المقدَّر')} ${r.low}–${r.high}` : ''} · <b>{word}</b></td></tr>
+          <tr className="border-b border-slate-100"><td className="py-1 pe-3 text-slate-600">{t('الكارب')}</td><td className="py-1">{n1(a.nutrients.carbs?.est)} {t('غ')}{share('carbs', 4) != null ? ` (${share('carbs', 4)}%)` : ''}</td></tr>
+          <tr className="border-b border-slate-100"><td className="py-1 pe-3 text-slate-600">{t('البروتين')}</td><td className="py-1">{n1(a.nutrients.protein?.est)} {t('غ')}{share('protein', 4) != null ? ` (${share('protein', 4)}%)` : ''}</td></tr>
+          <tr className="border-b border-slate-100"><td className="py-1 pe-3 text-slate-600">{t('الدهون')}</td><td className="py-1">{n1(a.nutrients.fat?.est)} {t('غ')}{share('fat', 9) != null ? ` (${share('fat', 9)}%)` : ''}</td></tr>
+        </tbody></table>
+        <p className="mt-1 text-[11px] text-slate-500">{t('على مدى {days} أيام مكتملة؛ المعلومات الغذائية تغطي {cov}% من الأكل', { days: a.days, cov: Math.round(a.energy.coverage * 100) })}</p>
+      </section>
+      <ObservationsCompact obs={obs} unit={unit} audience="dietitian" title={t('ملاحظات وأسئلة لأخصائية التغذية')} />
+      <h2 className="font-bold">{t('وجبات هذا الأسبوع')}</h2>
+      <div className="grid text-[11px] font-medium text-slate-500" style={COLS}><span>{t('اليوم')}</span><span>{t('الوقت')}</span><span>{t('الوجبة')}</span><span className="text-center">{t('كارب')}</span><span className="text-center">{t('دهون')}</span><span className="text-center">{t('نوفورابيد')}</span><span className="text-center">{t('قبل')}</span><span className="text-center">{t('بعد ساعتين')}</span></div>
+      {days.map(([d, list]) => (
+        <div key={d} className="rounded-lg border border-slate-200 px-2 py-0.5 text-[11px]" style={{ breakInside: 'avoid' }}>
+          {list.map((h, i) => {
+            const ms = Date.parse(h.eaten_at);
+            const dose = rapid.filter((x) => x.t >= ms - 60 * 60000 && x.t <= ms + 30 * 60000).reduce((s, x) => s + x.u, 0);
+            return (
+              <div key={h.id} className={cx('grid items-baseline py-0.5', i > 0 && 'border-t border-slate-100')} style={COLS}>
+                <span className="truncate">{i === 0 ? d : ''}</span><span className="num whitespace-nowrap">{fmtTime(new Date(ms))}</span>
+                <span className="truncate pe-2"><bdi>{tMaybe(h.name ?? '')}</bdi></span>
+                <span className="num text-center">{h.total_carbs == null ? '?' : Math.round(Number(h.total_carbs))}</span>
+                <span className="num text-center">{h.total_fat == null ? '–' : Math.round(Number(h.total_fat))}</span>
+                <span className="num text-center">{dose ? fmt(dose) : '–'}</span>
+                <span className="num text-center">{gl(at(ms)?.mg)}</span><span className="num text-center">{gl(at(ms + 2 * 3600000)?.mg)}</span>
+              </div>);
+          })}
+        </div>
+      ))}
+      <p className="text-[11px] text-slate-500">{t('الوجبات المؤكدة في آخر 7 أيام. النوفورابيد = الجرعات خلال ساعة قبل الوجبة إلى نصف ساعة بعدها. السكر من الحساس عند الوجبة وبعد ساعتين.')}</p>
+    </>
+  );
 }

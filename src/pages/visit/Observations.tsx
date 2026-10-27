@@ -50,6 +50,45 @@ const GAP: Record<string, string> = { // i18n-ok: shown through t()
 };
 
 export function ObservationsSection({ obs, unit }: { obs: Observations; unit: GlucoseUnit }) {
+  const words = findingWords(unit), u = unitLabel(unit), g = (mg: number) => formatGlucose(mg, unit);
+
+  const Card = ({ f, i, who }: { f: Finding; i: number; who: string }) => {
+    const w = words(f);
+    return (
+      <section className="space-y-1.5 rounded-xl border border-slate-200 p-3 text-[13px] leading-snug" style={{ breakInside: 'avoid' }}>
+        <h3 className="text-[15px] font-bold">{i}. {w.title}</h3>
+        <p><b>{t('الملاحظة')}:</b> {w.obs}</p>
+        <div><b>{t('الدليل')}:</b><ul className="list-disc ps-5">{w.ev.filter(Boolean).map((e, k) => <li key={k}>{e}</li>)}</ul></div>
+        {f.maybe.length > 0 && <div className="rounded-lg bg-slate-50 px-2 py-1"><b>{t('تفسيرات محتملة (غير مؤكدة)')}:</b><ul className="list-disc ps-5">{f.maybe.map((m, k) => <li key={k}>{t(MAYBE[m.key], m.p as never)}</li>)}</ul></div>}
+        <p className="rounded-lg bg-brand-soft/60 px-2 py-1"><b>{who}:</b> «{w.q}»</p>
+        <div><b className="text-slate-500">{t('ملاحظات الفريق الطبي')}:</b>{[0, 1, 2].map((k) => <div key={k} className="h-7 border-b border-slate-300" />)}</div>
+      </section>
+    );
+  };
+  const gapLine = (x: Gap) => t(GAP[x.key], { ...x.p, slot: x.p?.slot ? t(SLOT[x.p.slot]) : '' } as never);
+  const gaps = (a: 'doctor' | 'dietitian') => obs.gaps.filter((x) => x.audience === a);
+
+  return (
+    <>
+      <h1 className="text-xl font-bold">{t('ملاحظات وأسئلة لفريق الرعاية')}</h1>
+      <p className="text-[12px] text-slate-600">{t('ما وجده التطبيق في سجلاتها خلال هذه الفترة، الأهم أولًا. لكل ملاحظة دليلها من الأرقام والتواريخ؛ «التفسيرات المحتملة» غير مؤكدة. هذه أسئلة للنقاش فقط: التطبيق لا يحسب ولا يقترح جرعة أو نسبة كارب أو معامل تصحيح.')}</p>
+      <h2 className="pt-1 text-lg font-bold text-brand">{t('للطبيب')}</h2>
+      {obs.doctor.length ? obs.doctor.map((f, i) => <Card key={f.kind + i} f={f} i={i + 1} who={t('سؤال للطبيب')} />) : <p className="text-sm text-slate-600">{t('لا توجد أنماط واضحة تستحق النقاش في هذه الفترة.')}</p>}
+      {gaps('doctor').length > 0 && <section className="rounded-xl border border-dashed border-slate-300 p-3 text-[12.5px]"><b>{t('لا يكفي الدليل للحكم')}:</b><ul className="list-disc ps-5">{gaps('doctor').map((x, k) => <li key={k}>{gapLine(x)}</li>)}</ul></section>}
+      <h2 className="pt-1 text-lg font-bold text-brand">{t('لأخصائية التغذية')}</h2>
+      {obs.dietitian.length ? obs.dietitian.map((f, i) => <Card key={f.kind + i} f={f} i={obs.doctor.length + i + 1} who={t('سؤال لأخصائية التغذية')} />) : <p className="text-sm text-slate-600">{t('لا توجد أنماط واضحة تستحق النقاش في هذه الفترة.')}</p>}
+      {gaps('dietitian').length > 0 && <section className="rounded-xl border border-dashed border-slate-300 p-3 text-[12.5px]"><b>{t('لا يكفي الدليل للحكم')}:</b><ul className="list-disc ps-5">{gaps('dietitian').map((x, k) => <li key={k}>{gapLine(x)}</li>)}</ul></section>}
+      <p className="text-[11px] text-slate-500">
+        {t('جودة البيانات: {s} وجبات في الفترة، {d} منها بجرعة مسجَّلة، {u} بكارب غير معروف.', { s: obs.quality.sittings, d: obs.quality.withDose, u: obs.quality.unknownCarbs })}{' '}
+        {t('ارتفاع ({u}) = أعلى من {a} بعد ساعتين أو صعود {b} أو أكثر حتى الذروة. «متكرر» = نصف المرات على الأقل و{k} مرات أو أكثر.', { a: g(OBS_RULES.spike2hMg), b: g(OBS_RULES.riseMg), u, k: OBS_RULES.minRepeats })}
+      </p>
+      <section className="rounded-xl border border-slate-200 p-3"><h2 className="font-bold">{t('أسئلة أخرى')}</h2>{[0, 1, 2, 3, 4].map((k) => <div key={k} className="h-8 border-b border-slate-300" />)}</section>
+    </>
+  );
+}
+
+/** One finding in words: title, what was observed, the evidence lines and the question. Shared by the long and compact sections. */
+export function findingWords(unit: GlucoseUnit) {
   const u = unitLabel(unit), g = (mg: number | null | undefined) => (mg == null ? '–' : formatGlucose(mg, unit));
   const day = (ms: number) => new Date(ms).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kuwait', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
   const when = (ms: number) => `${day(ms)} ${new Date(ms).toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Asia/Kuwait', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions)}`;
@@ -60,7 +99,7 @@ export function ObservationsSection({ obs, unit }: { obs: Observations; unit: Gl
   const pct = (x: number | null | undefined) => (x == null ? '–' : `${Math.round(x)}%`);
   const n1 = (x: number | null | undefined, d = 0) => (x == null ? '–' : x.toFixed(d));
 
-  const words = (f: Finding): { title: string; obs: string; ev: ReactNode[]; q: string } => {
+  return (f: Finding): { title: string; obs: string; ev: ReactNode[]; q: string } => {
     const d = f.data, slot = d.slot ? sl(d.slot) : '';
     switch (f.kind) {
       case 'meal_rise': return {
@@ -166,38 +205,29 @@ export function ObservationsSection({ obs, unit }: { obs: Observations; unit: Gl
       };
     }
   };
+}
 
-  const Card = ({ f, i, who }: { f: Finding; i: number; who: string }) => {
-    const w = words(f);
-    return (
-      <section className="space-y-1.5 rounded-xl border border-slate-200 p-3 text-[13px] leading-snug" style={{ breakInside: 'avoid' }}>
-        <h3 className="text-[15px] font-bold">{i}. {w.title}</h3>
-        <p><b>{t('الملاحظة')}:</b> {w.obs}</p>
-        <div><b>{t('الدليل')}:</b><ul className="list-disc ps-5">{w.ev.filter(Boolean).map((e, k) => <li key={k}>{e}</li>)}</ul></div>
-        {f.maybe.length > 0 && <div className="rounded-lg bg-slate-50 px-2 py-1"><b>{t('تفسيرات محتملة (غير مؤكدة)')}:</b><ul className="list-disc ps-5">{f.maybe.map((m, k) => <li key={k}>{t(MAYBE[m.key], m.p as never)}</li>)}</ul></div>}
-        <p className="rounded-lg bg-brand-soft/60 px-2 py-1"><b>{who}:</b> «{w.q}»</p>
-        <div><b className="text-slate-500">{t('ملاحظات الفريق الطبي')}:</b>{[0, 1, 2].map((k) => <div key={k} className="h-7 border-b border-slate-300" />)}</div>
-      </section>
-    );
-  };
-  const gapLine = (x: Gap) => t(GAP[x.key], { ...x.p, slot: x.p?.slot ? t(SLOT[x.p.slot]) : '' } as never);
-  const gaps = (a: 'doctor' | 'dietitian') => obs.gaps.filter((x) => x.audience === a);
-
+/** The short visit report: each finding as three lines (title, what was seen with its first evidence, the question),
+ *  then one notes box, so the doctor's findings fit on one page. The wording is the same as the long section. */
+export function ObservationsCompact({ obs, unit, audience, title }: { obs: Observations; unit: GlucoseUnit; audience: 'doctor' | 'dietitian'; title: string }) {
+  const words = findingWords(unit);
+  const list = audience === 'doctor' ? obs.doctor : obs.dietitian;
+  const who = audience === 'doctor' ? t('سؤال للطبيب') : t('سؤال لأخصائية التغذية');
   return (
     <>
-      <h1 className="text-xl font-bold">{t('ملاحظات وأسئلة لفريق الرعاية')}</h1>
-      <p className="text-[12px] text-slate-600">{t('ما وجده التطبيق في سجلاتها خلال هذه الفترة، الأهم أولًا. لكل ملاحظة دليلها من الأرقام والتواريخ؛ «التفسيرات المحتملة» غير مؤكدة. هذه أسئلة للنقاش فقط: التطبيق لا يحسب ولا يقترح جرعة أو نسبة كارب أو معامل تصحيح.')}</p>
-      <h2 className="pt-1 text-lg font-bold text-brand">{t('للطبيب')}</h2>
-      {obs.doctor.length ? obs.doctor.map((f, i) => <Card key={f.kind + i} f={f} i={i + 1} who={t('سؤال للطبيب')} />) : <p className="text-sm text-slate-600">{t('لا توجد أنماط واضحة تستحق النقاش في هذه الفترة.')}</p>}
-      {gaps('doctor').length > 0 && <section className="rounded-xl border border-dashed border-slate-300 p-3 text-[12.5px]"><b>{t('لا يكفي الدليل للحكم')}:</b><ul className="list-disc ps-5">{gaps('doctor').map((x, k) => <li key={k}>{gapLine(x)}</li>)}</ul></section>}
-      <h2 className="pt-1 text-lg font-bold text-brand">{t('لأخصائية التغذية')}</h2>
-      {obs.dietitian.length ? obs.dietitian.map((f, i) => <Card key={f.kind + i} f={f} i={obs.doctor.length + i + 1} who={t('سؤال لأخصائية التغذية')} />) : <p className="text-sm text-slate-600">{t('لا توجد أنماط واضحة تستحق النقاش في هذه الفترة.')}</p>}
-      {gaps('dietitian').length > 0 && <section className="rounded-xl border border-dashed border-slate-300 p-3 text-[12.5px]"><b>{t('لا يكفي الدليل للحكم')}:</b><ul className="list-disc ps-5">{gaps('dietitian').map((x, k) => <li key={k}>{gapLine(x)}</li>)}</ul></section>}
-      <p className="text-[11px] text-slate-500">
-        {t('جودة البيانات: {s} وجبات في الفترة، {d} منها بجرعة مسجَّلة، {u} بكارب غير معروف.', { s: obs.quality.sittings, d: obs.quality.withDose, u: obs.quality.unknownCarbs })}{' '}
-        {t('ارتفاع ({u}) = أعلى من {a} بعد ساعتين أو صعود {b} أو أكثر حتى الذروة. «متكرر» = نصف المرات على الأقل و{k} مرات أو أكثر.', { a: g(OBS_RULES.spike2hMg), b: g(OBS_RULES.riseMg), u, k: OBS_RULES.minRepeats })}
-      </p>
-      <section className="rounded-xl border border-slate-200 p-3"><h2 className="font-bold">{t('أسئلة أخرى')}</h2>{[0, 1, 2, 3, 4].map((k) => <div key={k} className="h-8 border-b border-slate-300" />)}</section>
+      <h1 className="text-xl font-bold">{title}</h1>
+      {list.length ? list.map((f, i) => {
+        const w = words(f), ev = w.ev.filter(Boolean).slice(0, 2);
+        return (
+          <section key={f.kind + i} className="space-y-0.5 rounded-xl border border-slate-200 px-3 py-2 text-[12.5px] leading-snug" style={{ breakInside: 'avoid' }}>
+            <h3 className="text-[14px] font-bold">{i + 1}. {w.title}</h3>
+            <p>{w.obs} <span className="text-slate-600">{ev.map((e, k) => <span key={k}>{k ? ' · ' : ''}{e}</span>)}</span></p>
+            <p className="rounded-lg bg-brand-soft/60 px-2 py-0.5"><b>{who}:</b> «{w.q}»</p>
+          </section>
+        );
+      }) : <p className="text-sm text-slate-600">{t('لا توجد أنماط واضحة تستحق النقاش في هذه الفترة.')}</p>}
+      <div><section className="rounded-xl border border-slate-200 p-3"><h2 className="text-[14px] font-bold">{t('ملاحظات الفريق الطبي')}</h2>{[0, 1, 2, 3, 4].map((k) => <div key={k} className="h-7 border-b border-slate-300" />)}</section>
+      {audience === 'doctor' && <p className="mt-2 text-[11px] text-slate-500">{t('ملاحظات من بياناتها، وليست توصية بجرعة.')} {t('ارتفاع ({u}) = أعلى من {a} بعد ساعتين أو صعود {b} أو أكثر حتى الذروة. «متكرر» = نصف المرات على الأقل و{k} مرات أو أكثر.', { a: formatGlucose(OBS_RULES.spike2hMg, unit), b: formatGlucose(OBS_RULES.riseMg, unit), u: unitLabel(unit), k: OBS_RULES.minRepeats })}</p>}</div>
     </>
   );
 }

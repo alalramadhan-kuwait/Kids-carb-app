@@ -19,8 +19,8 @@ const fill = (mg: number | null) => mg === null ? { fill: 'transparent' }
 
 const W = 340, LW = 58, RH = 15;
 /** One strip per night, 00:00 on the left to 07:00 on the right; 🧃 a treatment, a red dot a finger-prick. */
-export function NightGrid({ report, series, unit, onNight, print, last = 14 }: { report: NightReport; series: Series; unit: GlucoseUnit; onNight?: (n: NightRow) => void; print?: boolean; last?: number }) {
-  const grid = useMemo(() => nightGrid(report, series, print ? Infinity : last), [report, series, print, last]);
+export function NightGrid({ report, series, unit, onNight, print, last }: { report: NightReport; series: Series; unit: GlucoseUnit; onNight?: (n: NightRow) => void; print?: boolean; last?: number }) {
+  const grid = useMemo(() => nightGrid(report, series, last ?? (print ? Infinity : 14)), [report, series, print, last]);
   const ns = grid.nights;
   if (!ns.length) return null;
   const byDay = new Map(report.nights.map((n) => [n.day, n]));

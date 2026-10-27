@@ -5,7 +5,7 @@
 import { NT, changesOf, clockOf, fastingBefore, type NightReport } from '../../engine/nightTresiba';
 import { BASAL_DEFAULTS } from '../../engine/basal';
 import { BeforeJuice, DailyInsulin, NightsChart, Pricks, dayLabel, hourLabel, } from './nightParts';
-import { DoseCompare, doctorLines } from '../BasalCheck';
+import { DoseCompare, NightsByDose, doctorLines } from '../BasalCheck';
 import type { BasalReport } from '../../engine/basalCheck';
 import { formatGlucose, unitLabel, type GlucoseUnit } from '../../lib/glucose';
 import { fmtTime } from '../../lib/constants';
@@ -95,6 +95,34 @@ export function NightSection({ report, unit, series, basal }: { report: NightRep
       <div className="pb-3"><DailyInsulin report={report} /></div>
       <div className="pb-3"><BeforeJuice report={report} unit={unit} print /></div>
       <div className="pb-3"><Pricks report={report} unit={unit} print /></div>
+    </>
+  );
+}
+
+/** The short visit report's night page: the Tresiba history in one line, the heatmap of every night, the nights-by-dose
+ *  table, the whole-day insulin by dose, and one line on the night finger-pricks. No prose, no per-juice list. */
+export function NightShort({ report, unit, series, basal }: { report: NightReport; unit: GlucoseUnit; series?: Series | null; basal?: BasalReport | null }) {
+  const list = (xs: string[]) => xs.join(isEn() ? ', ' : '، '); // i18n-ok: list commas
+  const changes = changesOf(report.doses), doses = report.doses, first = doses[0], last = doses[doses.length - 1];
+  const moved = first && last && Math.abs(clockOf(last.t) - clockOf(first.t)) >= 90;
+  const pricks = report.nights.flatMap((n) => n.pricks);
+  const lower = pricks.filter((p) => p.agrees === false && p.diff! < 0).length, same = pricks.filter((p) => p.agrees).length;
+  const eps = report.nights.flatMap((n) => n.episodes), fingerBefore = eps.filter((e) => e.prick && !e.prick.after).length;
+  return (
+    <>
+      <div className="space-y-1 pb-2">
+        <h1 className="text-xl font-bold">{t('الليل وجرعة التريسيبا (آخر ٣٠ يوم)')}</h1>
+        {changes.length > 0 && <p className="text-[13px]"><b>{t('تريسيبا')}:</b> {list(changes.map((c) => t('{u} وحدة من {d}', { u: fmt(c.units), d: dayLabel(c.t) })))}
+          {first && last ? ' · ' + (moved ? t('وقت الإبرة تغيّر من حوالي {a} إلى حوالي {b}.', { a: hourLabel(clockOf(first.t)), b: hourLabel(clockOf(last.t)) }) : t('وقت الإبرة حوالي {a}.', { a: hourLabel(clockOf(last.t)) })) : ''}</p>}
+      </div>
+      {series && <div className="pb-2"><NightGrid report={report} series={series} unit={unit} print last={14} /></div>}
+      {basal && <div className="pb-2"><NightsByDose report={basal} unit={unit} /></div>}
+      <div className="pb-2"><DailyInsulin report={report} /></div>
+      <p className="text-[11.5px] text-slate-500">
+        {pricks.length ? t('{n} وخز بالليل: متقارب مع الحساس {a}، الحساس أقل {b}، الحساس أعلى {c}.', { n: pricks.length, a: same, b: lower, c: pricks.length - same - lower }) + ' ' : ''}
+        {eps.length ? t('{n} علاج أول بالليل، و{f} علاج ثاني (متابعة بقاعدة ١٥-١٥ لأن السكر كان يبين إنه لسه نازل). وخز قبل العلاج الأول في {k} منها.', { n: eps.length, f: eps.reduce((a, e) => a + e.followUps.length, 0), k: fingerBefore }) + ' ' : ''}
+        {t('العصير إجراء أمان، مو دليل إن التريسيبا فشل.')} {t('النزول بالليل بروحه مو دليل إن جرعة التريسيبا زايدة. التطبيق ما يقترح جرعة، وما يصحح قراءات الحساس، وما يخمّن وين كان السكر بيوصل بدون العصير.')}
+      </p>
     </>
   );
 }

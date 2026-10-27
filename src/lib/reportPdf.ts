@@ -23,6 +23,10 @@ export function ageText(birth: string | null, at: number) {
 }
 export const isoDate = (s: string | null) => (s ? kwDate(Date.parse(s + 'T00:00:00+03:00')) : '–');
 
+/** The short visit report leaves the validation note off the page footers (it is on the cover once). */
+let compactFooter = false;
+export const setCompactFooter = (v: boolean) => { compactFooter = v; };
+
 /** Drawing helpers shared by every doctor-report PDF: colours, text, titled boxes and the footer. */
 export function pdfKit(doc: JsPdf, generatedAt: number, appVersion = '') {
   const fill = (hex: string) => doc.setFillColor(...rgb(hex));
@@ -42,7 +46,7 @@ export function pdfKit(doc: JsPdf, generatedAt: number, appVersion = '') {
   const footer = (page: number) => {
     stroke(C.line); doc.setLineWidth(0.25); doc.line(M, H - 14, W - M, H - 14);
     text('Ranges and targets: international consensus on time in range (2019) and ISPAD 2024 targets for children. GMI = 3.31 + 0.02392 × mean (mg/dL).', M, H - 10.5, { size: 6.2, c: C.muted });
-    text(VALIDATION_NOTE, M, H - 7.5, { size: 6.2, c: C.notMet });
+    if (!compactFooter) text(VALIDATION_NOTE, M, H - 7.5, { size: 6.2, c: C.notMet });
     text(`Generated ${kwDate(generatedAt)} by Layan's carb & insulin app${appVersion ? ` v${appVersion}` : ''} · Page ${page}`, W - M, H - 4.5, { size: 6.2, c: C.muted, align: 'right' });
   };
   return { fill, stroke, color, text, box, footer };
