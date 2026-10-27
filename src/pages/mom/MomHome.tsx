@@ -1,6 +1,6 @@
 // Mom mode home: how Layan is now (big coloured box like LibreLinkUp), a large simple 12-hour graph, the last
 // injections in pen colours with the doctor's 2-hour countdown, the meal in progress, and three big buttons.
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as PE } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as PE, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
 import { useComparisons } from '../../lib/fingerprick';
@@ -32,14 +32,37 @@ import highPng from '../../assets/layan/layan-high.png';
 import highWebp from '../../assets/layan/layan-high.webp';
 import noReadingPng from '../../assets/layan/layan-no-reading.png';
 import noReadingWebp from '../../assets/layan/layan-no-reading.webp';
-import { Big, okToReplace, PEN, PEN_NAME, PenBar, TABS_PAD, ago, clock, dayWord, glucoseText, left, sensorLeft, span } from './MomUI';
+import { Big, okToReplace, PEN, PEN_NAME, TABS_PAD, ago, clock, dayWord, glucoseText, left, sensorLeft } from './MomUI';
 import { Icon } from '../../components/Icon';
+import type { IconName } from '../../icons/defs';
+import { unitLabel } from '../../lib/glucose';
 import type { EventRow, Settings } from '../../lib/types';
 import { inNight, prickHint, prickPoints, sensorBias, type PrickPoint } from '../../engine/prick';
 
 const H = 3600000;
 const ARROW: Record<number, string> = { [-3]: '⇊', [-2]: '↓', [-1]: '↘', 0: '→', 1: '↗', 2: '↑', 3: '⇈' };
 const MOOD_DARK: Record<Mood, string> = { ok: '#1F7A4D', falling: '#9A6206', high: '#9A6206', low: '#B02A3A', stale: '#46536A' };
+// the status pill on the white hero card: a soft tint with the mood's colour as text (iOS style)
+const MOOD_SOFT: Record<Mood, string> = { ok: 'rgba(52,199,89,0.16)', falling: 'rgba(255,149,0,0.18)', high: 'rgba(255,149,0,0.18)', low: 'rgba(255,59,48,0.16)', stale: 'rgba(142,142,147,0.18)' };
+const MOOD_TEXT: Record<Mood, string> = { ok: '#1F7A4D', falling: '#9A5A00', high: '#9A5A00', low: '#B02A3A', stale: '#5B5B60' };
+const MOOD_DARK_TEXT: Record<Mood, string> = { ok: '#30D158', falling: '#FF9F0A', high: '#FF9F0A', low: '#FF453A', stale: '#AEAEB2' };
+const IOS_CARD = 'bg-[rgb(var(--ios-card))] shadow-[0_1px_2px_rgba(0,0,0,0.04)]';
+const longDate = (ms: number) => new Date(ms).toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long', numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
+
+/** One row of the grouped list: a coloured icon square, a title, a small line under it, a chevron when it opens a page. */
+function Row({ to, color, icon, title, sub, first }: { to?: string; color: string; icon: IconName; title: ReactNode; sub: ReactNode; first?: boolean }) {
+  const inner = (
+    <>
+      <span className="grid h-[29px] w-[29px] shrink-0 place-items-center rounded-[7px] text-white" style={{ background: color }}><Icon name={icon} size={17} /></span>
+      <span className="min-w-0 flex-1 leading-tight"><span className="block truncate text-[16px]">{title}</span><span className="num block truncate text-[13px] text-slate-500">{sub}</span></span>
+      {to && <span aria-hidden className="text-[18px] text-slate-400 rtl:-scale-x-100">›</span>}
+    </>
+  );
+  const cls = 'relative flex min-h-[46px] items-center gap-3 px-3 py-1';
+  // the hairline between rows, inset past the icon as on iOS
+  const sep = first ? null : <span aria-hidden className="pointer-events-none absolute top-0 h-px bg-[rgba(var(--ios-sep),0.22)] ltr:left-[53px] ltr:right-0 rtl:left-0 rtl:right-[53px]" />;
+  return to ? <Link to={to} className={cx(cls, 'active:bg-[rgba(var(--ios-fill),0.08)]')}>{sep}{inner}</Link> : <div className={cls}>{sep}{inner}</div>;
+}
 const MOOD: Record<Mood, { bg: string; word: string; todo: string }> = {
   ok: { bg: '#2f8f55', word: 'زين', todo: 'ما يحتاج شي الحين' }, // i18n-ok
   falling: { bg: '#c27a00', word: 'قاعد ينزل', todo: 'انتبهي وافحصيها' }, // i18n-ok
@@ -150,25 +173,33 @@ export function MomHome() {
   const big = '!min-h-[52px] !text-[18px]';
   return (
     // one fixed screen: nothing scrolls; the graph takes whatever room is left
-    <main className={cx('mx-auto flex h-[100dvh] max-w-md flex-col gap-2 overflow-hidden px-4 pt-[calc(8px+env(safe-area-inset-top))]', TABS_PAD)}>
-      <div className="relative flex shrink-0 overflow-hidden rounded-3xl" style={{ color: '#fff', background: dark ? MOOD_DARK[mood] : m.bg }}>
+    // one fixed screen: nothing scrolls; the graph takes whatever room is left. Laid out the iOS way: a grouped grey
+    // background, plain white cards, the glucose as the hero card, then the pens and the sensor as a grouped list
+    <main className={cx('mx-auto flex h-[100dvh] max-w-md flex-col gap-2 overflow-hidden bg-[rgb(var(--ios-bg))] px-4 pt-[calc(6px+env(safe-area-inset-top))]', TABS_PAD)}>
+      <div className="flex shrink-0 items-end justify-between px-1">
+        <div><div className="text-[12.5px] font-medium text-slate-500">{longDate(now)}</div><h1 className="text-[26px] font-bold leading-tight">{t('الرئيسية')}</h1></div>
+      </div>
+      <div className={cx('relative flex shrink-0 overflow-hidden rounded-[14px]', IOS_CARD)}>
         <div className="min-w-0 flex-1 py-2.5 ps-4 pe-1">
-          <div className="truncate text-[13px] leading-snug opacity-90">{t('ليان')} · {at ? ago(at, now) : ''}{sensor ? ` · 📡 ${sensorLeft(sensor.life.left)}` : ''}</div>
-          <div className="mt-0.5 flex items-center gap-3">
-            {latest && mood !== 'stale' && <div dir="ltr" className="flex shrink-0 items-baseline gap-1"><span className="num text-[46px] font-extrabold leading-none tracking-tight">{glucoseText(latest.mg_dl, unit)}</span><span className="text-[28px] leading-none">{level !== null ? ARROW[level] : ''}</span></div>}
-            <div className="min-w-0 text-[21px] font-bold leading-tight">{t(m.word)}</div>
+          <div className="flex items-center justify-between gap-2 text-[13px]">
+            <span className="flex items-center gap-1.5 font-semibold"><span className="grid h-[22px] w-[22px] place-items-center rounded-[6px] text-white" style={{ background: '#FF3B30' }}><Icon name="glucose" size={13} /></span>{t('سكر {n}', { n: s.child_name ?? t('ليان') })}</span>
+            <span className="truncate text-slate-500">{at ? ago(at, now) : ''}</span>
           </div>
-          <div className="mt-1 text-[15px] leading-snug opacity-95">{t(m.todo)}</div>
+          <div className="mt-1 flex items-center gap-2">
+            {latest && mood !== 'stale' && <div dir="ltr" className="flex shrink-0 items-baseline gap-1"><span className="num text-[46px] font-extrabold leading-none tracking-tight">{glucoseText(latest.mg_dl, unit)}</span><span className="text-[26px] leading-none text-slate-500">{level !== null ? ARROW[level] : ''}</span></div>}
+            {latest && mood !== 'stale' && <span className="text-[13px] text-slate-500">{unitLabel(unit)}</span>}
+          </div>
+          <div className="mt-1.5"><span className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full px-2.5 py-[3px] text-[13.5px] font-semibold" style={{ background: MOOD_SOFT[mood], color: dark ? MOOD_DARK_TEXT[mood] : MOOD_TEXT[mood] }}>● {t(m.word)} · {t(m.todo)}</span></div>
         </div>
         <LayanCorner face={face} />
       </div>
 
-      <div className="relative flex max-h-[62dvh] min-h-[120px] flex-1 flex-col rounded-3xl bg-white px-1 pt-1 shadow-[0_1px_3px_rgba(40,30,80,0.06)]">
+      <div className={cx('relative flex max-h-[62dvh] min-h-[120px] flex-1 flex-col rounded-[14px] px-1 pt-1', IOS_CARD)}>
         <button onClick={() => setFull(true)} aria-label={t('كبّري الرسم')} className="absolute left-0 top-0 z-10 grid h-[44px] w-[44px] place-items-center">
-          <span className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 text-[15px] text-slate-600">⤢</span>
+          <span className="grid h-8 w-8 place-items-center rounded-full bg-[rgba(var(--ios-fill),0.12)] text-[15px] text-slate-600">⤢</span>
         </button>
-        {!picking && <div role="radiogroup" aria-label={t('المدة')} dir="ltr" className="absolute left-[46px] top-[7px] z-10 flex rounded-full bg-slate-100/90 p-[3px] text-[12px] font-bold text-slate-500">
-          {[3, 6, 12, 24].map((h) => <button key={h} role="radio" aria-checked={hours === h} onClick={() => setHours(h)} className={cx('h-[26px] min-w-[34px] rounded-full px-2', hours === h ? (dark ? 'bg-white text-[#4AC6CA] shadow-sm' : 'bg-white text-[#17707A] shadow-sm') : '')}>{t('{n}س', { n: h })}</button>)}
+        {!picking && <div role="radiogroup" aria-label={t('المدة')} dir="ltr" className="absolute left-[46px] top-[7px] z-10 flex rounded-[9px] bg-[rgba(var(--ios-fill),0.12)] p-[2px] text-[12.5px] font-semibold text-slate-600">
+          {[3, 6, 12, 24].map((h) => <button key={h} role="radio" aria-checked={hours === h} onClick={() => setHours(h)} className={cx('h-[26px] min-w-[38px] rounded-[7px] px-2', hours === h ? (dark ? 'bg-[#636366] text-white shadow-sm' : 'bg-white text-slate-900 shadow-sm') : '')}>{t('{n}س', { n: h })}</button>)}
         </div>}
         <div ref={box} className="min-h-0 flex-1">
           {merged && <BigGraph key={`${focusAt ?? 0}-${hours}`} span={hours} onPick={setPicking} onOlder={loadOlder} at={focusAt} aspect={aspect} s={merged} now={now} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} alarmHigh={s.alert_high_mgdl ?? 240}
@@ -192,42 +223,19 @@ export function MomHome() {
         </div>
       ) : null}
 
-      <div className="shrink-0 space-y-1.5 rounded-3xl border border-slate-100 bg-white p-1.5">
-        {/* the last of each pen side by side: name and units, then how long ago */}
-        <div className="grid grid-cols-2 gap-1.5">
-          {/* both pens always: a pen with nothing recent says so instead of disappearing */}
-          {([['rapid', lastRapid], ['long', lastLong]] as const).map(([type, e]) => e ? (
-            <Link key={type} to={`/mom/entry/${e.id}`} className="flex min-h-[48px] items-center gap-2 rounded-2xl px-2 py-1 active:bg-slate-50">
-              <PenBar type={type} small />
-              <span className="min-w-0 leading-tight">
-                <span className="block truncate text-[16px]">{t(PEN_NAME[type])} <b className="num">{e.insulin_units}</b> {t('وحدة')}</span>
-                <span className="num block truncate text-[13px] text-slate-500">{ago(Date.parse(e.occurred_at), now)}</span>
-              </span>
-            </Link>
-          ) : (
-            <div key={type} className="flex min-h-[48px] items-center gap-2 px-2 py-1">
-              <PenBar type={type} small />
-              <span className="min-w-0 leading-tight"><span className="block truncate text-[16px]">{t(PEN_NAME[type])}</span><span className="block text-[13px] text-slate-500">—</span></span>
-            </div>
-          ))}
-        </div>
-        {nextAt && !lowNow && (
-          <div className="flex items-start gap-2 rounded-2xl bg-near-soft px-2.5 py-1.5 text-near">
-            <Icon name="clock" size={16} className="mt-0.5 shrink-0" />
-            <span className="min-w-0 leading-tight"><b className="block text-[14px]">{t('لا نوفورابيد قبل الساعة {c}', { c: clock(nextAt) })}</b><span className="block text-[12.5px] opacity-90">{t('خطة الدكتور: {d} بين الجرعتين', { d: span(s.dose_gap_min ?? 120) })}</span></span>
-          </div>
-        )}
+      {/* the grouped list, as iOS Settings: each pen's last dose and the sensor, a coloured icon, a chevron */}
+      <div className={cx('shrink-0 overflow-hidden rounded-[14px]', IOS_CARD)}>
+        {([['rapid', lastRapid], ['long', lastLong]] as const).map(([type, e]) => (
+          <Row key={type} first={type === 'rapid'} to={e ? `/mom/entry/${e.id}` : undefined} color={PEN[type]} icon="insulin"
+            title={e ? <>{t(PEN_NAME[type])} · <b className="num">{e.insulin_units}</b> {t('وحدة')}</> : t(PEN_NAME[type])}
+            sub={e ? <>{ago(Date.parse(e.occurred_at), now)}{type === 'rapid' && nextAt && !lowNow && <span className="text-near"> · {t('التالي بعد {c}', { c: clock(nextAt) })}</span>}</> : '—'} />
+        ))}
+        {sensor && <Row to="/mom/sensor" color="#0A84FF" icon="sensor" title={t('الحساس')}
+          sub={!sensor.site ? <span className="text-brand">{t('الحساس بأي ذراع؟')}</span> : sensorSoon ? <span className="text-over">{t('الحساس ينتهي {d} {c}', { d: dayWord(sensor.life.end, now), c: clock(sensor.life.end) })}</span> : t('باقي {d}', { d: sensorLeft(sensor.life.left) })} />}
       </div>
 
       {same && <SameMealLink short to={`/mom/same/${same.target.id}`} target={same.target} matches={same.matches}
         className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-2xl bg-brand-soft px-4 py-1.5 text-[16px] font-bold text-brand" />}
-
-      {sensor && (sensorSoon || !sensor.site) && (
-        <Link to="/mom/sensor" className={cx('flex min-h-[44px] shrink-0 items-center gap-3 rounded-2xl px-4 py-1.5 text-[15px] font-bold', sensorSoon ? 'bg-over-soft text-over' : 'bg-white text-brand')}>
-          <span className="text-xl">📡</span>
-          <span className="flex-1">{sensorSoon ? t('الحساس ينتهي {d} {c}', { d: dayWord(sensor.life.end, now), c: clock(sensor.life.end) }) : t('الحساس بأي ذراع؟')}</span><span>›</span>
-        </Link>
-      )}
 
       {juice && (
         <Link to={`/mom/entry/${juice.id}`} className="flex min-h-[44px] shrink-0 items-center gap-3 rounded-2xl bg-near-soft px-4 py-1.5 text-near">
@@ -246,11 +254,14 @@ export function MomHome() {
       {next && <Link to={`/mom/plan/${next.id}`} className="flex min-h-[44px] shrink-0 items-center rounded-2xl bg-white px-4 py-1.5 text-[15px]">📅 <bdi>{next.name}</bdi> · {dayWord(Date.parse(next.dose_at))} 💉 {clock(Date.parse(next.dose_at))} ›</Link>}
       {/* «شنو بتاكل ليان؟»: one way into food, the food first and «now or later» at the end; Medical (injection,
           finger-prick, juice) beside it */}
-      <div className="mt-auto grid shrink-0 grid-cols-3 gap-2">
-        <Big className={cx(big, 'relative col-span-2')} onClick={() => { if (okToReplace('now')) draftOps.start('now'); nav('/mom/meal?from=home', { state: { low: lowNow } }); }}><Lbl icon="🍽️" text={t('شنو بتاكل {n}؟', { n: s.child_name ?? t('ليان') })} wrap />
+      <div className="mt-auto shrink-0 space-y-2">
+        <Big className={cx(big, 'relative !rounded-[14px]')} onClick={() => { if (okToReplace('now')) draftOps.start('now'); nav('/mom/meal?from=home', { state: { low: lowNow } }); }}><Lbl icon="🍽️" text={t('شنو بتاكل {n}؟', { n: s.child_name ?? t('ليان') })} wrap />
           {/* plans not done yet (planned, or dosed and waiting): a small count, no new row, the graph keeps its size */}
           {openPlans > 0 && <span className="absolute -top-1.5 start-2 rounded-full bg-white px-2 text-[13px] font-bold leading-6 text-brand shadow" aria-label={t('{n} وجبات مخططة', { n: openPlans })}>📅 {openPlans}</span>}</Big>
-        <Big tone="soft" className={big} onClick={() => nav('/mom/actions/medical', { state: { low: lowNow } })}><Lbl icon="🩸" text={t('طبي')} chevron /></Big>
+        <div className="grid grid-cols-2 gap-2">
+          <Big tone="soft" className={cx(big, '!rounded-[14px]')} onClick={() => nav('/mom/shot')}><Lbl icon="💉" text={t('إبرة')} /></Big>
+          <Big tone="soft" className={cx(big, '!rounded-[14px]')} onClick={() => nav('/mom/actions/medical', { state: { low: lowNow } })}><Lbl icon="🩸" text={t('طبي')} chevron /></Big>
+        </div>
       </div>
       {full && <GraphFull onClose={() => setFull(false)} s={s} unit={unit} low={low} high={high} band={[range.low ?? 70, high]} />}
     </main>
