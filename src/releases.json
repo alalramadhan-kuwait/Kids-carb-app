@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.38.3",
+    "date": "2026-10-28",
+    "notes": [
+      "تبويب «الوجبات»: السهم صار بالاتجاه الصحيح بالإنجليزي، واسم الأكل أصغر."
+    ],
+    "notes_en": [
+      "Meals tab: the arrow now points the right way in English, and food names are smaller."
+    ]
+  },
+  {
     "version": "4.38.2",
     "date": "2026-10-28",
     "notes": [

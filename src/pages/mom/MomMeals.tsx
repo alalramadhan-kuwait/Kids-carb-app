@@ -11,7 +11,7 @@ import { dayStartOf, dayTitle } from '../../engine/day';
 import { effectiveRange, formatGlucose } from '../../lib/glucose';
 import { fmt } from '../../lib/carbs';
 import { cx } from '../../components/ui';
-import { t } from '../../i18n';
+import { isEn, t } from '../../i18n';
 import { MomPage, clock } from './MomUI';
 
 const DAY = 86400000, H = 3600000;
@@ -43,7 +43,7 @@ export function MomMeals() {
   const days = [...new Set(rows.map((r) => dayStartOf(r.t)))];
   return (
     <MomPage title={t('الوجبات')} back={null} tabs>
-      <p className="-mt-2 text-[13px] text-slate-500">{t('السكر عند الأكل وبعد ساعتين · 💉 جرعة الوجبة')}</p>
+      <p className="text-[13px] leading-snug text-slate-500">{t('السكر عند الأكل وبعد ساعتين · 💉 جرعة الوجبة')}</p>
       <div className="grid grid-cols-3 gap-1 rounded-full bg-slate-100 p-1 text-[14px]">
         {(['today', 'yesterday', 'week'] as const).map((k) => <button key={k} onClick={() => setSpan(k)} className={cx('min-h-[40px] rounded-full', span === k ? 'bg-white font-bold shadow-sm' : 'text-slate-600')}>{k === 'today' ? t('اليوم') : k === 'yesterday' ? t('أمس') : t('الأسبوع')}</button>)}
       </div>
@@ -71,11 +71,11 @@ function Row({ r, g, onClick }: { r: MealRow; g: (mg: number | null) => React.Re
   return (
     <li><button onClick={onClick} className="grid min-h-[52px] w-full items-center py-1.5 text-start" style={COLS}>
       <span className="min-w-0 pe-2">
-        <span className="block text-[14.5px] font-bold leading-[1.25]"><bdi>{r.name}</bdi></span>
-        <span className="block text-[12px] leading-snug text-slate-500">{sub}</span>
+        <span className="block text-[13px] font-semibold leading-[1.3]"><bdi>{r.name}</bdi></span>
+        <span className="block text-[11.5px] leading-snug text-slate-500">{sub}</span>
       </span>
       <span className="text-center text-[19px] font-bold leading-none">{g(r.atMg)}</span>
-      <span className="text-center text-[16px] leading-none text-slate-300">←</span>
+      <span className="text-center text-[16px] leading-none text-slate-300">{isEn() ? '→' : '←'}</span>
       {r.waitMin > 0 ? <span className="num text-center text-[12px] leading-tight text-slate-400">{t('بعد {m} د', { m: r.waitMin })}</span> : <span className="text-center text-[19px] font-bold leading-none">{g(r.afterMg)}</span>}
     </button></li>
   );
