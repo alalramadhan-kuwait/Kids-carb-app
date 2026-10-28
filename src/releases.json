@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.38.1",
+    "date": "2026-10-28",
+    "notes": [
+      "تبويب «الوجبات»: الصفوف صارت بنفس الشكل والأرقام مصفوفة تحت بعض."
+    ],
+    "notes_en": [
+      "Meals tab: rows now share one shape and the numbers line up in columns."
+    ]
+  },
+  {
     "version": "4.38.0",
     "date": "2026-10-28",
     "notes": [

@@ -52,7 +52,7 @@ export function MomMeals() {
         <section key={d}>
           <h2 className="mb-1.5 text-[16px] font-bold text-slate-500">{dayTitle(d, now)}</h2>
           <div className="rounded-3xl bg-white px-4">
-            {i === 0 && <div className="flex justify-end gap-2 pt-2 text-[11px] text-slate-500 whitespace-nowrap"><span className="w-[58px] text-center">{t('عند الأكل')}</span><span className="w-5" /><span className="w-[58px] text-center">{t('بعد ساعتين')}</span></div>}
+            <div className="grid pt-2 text-[11px] text-slate-500 whitespace-nowrap" style={COLS}><span /><span className="text-center">{t('عند الأكل')}</span><span /><span className="text-center">{t('بعد ساعتين')}</span></div>
             <ul className="divide-y divide-slate-100">
               {rows.filter((r) => dayStartOf(r.t) === d).map((r) => <Row key={r.id} r={r} g={g} onClick={() => nav(`/mom/meal-entry/${r.id}`)} />)}
             </ul>
@@ -64,19 +64,19 @@ export function MomMeals() {
   );
 }
 
+/** The table's columns: name, at the meal, arrow, two hours after. Every row uses the same, so the numbers line up. */
+const COLS = { gridTemplateColumns: 'minmax(0,1fr) 60px 22px 60px' };
 function Row({ r, g, onClick }: { r: MealRow; g: (mg: number | null) => React.ReactNode; onClick: () => void }) {
   const sub = [clock(r.t), r.carbs === null ? t('الكارب غير معروف') : t('{g} غ', { g: fmt(r.carbs) }), r.dose !== null ? `💉 ${fmt(r.dose)}` : ''].filter(Boolean).join(' · ');
   return (
-    <li><button onClick={onClick} className="flex min-h-[64px] w-full items-center gap-3 py-2.5 text-start">
-      <span className="min-w-0 flex-1">
-        <span className="block text-[17px] font-bold leading-snug"><bdi>{r.name}</bdi></span>
-        <span className="block text-[13px] text-slate-500">{sub}</span>
+    <li><button onClick={onClick} className="grid min-h-[60px] w-full items-center py-2 text-start" style={COLS}>
+      <span className="min-w-0 pe-2">
+        <span className="block text-[16px] font-bold leading-[1.25]"><bdi>{r.name}</bdi></span>
+        <span className="block text-[12.5px] leading-snug text-slate-500">{sub}</span>
       </span>
-      <span className="flex shrink-0 items-center gap-2 text-[24px] font-bold">
-        <span className="w-[58px] text-center">{g(r.atMg)}</span>
-        <span className="w-5 text-center text-[18px] font-normal text-slate-300">←</span>
-        {r.waitMin > 0 ? <span className="w-[58px] text-center text-[13px] font-normal text-slate-400">{t('بعد {m} د', { m: r.waitMin })}</span> : <span className="w-[58px] text-center">{g(r.afterMg)}</span>}
-      </span>
+      <span className="text-center text-[22px] font-bold leading-none">{g(r.atMg)}</span>
+      <span className="text-center text-[16px] leading-none text-slate-300">←</span>
+      {r.waitMin > 0 ? <span className="num text-center text-[12px] leading-tight text-slate-400">{t('بعد {m} د', { m: r.waitMin })}</span> : <span className="text-center text-[22px] font-bold leading-none">{g(r.afterMg)}</span>}
     </button></li>
   );
 }
