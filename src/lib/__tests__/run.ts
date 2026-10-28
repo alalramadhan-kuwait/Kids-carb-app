@@ -3966,5 +3966,30 @@ console.log('P0: food sources, eaten part, injections untouched');
   });
 }
 
+// ---- mom's meals table: glucose at the meal and 2 h after, the dose within 15 min
+{
+  const M = await import('../../engine/mealTable');
+  const MIN = 60000, T0 = Date.UTC(2026, 9, 27, 12, 0);
+  const series = (pts: [number, number][]) => ({ t: Float64Array.from(pts.map((p) => T0 + p[0] * MIN)), v: Float64Array.from(pts.map((p) => p[1])) });
+  test('meal table: reading at the meal and two hours later, dose within 15 minutes', () => {
+    const s = series([[-5, 150], [0, 140], [60, 200], [118, 230], [125, 220]]);
+    const rows = M.mealTable([{ id: 'a', t: T0, name: 'rice', carbs: 45 }], [{ id: 'd1', t: T0 - 10 * MIN, units: 3 }], s, T0 + 3 * 60 * MIN);
+    assert.equal(rows[0].atMg, 140); assert.equal(rows[0].afterMg, 230); assert.equal(rows[0].dose, 3); assert.equal(rows[0].waitMin, 0);
+  });
+  test('meal table: two-hour number not due yet says how long to wait', () => {
+    const rows = M.mealTable([{ id: 'a', t: T0, name: 'rice', carbs: 45 }], [], series([[0, 140]]), T0 + 80 * MIN);
+    assert.equal(rows[0].afterMg, null); assert.equal(rows[0].waitMin, 40);
+  });
+  test('meal table: a dose 20 minutes away is not the meal\'s; no reading within 10 minutes is a dash', () => {
+    const rows = M.mealTable([{ id: 'a', t: T0, name: 'rice', carbs: 45 }], [{ id: 'd1', t: T0 + 20 * MIN, units: 2 }], series([[-15, 150], [120, 180]]), T0 + 3 * 60 * MIN);
+    assert.equal(rows[0].dose, null); assert.equal(rows[0].atMg, null); assert.equal(rows[0].afterMg, 180);
+  });
+  test('meal table: one dose goes to the nearest meal only; two doses on one meal add up; newest first', () => {
+    const meals = [{ id: 'a', t: T0, name: 'rice', carbs: 45 }, { id: 'b', t: T0 + 10 * MIN, name: 'juice', carbs: 15 }];
+    const rows = M.mealTable(meals, [{ id: 'd1', t: T0 + 8 * MIN, units: 2 }, { id: 'd2', t: T0 - 3 * MIN, units: 1 }, { id: 'd3', t: T0 + 2 * MIN, units: 1 }], null, T0 + 5 * 60 * MIN);
+    assert.deepEqual(rows.map((r) => [r.id, r.dose]), [['b', 2], ['a', 2]]);
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);

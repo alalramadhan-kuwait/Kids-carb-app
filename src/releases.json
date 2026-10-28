@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.38.0",
+    "date": "2026-10-28",
+    "notes": [
+      "تبويب جديد «الوجبات» في الوضع البسيط: كل وجبة مع السكر عند الأكل وبعد ساعتين، وجرعة النوفورابيد اللي انعطت معها (خلال 15 دقيقة). اليوم أو أمس أو الأسبوع."
+    ],
+    "notes_en": [
+      "New «Meals» tab in simple mode: each meal with the glucose at the meal and two hours after, and the NovoRapid given with it (within 15 minutes). Today, yesterday or the week."
+    ]
+  },
+  {
     "version": "4.37.1",
     "date": "2026-10-27",
     "notes": [

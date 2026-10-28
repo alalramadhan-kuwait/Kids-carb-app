@@ -28,6 +28,7 @@ import { MomEntry } from './pages/mom/MomEntry';
 import { Alarm } from './components/Alarm';
 import { useKeepAwake } from './lib/keepAwake';
 import { MomLog } from './pages/mom/MomLog';
+import { MomMeals } from './pages/mom/MomMeals';
 import { MomMealEntry } from './pages/mom/MomMealEntry';
 import { MomOut } from './pages/mom/MomOut';
 import { MomPrick } from './pages/mom/MomPrick';
@@ -245,7 +246,7 @@ function Shell() {
   // mom mode's pages are one fixed screen each: the document is locked so it cannot slide under the clock
   useEffect(() => { document.documentElement.classList.toggle('mom-lock', mom); if (mom) window.scrollTo(0, 0); }, [mom]);
   // mom mode's own tabs (home, log, nutrition) on its three main pages
-  const momTabs = pathname === '/mom' || pathname === '/mom/log' || pathname === '/mom/food' || pathname === '/mom/more';
+  const momTabs = pathname === '/mom' || pathname === '/mom/log' || pathname === '/mom/meals' || pathname === '/mom/food' || pathname === '/mom/more';
   // the research lab runs by itself every 12 hours (one phone per slot); it never touches doses or readings
   useLabRunner({ loading: loading || !!error, settings, events, history });
   if (loading) return <Centered><p className="text-center text-slate-500">{t('جاري التحميل…')}</p></Centered>;
@@ -286,6 +287,7 @@ function Shell() {
         <Route path="/mom/meal-entry/:id" element={<MomMealEntry />} />
         <Route path="/mom/meal-edit/:id" element={<MomMealEdit />} />
         <Route path="/mom/log" element={<MomLog />} />
+        <Route path="/mom/meals" element={<MomMeals />} />
         <Route path="/mom/more" element={<MomMore />} />
         <Route path="/mom/deleted" element={<MomDeleted />} />
         <Route path="/deleted" element={<DeletedPage />} />

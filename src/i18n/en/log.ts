@@ -108,4 +108,7 @@ export const log: Record<string, string> = {
   "اضغط المكان الذي أُعطيت فيه": "Tap where it was given",
   "تقارير الطبيب": "Doctor reports",
   "تقرير AGP بصيغة PDF للعيادة، بالإنجليزي": "AGP report as a PDF for the clinic, in English",
+  "السكر عند الأكل وبعد ساعتين · 💉 جرعة الوجبة": "Glucose at the meal and 2 h after · 💉 meal dose",
+  "الأسبوع": "Week",
+  "ما في وجبات": "No meals",
 };
