@@ -1247,6 +1247,17 @@ console.log('status page');
     assert.equal(planPushDue({ ...p, notified: { check: d.at }, dose_at: new Date(DOSE + 30 * M).toISOString() }, DOSE + 20 * M)!.kind, 'check', 'a moved dose time reminds again');
     assert.equal(planPushDue(p, DOSE + 25 * M), null, 'long past: not sent');
   });
+  test('split dose: the later part is pushed once at the time the parent chose, and not after it is recorded', async () => {
+    const S = await import('../../../supabase/functions/carb-split/split');
+    const q = { id: 'x', status: 'eaten', name: 'ناجتس', slot: 'dinner', split_units: 2, split_at: new Date(DOSE + 60 * M).toISOString(), split_done_at: null, notified: null };
+    assert.equal(S.splitsDue([q], DOSE + 59 * M).length, 0);
+    assert.equal(S.splitsDue([q], DOSE + 60 * M).length, 1);
+    assert.equal(S.splitsDue([{ ...q, notified: { split: q.split_at } }], DOSE + 61 * M).length, 0, 'sent once');
+    assert.equal(S.splitsDue([{ ...q, split_done_at: new Date(DOSE + 55 * M).toISOString() }], DOSE + 60 * M).length, 0, 'recorded already');
+    assert.equal(S.splitsDue([q], DOSE + 95 * M).length, 0, 'long past');
+    assert.equal(S.splitsDue([{ ...q, status: 'planned' }], DOSE + 60 * M).length, 0, 'not dosed yet');
+    assert.match(S.splitMessage(q, 'ar').title, /2 وحدة/); assert.match(S.splitMessage(q, 'en').title, /2 U/);
+  });
   test('plan reminders: eat time after the dose, recheck after a treatment, nothing once done', () => {
     assert.equal(planPushDue({ ...p, status: 'dosed' }, DOSE + 9 * M), null);
     assert.equal(planPushDue({ ...p, status: 'dosed' }, DOSE + 10 * M)!.kind, 'eat');

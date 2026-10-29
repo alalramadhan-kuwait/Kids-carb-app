@@ -1,6 +1,7 @@
 // Mom mode: juice for a low (her usual one, then a 15-minute countdown; the server reminds both parents), «إبرة»
 // (NovoRapid correction or Tresiba, in pen colours), where it was given (rotation with a suggestion), and the
 // sites history.
+import { doneSplit } from '../../lib/plans';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../../lib/data';
@@ -168,7 +169,9 @@ export function MomRecordDose() {
   const [sp] = useSearchParams();
   const { settings, reload, events } = useData();
   const [type, setType] = useState<'rapid' | 'long'>(sp.get('type') === 'long' ? 'long' : 'rapid');
-  const [units, setUnits] = useState(0);
+  // the later part of a split dose (?split=plan&units=n): the number she chose, and the event is linked to that meal
+  const splitPlan = sp.get('split');
+  const [units, setUnits] = useState(() => Number(sp.get('units')) || 0);
   const [at, setAt] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [cid] = useSubmitId();
@@ -187,8 +190,9 @@ export function MomRecordDose() {
         const near = (await insulinNear(type, at, type === 'long' ? 20 * 60 : 15)).filter((e) => e.client_id !== cid); // not this submission's own retry
         if (near.length) { setClash(near[0]); setBusy(false); return; }
       }
-      await saveEvent({ client_id: cid, kind: 'insulin', occurred_at: new Date(at).toISOString(), insulin_units: units, insulin_type: type, bolus_purpose: type === 'rapid' && sp.get('purpose') === 'meal' ? 'meal' : null,
-        carbs_g: null, treatment: null, note: null, activity_min: null, activity_level: null, ends_at: null, dose_calc: null, bg_mgdl: null });
+      const id = await saveEvent({ client_id: cid, kind: 'insulin', occurred_at: new Date(at).toISOString(), insulin_units: units, insulin_type: type, bolus_purpose: type === 'rapid' && sp.get('purpose') === 'meal' ? 'meal' : null,
+        carbs_g: null, treatment: null, note: splitPlan ? 'الجزء الثاني من إبرة مقسّمة' /* i18n-ok: stored note */ : null, activity_min: null, activity_level: null, ends_at: null, dose_calc: null, bg_mgdl: null });
+      if (splitPlan) await doneSplit(splitPlan, id);
       await reload();
       toast(t('تم تسجيل الإبرة ✓'));
       nav('/mom', { replace: true });

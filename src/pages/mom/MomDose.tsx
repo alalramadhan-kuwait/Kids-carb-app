@@ -7,7 +7,7 @@ import { useData } from '../../lib/data';
 import { useLiveDose } from '../../lib/useLiveDose';
 import { UnknownMealNote } from '../../components/UnknownMealNote';
 import { draftOps, useDraft } from '../../lib/mom';
-import { adoptDose, approveDose, ate, fetchPlan, logPendingMeal, planMeal, planNow, startEating, usePlans, type DoseConflict } from '../../lib/plans';
+import { adoptDose, approveDose, ate, fetchPlan, logPendingMeal, planMeal, planNow, setSplit, startEating, usePlans, type DoseConflict } from '../../lib/plans';
 import { insulinNear, logMeal, saveEvent } from '../../lib/api';
 import { useSubmitId } from '../../lib/useSubmitId';
 import { SameDose } from '../../components/SameDose';
@@ -73,6 +73,10 @@ export function MomDose() {
   const [given, setGiven] = useState<number | null>(null);
   const [reason, setReason] = useState<string | null>(null);
   const [why, setWhy] = useState(false);
+  // the dose in two parts (a fatty meal): how much now, how much later and when, all hers to fill in — the app suggests none
+  const [split, setSplitOn] = useState(false);
+  const [later, setLater] = useState<number | null>(null);
+  const [afterMin, setAfterMin] = useState<number | null>(null);
   // a warning (falling, low, a recent dose…) never stops her recording a dose she gave: she says so and enters it herself
   const [override, setOverride] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -134,7 +138,9 @@ export function MomDose() {
         nav('/mom', { replace: true });
         return;
       }
-      const dose = { given, calc: r.dose, reason: warnNote(given !== r.dose ? reason : null), purpose: live.purpose, snapshot: snapshot(), carbs: carbs!, site };
+      const splitNote = split && later ? `مقسّمة: الحين ${fmt(given)} + بعدين ${fmt(later)} بعد ${afterMin} د` : null; // i18n-ok: stored note
+      const total = given + (split ? later ?? 0 : 0);
+      const dose = { given, calc: r.dose, reason: [warnNote(total !== r.dose ? reason : null), splitNote].filter(Boolean).join(' · ') || null, purpose: live.purpose, snapshot: snapshot(), carbs: carbs!, site };
       let target = plan;
       if (!target) {
         const items = planItems(d.items, c)!;
@@ -144,6 +150,7 @@ export function MomDose() {
       const res = await approveDose(target, dose, cid, separate);
       if (res.status === 'already_dosed' || res.status === 'recent_dose') { setConflict({ dose: res.event, planId: target.id, mine: res.status === 'already_dosed' }); setBusy(false); return; }
       if (res.status !== 'ok') throw new Error(t('الوجبة ما عادت موجودة'));
+      if (split && later && afterMin) await setSplit(target.id, later, Date.now() + afterMin * 60000);
       await logPendingMeal(target.id, products, s); // in the Log now, as "how much did she eat?" not answered yet
       if (!plan) draftOps.clear();
       await reload();
@@ -207,15 +214,17 @@ export function MomDose() {
       <p className="mt-auto text-center text-sm text-slate-500">{t('كلّمي بابا قبل أي إبرة')}</p>
     </MomPage>
   );
-  const differs = !override && given !== null && given !== r.dose;
+  const splitOk = !split || (!!later && later > 0 && !!afterMin);
+  const total = given === null ? null : given + (split ? later ?? 0 : 0);
+  const differs = !override && total !== null && total !== r.dose;
   const none = !override && !correction && given === 0 && r.dose > 0; // she chose no dose for this food: the food is saved on its own
-  const reasons = given !== null && given > r.dose ? REASONS.more : REASONS.less;
+  const reasons = total !== null && total > r.dose ? REASONS.more : REASONS.less;
   const leftNote = leftOut.length > 0 && !correction && <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ <bdi>{leftOut.join(' · ')}</bdi> {t('ما ينحسب بالإبرة · كلّمي بابا')}</p>;
   return (
     <MomPage compact title={correction ? t('إبرة تصحيح') : t('قبل الأكل')} back={backTo}
       foot={<>{differs && !reason && <p className="text-center text-[14px] font-bold text-near">{t('اختاري السبب')}</p>}
         {none ? <Big md disabled={busy || !reason} onClick={() => eatWithout({ at: eatAt, why: reason! })}>🍽️ {t('سجّلي الأكل بدون إبرة')}</Big>
-          : <Big md disabled={busy || !given || given <= 0 || (differs && !reason)} onClick={() => save()}>💉 {t('سجّلي الإبرة')}</Big>}</>}>
+          : <Big md disabled={busy || !given || given <= 0 || (differs && !reason) || !splitOk} onClick={() => save()}>💉 {t('سجّلي الإبرة')}</Big>}</>}>
       {leftNote}
       {override && block && <p className="rounded-2xl bg-over-soft px-4 py-3 text-center text-[17px] font-bold text-over">⚠️ {t(STOP[block] ?? STOP.recent_dose)} · {t('سجّلي الإبرة اللي عطيتيها')}</p>}
       <UnknownMealNote meal={live.unknownMeal} big />
@@ -246,12 +255,18 @@ export function MomDose() {
         ? <><p className="text-center text-[18px]">{t('ما تحتاج إبرة')}</p><Big tone="soft" disabled={busy} onClick={() => eatWithout()}>{t('سجّلي الأكل')}</Big></>
         : (
           <>
-            <div className="text-center text-[15px] font-bold">{t('كم عطيتيها؟')}</div>
-            <div className="flex items-center justify-center gap-6">
-              <button aria-label="+" className="grid h-12 w-12 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => { setGiven(Math.round(((given ?? 0) + step) * 10) / 10); setReason(null); }}>+</button>
-              <span className="num w-16 text-center text-[38px] font-extrabold leading-none">{given === null ? '—' : fmt(given)}</span>
-              <button aria-label="−" className="grid h-12 w-12 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => { setGiven(Math.max(0, Math.round(((given ?? 0) - step) * 10) / 10)); setReason(null); }}>−</button>
-            </div>
+            <div className="text-center text-[15px] font-bold">{split ? t('الحين') : t('كم عطيتيها؟')}</div>
+            <Stepper value={given} step={step} onChange={(v) => { setGiven(v); setReason(null); }} />
+            {!correction && !none && given !== null && given > 0 && (split ? (
+              <div className="space-y-2 rounded-3xl border border-brand/30 bg-white px-3 py-2.5">
+                <div className="text-center text-[15px] font-bold">{t('بعدين')}</div>
+                <Stepper value={later} step={step} onChange={(v) => { setLater(v); setReason(null); }} />
+                <div className="text-center text-[14px] font-bold">{t('بعد كم؟')}</div>
+                <div className="grid grid-cols-4 gap-1.5">{[30, 60, 90, 120].map((m) => <button key={m} onClick={() => setAfterMin(m)} className={cx('min-h-[40px] rounded-full text-[14px]', afterMin === m ? 'bg-brand font-bold text-white' : 'border border-slate-200 bg-white')}>{m < 60 ? t('{m} د', { m }) : m === 60 ? t('ساعة') : m === 120 ? t('ساعتين') : t('ساعة ونص')}</button>)}</div>
+                <div className="text-center text-[14px] text-slate-600">{t('المجموع')} <b className="num">{fmt(total ?? 0)}</b> {t('وحدة')}{afterMin ? ` · ${t('الجزء الثاني الساعة {c}', { c: clock(Date.now() + afterMin * 60000) })}` : ''}</div>
+                <button className="mx-auto block min-h-[36px] text-[13px] text-slate-500 underline" onClick={() => { setSplitOn(false); setLater(null); setAfterMin(null); setReason(null); }}>{t('بدون تقسيم')}</button>
+              </div>
+            ) : <button className="mx-auto block min-h-[40px] rounded-full px-4 text-[14px] font-bold text-brand underline" onClick={() => { setSplitOn(true); setReason(null); }}>✂️ {t('أقسّم الإبرة على مرتين')}</button>)}
             {!none && <SiteRow type="rapid" site={site} suggest={suggest} />}
             {none && <><div className="text-center text-[15px] font-bold">{t('متى أكلت؟')}</div><TimePicker compact value={eatAt} onChange={setEatAt} /></>}
             {past && then && (
@@ -411,5 +426,16 @@ export function MomPast() {
       </>}
       <p className="text-center text-[12px] text-slate-400">{t('للأكل اللي فات: نسجّل اللي صار بس، بدون حسبة إبرة')}</p>
     </MomPage>
+  );
+}
+
+/** + and − around the number (a pen step each). Starts empty (—) until she taps. */
+function Stepper({ value, step, onChange }: { value: number | null; step: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex items-center justify-center gap-6">
+      <button aria-label="+" className="grid h-12 w-12 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => onChange(Math.round(((value ?? 0) + step) * 10) / 10)}>+</button>
+      <span className="num w-16 text-center text-[38px] font-extrabold leading-none">{value === null ? '—' : fmt(value)}</span>
+      <button aria-label="−" className="grid h-12 w-12 place-items-center rounded-full bg-brand-soft text-3xl font-bold text-brand" onClick={() => onChange(Math.max(0, Math.round(((value ?? 0) - step) * 10) / 10))}>−</button>
+    </div>
   );
 }

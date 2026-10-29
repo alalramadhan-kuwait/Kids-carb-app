@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.39.0",
+    "date": "2026-10-29",
+    "notes": [
+      "«قبل الأكل»: تقدرين تقسّمين الإبرة على مرتين. تكتبين كم الحين وكم بعدين ومتى، والتطبيق ما يقترح أرقام.",
+      "يطلع لكم تذكير وقت الجزء الثاني، وكرت بالرئيسية تسجلونه منه بعد ما تعطونها."
+    ],
+    "notes_en": [
+      "Before eating: you can split the dose in two. You enter how much now, how much later and when; the app suggests no numbers.",
+      "A reminder arrives when the second part is due, with a card on Home to record it after giving it."
+    ]
+  },
+  {
     "version": "4.38.3",
     "date": "2026-10-28",
     "notes": [

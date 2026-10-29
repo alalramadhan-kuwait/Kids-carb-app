@@ -54,6 +54,19 @@ export function usePlans() {
 }
 
 const uuid = () => crypto.randomUUID();
+
+/** A split dose: the later part the parent chose (units and when). Shown on both phones and pushed when due. */
+export async function setSplit(planId: string, units: number, at: number) {
+  await patch(planId, { split_units: units, split_at: new Date(at).toISOString(), split_event_id: null, split_done_at: null });
+}
+/** The later part was recorded (its event) or she chose not to give it (null). */
+export async function doneSplit(planId: string, eventId: string | null) {
+  await patch(planId, { split_event_id: eventId, split_done_at: new Date().toISOString() });
+}
+/** Later parts still to give: from 30 minutes before they are due until 3 hours after. */
+export const splitsDue = (plans: PlannedMeal[], now = Date.now()) =>
+  plans.filter((p) => p.split_at && p.split_units && !p.split_done_at && (p.status === 'dosed' || p.status === 'eaten')
+    && now >= Date.parse(p.split_at) - 30 * 60000 && now <= Date.parse(p.split_at) + 3 * 3600000);
 async function patch(id: string, p: Partial<PlannedMeal>) {
   const { error } = await supabase.from('planned_meals').update({ ...p, updated_at: new Date().toISOString() }).eq('id', id);
   if (error) throw new Error(error.message);

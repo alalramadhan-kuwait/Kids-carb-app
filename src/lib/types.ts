@@ -160,6 +160,8 @@ export interface PlannedMeal {
   calc_units?: number | null; given_units?: number | null; dose_reason?: string | null; dose_snapshot?: DoseSnapshot | null;
   eating_at?: string | null; part_eaten?: number | null; part_auto?: boolean; carbs_planned?: number | null; carbs_eaten?: number | null;
   review?: Record<string, unknown> | null; review_note?: string | null; reviewed_at?: string | null; reviewed_by?: string | null;
+  /** a meal dose given in two parts: the later part, units and time as the parent chose them (never the app) */
+  split_units?: number | null; split_at?: string | null; split_event_id?: string | null; split_done_at?: string | null;
 }
 /** Everything the doctor's-settings calculation used at approval, kept with the plan. */
 export interface DoseSnapshot extends DoseCalc { at: string; level: number | null; reading_at: string | null; dia_min: number | null; peak_min: number | null; pen_step: number }

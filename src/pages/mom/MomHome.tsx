@@ -16,10 +16,11 @@ import { levelFromLibre, trendFrom } from '../../engine/trend';
 import { effectiveRange } from '../../lib/glucose';
 import { bigGraphScale, visibleMax, curvePoints, layanFace, moodOf, nextRapidAllowed, type LayanFace, type Mood } from '../../engine/mom';
 import { useAlerts } from '../../hooks/useAlerts';
-import { usePlans } from '../../lib/plans';
+import { doneSplit, splitsDue, usePlans } from '../../lib/plans';
 import { draftOps, useSensor } from '../../lib/mom';
 import { phase } from '../../engine/mealPlan';
 import { cx } from '../../components/ui';
+import { fmt } from '../../lib/carbs';
 import { SameMealLink, useRecentSame } from '../../components/SameMeal';
 import { dir, isEn, locale, t, tMaybe } from '../../i18n';
 import okPng from '../../assets/layan/layan-ok.png';
@@ -228,6 +229,18 @@ export function MomHome() {
           <span className="flex-1">{sensorSoon ? t('الحساس ينتهي {d} {c}', { d: dayWord(sensor.life.end, now), c: clock(sensor.life.end) }) : t('الحساس بأي ذراع؟')}</span><span>›</span>
         </Link>
       )}
+
+      {/* a split dose: the later part she chose, until it is recorded or she says she will not give it */}
+      {splitsDue(plans, now).map((p) => { const at = Date.parse(p.split_at!); return (
+        <div key={p.id} className={cx('flex min-h-[44px] shrink-0 items-center gap-2 rounded-2xl px-4 py-1.5', now >= at ? 'bg-near-soft text-near' : 'bg-white text-brand')}>
+          <span className="text-xl">💉</span>
+          <Link to={`/mom/record?type=rapid&purpose=meal&units=${p.split_units}&split=${p.id}`} className="flex-1 text-[15px] font-bold leading-snug">
+            {t('الجزء الثاني: {u} وحدة', { u: fmt(Number(p.split_units)) })} · {now >= at ? t('الحين') : t('الساعة {c}', { c: clock(at) })}
+            <span className="block text-[12px] font-normal opacity-80"><bdi>{p.name}</bdi> · {t('اضغطي بعد ما تعطينها')}</span>
+          </Link>
+          <button className="min-h-[40px] shrink-0 px-1 text-[12px] underline opacity-80" onClick={() => { if (window.confirm(t('ما بتعطينها الجزء الثاني؟'))) void doneSplit(p.id, null); }}>{t('ما بعطيها')}</button>
+        </div>
+      ); })}
 
       {juice && (
         <Link to={`/mom/entry/${juice.id}`} className="flex min-h-[44px] shrink-0 items-center gap-3 rounded-2xl bg-near-soft px-4 py-1.5 text-near">
