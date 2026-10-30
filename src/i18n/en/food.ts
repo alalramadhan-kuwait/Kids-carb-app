@@ -1780,4 +1780,6 @@ export const food: Record<string, string> = {
   'ما أخذت': 'No',
   'للأكل اللي فات: نسجّل اللي صار بس، بدون حسبة إبرة': 'For a past meal: only what happened is recorded, no dose is worked out',
   'أكلت قبل · نسينا نسجّلها': 'Already ate · we forgot to log it',
+  'أضيفيه': 'Add it',
+  'صورة الملصق تعبّي الأرقام (اختياري)': 'A photo of the label fills in the numbers (optional)',
 };

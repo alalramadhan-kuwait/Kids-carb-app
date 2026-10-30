@@ -718,12 +718,13 @@ export function MomNew() {
       setUnsure(!l.is_label || l.uncertain.includes('carbs'));
     } catch { setUnsure(true); } finally { setReading(false); }
   };
-  const ready = !!file && !!name.trim() && r.total !== null && !r.problem && !unsure;
+  // the photo only helps fill the numbers: she can type them from the label without one
+  const ready = !!name.trim() && r.total !== null && !r.problem && !unsure;
   const add = async () => {
     if (!ready) return;
     setBusy(true);
     try {
-      const photo = await uploadPhoto(file!, 'products');
+      const photo = file ? await uploadPhoto(file, 'products') : null;
       const carbs = num(carbsText)!, amount = num(amountText) ?? 1;
       const { productId, portionId } = await saveMomLabelFood({ name, photo, basis, carbs });
       draftOps.add(per100 ? { kind: 'product', id: productId, portion_id: null, unit: 'g', amount }
@@ -737,16 +738,24 @@ export function MomNew() {
   return (
     <MomPage compact title={t('منتج جديد')} back="/mom/add" foot={<>
       {r.total !== null && !r.problem && <div className="flex items-baseline justify-between px-1"><span className="text-[15px] text-slate-500">{t('الكارب')} <SourceTag s="mom_label" /></span><b className="num text-[26px] leading-none">{fmt(r.total)} {t('غ')}</b></div>}
-      <Big md disabled={busy || !ready} onClick={add}>✓ {t('نفس الملصق · أضيفيه')}</Big>
+      <Big md disabled={busy || !ready} onClick={add}>✓ {file ? t('نفس الملصق · أضيفيه') : t('أضيفيه')}</Big>
     </>}>
       {/* the label: a photo now or one already on the phone; its numbers fill the boxes below */}
-      <button onClick={() => camera.current?.click()} className="grid min-h-[120px] w-full place-items-center rounded-3xl border-2 border-dashed border-slate-300 bg-white p-2 text-center">
-        {file ? <img src={preview!} alt="" className="max-h-40 rounded-2xl object-contain" /> : <span><span className="block text-5xl">🏷️</span><b className="text-[18px]">{t('صوّري جدول القيم')}</b></span>}
-      </button>
-      <div className="flex justify-center gap-4 text-[15px] font-bold text-brand">
-        <button className="min-h-[40px]" onClick={() => camera.current?.click()}>📷 {file ? t('صوّري غيرها') : t('صوّري')}</button>
-        <button className="min-h-[40px]" onClick={() => input.current?.click()}>🖼️ {t('من الصور')}</button>
-      </div>
+      {file ? <>
+        <button onClick={() => camera.current?.click()} className="grid w-full place-items-center rounded-3xl border-2 border-dashed border-slate-300 bg-white p-2"><img src={preview!} alt="" className="max-h-40 rounded-2xl object-contain" /></button>
+        <div className="flex justify-center gap-4 text-[15px] font-bold text-brand">
+          <button className="min-h-[40px]" onClick={() => camera.current?.click()}>📷 {t('صوّري غيرها')}</button>
+          <button className="min-h-[40px]" onClick={() => input.current?.click()}>🖼️ {t('من الصور')}</button>
+        </div>
+      </> : (
+        // optional: a photo of the label fills the numbers; without it she types them
+        <div className="flex items-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white px-3 py-1.5">
+          <span className="text-2xl">🏷️</span>
+          <span className="min-w-0 flex-1 text-[14px] leading-snug text-slate-600">{t('صورة الملصق تعبّي الأرقام (اختياري)')}</span>
+          <button className="min-h-[40px] shrink-0 text-[15px] font-bold text-brand" onClick={() => camera.current?.click()}>📷 {t('صوّري')}</button>
+          <button className="min-h-[40px] shrink-0 text-[15px] font-bold text-brand" onClick={() => input.current?.click()}>🖼️</button>
+        </div>
+      )}
       <input ref={camera} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void pick(f); e.target.value = ''; }} />
       <input ref={input} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void pick(f); e.target.value = ''; }} />
       {reading && <p className="animate-pulse text-center text-[15px] font-bold text-slate-500">{t('يقرأ الملصق…')}</p>}
@@ -767,7 +776,7 @@ export function MomNew() {
           {sizes.serving ? <button onClick={() => setAmountText(String(sizes.serving))} className="min-h-[40px] rounded-full bg-brand-soft px-3 text-[14px] font-bold text-brand">{t('حصة الملصق: {n}', { n: `${fmt(sizes.serving)} ${basis === 'per100ml' ? t('مل') : t('غ')}` })}</button> : null}
           {sizes.pack ? <button onClick={() => setAmountText(String(sizes.pack))} className="min-h-[40px] rounded-full bg-brand-soft px-3 text-[14px] font-bold text-brand">{t('العلبة كلها: {n}', { n: `${fmt(sizes.pack)} ${basis === 'per100ml' ? t('مل') : t('غ')}` })}</button> : null}
         </div>}
-        {per100 && file && !reading && !amountText && carbsText && <p className="text-[14px] font-bold text-near">{basis === 'per100ml' ? t('الرقم لكل 100 مل · كم شربت؟') : t('الرقم لكل 100 غ · اوزني اللي بتاكله')}</p>}
+        {per100 && !reading && !amountText && carbsText && <p className="text-[14px] font-bold text-near">{basis === 'per100ml' ? t('الرقم لكل 100 مل · كم شربت؟') : t('الرقم لكل 100 غ · اوزني اللي بتاكله')}</p>}
         {unsure && file && !reading && <p className="text-[14px] font-bold text-near">{carbsText ? t('تأكدي من رقم الكارب مع الملصق') : t('ما قدرت أقرأ الكارب · اكتبيه من الملصق')}</p>}
         {r.problem === 'carbs' && carbsText && <p className="text-[14px] font-bold text-near">{per100 ? t('رقم الكارب لكل 100 ما يزيد عن 100') : t('رقم الكارب كبير، تأكدي منه')}</p>}
         {r.problem === 'too_much' && <p className="text-[14px] font-bold text-near">{t('المجموع كبير جدًا، تأكدي من الأرقام')}</p>}

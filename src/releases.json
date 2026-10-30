@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.39.1",
+    "date": "2026-10-30",
+    "notes": [
+      "«منتج جديد»: الصورة صارت اختيارية. تقدرين تكتبين الاسم والكارب من الملصق وتضيفينه على طول."
+    ],
+    "notes_en": [
+      "New product: the photo is now optional. Type the name and the label's carbs and add it straight away."
+    ]
+  },
+  {
     "version": "4.39.0",
     "date": "2026-10-29",
     "notes": [
