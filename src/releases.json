@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.39.2",
+    "date": "2026-10-31",
+    "notes": [
+      "البحث صار يلقى كل المنتجات. قبل كان أكثر من 600 منتج ما يوصل للتلفون، منها الروب والخبز وكل الأسماء العربية.",
+      "كل منتج صار له اسم عربي وإنجليزي، فتلقينه بأي لغة."
+    ],
+    "notes_en": [
+      "Search now finds every product. Over 600 products, including yoghurt, bread and every Arabic name, were not reaching the phone.",
+      "Every product now has an Arabic and an English name, so it is found in either language."
+    ]
+  },
+  {
     "version": "4.39.1",
     "date": "2026-10-30",
     "notes": [

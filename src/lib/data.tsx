@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { supabase } from './supabase';
+import { selectAll, supabase } from './supabase';
 import { computeMeal } from './carbs';
 import { candidatesOf, type Candidate } from './suggest';
 import { t } from '../i18n';
@@ -74,7 +74,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const reload = useCallback(async () => {
     const q = (t: string) => supabase.from(t).select('*');
     const since = new Date(Date.now() - 60 * 86400000).toISOString();
-    const catalogue = Promise.all([q('products').order('name'), q('recipes').order('created_at'), q('recipe_ingredients').order('sort')]).then(([p, r, i]) => {
+    const catalogue = Promise.all([selectAll('products', 'name'), selectAll('recipes', 'created_at'), selectAll('recipe_ingredients', 'sort')]).then(([p, r, i]) => {
       const err = [p, r, i].find((x) => x.error)?.error;
       if (err) return err.message;
       const c: Catalogue = { products: (p.data ?? []).map(fixProduct), recipes: (r.data ?? []).map((x: any) => ({ ...x, saved_total_carbs: num(x.saved_total_carbs) })), ings: (i.data ?? []).map(fixIng) };

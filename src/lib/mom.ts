@@ -1,19 +1,22 @@
 // Mom mode data: portions (household measures), saved meals, the meal being built (kept on the phone until it is
 // saved, so going back and forth between pages never loses it), and the simple-mode switch.
 import { useEffect, useState } from 'react';
-import { supabase } from './supabase';
+import { selectAll, supabase } from './supabase';
 import { addToDraft, withCompared, type FoodRef, type MomItem } from '../engine/mom';
 import type { ReviewItem } from './repeatMeal';
 import type { InjectionSite, Portion, SavedMeal } from './types';
 import { useData } from './data';
 import { sensorLife } from '../engine/status';
 
-function liveTable<T>(table: string, order: string) {
+/** A new product is searched by its Arabic and English names too: the typed name goes in the column of its language. */
+const bothNames = (name: string) => (/[\u0600-\u06ff]/.test(name) ? { name_ar: name.trim() } : { name_en: name.trim() }); // i18n-ok: regex
+
+function liveTable<T>(table: string, order: string, tie = 'id') {
   let cache: T[] | null = null;
   const subs = new Set<(l: T[]) => void>();
   let channel: ReturnType<typeof supabase.channel> | null = null;
   const load = async () => {
-    const { data } = await supabase.from(table).select('*').order(order);
+    const { data } = await selectAll<T>(table, order, tie);
     cache = (data ?? []) as T[];
     subs.forEach((f) => f(cache!));
   };
@@ -32,7 +35,7 @@ function liveTable<T>(table: string, order: string) {
 
 const portionsT = liveTable<Portion>('portions', 'sort');
 const mealsT = liveTable<SavedMeal>('saved_meals', 'sort');
-const sensorsT = liveTable<{ sn: string; started_at: string; days: number | null; site: InjectionSite | null }>('sensors', 'started_at');
+const sensorsT = liveTable<{ sn: string; started_at: string; days: number | null; site: InjectionSite | null }>('sensors', 'started_at', 'sn');
 
 /** The sensor she wears now (from LibreLinkUp): when it ends, and where it is (that site gets no injections). */
 export function useSensor() {
@@ -66,7 +69,7 @@ export async function savePortion(p: Omit<Portion, 'id'> & { id?: string }) {
  *  carbs for one piece (as written on the label), and one portion «حبة», so it counts like any food on the plate and
  *  is found by name next time (never entered twice). Dad can check it against the photo. */
 export async function saveLabelFood(f: { name: string; carbs: number; photo: string; note?: string }): Promise<{ productId: string; portionId: string }> {
-  const prod: { id: string } = await ok<any>(supabase.from('products').insert({ name: f.name.trim(), brand: null, category: 'أخرى', kind: 'commercial', image_path: f.photo, unit: 'g', // i18n-ok: stored value
+  const prod: { id: string } = await ok<any>(supabase.from('products').insert({ name: f.name.trim(), ...bothNames(f.name), brand: null, category: 'أخرى', kind: 'commercial', image_path: f.photo, unit: 'g', // i18n-ok: stored value
     per_item: true, carbs_per_100: f.carbs, approved: true, available: true, label_basis: 'as_sold',
     notes: f.note ?? `من ماما: الكارب من الملصق (${f.carbs} غ للحبة) · بابا يراجع الصورة` }).select('id').single()); // i18n-ok: stored note
   const portion: { id: string } = await ok<any>(supabase.from('portions').insert({ product_id: prod.id, recipe_id: null, label: 'حبة', amount: 100, photo_path: null, sort: 0 }).select('id').single()); // i18n-ok: stored value
@@ -78,7 +81,7 @@ export async function saveLabelFood(f: { name: string; carbs: number; photo: str
 export async function saveMomLabelFood(f: { name: string; photo: string | null; basis: import('../engine/labelMath').LabelBasis; carbs: number }): Promise<{ productId: string; portionId: string | null }> {
   const per100 = f.basis === 'per100g' || f.basis === 'per100ml';
   const word = f.basis === 'per100g' ? 'لكل 100 غ' : f.basis === 'per100ml' ? 'لكل 100 مل' : f.basis === 'serving' ? 'للحصة' : 'للحبة'; // i18n-ok: stored note
-  const prod: { id: string } = await ok<any>(supabase.from('products').insert({ name: f.name.trim(), brand: null, category: 'أخرى', kind: 'commercial', image_path: f.photo, // i18n-ok: stored value
+  const prod: { id: string } = await ok<any>(supabase.from('products').insert({ name: f.name.trim(), ...bothNames(f.name), brand: null, category: 'أخرى', kind: 'commercial', image_path: f.photo, // i18n-ok: stored value
     unit: f.basis === 'per100ml' ? 'ml' : 'g', per_item: !per100, carbs_per_100: f.carbs, approved: true, available: true, label_basis: 'as_sold',
     notes: `من ماما: الكارب من الملصق (${f.carbs} غ ${word})${f.photo ? '' : ' · بدون صورة للملصق'}` }).select('id').single()); // i18n-ok: stored note
   let portionId: string | null = null;

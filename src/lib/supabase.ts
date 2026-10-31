@@ -9,6 +9,19 @@ export const openedFromRecovery = typeof location !== 'undefined' && /type=recov
 /** Everything this app owns lives in the `carb` schema; nothing here touches `public`. */
 export const supabase = createClient(url, key, { db: { schema: 'carb' }, auth: { persistSession: true } });
 
+/** Every row of a table. The server hands out at most 1000 rows per request, so a longer list (the products passed
+ *  1000 in Oct 2026, and everything after «Purple Mi» by name silently never reached the phone) is read page by page.
+ *  Ordered by `order`, then by a unique column (`tie`), so a page boundary never skips or repeats a row. */
+export async function selectAll<T = any>(table: string, order: string, tie = 'id'): Promise<{ data: T[] | null; error: { message: string } | null }> {
+  const PAGE = 1000, out: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase.from(table).select('*').order(order).order(tie).range(from, from + PAGE - 1);
+    if (error) return { data: null, error };
+    out.push(...((data ?? []) as T[]));
+    if (!data || data.length < PAGE) return { data: out, error: null };
+  }
+}
+
 /** A stored photo, or a picture link as given (e.g. a maker's product image from an imported list). */
 export const photoUrl = (path: string | null | undefined) =>
   !path ? null : /^https:\/\//.test(path) ? path : path.startsWith('app:') ? import.meta.env.BASE_URL + path.slice(4) : supabase.storage.from('carb-photos').getPublicUrl(path).data.publicUrl;
