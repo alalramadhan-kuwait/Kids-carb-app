@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.41.1",
+    "date": "2026-11-03",
+    "notes": [
+      "«أرقام الطبيب» وتقرير الزيارة: صارت الأسماء المعروفة ICR (غ كارب لكل وحدة) و ISF (كم ينزل السكر لكل وحدة) و Target."
+    ],
+    "notes_en": [
+      "Doctor's numbers and the visit report now use the common names: ICR (g carbs per unit), ISF (mmol/L per unit) and Target."
+    ]
+  },
+  {
     "version": "4.41.0",
     "date": "2026-11-03",
     "notes": [

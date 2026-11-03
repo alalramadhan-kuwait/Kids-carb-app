@@ -286,7 +286,7 @@ function Cover({ m, short, night, obs }: { m: VisitModels; short: boolean; night
       <section className="rounded-xl border border-slate-200 p-3">
         <h2 className="mb-1 font-bold">{t('أرقام الطبيب المستخدمة الآن')}</h2>
         <div className="grid grid-cols-3 gap-x-3 text-sm">
-          <div className="py-1 text-xs text-slate-500">{t('من الساعة')}</div><div className="py-1 text-xs text-slate-500">{t('غ لكل وحدة')}</div><div className="py-1 text-xs text-slate-500">{t('التصحيح ({u} لكل وحدة)', { u })}</div>
+          <div className="py-1 text-xs text-slate-500">{t('من الساعة')}</div><div className="py-1 text-xs text-slate-500">{t('ICR · غ لكل وحدة')}</div><div className="py-1 text-xs text-slate-500">{t('ISF ({u} لكل وحدة)', { u })}</div>
           {(s.ratios ?? []).map((r) => [
             <div key={r.from + 'a'} className="num border-t border-slate-100 py-1 font-bold" dir="ltr">{r.from}</div>,
             <div key={r.from + 'b'} className="num border-t border-slate-100 py-1 font-bold">{r.cr}</div>,

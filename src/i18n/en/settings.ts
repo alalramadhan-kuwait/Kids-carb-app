@@ -396,4 +396,10 @@ export const settings: Record<string, string> = {
   'الصقوا مفتاح Anthropic (يبدأ بـ sk-ant-). ينحفظ بأمان في قاعدة البيانات ولا يظهر مرة ثانية.': 'Paste the Anthropic key (starts with sk-ant-). It is stored safely in the database and never shown again.',
   'يتأكد…': 'Checking…',
   'احفظ المفتاح': 'Save key',
+  "ICR · غ لكل وحدة": "ICR · g per unit",
+  "ISF · {unit} لكل وحدة": "ISF · {unit} per unit",
+  "ISF ({u} لكل وحدة)": "ISF ({u} per unit)",
+  "الهدف (Target): من ({unit})": "Target: from ({unit})",
+  "خطة الطبيب الآن (من {from}): ICR {cr} غ لكل وحدة · ISF {isf} {unit} لكل وحدة": "Doctor's plan now (from {from}): ICR {cr} g per unit · ISF {isf} {unit} per unit",
+  "من {from}: ICR {cr} غ لكل وحدة · ISF {isf} {unit} لكل وحدة": "From {from}: ICR {cr} g per unit · ISF {isf} {unit} per unit",
 };

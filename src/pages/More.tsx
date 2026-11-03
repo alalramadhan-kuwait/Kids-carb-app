@@ -248,13 +248,13 @@ export function SettingsPage({ part = 'food' }: { part?: SettingsPart }) {
           <Alert tone="info">{t('اكتبوها كما في خطة الطبيب بالضبط.')}</Alert>
           {ratios.length > 0 && (
             <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.5rem] gap-2 text-xs text-slate-500">
-              <span>{t('من الساعة')}</span><span>{t('غ لكل وحدة')}</span><span>{t('{unit} لكل وحدة', { unit: unitLabel(s.glucose_unit) })}</span><span />
+              <span>{t('من الساعة')}</span><span>{t('ICR · غ لكل وحدة')}</span><span>{t('ISF · {unit} لكل وحدة', { unit: unitLabel(s.glucose_unit) })}</span><span />
             </div>
           )}
           {ratios.map((r, i) => (
             <div key={i} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_2.5rem] items-end gap-2">
               <TimeField aria-label={t('من الساعة')} className={inputCls} value={r.from} onChange={(e) => setR(i, { from: e.target.value })} />
-              <NumInput aria-label={t('غ لكل وحدة')} value={r.cr} onChange={(v) => setR(i, { cr: v ?? 0 })} />
+              <NumInput aria-label={t('ICR · غ لكل وحدة')} value={r.cr} onChange={(v) => setR(i, { cr: v ?? 0 })} />
               <NumInput aria-label={t('معامل التصحيح')} value={Number(formatGlucose(r.isf, s.glucose_unit))} onChange={(v) => setR(i, { isf: v === null ? 0 : toMgdl(v, s.glucose_unit) })} />
               <button aria-label={t('حذف')} className="h-11 rounded-xl bg-slate-100 text-slate-500" onClick={() => setS({ ...s, ratios: ratios.filter((_, n) => n !== i) })}>✕</button>
             </div>
@@ -264,7 +264,7 @@ export function SettingsPage({ part = 'food' }: { part?: SettingsPart }) {
           {ratioBad && <p className="text-sm font-bold text-brand">{ratioBad}</p>}
 
           <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
-            <Field label={t('هدف الجرعة: من ({unit})', { unit: unitLabel(s.glucose_unit) })}>
+            <Field label={t('الهدف (Target): من ({unit})', { unit: unitLabel(s.glucose_unit) })}>
               <NumInput value={s.target_mgdl === null ? null : Number(formatGlucose(s.target_mgdl, s.glucose_unit))} onChange={(v) => setS({ ...s, target_mgdl: v === null ? null : toMgdl(v, s.glucose_unit) })} />
             </Field>
             <Field label={t('إلى')}>
