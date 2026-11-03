@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.41.2",
+    "date": "2026-11-03",
+    "notes": [
+      "أسئلة البحث في السجل صارت سطر واحد بلون مختلف (🔬)، تفتحونه لما تبون وتسكرونه بـ «إخفاء»."
+    ],
+    "notes_en": [
+      "Research questions in the Log are now one slim teal line (🔬): open it when you want, close it with «Hide»."
+    ]
+  },
+  {
     "version": "4.41.1",
     "date": "2026-11-03",
     "notes": [

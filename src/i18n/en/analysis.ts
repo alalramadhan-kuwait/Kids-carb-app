@@ -1142,4 +1142,8 @@ export const analysis: Record<string, string> = {
   'نفس القراءة': 'Same reading',
   '{u} خلال {d}': '{u} in {d}',
   '{d} بلا قراءات · بدون متوسط': '{d} missing · no average',
+  "{n} أسئلة للبحث": "{n} research questions",
+  "سؤال للبحث": "1 research question",
+  "للبحث": "Research",
+  "{a} من {b}": "{a} of {b}",
 };

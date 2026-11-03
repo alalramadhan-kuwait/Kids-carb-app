@@ -4,7 +4,7 @@ import { answerQuestion, skipQuestion, useQuestions, type OpenQuestion } from '.
 import { GLUROO_SENDERS } from '../lib/gluroo';
 import { formatGlucose, type GlucoseUnit } from '../lib/glucose';
 import { fmt } from '../lib/carbs';
-import { Btn, Card, inputCls, toast } from './ui';
+import { Btn, cx, inputCls, toast } from './ui';
 import { locale, t, tMaybe, tr } from '../i18n';
 
 const when = (ms: number) => new Date(ms).toLocaleString(locale(), { weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true, numberingSystem: 'latn' } as Intl.DateTimeFormatOptions);
@@ -21,15 +21,26 @@ export const answerText = (choice: string, dir?: 'rise' | 'fall') => ANSWERS[dir
 
 /**
  * سؤال سريع: only what the data cannot tell (an unexplained movement, or two entries that may be one plate).
- * At most 3 a day, chosen by how much the answer would help; skipping is always fine.
+ * At most 3 a day, chosen by how much the answer would help; skipping is always fine. Always folded to one teal line
+ * («🔬 n research questions»): it opens in place on a tap and folds again with «Hide».
  */
 export function ResearchQuestion({ unit }: { unit: GlucoseUnit }) {
   const { me } = useData();
   const { list, reload } = useQuestions();
   const [busy, setBusy] = useState(false);
   const [other, setOther] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
   const cur = list[0];
   if (!cur) return null;
+  const TEAL = 'rounded-2xl border border-teal-500/70 bg-teal-500/10';
+  if (!open) return (
+    <button onClick={() => setOpen(true)} className={cx(TEAL, 'flex min-h-[48px] w-full items-center gap-2.5 px-3.5 text-start text-sm font-bold text-teal-500')}>
+      <span aria-hidden>🔬</span>
+      <span className="flex-1">{list.length > 1 ? t('{n} أسئلة للبحث', { n: list.length }) : t('سؤال للبحث')}</span>
+      <span className="num rounded-full bg-teal-500 px-2 text-xs font-extrabold text-white">{list.length}</span>
+      <span aria-hidden>›</span>
+    </button>
+  );
   const send = async (choice: string, note = '') => {
     setBusy(true);
     try { await answerQuestion(cur.q, choice, note, me); toast(t('شكرًا، سُجّل للبحث ✓')); setOther(null); await reload(); }
@@ -39,16 +50,16 @@ export function ResearchQuestion({ unit }: { unit: GlucoseUnit }) {
   const choices = cur.event ? (cur.event.direction === 'rise' ? RISE : FALL) : ['same', 'separate'];
 
   return (
-    <Card className="space-y-3">
+    <div className={cx(TEAL, 'space-y-3 p-3.5')}>
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-bold">{t('سؤال سريع للبحث')}</h2>
-        {list.length > 1 && <span className="text-xs text-slate-500">{t('{n} أسئلة', { n: list.length })}</span>}
+        <h2 className="font-bold text-teal-500">🔬 {t('للبحث')}{list.length > 1 ? ` · ${t('{a} من {b}', { a: 1, b: list.length })}` : ''}</h2>
+        <button className="min-h-[36px] text-sm font-bold text-teal-500" onClick={() => setOpen(false)}>⌃ {t('إخفاء')}</button>
       </div>
       <Body item={cur} unit={unit} />
       {other === null ? (
         <>
           <div className="grid grid-cols-2 gap-2">
-            {choices.map((k) => <Btn key={k} kind="ghost" disabled={busy} onClick={() => send(choiceOf(k))} className="!h-auto min-h-[48px] py-2 text-sm">{ANSWERS[k]}</Btn>)}
+            {choices.map((k) => <Btn key={k} kind="ghost" disabled={busy} onClick={() => send(choiceOf(k))} className="!h-auto min-h-[44px] !border-teal-500/40 py-1.5 text-[13px]">{ANSWERS[k]}</Btn>)}
           </div>
           <div className="grid grid-cols-3 gap-2">
             <Btn kind="ghost" disabled={busy} onClick={() => send(cur.event ? 'unknown' : 'unsure')} className="text-sm">{t('لا أعرف')}</Btn>
@@ -66,7 +77,7 @@ export function ResearchQuestion({ unit }: { unit: GlucoseUnit }) {
         </div>
       )}
       <p className="text-xs text-slate-500">{t('يُستخدم الجواب في البحث فقط، ولا يغيّر الجرعات ولا القراءات.')}</p>
-    </Card>
+    </div>
   );
 }
 
