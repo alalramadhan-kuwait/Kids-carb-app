@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.40.0",
+    "date": "2026-11-03",
+    "notes": [
+      "وجبة مخططة صارت ونسيتوا تسجلونها؟ اضغطوا «صارت ونسيت أسجّلها؟» داخل الخطة. تكتبون كم نوفورابيد عطيتوها والساعة، ومتى أكلت، وكم أكلت، وتنحفظ بوقتها في السجل."
+    ],
+    "notes_en": [
+      "A planned meal that already happened but was never logged: tap «Already happened and not logged?» in the plan. Enter the NovoRapid given and its time, when she ate and how much, and it is saved at those times."
+    ]
+  },
+  {
     "version": "4.39.2",
     "date": "2026-10-31",
     "notes": [

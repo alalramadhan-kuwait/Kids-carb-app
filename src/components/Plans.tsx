@@ -7,8 +7,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../lib/data';
 import { extraDoseGate, mealChangeDose } from '../engine/dose';
 import { blockTexts } from './DoseCalculator';
-import { adoptDose, approveDose, ate, logPendingMeal, deletePlan, planMeal, savePlan, setDoseTime, skipPlan, topUpDose, treatFromPlan, usePlanHistory, usePlans, type DoseConflict } from '../lib/plans';
+import { adoptDose, approveDose, ate, logPastPlan, logPendingMeal, deletePlan, planMeal, savePlan, setDoseTime, skipPlan, topUpDose, treatFromPlan, usePlanHistory, usePlans, type DoseConflict } from '../lib/plans';
 import { useSubmitId } from '../lib/useSubmitId';
+import { insulinNear } from '../lib/api';
 import { SameDose } from './SameDose';
 import { useLiveDose } from '../lib/useLiveDose';
 import { useLateRise } from '../lib/lateRise';
@@ -384,6 +385,9 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
         </div>
       )}
 
+      {/* it already happened and nobody logged it: kept as history at its real times */}
+      {!dosed && <PastLog plan={plan} onDone={onClose} />}
+
       {/* the meal changed after the dose: the difference at the same ratio (more food: the extra dose; less: a warning) */}
       {dosed && <MealChange plan={plan} carbs={meal.total.carbs} complete={meal.complete} ratio={live.ratio?.cr ?? null} live={live} />}
 
@@ -411,6 +415,57 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
           if (dosed && !window.confirm(t('الجرعة أُعطيت وتبقى مسجّلة. ما أكلت شي؟ راقبوا السكر، قد ينزل.'))) return;
           void run(() => skipPlan(plan.id), t('أُلغيت الخطة'), true);
         }}>{t('لم تُؤكل · إلغاء')}</button>
+      </div>
+    </div>
+  );
+}
+
+/** «نسيت أسجّلها؟»: the dose she was given (units and time, as the parent says) and when she ate, then how much. */
+function PastLog({ plan, onDone }: { plan: PlannedMeal; onDone: () => void }) {
+  const { products, settings, me, reload } = useData();
+  const [open, setOpen] = useState(false);
+  const planned = Math.min(Date.parse(plan.dose_at), Date.now());
+  const day = dayOf(planned);
+  const [units, setUnits] = useState(0);
+  const [doseHm, setDoseHm] = useState(hmOf(planned));
+  const [eatHm, setEatHm] = useState(hmOf(Math.min(planned + plan.eat_after_min * MIN, Date.now())));
+  const [busy, setBusy] = useState(false);
+  const [cid] = useSubmitId();
+  const step = settings.pen_step ?? 1;
+  const doseAt = at(day, doseHm), eatTime = at(day, eatHm);
+  const save = async (part: number) => {
+    if (!Number.isFinite(eatTime) || eatTime > Date.now() + MIN || (units > 0 && (!Number.isFinite(doseAt) || doseAt > Date.now() + MIN))) return toast(t('الوقت لا يكون في المستقبل'));
+    setBusy(true);
+    try {
+      // a dose already in the log near that time: asked whether it is this meal's, never recorded twice by itself
+      let same: DoseConflict | null = null;
+      if (units > 0) {
+        const near = (await insulinNear('rapid', doseAt, 20)).filter((e) => e.client_id !== cid)[0];
+        if (near && window.confirm(t('في نوفورابيد {u} وحدة مسجّلة الساعة {c}. هذي نفسها؟', { u: fmt(near.insulin_units ?? 0), c: clock(Date.parse(near.occurred_at)) })))
+          same = { id: near.id, units: near.insulin_units ?? 0, at: near.occurred_at, by: near.created_by ?? null };
+      }
+      await logPastPlan(plan, { units, doseAt, eatAt: eatTime, part, site: null, same }, products, settings, me, cid);
+      await reload(); toast(t('سُجّلت الوجبة ✓')); onDone();
+    } catch (e) { const m = (e as Error).message; toast(m === 'incomplete' ? t('لا يمكن التسجيل: الكارب غير مكتمل') : m === 'already_eaten' ? t('هذه الوجبة مسجّلة من قبل') : m); }
+    finally { setBusy(false); }
+  };
+  if (!open) return <button className="min-h-[44px] w-full rounded-2xl border border-dashed border-slate-300 text-sm font-bold text-brand" onClick={() => setOpen(true)}>🕒 {t('صارت ونسيت أسجّلها؟ سجّلها بوقتها')}</button>;
+  return (
+    <div className="space-y-2 rounded-2xl border border-brand/30 p-3">
+      <div className="text-sm font-bold">🕒 {t('سجّلها بوقتها')}</div>
+      <div className="flex items-center gap-2 text-sm">
+        <span className="flex-1 text-slate-600">{t('نوفورابيد عطيتوها')}</span>
+        <button className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl" onClick={() => setUnits((u) => Math.max(0, Math.round((u - step) * 10) / 10))} aria-label="−">−</button>
+        <b className="num w-14 text-center text-xl">{units > 0 ? t('{u} و', { u: fmt(units) }) : t('ولا شي')}</b>
+        <button className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl" onClick={() => setUnits((u) => Math.round((u + step) * 10) / 10)} aria-label="+">+</button>
+      </div>
+      {units > 0 && <label className="flex items-center justify-between gap-2 text-sm"><span className="text-slate-600">{t('الإبرة الساعة')}</span>
+        <TimeField dir="ltr" className={cx(inputCls, '!min-h-[40px] !w-36')} value={doseHm} onChange={(e) => setDoseHm(e.target.value || doseHm)} aria-label={t('الإبرة الساعة')} /></label>}
+      <label className="flex items-center justify-between gap-2 text-sm"><span className="text-slate-600">{t('أكلت الساعة')}</span>
+        <TimeField dir="ltr" className={cx(inputCls, '!min-h-[40px] !w-36')} value={eatHm} onChange={(e) => setEatHm(e.target.value || eatHm)} aria-label={t('أكلت الساعة')} /></label>
+      <div className="text-sm font-medium text-slate-600">{t('كم أكلت؟')}</div>
+      <div className="grid grid-cols-4 gap-1.5">
+        {PARTS.map(([f, l]) => <Btn key={f} kind={f === 1 ? 'primary' : 'soft'} disabled={busy} onClick={() => void save(f)}>{l || t('كلها')}</Btn>)}
       </div>
     </div>
   );

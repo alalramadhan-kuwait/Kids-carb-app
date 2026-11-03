@@ -1782,4 +1782,12 @@ export const food: Record<string, string> = {
   'أكلت قبل · نسينا نسجّلها': 'Already ate · we forgot to log it',
   'أضيفيه': 'Add it',
   'صورة الملصق تعبّي الأرقام (اختياري)': 'A photo of the label fills in the numbers (optional)',
+  "أكلت الساعة": "She ate at",
+  "الإبرة الساعة": "Injection at",
+  "الوقت لا يكون في المستقبل": "The time can't be in the future",
+  "سجّلها بوقتها": "Log it at its time",
+  "صارت ونسيت أسجّلها؟ سجّلها بوقتها": "Already happened and not logged? Log it at its time",
+  "في نوفورابيد {u} وحدة مسجّلة الساعة {c}. هذي نفسها؟": "A NovoRapid of {u} U is already logged at {c}. Is it this one?",
+  "نوفورابيد عطيتوها": "NovoRapid given",
+  "ولا شي": "None",
 };

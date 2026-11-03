@@ -205,6 +205,25 @@ export async function ate(p: PlannedMeal, part: number, eatingAt: number, produc
     carbs_planned: p.carbs_planned ?? Math.round(full * 10) / 10, carbs_eaten: eatenCarbs });
 }
 
+/** A plan that already happened but was never logged: the dose (if any) at the time it was really given and the meal
+ *  at the time she ate, so it is kept as history. `same`: a dose already in the log near that time is this meal's
+ *  (nothing new is saved for it). The units are what the parent says was given: nothing is calculated here. */
+export async function logPastPlan(p: PlannedMeal, d: { units: number; doseAt: number; eatAt: number; part: number; site: string | null; same: DoseConflict | null },
+  products: Product[], settings: Settings, me: string | null, clientId: string = uuid()) {
+  if (d.same) await adoptDose(p.id, d.same);
+  else if (d.units > 0) {
+    const carbs = planMeal(p.items, products, settings).total.carbs;
+    const res = await approveDose(p, { given: d.units, calc: null, reason: 'سُجّلت بعدين', /* i18n-ok: stored note */ purpose: 'meal', snapshot: null, carbs, site: d.site }, clientId, true);
+    if (res.status === 'no_plan') throw new Error('no_plan');
+    // only the dose just saved is moved to its real time (one the other phone recorded meanwhile is left as it is)
+    const fresh = res.status === 'ok' ? await fetchPlan(p.id) : null;
+    if (fresh && res.status === 'ok' && fresh.dose_event_id === res.event_id) await setDoseTime(fresh, d.doseAt, me);
+  }
+  if (d.same || d.units > 0) await logPendingMeal(p.id, products, settings);
+  const fresh = await fetchPlan(p.id);
+  await ate(fresh ?? p, d.part, d.eatAt, products, settings);
+}
+
 /** The review as last computed (kept for history, patterns and reports), and the parent's note. */
 export const saveReviewSnapshot = (id: string, review: Record<string, unknown>) => patch(id, { review });
 export async function saveReviewNote(id: string, note: string, reviewed: boolean, me: string | null) {
