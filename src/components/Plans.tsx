@@ -10,6 +10,9 @@ import { blockTexts } from './DoseCalculator';
 import { adoptDose, approveDose, ate, logPastPlan, logPendingMeal, deletePlan, planMeal, savePlan, setDoseTime, skipPlan, topUpDose, treatFromPlan, usePlanHistory, usePlans, type DoseConflict } from '../lib/plans';
 import { useSubmitId } from '../lib/useSubmitId';
 import { insulinNear } from '../lib/api';
+import { fetchSeries } from '../engine/useSeries';
+import { doseAt as doseAtTime, type DoseAt } from '../engine/doseAt';
+import { dosesFrom } from '../engine/iob';
 import { SameDose } from './SameDose';
 import { useLiveDose } from '../lib/useLiveDose';
 import { useLateRise } from '../lib/lateRise';
@@ -17,7 +20,7 @@ import { keyLines, learnedOf } from '../engine/iob';
 import { UnknownMealNote } from './UnknownMealNote';
 import { eatAt, expectedDose, isFastDrink, phase, planAlerts, remindAt, upcoming, type PlanAlert, type Phase, type Slot } from '../engine/mealPlan';
 import { fmt } from '../lib/carbs';
-import { formatGlucose, unitLabel } from '../lib/glucose';
+import { effectiveRange, formatGlucose, unitLabel } from '../lib/glucose';
 import { fmtTime, isoDate, relDay } from '../lib/constants';
 import type { DoseSnapshot, InjectionSite, PlanItem, PlannedMeal, Product, Recipe } from '../lib/types';
 import { ProductPicker } from './ProductPicker';
@@ -308,10 +311,19 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
   const sameDose = () => conflict && run(async () => { if (!conflict.mine && await adoptDose(plan.id, conflict) === 'linked') await logPendingMeal(plan.id, products, settings); setConflict(null); }, t('ما تسجّلت: الإبرة مسجّلة من قبل'), true);
   const dosed = plan.status === 'dosed', eatTime = eatAt(plan);
   const treatFirst = r.block === 'low' || r.block === 'falling';
+  // before the dose: one card each for glucose, carbs and the dose; the details open on a tap
+  const [showItems, setShowItems] = useState(false);
+  const [showCalc, setShowCalc] = useState(false);
+  const [showWhy, setShowWhy] = useState(false);
+  const range = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl);
+  const gTone = !latest ? 'bg-slate-50 text-slate-600' : range.low !== null && latest.mg_dl < range.low ? 'bg-over-soft text-over' : range.high !== null && latest.mg_dl > range.high ? 'bg-near-soft text-near' : 'bg-ok-soft text-ok';
+  const gWord = !latest ? '' : range.low !== null && latest.mg_dl < range.low ? t('منخفض') : range.high !== null && latest.mg_dl > range.high ? t('مرتفع') : t('ضمن المدى');
+  const ARROW: Record<number, string> = { [-3]: '⇊', [-2]: '↓', [-1]: '↘', 0: '→', 1: '↗', 2: '↑', 3: '⇈' };
 
   return (
     <div className="space-y-3">
       <UnknownMealNote meal={live.unknownMeal} />
+      {dosed ? <>
       {/* where it stands */}
       <p className={cx('rounded-xl px-3 py-2 text-sm font-bold', dosed ? (ph === 'eat_now' ? 'bg-ok-soft text-ok' : 'bg-brand-soft text-brand') : ph === 'later' ? 'bg-slate-100 text-slate-600' : 'bg-near-soft text-near')}>
         {dosed ? (ph === 'eat_now' ? t('وقت الأكل الآن') : t('الأكل {time} · بعد {left}', { time: clock(eatTime), left: until(eatTime, now) }))
@@ -337,7 +349,36 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
         <li className="flex justify-between gap-2 py-1 font-bold"><span>{t('المجموع')}</span><span className="num">{fmt(Math.round(meal.total.carbs * 10) / 10)} {t('غ')}</span></li>
       </ul>
 
-      {!dosed && <Alerts list={alerts} />}
+      </> : <>
+        {/* before the dose: when, glucose and carbs side by side, the warnings in one line */}
+        <p className={cx('inline-flex rounded-full px-3 py-1 text-sm font-bold', ph === 'later' ? 'bg-sky-500/15 text-sky-500' : 'bg-near-soft text-near')}>
+          🕒 {ph === 'recheck' ? t('عولج الانخفاض · أعيدوا القياس {time} (بعد {left})', { time: clock(Date.parse(plan.recheck_at!)), left: until(Date.parse(plan.recheck_at!), now) })
+            : ph === 'later' ? t('معلّقة · الجرعة {d} · الأكل {e}', { d: clock(Date.parse(plan.dose_at)), e: clock(eatTime) })
+              : t('حان وقت الفحص · الجرعة {d}', { d: clock(Date.parse(plan.dose_at)) })}
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <div className={cx('rounded-2xl p-3', gTone)}>
+            <div className="text-xs opacity-80">{t('السكر')}{latest ? ` ${live.level !== null ? ARROW[live.level] ?? '' : ''} ${clock(Date.parse(latest.taken_at))}` : ''}</div>
+            <div className="num text-[34px] font-extrabold leading-tight">{latest ? gl(latest.mg_dl) : '—'}</div>
+            <div className="text-xs font-bold">{gWord}{(live.iob ?? 0) > 0.05 ? ` · ${t('إنسولين نشط {u} و', { u: fmt(Math.round((live.iob ?? 0) * 10) / 10) })}` : ''}</div>
+          </div>
+          <button onClick={() => setShowItems((x) => !x)} className="rounded-2xl bg-kcarb-soft p-3 text-start text-kcarb">
+            <div className="text-xs opacity-80">{t('الكارب')} · {t('{n} أصناف', { n: meal.lines.length })} {showItems ? '▴' : '▾'}</div>
+            <div className="num text-[34px] font-extrabold leading-tight">{fmt(Math.round(meal.total.carbs * 10) / 10)}<span className="text-base"> {t('غ')}</span></div>
+          </button>
+        </div>
+        {showItems && <ul className="divide-y divide-slate-100 rounded-2xl bg-slate-50 px-3 text-sm">
+          {meal.lines.map((l, i) => (
+            <li key={i} className="flex items-baseline justify-between gap-2 py-1.5">
+              <span className="min-w-0"><bdi>{itemName(plan.items[i], products)}</bdi> <span className="text-xs text-slate-500">· {amountOf(plan.items[i], l.product)}</span></span>
+              <span className="num shrink-0">{l.carbs === null ? '—' : fmt(Math.round(l.carbs * 10) / 10)} <span className="text-xs text-slate-500">{t('غ')}</span></span>
+            </li>
+          ))}
+        </ul>}
+        {alerts.length > 0 && <p className={cx('rounded-2xl px-3 py-2 text-sm', alerts.some((a) => a.tone === 'red') ? 'bg-over-soft font-bold text-over' : 'bg-near-soft text-near')}>
+          {alerts.some((a) => a.tone === 'red') ? '⛔' : '⚠'} {alerts.map((a) => ALERT_TEXT(a)).join(' · ')}
+        </p>}
+      </>}
 
       {/* low first: treat (with the plan's juice when it has one), recheck in 15 min */}
       {!dosed && treatFirst && (
@@ -353,37 +394,42 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
 
       {/* the dose: the calculator's (doctor's numbers), the parent can change it */}
       {conflict && dosed && <SameDose dose={{ ...conflict, type: 'rapid' }} busy={busy} onSame={() => void sameDose()} onSeparate={() => void give(true)} />}
-      {!dosed && (
-        <div className="space-y-2 rounded-2xl bg-slate-50 p-3">
+      {!dosed && <>
+        <div className="space-y-2 rounded-2xl border border-kins/40 bg-kins-soft p-3">
           {r.block && <p className="text-sm font-medium text-over">{t('ما في جرعة محسوبة الحين (التحذير فوق). إذا عطيتوها إبرة، سجّلوا كم عطيتوها.')}</p>}
-          {!r.block && <><div className="text-sm text-slate-600">
-            {t('الأكل {c} ÷ {cr} = {f}', { c: fmt(Math.round(meal.total.carbs * 10) / 10), cr: fmt(live.ratio!.cr), f: (Math.round(r.food * 10) / 10).toFixed(1) })}
-            {' · '}{t('التصحيح {x}', { x: (r.correction + r.iobUsed >= 0 ? '+' : '−') + (Math.round(Math.abs(r.correction + r.iobUsed) * 10) / 10).toFixed(1) })}
-            {r.iobUsed > 0 && <> · {t('نشط −{x}', { x: (Math.round(r.iobUsed * 10) / 10).toFixed(1) })}</>}
-          </div>
-          <div className="flex items-baseline justify-between rounded-xl bg-white px-3 py-2">
-            <span className="text-sm text-slate-600">{t('الجرعة المحسوبة (إعدادات الطبيب)')}</span>
-            <b className="num text-xl">{t('{u} و', { u: fmt(r.dose) })}</b>
-          </div></>}
+          {!r.block && <>
+            <button className="flex w-full items-baseline justify-between text-start" onClick={() => setShowCalc((x) => !x)}>
+              <span className="text-sm text-slate-600">{t('الجرعة المحسوبة (إعدادات الطبيب)')} {showCalc ? '▴' : '▾'}</span>
+              <b className="num text-xl text-kins">{t('{u} و', { u: fmt(r.dose) })}</b>
+            </button>
+            {showCalc && <div className="text-xs text-slate-600">
+              {t('الأكل {c} ÷ {cr} = {f}', { c: fmt(Math.round(meal.total.carbs * 10) / 10), cr: fmt(live.ratio!.cr), f: (Math.round(r.food * 10) / 10).toFixed(1) })}
+              {' · '}{t('التصحيح {x}', { x: (r.correction + r.iobUsed >= 0 ? '+' : '−') + (Math.round(Math.abs(r.correction + r.iobUsed) * 10) / 10).toFixed(1) })}
+              {r.iobUsed > 0 && <> · {t('نشط −{x}', { x: (Math.round(r.iobUsed * 10) / 10).toFixed(1) })}</>}
+            </div>}
+          </>}
           <div className="flex items-center gap-2">
-            <span className="flex-1 text-sm font-medium">{r.block ? t('الجرعة اللي عطيتوها') : t('الجرعة التي قررتُ إعطاءها')}</span>
-            <button className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl shadow-sm" onClick={() => setUnits((u) => Math.max(0, (u ?? r.dose) - (settings.pen_step ?? 1)))} aria-label="−">−</button>
+            <span className="flex-1 text-sm font-bold">💉 {r.block ? t('الجرعة اللي عطيتوها') : t('الجرعة التي قررتُ إعطاءها')}</span>
+            <button className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl text-kins shadow-sm" onClick={() => setUnits((u) => Math.max(0, (u ?? r.dose) - (settings.pen_step ?? 1)))} aria-label="−">−</button>
             <b className="num w-12 text-center text-2xl">{fmt(units ?? r.dose)}</b>
-            <button className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl shadow-sm" onClick={() => setUnits((u) => (u ?? r.dose) + (settings.pen_step ?? 1))} aria-label="+">+</button>
+            <button className="grid h-11 w-11 place-items-center rounded-full bg-white text-xl text-kins shadow-sm" onClick={() => setUnits((u) => (u ?? r.dose) + (settings.pen_step ?? 1))} aria-label="+">+</button>
           </div>
-          {(units ?? r.dose) !== r.dose && !r.block && (
-            <input className={inputCls} dir="auto" maxLength={200} placeholder={t('لماذا تختلف؟ (اختياري)')} value={reason} onChange={(e) => setReason(e.target.value)} aria-label={t('لماذا تختلف؟ (اختياري)')} />
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(units ?? r.dose) !== r.dose && !r.block && !showWhy && <button className="inline-flex min-h-[36px] items-center rounded-full bg-near-soft px-3 text-[13px] font-semibold text-near" onClick={() => setShowWhy(true)}>✏️ {reason.trim() ? reason.trim() : t('لماذا تختلف؟ (اختياري)')}</button>}
+            {(units ?? r.dose) > 0 && <SitePicker compact rot={rot} value={site} onChange={setSite} />}
+          </div>
+          {showWhy && (units ?? r.dose) !== r.dose && !r.block && (
+            <input autoFocus className={inputCls} dir="auto" maxLength={200} placeholder={t('لماذا تختلف؟ (اختياري)')} value={reason} onChange={(e) => setReason(e.target.value)} onBlur={() => setShowWhy(false)} aria-label={t('لماذا تختلف؟ (اختياري)')} />
           )}
-          {(units ?? r.dose) > 0 && <SitePicker rot={rot} value={site} onChange={setSite} />}
           {conflict && <SameDose dose={{ ...conflict, type: 'rapid' }} busy={busy} onSame={() => void sameDose()} onSeparate={() => void give(true)} />}
-          {(units ?? r.dose) > 0 && !conflict && (
-            <Btn kind="primary" block disabled={busy} onClick={() => void give(false)}>
-              {t('أعطِ {u} وحدة الآن · الأكل {time}', { u: fmt(units ?? r.dose), time: clock(Date.now() + plan.eat_after_min * MIN) })}
-            </Btn>
-          )}
-          <p className="text-[11px] text-slate-500">{t('من خطة الطبيب. راجعوا الرقم قبل الإعطاء.')}</p>
         </div>
-      )}
+        {(units ?? r.dose) > 0 && !conflict && (
+          <button disabled={busy} onClick={() => void give(false)} className="min-h-[56px] w-full rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-500 px-4 text-[17px] font-extrabold text-white shadow-lg shadow-violet-500/30 active:opacity-80 disabled:opacity-50">
+            {t('أعطِ {u} وحدة الآن · الأكل {time}', { u: fmt(units ?? r.dose), time: clock(Date.now() + plan.eat_after_min * MIN) })}
+          </button>
+        )}
+        <p className="text-center text-[11px] text-slate-500">{t('من خطة الطبيب. راجعوا الرقم قبل الإعطاء.')}</p>
+      </>}
 
       {/* it already happened and nobody logged it: kept as history at its real times */}
       {!dosed && <PastLog plan={plan} onDone={onClose} />}
@@ -422,7 +468,7 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
 
 /** «نسيت أسجّلها؟»: the dose she was given (units and time, as the parent says) and when she ate, then how much. */
 function PastLog({ plan, onDone }: { plan: PlannedMeal; onDone: () => void }) {
-  const { products, settings, me, reload } = useData();
+  const { products, settings, me, reload, events } = useData();
   const [open, setOpen] = useState(false);
   const planned = Math.min(Date.parse(plan.dose_at), Date.now());
   const day = dayOf(planned);
@@ -434,6 +480,23 @@ function PastLog({ plan, onDone }: { plan: PlannedMeal; onDone: () => void }) {
   const [cid] = useSubmitId();
   const step = settings.pen_step ?? 1;
   const doseAt = at(day, doseHm), eatTime = at(day, eatHm);
+  // what the doctor's settings said at that moment (her reading then, insulin still working then): shown next to
+  // what was given, never a verdict; the decision stays the parents'
+  const when = units === 0 ? eatTime : doseAt;
+  const carbs = useMemo(() => planMeal(plan.items, products, settings).total.carbs, [plan.items, products, settings]);
+  const [then, setThen] = useState<DoseAt | null>(null);
+  useEffect(() => {
+    if (!open || !Number.isFinite(when) || when > Date.now() + MIN) { setThen(null); return; }
+    let on = true;
+    void fetchSeries(when - 40 * MIN, when + MIN).then((sr) => {
+      if (!on) return;
+      setThen(doseAtTime({ at: when, carbs, t: sr.t, v: sr.v, doses: dosesFrom(events), ratios: settings.ratios ?? [],
+        target: settings.target_mgdl !== null && settings.target_high_mgdl !== null ? { low: settings.target_mgdl, high: settings.target_high_mgdl } : null,
+        lowMg: settings.alert_low_mgdl ?? settings.glucose_low_mgdl, dia: settings.iob_dia_min, peak: settings.iob_peak_min, gapMin: settings.dose_gap_min ?? 120,
+        step: settings.pen_step ?? 1, sensorStartedAt: null }));
+    }).catch(() => on && setThen(null));
+    return () => { on = false; };
+  }, [open, when, carbs, events]); // eslint-disable-line react-hooks/exhaustive-deps
   const save = async (part: number) => {
     if (!Number.isFinite(eatTime) || eatTime > Date.now() + MIN || ((units ?? 0) > 0 && (!Number.isFinite(doseAt) || doseAt > Date.now() + MIN))) return toast(t('الوقت لا يكون في المستقبل'));
     setBusy(true);
@@ -451,7 +514,7 @@ function PastLog({ plan, onDone }: { plan: PlannedMeal; onDone: () => void }) {
     } catch (e) { const m = (e as Error).message; toast(m === 'incomplete' ? t('لا يمكن التسجيل: الكارب غير مكتمل') : m === 'already_eaten' ? t('هذه الوجبة مسجّلة من قبل') : m); }
     finally { setBusy(false); }
   };
-  if (!open) return <button className="min-h-[44px] w-full rounded-2xl border border-dashed border-slate-300 text-sm font-bold text-brand" onClick={() => setOpen(true)}>🕒 {t('صارت ونسيت أسجّلها؟ سجّلها بوقتها')}</button>;
+  if (!open) return <button className="min-h-[48px] w-full rounded-2xl border-2 border-teal-500/60 text-sm font-bold text-teal-500" onClick={() => setOpen(true)}>🕒 {t('صارت ونسيت أسجّلها؟ سجّلها بوقتها')}</button>;
   return (
     <div className="space-y-2 rounded-2xl border border-brand/30 p-3">
       <div className="text-sm font-bold">🕒 {t('سجّلها بوقتها')}</div>
@@ -462,10 +525,19 @@ function PastLog({ plan, onDone }: { plan: PlannedMeal; onDone: () => void }) {
         <button className="grid h-10 w-10 place-items-center rounded-full bg-slate-100 text-xl" onClick={() => setUnits((u) => Math.round(((u ?? 0) + step) * 10) / 10)} aria-label="+">+</button>
       </div>
       <button className={cx('min-h-[36px] w-full rounded-full text-[13px]', units === 0 ? 'bg-slate-700 font-bold text-white' : 'bg-slate-100 text-slate-600')} onClick={() => setUnits(units === 0 ? null : 0)}>{t('ما عطيناها إبرة')}</button>
-      {(units ?? 0) > 0 && <label className="flex items-center justify-between gap-2 text-sm"><span className="text-slate-600">{t('الإبرة الساعة')}</span>
+      {units !== 0 && <label className="flex items-center justify-between gap-2 text-sm"><span className="text-slate-600">{t('الإبرة الساعة')}</span>
         <TimeField dir="ltr" className={cx(inputCls, '!min-h-[40px] !w-36')} value={doseHm} onChange={(e) => setDoseHm(e.target.value || doseHm)} aria-label={t('الإبرة الساعة')} /></label>}
       <label className="flex items-center justify-between gap-2 text-sm"><span className="text-slate-600">{t('أكلت الساعة')}</span>
         <TimeField dir="ltr" className={cx(inputCls, '!min-h-[40px] !w-36')} value={eatHm} onChange={(e) => setEatHm(e.target.value || eatHm)} aria-label={t('أكلت الساعة')} /></label>
+      {then && (
+        <div className="rounded-xl bg-slate-50 px-3 py-2 text-[13px] leading-snug">
+          {then.glucose === null ? <span className="text-slate-500">{t('ما في قراءة للحساس الساعة {c}', { c: clock(when) })}</span>
+            : <span>{t('السكر الساعة {c}', { c: clock(when) })}: <b className="num">{formatGlucose(then.glucose, settings.glucose_unit)}</b></span>}
+          {then.r.block ? <span className="block text-slate-500">{t('ما في حسبة وقتها')}: {blockTexts(settings.dose_gap_min ?? 120, then.r.until ?? undefined)[then.r.block]}</span>
+            : <span className="block">{t('إعدادات الطبيب وقتها')}: <b className="num text-kins">{t('{u} و', { u: fmt(then.r.dose) })}</b>
+              {units !== null && <b className={cx('ms-1', units === then.r.dose ? 'text-ok' : 'text-near')}> · {units === then.r.dose ? `✓ ${t('نفس اللي عطيتوها')}` : units < then.r.dose ? t('عطيتوها أقل بـ {n} و', { n: fmt(Math.round((then.r.dose - units) * 10) / 10) }) : t('عطيتوها أكثر بـ {n} و', { n: fmt(Math.round((units - then.r.dose) * 10) / 10) })}</b>}</span>}
+        </div>
+      )}
       <div className="text-sm font-medium text-slate-600">{t('كم أكلت؟')}</div>
       {units === null && <p className="text-[13px] font-bold text-near">{t('اختاروا كم نوفورابيد عطيتوها أول، أو «ما عطيناها إبرة»')}</p>}
       <div className="grid grid-cols-4 gap-1.5">

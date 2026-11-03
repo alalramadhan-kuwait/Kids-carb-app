@@ -1,5 +1,17 @@
 [
   {
+    "version": "4.41.0",
+    "date": "2026-11-03",
+    "notes": [
+      "الخطة قبل الإبرة صارت أبسط وملوّنة: السكر بلونه (أخضر ضمن المدى، برتقالي مرتفع، أحمر منخفض)، والكارب بالأخضر، وأصناف الأكل تفتح بضغطة، والتحذيرات بسطر واحد، والإبرة بكرت بنفسجي.",
+      "«صارت ونسيت أسجّلها؟»: يطلع السكر وقت الإبرة، وكم كانت إعدادات الطبيب وقتها، وجنبها الفرق عن اللي عطيتوها."
+    ],
+    "notes_en": [
+      "The plan before the dose is simpler and colored: glucose by its range (green in range, orange high, red low), carbs in green, the items open with a tap, the warnings in one line, the dose in a purple card.",
+      "«Already happened?»: shows the glucose at the injection time, the doctor's settings then, and the difference from what you gave."
+    ]
+  },
+  {
     "version": "4.40.1",
     "date": "2026-11-03",
     "notes": [

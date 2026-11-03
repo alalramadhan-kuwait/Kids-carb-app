@@ -10,10 +10,15 @@ import type { EventRow, InjectionSite } from '../lib/types';
 import { BodyMap, SITE_NAME, ago } from '../pages/mom/MomUI';
 import { t } from '../i18n';
 
-export function SitePicker({ rot, value, onChange }: { rot: SiteRotation; value: InjectionSite | null; onChange: (s: InjectionSite) => void }) {
+export function SitePicker({ rot, value, onChange, compact }: { rot: SiteRotation; value: InjectionSite | null; onChange: (s: InjectionSite) => void; /** a small tag until tapped */ compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const pick = value ?? rot.suggest;
   const last = pick ? rot.last.get(pick) : undefined;
+  if (compact && !open) return (
+    <button type="button" onClick={() => setOpen(true)} className="inline-flex min-h-[36px] items-center gap-1 rounded-full bg-white px-3 text-[13px] font-semibold">
+      📍 {pick ? t(SITE_NAME[pick]) : t('مكان الإبرة')}{pick && pick === rot.suggest ? ' ⭐' : ''}
+    </button>
+  );
   return (
     <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2">
       <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex min-h-[48px] w-full items-center justify-between gap-2 text-start">

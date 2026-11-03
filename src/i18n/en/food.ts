@@ -1792,4 +1792,12 @@ export const food: Record<string, string> = {
   "ولا شي": "None",
   "ما عطيناها إبرة": "No injection given",
   "اختاروا كم نوفورابيد عطيتوها أول، أو «ما عطيناها إبرة»": "First choose how much NovoRapid was given, or «No injection given»",
+  "{n} أصناف": "{n} items",
+  "ما في قراءة للحساس الساعة {c}": "No sensor reading at {c}",
+  "السكر الساعة {c}": "Glucose at {c}",
+  "ما في حسبة وقتها": "No calculation then",
+  "إعدادات الطبيب وقتها": "Doctor's settings then",
+  "نفس اللي عطيتوها": "same as given",
+  "عطيتوها أقل بـ {n} و": "given {n} U less",
+  "عطيتوها أكثر بـ {n} و": "given {n} U more",
 };
