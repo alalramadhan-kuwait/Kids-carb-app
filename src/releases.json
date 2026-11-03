@@ -1,5 +1,15 @@
 [
   {
+    "version": "4.40.1",
+    "date": "2026-11-03",
+    "notes": [
+      "«سجّلها بوقتها»: لازم تختارون كم نوفورابيد عطيتوها، أو «ما عطيناها إبرة»، قبل ما تنحفظ الوجبة. قبل كانت تنحفظ بدون الإبرة إذا ما انضغط +."
+    ],
+    "notes_en": [
+      "«Log it at its time»: choose how much NovoRapid was given, or «No injection given», before the meal can be saved. Before, it saved without the injection if + was not tapped."
+    ]
+  },
+  {
     "version": "4.40.0",
     "date": "2026-11-03",
     "notes": [

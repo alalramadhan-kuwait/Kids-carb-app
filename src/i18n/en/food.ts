@@ -1790,4 +1790,6 @@ export const food: Record<string, string> = {
   "في نوفورابيد {u} وحدة مسجّلة الساعة {c}. هذي نفسها؟": "A NovoRapid of {u} U is already logged at {c}. Is it this one?",
   "نوفورابيد عطيتوها": "NovoRapid given",
   "ولا شي": "None",
+  "ما عطيناها إبرة": "No injection given",
+  "اختاروا كم نوفورابيد عطيتوها أول، أو «ما عطيناها إبرة»": "First choose how much NovoRapid was given, or «No injection given»",
 };
