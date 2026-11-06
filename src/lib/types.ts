@@ -311,6 +311,8 @@ export interface EventRow {
   created_by: string;
   deleted_at: string | null;
   deleted_by?: string | null;
+  /** the meal this dose was given for, when logged from it */
+  meal_id?: string | null;
 }
 export interface Member { user_id: string; display_name: string | null; alert_role?: 'primary' | 'backup' | 'off'; simple_mode?: boolean; activity_push?: Partial<Record<'meal' | 'rapid' | 'long' | 'treatment' | 'finger' | 'request', boolean>> | null }
 /** A household measure for a product (grams/ml) or a recipe (how many of its plates), set once by a parent with a scale. */

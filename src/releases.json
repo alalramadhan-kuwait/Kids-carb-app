@@ -1,5 +1,23 @@
 [
   {
+    "version": "5.0.0",
+    "date": "2026-11-06",
+    "notes": [
+      "«سجّل» صارت أبسط: أكل وإنسولين بخيارات كبيرة، وتحتها علاج انخفاض ووخز إصبع، وآخر الأكلات، وخطة وجبة.",
+      "صفحة الأكل: «متى أكلت؟» بأزرار (الآن، قبل 15 د، 30 د، ساعة، وقت آخر)، ثم «سجّل الأكل + إنسولين» يفتح الإبرة على نفس الوقت ولنفس الوجبة.",
+      "الإبرة: «متى أُعطيت؟» أول شي. إذا الوقت قبل، الحاسبة تختفي ويطلع السكر وإعدادات الطبيب وقتها جنب اللي عطيتوها.",
+      "إذا كان السكر منخفض، الأكل الصغير يسأل: علاج انخفاض أو أكل؟ بدل ما ينحفظ علاج انخفاض لحاله.",
+      "الإبرة تنحفظ مربوطة بالوجبة."
+    ],
+    "notes_en": [
+      "«Log» is simpler: Food and Insulin as big choices, then Low treatment and Finger-prick, recent foods, and Meal plan.",
+      "Food page: «When did she eat?» as buttons (Now, 15 min, 30 min, 1 h, Other time), then «Log food + insulin» opens the dose at the same time, for that meal.",
+      "Insulin: «When was it given?» comes first. For a past time the calculator hides and shows the glucose and doctor's settings then, beside what you gave.",
+      "When glucose was low, a small food asks: low treatment or food? It is no longer saved as a low treatment on its own.",
+      "The dose is saved linked to its meal."
+    ]
+  },
+  {
     "version": "4.41.2",
     "date": "2026-11-03",
     "notes": [

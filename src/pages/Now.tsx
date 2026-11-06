@@ -55,11 +55,15 @@ export default function Now() {
   const { g, failed, reload } = useGlucose();
   const [logOpen, setLogOpen] = useState(false);
   const [logKind, setLogKind] = useState<'treatment' | 'insulin' | 'carbs' | null>(null);
+  // a food just logged with «سجّل الأكل + إنسولين»: its dose opens at the same time, for that meal
+  const [logLink, setLogLink] = useState<{ at: number; mealId: string; carbs: number; name: string } | null>(null);
   // arriving from "a new meal from an earlier one" (?log=insulin): the insulin entry opens, its calculator taking the new meal's carbs
   const [params, setParams] = useSearchParams();
   useEffect(() => {
     // or from Add food's «كارب فقط» (?log=carbs): the carbs entry opens
     const k = params.get('log'); if (k !== 'insulin' && k !== 'carbs') return;
+    const at = Number(params.get('at')), meal = params.get('meal');
+    setLogLink(k === 'insulin' && meal && Number.isFinite(at) && at > 0 ? { at, mealId: meal, carbs: Number(params.get('g')) || 0, name: params.get('n') ?? '' } : null);
     setLogKind(k); setLogOpen(true); setParams({}, { replace: true });
   }, [params, setParams]);
   const alerts = useAlerts();
@@ -156,7 +160,7 @@ export default function Now() {
       {/* planned meals are told in the notice row; the sheets stay so a reminder's ?plan= link still opens its check */}
       <PlanLines sheetsOnly />
 
-      <LogSheet open={logOpen} startKind={logKind} onClose={() => { setLogOpen(false); setLogKind(null); }} low={!!latest && Date.now() - Date.parse(latest.taken_at) < 20 * 60000 && latest.mg_dl <= (rng.low ?? 70) + 5} />
+      <LogSheet open={logOpen} startKind={logKind} link={logLink} onClose={() => { setLogOpen(false); setLogKind(null); setLogLink(null); }} low={!!latest && Date.now() - Date.parse(latest.taken_at) < 20 * 60000 && latest.mg_dl <= (rng.low ?? 70) + 5} />
     </main>
   );
 }

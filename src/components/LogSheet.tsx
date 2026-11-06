@@ -23,6 +23,9 @@ import { startComparison, syncComparisons } from '../lib/fingerprick';
 import { toMgdl, unitLabel } from '../lib/glucose';
 import { fmt } from '../lib/carbs';
 import type { DoseCalc } from '../lib/types';
+import { useDoseThen } from '../lib/doseThen';
+import { DoseThenLine } from './DoseThenLine';
+import { fmtTime } from '../lib/constants';
 
 // the less used kinds sit under "أخرى" (from what the family logs: food, insulin, lows and finger-pricks)
 const OTHER: EventKind[] = ['note', 'exercise', 'sleep'];
@@ -47,7 +50,8 @@ const AGO = [0, 15, 30, 60];
  * finger-prick up front; note, exercise and sleep under "أخرى". When glucose is low the low treatment comes first.
  * Rapid insulin shows the dose calculator (doctor's plan); the parent confirms.
  */
-export function LogSheet({ open, onClose, low = false, startKind = null }: { open: boolean; onClose: () => void; low?: boolean; startKind?: EventKind | null }) {
+export function LogSheet({ open, onClose, low = false, startKind = null, link = null }: { open: boolean; onClose: () => void; low?: boolean; startKind?: EventKind | null;
+  /** the meal just logged («سجّل الأكل + إنسولين»): its dose is for it and at its time */ link?: { at: number; mealId: string; carbs: number; name: string } | null }) {
   const { events, me, nameOf, reload, settings, history } = useData();
   const nav = useNavigate();
   const [kind, setKind] = useState<EventKind | null>(null);
@@ -66,6 +70,8 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
   const [sleepFrom, setSleepFrom] = useState('21:00');
   const [sleepTo, setSleepTo] = useState(wakeDefault);
   const [ago, setAgo] = useState(0);
+  const [atAbs, setAtAbs] = useState<number | null>(null); // «مع الأكل»: the meal's own time
+  const [noteOpen, setNoteOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [dupAck, setDupAck] = useState(false);
   const [calc, setCalc] = useState<DoseCalc | null>(null);
@@ -84,19 +90,20 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
   useEffect(() => {
     if (!open || !startKind) return;
     setKind(startKind);
+    if (startKind === 'insulin' && link) { setAtAbs(link.at); setPurpose('meal'); setType('rapid'); }
     if (startKind === 'treatment' && usualLow[0]) { setGrams(usualLow[0].carbs); setTreat(usualLow[0].name); }
-  }, [open, startKind]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, startKind, link]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const reset = () => {
     setKind(null); setClientId(crypto.randomUUID()); setUnits(null); setType('rapid'); setPurpose(null); setSite(null);
-    setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setTags([]); setAgo(0); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault()); setCalc(null); setNewCarbs(0); setCarbsId(crypto.randomUUID()); setBg(null); setClean(true);
+    setGrams(null); setTreat('عصير'); /* i18n-ok */ setNote(''); setTags([]); setAgo(0); setAtAbs(null); setNoteOpen(false); setDupAck(false); setMins(null); setLevel('moderate'); setSleepFrom('21:00'); setSleepTo(wakeDefault()); setCalc(null); setNewCarbs(0); setCarbsId(crypto.randomUUID()); setBg(null); setClean(true);
   };
   const close = () => { reset(); setMore(false); onClose(); };
 
   const draft: NewEvent | null = useMemo(() => {
     if (!kind) return null;
     const sleep = kind === 'sleep' ? sleepWindow(sleepFrom, sleepTo) : null;
-    const occurred_at = sleep ? sleep.occurred_at : new Date(Date.now() - ago * 60000).toISOString();
+    const occurred_at = sleep ? sleep.occurred_at : new Date(atAbs ?? Date.now() - ago * 60000).toISOString();
     return {
       client_id: clientId, kind, occurred_at,
       activity_min: kind === 'exercise' ? mins : null, activity_level: kind === 'exercise' ? level : null,
@@ -111,8 +118,9 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
       dose_calc: kind === 'insulin' && type === 'rapid' ? calc : null,
       bg_mgdl: kind === 'bg_check' && bg !== null ? toMgdl(bg, settings.glucose_unit) : null,
       ...(kind === 'insulin' ? { injection_site: site ?? rot.suggest } : {}),
+      ...(kind === 'insulin' && link && atAbs !== null ? { meal_id: link.mealId } : {}),
     };
-  }, [kind, clientId, units, type, purpose, grams, treat, note, tags, ago, mins, level, sleepFrom, sleepTo, calc, bg, settings.glucose_unit, site, rot.suggest]);
+  }, [kind, clientId, units, type, purpose, grams, treat, note, tags, ago, atAbs, link, mins, level, sleepFrom, sleepTo, calc, bg, settings.glucose_unit, site, rot.suggest]);
 
   const valid = !!draft && (
     (kind === 'insulin' && !!units && units > 0 && units < 100) ||
@@ -122,6 +130,9 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
     (kind === 'exercise' && !!mins && mins > 0 && mins <= 600) ||
     (kind === 'sleep' && !!draft.ends_at && sleepWindow(sleepFrom, sleepTo).minutes <= 16 * 60));
   // this submission's own earlier attempt (saved, its answer lost) is not a duplicate of itself
+  // a dose for the meal, at a past time: what the doctor's settings gave then, beside the units entered
+  const pastAt = kind === 'insulin' && type === 'rapid' && link && (atAbs !== null || ago > 0) ? (atAbs ?? Date.now() - ago * 60000) : null;
+  const then = useDoseThen(pastAt, link?.carbs ?? 0, pastAt !== null);
   const dup = draft && valid ? findDuplicate(events.filter((e) => e.client_id !== draft.client_id), draft) : null;
 
   useEffect(() => { if (saveSoon) { setSaveSoon(false); void save(); } }); // eslint-disable-line react-hooks/exhaustive-deps
@@ -156,38 +167,39 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
       {!kind ? (
         <div className="space-y-4">
           {low && <Tile k="treatment" icon="treatment" strong wide label={t('علاج انخفاض')} sub={t('السكر منخفض: سجّلوا العصير أو الأقراص')} onClick={() => setKind('treatment')} />}
-          {/* the meal plan first: what she will eat, its carbs and the doctor's dose, kept until she eats */}
-          <button onClick={() => setPlan(true)} className={cx('flex min-h-[64px] w-full items-center gap-3 rounded-2xl px-4 text-start active:opacity-80', KIND_STYLE.meal.solid)}>
-            <Icon name="meals" size={28} />
-            <span className="min-w-0 flex-1"><b className="block text-base">{t('خطة وجبة')}</b><span className="block text-xs font-medium opacity-90">{t('الأكل ← الكارب ← الجرعة')}</span></span>
+          {/* four big choices: food and insulin first, then a low and a finger-prick */}
+          <button onClick={() => { close(); nav('/add'); }} className={cx('flex min-h-[68px] w-full items-center gap-3 rounded-2xl px-4 text-start active:opacity-80', KIND_STYLE.meal.soft)}>
+            <Icon name="carbs" size={28} /><span className="min-w-0 flex-1"><b className="block text-base">{t('أكل')}</b><span className="block text-xs font-medium opacity-80">{t('بحث، المعتاد، وجبة سابقة')}</span></span>
+          </button>
+          <button onClick={() => setKind('insulin')} className={cx('flex min-h-[68px] w-full items-center gap-3 rounded-2xl px-4 text-start active:opacity-80', KIND_STYLE.insulin.soft)}>
+            <Icon name="insulin" size={28} /><span className="min-w-0 flex-1"><b className="block text-base">{t('إنسولين')}</b><span className="block text-xs font-medium opacity-80">{t('نوفورابيد أو تريسيبا')}</span></span>
           </button>
           <div className="grid grid-cols-2 gap-2">
-            <Tile k="meal" icon="carbs" label={t('أكل')} onClick={() => { close(); nav('/add'); }} />
-            <Tile k="insulin" icon="insulin" label={t('إنسولين')} onClick={() => setKind('insulin')} />
             {!low && <Tile k="treatment" icon="treatment" label={t('علاج انخفاض')} onClick={() => setKind('treatment')} />}
             <Tile k="bg_check" icon="glucose" wide={low} label={t('وخز إصبع')} onClick={() => setKind('bg_check')} />
           </div>
-          {/* foods she has often: one tap logs the usual amount (undo in the toast) */}
+          {/* foods she has often: one tap logs the usual amount now (undo in the toast) */}
           {quickShown.length > 0 && (
-            <div>
-              <div className="mb-1 text-sm font-medium text-slate-600">{t('أكل متكرر')}</div>
-              <div className="grid grid-cols-2 gap-2">
-                {quickShown.map((q) => (
-                  <button key={q.id} disabled={busy} className="flex min-h-[48px] min-w-0 items-center gap-2 rounded-xl border border-slate-100 bg-white px-3 text-start active:bg-slate-50"
-                    onClick={async () => {
-                      setBusy(true);
-                      try {
-                        const id = await logQuick(q); await reload(); void quick.reload(); close();
-                        toast(t('تم التسجيل: {x}', { x: `${tMaybe(q.name)} · ${t('{g} غ', { g: fmt(q.carbs) })}` }), { label: t('تراجع'), run: async () => { await deleteHistory(id); await reload(); } });
-                      } catch (e) { toast(t('تعذّر الحفظ: {e}', { e: (e as Error).message })); } finally { setBusy(false); }
-                    }}>
-                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium" title={tMaybe(q.name)}><bdi>{shortName(tMaybe(q.name))}</bdi></span>
-                    <span className="num shrink-0 text-sm font-bold text-slate-600">{fmt(q.carbs)}<span className="text-[10px] font-medium"> {t('غ')}</span></span>
-                  </button>
-                ))}
-              </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-medium text-slate-500">{t('الأخيرة:')}</span>
+              {quickShown.slice(0, 3).map((q) => (
+                <button key={q.id} disabled={busy} className="inline-flex min-h-[36px] max-w-[11rem] items-center gap-1 rounded-full bg-slate-50 px-3 text-[13px] font-medium active:opacity-80"
+                  onClick={async () => {
+                    setBusy(true);
+                    try {
+                      const id = await logQuick(q); await reload(); void quick.reload(); close();
+                      toast(t('تم التسجيل: {x}', { x: `${tMaybe(q.name)} · ${t('{g} غ', { g: fmt(q.carbs) })}` }), { label: t('تراجع'), run: async () => { await deleteHistory(id); await reload(); } });
+                    } catch (e) { toast(t('تعذّر الحفظ: {e}', { e: (e as Error).message })); } finally { setBusy(false); }
+                  }}>
+                  <bdi className="truncate">{shortName(tMaybe(q.name))}</bdi><span className="num shrink-0 text-slate-500">· {fmt(q.carbs)}</span>
+                </button>
+              ))}
             </div>
           )}
+          {/* the meal plan: what she will eat, its carbs and the doctor's dose, kept until she eats */}
+          <button onClick={() => setPlan(true)} className="flex min-h-[48px] w-full items-center gap-3 rounded-2xl bg-slate-50 px-4 text-start active:opacity-80">
+            <Icon name="meals" size={22} /><span className="min-w-0 flex-1 text-sm"><b>{t('خطة وجبة')}</b> <span className="text-slate-500">· {t('الأكل ← الكارب ← الجرعة')}</span></span>
+          </button>
           <div>
             <button onClick={() => setMore(!more)} aria-expanded={more} className="flex min-h-[44px] w-full items-center justify-between rounded-xl px-1 text-sm font-medium text-slate-600">
               <span>{t('أخرى: ملاحظة، رياضة، نوم، وزن')}</span><span aria-hidden>{more ? '▴' : '▾'}</span>
@@ -236,10 +248,22 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
                       </div>
                     </>
                   : <NumInput value={kind === 'insulin' ? units : kind === 'exercise' ? mins : kind === 'bg_check' ? bg : grams} onChange={kind === 'insulin' ? setUnits : kind === 'exercise' ? setMins : kind === 'bg_check' ? setBg : setGrams}
-                      className="!min-h-[56px] !text-center !text-3xl font-bold" autoFocus={kind !== 'insulin' && !(kind === 'treatment' && usualLow.length > 0)} />}
+                      className="!min-h-[56px] !text-center !text-3xl font-bold" autoFocus={(kind !== 'insulin' || !!link) && !(kind === 'treatment' && usualLow.length > 0)} />}
               </div>
               <Btn kind="primary" className={cx('min-h-[56px] shrink-0 !px-5', KIND_STYLE[kind].solid)} disabled={!valid || busy || (!!dup && !dupAck)} onClick={save}>{t('حفظ')}</Btn>
             </div>
+          )}
+          {/* the duplicate question sits right under Save (which waits for the answer) */}
+          {dup && !dupAck && (
+            <Alert tone="near">
+              <div className="space-y-2">
+                <div>{t('{who} سجّل {what} {when}. هل هذا نفس التسجيل؟', { who: nameOf(dup.created_by), what: describeEvent(dup), when: sinceText(dup.occurred_at) })}</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Btn kind="ghost" onClick={close}>{t('نعم، لا تسجّل')}</Btn>
+                  <Btn onClick={() => setDupAck(true)}>{t('لا، تسجيل جديد')}</Btn>
+                </div>
+              </div>
+            </Alert>
           )}
           {kind === 'bg_check' && (
             <div>
@@ -253,10 +277,27 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
               value={kind === 'insulin' ? units : kind === 'exercise' ? mins : grams} onChange={kind === 'insulin' ? setUnits : kind === 'exercise' ? setMins : setGrams} />
           )}
           {kind === 'insulin' && <>
-            <Seg on={KIND_STYLE[kind!].solid} value={type} onChange={(v) => { setType(v as 'rapid' | 'long'); setSite(null); }} options={[['rapid', t('سريع المفعول')], ['long', t('طويل المفعول')]]} />
+            {link && <p className="inline-flex rounded-full bg-sky-500/15 px-3 py-1 text-sm font-bold text-sky-500">🍽️ {t('لـ: {n} · {g} غ', { n: tMaybe(link.name), g: fmt(link.carbs) })}</p>}
+            {/* when first: a past time hides the live calculator, so it can never record "now" by mistake */}
+            <div>
+              <div className="mb-1 text-sm font-medium text-slate-600">{t('متى أُعطيت؟')}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {link && <button onClick={() => setAtAbs(link.at)} className={cx('min-h-[44px] rounded-xl px-3 text-sm font-bold', atAbs !== null ? 'bg-sky-500 text-white' : 'bg-white ring-1 ring-slate-200')}>{t('مع الأكل · {c}', { c: fmtTime(new Date(link.at)) })}</button>}
+                {AGO.map((m) => <button key={m} onClick={() => { setAtAbs(null); setAgo(m); }} className={cx('min-h-[44px] flex-1 rounded-xl px-2 text-sm font-bold', atAbs === null && ago === m ? 'bg-sky-500 text-white' : 'bg-white ring-1 ring-slate-200')}>{m === 0 ? t('الآن') : m === 60 ? t('قبل ساعة') : t('قبل {m} د', { m })}</button>)}
+              </div>
+            </div>
+            {then && <DoseThenLine then={then} at={pastAt!} units={units} />}
+          </>}
+          {kind === 'insulin' && <>
+            {type === 'long'
+              ? <Seg on={KIND_STYLE[kind!].solid} value={type} onChange={(v) => { setType(v as 'rapid' | 'long'); setSite(null); }} options={[['rapid', t('سريع المفعول')], ['long', t('طويل المفعول')]]} />
+              : !link && <button onClick={() => { setType('long'); setSite(null); }} className="min-h-[36px] text-[13px] font-medium text-slate-500 underline">{t('طويل المفعول (تريسيبا)؟')}</button>}
             {type === 'rapid' && <Seg on={KIND_STYLE[kind!].solid} value={purpose ?? ''} onChange={(v) => setPurpose((v || null) as typeof purpose)} options={[['meal', t('لوجبة')], ['correction', t('تصحيح')], ['both', t('الاثنين')]]} allowNone />}
-            {type === 'rapid' && ago === 0 && <DoseCalculator onUse={(u, p, c, now, nc) => { setUnits(u); setPurpose(p); setCalc(c); setNewCarbs(nc); if (now) setSaveSoon(true); }} />}
-            <SitePicker rot={rot} value={site} onChange={setSite} />
+            {type === 'rapid' && ago === 0 && atAbs === null && <DoseCalculator onUse={(u, p, c, now, nc) => { setUnits(u); setPurpose(p); setCalc(c); setNewCarbs(nc); if (now) setSaveSoon(true); }} />}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <SitePicker compact rot={rot} value={site} onChange={setSite} />
+              {!noteOpen && !note && <button onClick={() => setNoteOpen(true)} className="min-h-[36px] rounded-full bg-white px-3 text-[13px] font-semibold ring-1 ring-slate-200">+ {t('ملاحظة')}</button>}
+            </div>
             {units !== null && units > 20 && <Alert tone="near">{t('رقم كبير. تأكد أنه صحيح قبل الحفظ.')}</Alert>}
           </>}
           {kind === 'treatment' && <Seg on={KIND_STYLE[kind!].solid} value={treat} onChange={setTreat} options={[['عصير', t('عصير')], ['أقراص جلوكوز', t('أقراص')], ['أخرى', t('أخرى')]]} /* i18n-ok: stored values */ />}
@@ -270,22 +311,11 @@ export function LogSheet({ open, onClose, low = false, startKind = null }: { ope
           {kind === 'sleep' && draft && (valid
             ? <p className="text-sm text-slate-600">{describeEvent(draft)}</p>
             : <p className="text-sm font-medium text-brand">{t('أطول من 16 ساعة. تحقّق من الوقتين.')}</p>)}
-          {kind !== 'note' && <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('ملاحظة (اختياري)')} />}
-          {kind !== 'sleep' && <div>
+          {kind !== 'note' && (kind !== 'insulin' || noteOpen || !!note) && <input className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('ملاحظة (اختياري)')} autoFocus={kind === 'insulin'} />}
+          {kind !== 'sleep' && kind !== 'insulin' && <div>
             <div className="mb-1 text-sm font-medium text-slate-600">{kind === 'exercise' ? t('متى بدأت؟') : t('متى؟')}</div>
             <Seg on={KIND_STYLE[kind!].solid} value={String(ago)} onChange={(v) => setAgo(Number(v))} options={AGO.map((m) => [String(m), m === 0 ? t('الآن') : m === 60 ? t('قبل ساعة') : t('قبل {m} د', { m })])} />
           </div>}
-          {dup && !dupAck && (
-            <Alert tone="near">
-              <div className="space-y-2">
-                <div>{t('{who} سجّل {what} {when}. هل هذا نفس التسجيل؟', { who: nameOf(dup.created_by), what: describeEvent(dup), when: sinceText(dup.occurred_at) })}</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Btn kind="ghost" onClick={close}>{t('نعم، لا تسجّل')}</Btn>
-                  <Btn onClick={() => setDupAck(true)}>{t('لا، تسجيل جديد')}</Btn>
-                </div>
-              </div>
-            </Alert>
-          )}
           {kind === 'sleep'
             ? <div className="grid grid-cols-[1fr_2fr] gap-2"><Btn kind="ghost" onClick={reset}>{t('رجوع')}</Btn><Btn kind="primary" className="min-h-[52px]" disabled={!valid || busy} onClick={save}>{t('حفظ')}</Btn></div>
             : <button onClick={reset} className="min-h-[44px] text-sm font-medium text-slate-500">{t('رجوع')}</button>}

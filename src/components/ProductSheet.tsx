@@ -31,8 +31,10 @@ function Body({ p, onClose, start, onBack }: { p: Product; onClose: () => void; 
   const { reload, settings, me } = useData();
   const [mode, setMode] = useState<'choose' | 'log'>(start);
   const choices = amountChoices(p);
-  const [amount, setAmount] = useState<number | null>(null); // nothing preselected: a tap on Save never logs a guessed 100 g
+  // nothing preselected (a tap on Save never logs a guessed 100 g), except one piece of a food counted by the piece
+  const [amount, setAmount] = useState<number | null>(() => (p.per_item ? choices.find((c) => c.key === 'item' && c.amount === 100)?.amount ?? null : null));
   const [at, setAt] = useState(Date.now());
+  const [ago, setAgo] = useState<number | null>(0); // the time chips; null: «وقت آخر» (the full picker)
   const [picked, setKind] = useState<'meal' | 'low' | null>(null); // no snack-or-meal question: food is food
   // was she low in the 30 minutes before the time it is logged for? then a small item is most likely a low treatment
   const low = effectiveRange(settings.glucose_low_mgdl, settings.glucose_high_mgdl).low ?? 70;
@@ -47,11 +49,13 @@ function Body({ p, onClose, start, onBack }: { p: Product; onClose: () => void; 
   const u = p.unit === 'ml' ? t('مل') : t('غ');
   const x = amount && amount > 0 ? portion(p, amount) : null;
   const ok = !!x && amount! <= 3000 && p.approved;
-  const kind = picked ?? (wasLow && (!x || x.carbs <= 25) ? 'low' : 'meal');
+  // she was low then and it is a small item: asked (food or a low treatment?), never decided for them
+  const ask = picked === null && !!wasLow && (!x || x.carbs <= 25);
+  const kind = picked ?? 'meal';
   const label = (k: string, a: number) => (k === 'item' ? t('{n} حبة', { n: fmt(a / 100) }) : k === 'pack' ? t('العلبة ({a} {u})', { a: fmt(a), u }) : k === 'serving' ? t('حصة ({a} {u})', { a: fmt(a), u }) : `${fmt(a)} ${u}`);
 
-  const save = async () => {
-    if (!ok) return;
+  const save = async (withInsulin = false) => {
+    if (!ok || ask) return;
     setBusy(true);
     try {
       if (kind === 'low') {
@@ -63,8 +67,11 @@ function Body({ p, onClose, start, onBack }: { p: Product; onClose: () => void; 
         return;
       }
       const id = await logProduct(p, amount!, at, kind);
-      await reload(); onClose();
+      // with insulin the page is left for the insulin entry (no Back first: it could undo the move)
+      await reload(); if (!withInsulin) onClose();
       toast(t('تم التسجيل: {x}', { x: `${p.name} · ${t('{g} غ', { g: fmt(x!.carbs) })}` }), { label: t('تراجع'), run: async () => { await deleteHistory(id); await reload(); } });
+      // the dose for it next: the insulin entry opens at the same time, for this meal (Now reads ?log=insulin&meal=)
+      if (withInsulin) nav(`/?${new URLSearchParams({ log: 'insulin', at: String(at), meal: id, g: String(Math.round(x!.carbs * 10) / 10), n: p.name })}`);
     } catch (e) { toast((e as Error).message); } finally { setBusy(false); }
   };
 
@@ -110,16 +117,41 @@ function Body({ p, onClose, start, onBack }: { p: Product; onClose: () => void; 
               {x.protein !== null && <> · {t('بروتين')} <span className="num">{fmt(x.protein)}</span></>}
             </p>
           )}
-          <TimePicker value={at} onChange={setAt} />
-          <div className="space-y-1.5">
+          {/* when she ate: the usual answers as chips; «وقت آخر» opens the full clock */}
+          <div>
+            <div className="mb-1 text-xs font-medium text-slate-500">{t('متى أكلت؟')} <span className="num text-slate-700">· {fmtTime(new Date(at))}</span></div>
+            <div className="grid grid-cols-5 gap-1.5">
+              {[0, 15, 30, 60].map((m) => (
+                <button key={m} onClick={() => { setAgo(m); setAt(Date.now() - m * 60000); }} className={cx('min-h-[44px] rounded-xl text-[13px] font-bold', ago === m ? 'bg-sky-500 text-white' : 'bg-slate-50 text-slate-700')}>
+                  {m === 0 ? t('الآن') : m === 60 ? t('قبل ساعة') : t('قبل {m} د', { m })}
+                </button>
+              ))}
+              <button onClick={() => setAgo(null)} className={cx('min-h-[44px] rounded-xl text-[13px] font-bold', ago === null ? 'bg-sky-500 text-white' : 'bg-slate-50 text-slate-700')}>{t('وقت آخر')}</button>
+            </div>
+            {ago === null && <div className="mt-2"><TimePicker value={at} onChange={setAt} /></div>}
+          </div>
+          {/* low then: asked, both answers one tap; otherwise a small switch */}
+          {ask ? (
+            <div className="space-y-2 rounded-2xl bg-over-soft p-3">
+              <p className="text-sm font-bold text-over">{t('السكر كان {v} الساعة {t}. هذا علاج انخفاض؟', { v: formatGlucose(wasLow!.mg, settings.glucose_unit), t: fmtTime(new Date(wasLow!.at)) })}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => setKind('low')} className="min-h-[44px] rounded-xl bg-over text-sm font-bold text-white">{t('نعم، علاج انخفاض')}</button>
+                <button onClick={() => setKind('meal')} className="min-h-[44px] rounded-xl bg-white text-sm font-bold">{t('لا، أكل')}</button>
+              </div>
+            </div>
+          ) : (
             <button onClick={() => setKind(kind === 'low' ? 'meal' : 'low')} aria-pressed={kind === 'low'}
-              className={cx('min-h-[44px] w-full rounded-xl border-2 text-sm font-bold', kind === 'low' ? 'border-over bg-over text-white' : 'border-over/40 text-over')}>{t('لعلاج انخفاض')}</button>
-            {wasLow && <p className="text-xs text-slate-500">{t('السكر كان {v} الساعة {t}', { v: formatGlucose(wasLow.mg, settings.glucose_unit), t: fmtTime(new Date(wasLow.at)) })}</p>}
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Btn kind="ghost" onClick={onBack ?? (() => setMode('choose'))}>{t('رجوع')}</Btn>
-            <Btn kind="primary" disabled={busy || !ok} onClick={save}>{busy ? t('جارٍ الحفظ…') : t('سجّل')}</Btn>
-          </div>
+              className={cx('min-h-[40px] w-full rounded-xl text-sm font-bold', kind === 'low' ? 'bg-over text-white' : 'text-over')}>{kind === 'low' ? `✓ ${t('لعلاج انخفاض')}` : t('لعلاج انخفاض؟')}</button>
+          )}
+          {kind === 'low' ? (
+            <Btn kind="primary" block disabled={busy || !ok || ask} onClick={() => void save()}>{busy ? t('جارٍ الحفظ…') : t('سجّل علاج الانخفاض')}</Btn>
+          ) : (
+            <div className="space-y-2">
+              <button disabled={busy || !ok || ask} onClick={() => void save(true)} className="min-h-[54px] w-full rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-500 text-[16px] font-extrabold text-white shadow-lg shadow-violet-500/30 active:opacity-80 disabled:opacity-40">💉 {t('سجّل الأكل + إنسولين')}</button>
+              <Btn block kind="ghost" disabled={busy || !ok || ask} onClick={() => void save()}>{t('الأكل فقط')}</Btn>
+            </div>
+          )}
+          <button onClick={onBack ?? (() => setMode('choose'))} className="min-h-[40px] w-full text-sm text-slate-500">{t('رجوع')}</button>
         </>
       )}
     </div>

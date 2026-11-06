@@ -154,10 +154,7 @@ export default function AddFood() {
               </button>
             ))}
           </div>
-          <div className="mt-3 flex justify-center gap-4 text-sm font-bold text-brand">
-            <button className="min-h-[44px]" onClick={() => nav('/?log=carbs')}>🍚 {t('كارب فقط')}</button>
-            <button className="min-h-[44px]" onClick={() => nav('/scan')}>📷 {t('صورة + كارب')}</button>
-          </div>
+          {/* carbs only, a photo, recipes and a new product are under «المزيد» (no second row of the same) */}
         </>
       )}
     </Page>

@@ -10,9 +10,8 @@ import { blockTexts } from './DoseCalculator';
 import { adoptDose, approveDose, ate, logPastPlan, logPendingMeal, deletePlan, planMeal, savePlan, setDoseTime, skipPlan, topUpDose, treatFromPlan, usePlanHistory, usePlans, type DoseConflict } from '../lib/plans';
 import { useSubmitId } from '../lib/useSubmitId';
 import { insulinNear } from '../lib/api';
-import { fetchSeries } from '../engine/useSeries';
-import { doseAt as doseAtTime, type DoseAt } from '../engine/doseAt';
-import { dosesFrom } from '../engine/iob';
+import { useDoseThen } from '../lib/doseThen';
+import { DoseThenLine } from './DoseThenLine';
 import { SameDose } from './SameDose';
 import { useLiveDose } from '../lib/useLiveDose';
 import { useLateRise } from '../lib/lateRise';
@@ -468,7 +467,7 @@ function OpenBody({ plan, onClose, onEdit }: { plan: PlannedMeal; onClose: () =>
 
 /** «نسيت أسجّلها؟»: the dose she was given (units and time, as the parent says) and when she ate, then how much. */
 function PastLog({ plan, onDone }: { plan: PlannedMeal; onDone: () => void }) {
-  const { products, settings, me, reload, events } = useData();
+  const { products, settings, me, reload } = useData();
   const [open, setOpen] = useState(false);
   const planned = Math.min(Date.parse(plan.dose_at), Date.now());
   const day = dayOf(planned);
@@ -480,23 +479,10 @@ function PastLog({ plan, onDone }: { plan: PlannedMeal; onDone: () => void }) {
   const [cid] = useSubmitId();
   const step = settings.pen_step ?? 1;
   const doseAt = at(day, doseHm), eatTime = at(day, eatHm);
-  // what the doctor's settings said at that moment (her reading then, insulin still working then): shown next to
-  // what was given, never a verdict; the decision stays the parents'
+  // what the doctor's settings said at that moment (lib/doseThen): shown next to what was given, never a verdict
   const when = units === 0 ? eatTime : doseAt;
   const carbs = useMemo(() => planMeal(plan.items, products, settings).total.carbs, [plan.items, products, settings]);
-  const [then, setThen] = useState<DoseAt | null>(null);
-  useEffect(() => {
-    if (!open || !Number.isFinite(when) || when > Date.now() + MIN) { setThen(null); return; }
-    let on = true;
-    void fetchSeries(when - 40 * MIN, when + MIN).then((sr) => {
-      if (!on) return;
-      setThen(doseAtTime({ at: when, carbs, t: sr.t, v: sr.v, doses: dosesFrom(events), ratios: settings.ratios ?? [],
-        target: settings.target_mgdl !== null && settings.target_high_mgdl !== null ? { low: settings.target_mgdl, high: settings.target_high_mgdl } : null,
-        lowMg: settings.alert_low_mgdl ?? settings.glucose_low_mgdl, dia: settings.iob_dia_min, peak: settings.iob_peak_min, gapMin: settings.dose_gap_min ?? 120,
-        step: settings.pen_step ?? 1, sensorStartedAt: null }));
-    }).catch(() => on && setThen(null));
-    return () => { on = false; };
-  }, [open, when, carbs, events]); // eslint-disable-line react-hooks/exhaustive-deps
+  const then = useDoseThen(when, carbs, open);
   const save = async (part: number) => {
     if (!Number.isFinite(eatTime) || eatTime > Date.now() + MIN || ((units ?? 0) > 0 && (!Number.isFinite(doseAt) || doseAt > Date.now() + MIN))) return toast(t('الوقت لا يكون في المستقبل'));
     setBusy(true);
@@ -529,15 +515,7 @@ function PastLog({ plan, onDone }: { plan: PlannedMeal; onDone: () => void }) {
         <TimeField dir="ltr" className={cx(inputCls, '!min-h-[40px] !w-36')} value={doseHm} onChange={(e) => setDoseHm(e.target.value || doseHm)} aria-label={t('الإبرة الساعة')} /></label>}
       <label className="flex items-center justify-between gap-2 text-sm"><span className="text-slate-600">{t('أكلت الساعة')}</span>
         <TimeField dir="ltr" className={cx(inputCls, '!min-h-[40px] !w-36')} value={eatHm} onChange={(e) => setEatHm(e.target.value || eatHm)} aria-label={t('أكلت الساعة')} /></label>
-      {then && (
-        <div className="rounded-xl bg-slate-50 px-3 py-2 text-[13px] leading-snug">
-          {then.glucose === null ? <span className="text-slate-500">{t('ما في قراءة للحساس الساعة {c}', { c: clock(when) })}</span>
-            : <span>{t('السكر الساعة {c}', { c: clock(when) })}: <b className="num">{formatGlucose(then.glucose, settings.glucose_unit)}</b></span>}
-          {then.r.block ? <span className="block text-slate-500">{t('ما في حسبة وقتها')}: {blockTexts(settings.dose_gap_min ?? 120, then.r.until ?? undefined)[then.r.block]}</span>
-            : <span className="block">{t('إعدادات الطبيب وقتها')}: <b className="num text-kins">{t('{u} و', { u: fmt(then.r.dose) })}</b>
-              {units !== null && <b className={cx('ms-1', units === then.r.dose ? 'text-ok' : 'text-near')}> · {units === then.r.dose ? `✓ ${t('نفس اللي عطيتوها')}` : units < then.r.dose ? t('عطيتوها أقل بـ {n} و', { n: fmt(Math.round((then.r.dose - units) * 10) / 10) }) : t('عطيتوها أكثر بـ {n} و', { n: fmt(Math.round((units - then.r.dose) * 10) / 10) })}</b>}</span>}
-        </div>
-      )}
+      {then && <DoseThenLine then={then} at={when} units={units} />}
       <div className="text-sm font-medium text-slate-600">{t('كم أكلت؟')}</div>
       {units === null && <p className="text-[13px] font-bold text-near">{t('اختاروا كم نوفورابيد عطيتوها أول، أو «ما عطيناها إبرة»')}</p>}
       <div className="grid grid-cols-4 gap-1.5">
