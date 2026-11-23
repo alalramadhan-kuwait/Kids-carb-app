@@ -11,7 +11,7 @@ import { formatGlucose } from '../../lib/glucose';
 import { useGlucose } from '../../hooks/useGlucose';
 import { fetchGraphSeries } from '../../engine/useSeries';
 import { useBack } from './MomMeal';
-import { mergeSeries, type Series } from '../../engine/series';
+import { displaySeries, mergeSeries, type Series } from '../../engine/series';
 import { levelFromLibre, trendFrom } from '../../engine/trend';
 import { effectiveRange } from '../../lib/glucose';
 import { bigGraphScale, visibleMax, curvePoints, layanFace, moodOf, nextRapidAllowed, type LayanFace, type Mood } from '../../engine/mom';
@@ -376,7 +376,9 @@ export function BigGraph({ aspect, s, now, unit, low, high, band, alarmHigh, sho
   const x = (t: number) => PL + ((t - t0) / (span * H)) * (XR - PL);
   const y = (v: number) => PT + PH - ((Math.min(Math.max(v, bottom), top) - bottom) / (top - bottom)) * PH;
   // every real reading at its own time, a little past both edges so the line runs off the edge (clipped), never invented
-  const pts = curvePoints(s, t0 - 10 * 60000, end + 10 * 60000);
+  // the line drawn without sensor spikes (engine/series displaySeries); the newest reading and the numbers stay as read
+  const drawn = useMemo(() => displaySeries(s), [s]);
+  const pts = curvePoints(drawn, t0 - 10 * 60000, end + 10 * 60000);
   const newest = s.t.length ? { t: s.t[s.t.length - 1], v: s.v[s.v.length - 1] } : null;
   const d = smoothPath(pts.map((p) => ({ x: x(p.t), y: y(p.v), t: p.t, brk: p.brk })));
   const lastV = newest?.v ?? null, lastT = newest?.t ?? 0;

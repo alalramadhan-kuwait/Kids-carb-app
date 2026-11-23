@@ -221,3 +221,34 @@ export function yGrid(y0: number, y1: number, unit: 'mmol' | 'mgdl'): number[] {
   else for (let v = short ? 50 : 100; v <= 400; v += short ? 50 : 100) out.push(v);
   return out.filter((v) => v > y0 && v < y1);
 }
+
+/**
+ * The line as drawn on the graphs (never for alarms, numbers or reports, which keep every reading):
+ * 1. a single reading that jumps away faster than glucose can move (more than 1 mmol/L, and 0.25 mmol/L a minute) and
+ *    comes straight back is a sensor spike, and is left out;
+ * 2. each reading between two close neighbours is drawn as the middle of the three (a 3-point median): a lone wobble
+ *    flattens, a dip or rise that lasts a few minutes stays. The last reading is never moved (it is "now").
+ */
+export function displaySeries(s: Series): Series {
+  const n = s.t.length;
+  if (n < 3) return s;
+  const CLOSE = 5 * MIN, JUMP = 18, RATE = 4.5; // mg/dL, mg/dL per minute
+  const keep: number[] = [0];
+  for (let i = 1; i < n - 1; i++) {
+    const dA = s.t[i] - s.t[i - 1], dB = s.t[i + 1] - s.t[i];
+    if (dA <= CLOSE && dB <= CLOSE) {
+      const a = s.v[i] - s.v[i - 1], b = s.v[i] - s.v[i + 1], m = Math.min(Math.abs(a), Math.abs(b));
+      const lim = Math.max(JUMP, RATE * Math.max(dA, dB) / MIN);
+      if (a * b > 0 && m > lim && Math.abs(s.v[i + 1] - s.v[i - 1]) < m / 2) continue; // out and straight back: a spike
+    }
+    keep.push(i);
+  }
+  keep.push(n - 1);
+  const t = Float64Array.from(keep, (k) => s.t[k]), raw = Float64Array.from(keep, (k) => s.v[k]), v = Float64Array.from(raw);
+  for (let i = 1; i < t.length - 1; i++) {
+    if (t[i] - t[i - 1] > CLOSE || t[i + 1] - t[i] > CLOSE) continue;
+    const a = raw[i - 1], b = raw[i], c = raw[i + 1];
+    v[i] = Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
+  }
+  return { t, v };
+}

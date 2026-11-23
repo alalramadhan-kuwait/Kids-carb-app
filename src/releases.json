@@ -1,5 +1,17 @@
 [
   {
+    "version": "5.0.2",
+    "date": "2026-11-23",
+    "notes": [
+      "الغراف صار أنعم: القفزات المفاجئة من الحساس ما تنرسم",
+      "التنبيهات والأرقام باقية على القراءات الأصلية"
+    ],
+    "notes_en": [
+      "The graph is smoother: sudden sensor spikes are no longer drawn",
+      "Alarms and numbers still use the real readings"
+    ]
+  },
+  {
     "version": "5.0.1",
     "date": "2026-11-23",
     "notes": [

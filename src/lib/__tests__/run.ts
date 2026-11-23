@@ -4002,5 +4002,29 @@ console.log('P0: food sources, eaten part, injections untouched');
   });
 }
 
+// ---- the graph's line: sensor spikes out, a light 3-point median; real dips stay
+{
+  const S = await import('../../engine/series');
+  const M = 60000, T0 = Date.UTC(2026, 10, 22, 20, 40);
+  const mk = (mm: number[]) => ({ t: Float64Array.from(mm.map((_, i) => T0 + i * M)), v: Float64Array.from(mm.map((x) => Math.round(x * 18))) });
+  test('graph line: a one-minute jump that comes straight back is left out (22 Nov 11:49 pm, 6.3 → 9.1 → 6.9)', () => {
+    const d = S.displaySeries(mk([8.3, 7.2, 6.2, 6.3, 9.1, 6.9, 5.9, 5.3]));
+    assert.ok(Math.max(...Array.from(d.v).slice(1, -1)) < 8 * 18, 'no 9.1 in the middle');
+    assert.equal(d.t.length, 7);
+  });
+  test('graph line: a low that lasts minutes stays low; the last reading is never moved', () => {
+    const raw = [5.1, 4.9, 3.8, 3.2, 3.3, 4.2, 4.9, 4.9];
+    const d = S.displaySeries(mk(raw));
+    assert.ok(Math.min(...Array.from(d.v)) <= 3.3 * 18 + 1, 'the dip is still drawn');
+    assert.equal(d.v[d.v.length - 1], Math.round(4.9 * 18));
+    const e = S.displaySeries(mk([6, 6.2, 6.4, 9.9]));
+    assert.equal(e.v[e.v.length - 1], Math.round(9.9 * 18), 'a jump at the newest reading is shown as it is');
+  });
+  test('graph line: readings far apart are not touched', () => {
+    const s = { t: Float64Array.from([T0, T0 + 15 * M, T0 + 30 * M]), v: Float64Array.from([100, 200, 100]) };
+    assert.deepEqual(Array.from(S.displaySeries(s).v), [100, 200, 100]);
+  });
+}
+
 await Promise.all(pending);
 console.log(`\n${n} tests passed`);

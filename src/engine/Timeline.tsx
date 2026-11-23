@@ -6,6 +6,7 @@ import { formatGlucose, unitLabel, type GlucoseUnit } from '../lib/glucose';
 import {
   PERIODS, delta15, freshness, gapsIn, limitEnd, nearest, rateAt, runsFor, tickLabel, timeTicks, yDomain, yGrid, zoomAt,
   type Series, type View,
+  displaySeries,
 } from './series';
 import { cx } from '../components/ui';
 import { prickPoints } from './prick';
@@ -116,7 +117,7 @@ export function Timeline({ series, view, now, onView, range, unit, height: total
     const railY = PAD_T + plotH + TRK + 18;
     const groups = hasRail ? groupMarks(marks, layers!, start, end, width) : [];
     groupsRef.current = groups;
-    const runs = runsFor(series, start, end, width);
+    const runs = runsFor(displaySeries(series), start, end, width); // the line without sensor spikes; taps, measures and gaps use every reading
     let maxV: number | null = null, minV: number | null = null;
     for (const r of runs) for (const v of r.v) { if (maxV === null || v > maxV) maxV = v; if (minV === null || v < minV) minV = v; }
     // finger-pricks in view, drawn at their own value: the scale keeps them on the graph
