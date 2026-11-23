@@ -21,7 +21,6 @@ import { draftOps, useSensor } from '../../lib/mom';
 import { phase } from '../../engine/mealPlan';
 import { cx } from '../../components/ui';
 import { fmt } from '../../lib/carbs';
-import { SameMealLink, useRecentSame } from '../../components/SameMeal';
 import { dir, isEn, locale, t, tMaybe } from '../../i18n';
 import okPng from '../../assets/layan/layan-ok.png';
 import okWebp from '../../assets/layan/layan-ok.webp';
@@ -87,7 +86,6 @@ export function MomHome() {
   const nav = useNavigate();
   const [sp] = useSearchParams();
   const focusAt = Number(sp.get('at')) || null; // a tapped "Rawan added …" push
-  const same = useRecentSame();
   // the graph fills its box: its drawing height follows the box's shape (no empty bands on tall phones)
   const box = useRef<HTMLDivElement>(null);
   const [aspect, setAspect] = useState(0.8);
@@ -198,7 +196,7 @@ export function MomHome() {
         <div className="grid grid-cols-2 gap-1.5">
           {/* both pens always: a pen with nothing recent says so instead of disappearing */}
           {([['rapid', lastRapid], ['long', lastLong]] as const).map(([type, e]) => e ? (
-            <Link key={type} to={`/mom/entry/${e.id}`} className="flex min-h-[48px] items-center gap-2 rounded-2xl px-2 py-1 active:bg-slate-50">
+            <Link key={type} to={`/mom/entry/${e.id}`} className="flex min-h-[48px] items-center justify-center gap-2 rounded-2xl px-2 py-1 text-center active:bg-slate-50">
               <PenBar type={type} small />
               <span className="min-w-0 leading-tight">
                 <span className="block truncate text-[16px]">{t(PEN_NAME[type])} <b className="num">{e.insulin_units}</b> {t('وحدة')}</span>
@@ -206,7 +204,7 @@ export function MomHome() {
               </span>
             </Link>
           ) : (
-            <div key={type} className="flex min-h-[48px] items-center gap-2 px-2 py-1">
+            <div key={type} className="flex min-h-[48px] items-center justify-center gap-2 px-2 py-1 text-center">
               <PenBar type={type} small />
               <span className="min-w-0 leading-tight"><span className="block truncate text-[16px]">{t(PEN_NAME[type])}</span><span className="block text-[13px] text-slate-500">—</span></span>
             </div>
@@ -220,13 +218,10 @@ export function MomHome() {
         )}
       </div>
 
-      {same && <SameMealLink short to={`/mom/same/${same.target.id}`} target={same.target} matches={same.matches}
-        className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-2xl bg-brand-soft px-4 py-1.5 text-[16px] font-bold text-brand" />}
-
       {sensor && (sensorSoon || !sensor.site) && (
-        <Link to="/mom/sensor" className={cx('flex min-h-[44px] shrink-0 items-center gap-3 rounded-2xl px-4 py-1.5 text-[15px] font-bold', sensorSoon ? 'bg-over-soft text-over' : 'bg-white text-brand')}>
+        <Link to="/mom/sensor" className={cx('flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-2xl px-4 py-1.5 text-center text-[15px] font-bold', sensorSoon ? 'bg-over-soft text-over' : 'bg-white text-brand')}>
           <span className="text-xl">📡</span>
-          <span className="flex-1">{sensorSoon ? t('الحساس ينتهي {d} {c}', { d: dayWord(sensor.life.end, now), c: clock(sensor.life.end) }) : t('الحساس بأي ذراع؟')}</span><span>›</span>
+          <span>{sensorSoon ? t('الحساس ينتهي {d} {c}', { d: dayWord(sensor.life.end, now), c: clock(sensor.life.end) }) : t('الحساس بأي ذراع؟')}</span><span>›</span>
         </Link>
       )}
 
@@ -243,9 +238,9 @@ export function MomHome() {
       ); })}
 
       {juice && (
-        <Link to={`/mom/entry/${juice.id}`} className="flex min-h-[44px] shrink-0 items-center gap-3 rounded-2xl bg-near-soft px-4 py-1.5 text-near">
+        <Link to={`/mom/entry/${juice.id}`} className="flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-2xl bg-near-soft px-4 py-1.5 text-center text-near">
           <span className="text-xl">🧃</span>
-          <span className="flex-1 text-[15px] font-bold">{t('عصير {c}', { c: clock(Date.parse(juice.occurred_at)) })} · {juiceDue > now ? t('افحصيها بعد {m}', { m: left(juiceDue, now) }) : t('افحصيها الحين')}</span>
+          <span className="text-[15px] font-bold">{t('عصير {c}', { c: clock(Date.parse(juice.occurred_at)) })} · {juiceDue > now ? t('افحصيها بعد {m}', { m: left(juiceDue, now) }) : t('افحصيها الحين')}</span>
         </Link>
       )}
 
@@ -256,7 +251,7 @@ export function MomHome() {
           : open ? <Big className={big} onClick={() => nav(open.eating_at ? `/mom/ate/${open.id}` : `/mom/given/${open.id}`)}><Lbl icon="🍽️" text={open.eating_at ? t('شكثر أكلت؟') : t('بدأت تاكل؟')} /></Big>
           : due && <Big className={big} onClick={() => nav(`/mom/plan/${due.id}`)}><Lbl icon="💉" text={t('وقت {x}', { x: due.name })} wrap /></Big>}
       </div>}
-      {next && <Link to={`/mom/plan/${next.id}`} className="flex min-h-[44px] shrink-0 items-center rounded-2xl bg-white px-4 py-1.5 text-[15px]">📅 <bdi>{next.name}</bdi> · {dayWord(Date.parse(next.dose_at))} 💉 {clock(Date.parse(next.dose_at))} ›</Link>}
+      {next && <Link to={`/mom/plan/${next.id}`} className="flex min-h-[44px] shrink-0 items-center justify-center rounded-2xl bg-white px-4 py-1.5 text-center text-[15px]">📅 <bdi>{next.name}</bdi> · {dayWord(Date.parse(next.dose_at))} 💉 {clock(Date.parse(next.dose_at))} ›</Link>}
       {/* «شنو بتاكل ليان؟»: one way into food, the food first and «now or later» at the end; Medical (injection,
           finger-prick, juice) beside it */}
       <div className="mt-auto grid shrink-0 grid-cols-3 gap-2">
